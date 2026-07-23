@@ -89,6 +89,31 @@ func main() {
 		model.Role{},
 		model.Reaction{},
 		model.Job{},
+		lms_models.LMSSession{},
+		lms_models.Class{},
+		lms_models.StudentClass{},
+		lms_models.Branch{},
+		lms_models.Attendance{},
+		lms_models.AdditionalFee{},
+		lms_models.Banner{},
+		lms_models.BlogPost{},
+		lms_models.ClassMedium{},
+		lms_models.CourseLesson{},
+		lms_models.Course{},
+		lms_models.FeePackage{},
+		lms_models.FeeRefund{},
+		lms_models.Fileinfo{},
+		lms_models.Homework{},
+		lms_models.LeadActivity{},
+		lms_models.Lead{},
+		lms_models.Material{},
+		lms_models.Notification{},
+		lms_models.Payment{},
+		lms_models.PostCategory{},
+		lms_models.Submission{},
+		lms_models.Task{},
+		lms_models.Tuition{},
+		lms_models.WeeklyReview{},
 	}
 
 	var types []TypeInfo
@@ -99,14 +124,14 @@ func main() {
 
 		var fields []FieldInfo
 
-		for i := 0; i < t.NumField(); i++ {
-			f := t.Field(i)
+		for f := range t.Fields() {
+			f := f
 			jsonTag := f.Tag.Get("json")
 			if jsonTag == "" || jsonTag == "-" {
 				continue
 			}
 
-			jsonName := strings.Split(jsonTag, ",")[0]
+			jsonName, _, _ := strings.Cut(jsonTag, ",")
 
 			fields = append(fields, FieldInfo{
 				GoName:   f.Name,
