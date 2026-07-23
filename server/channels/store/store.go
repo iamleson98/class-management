@@ -134,9 +134,9 @@ type Store interface {
 	Task() TaskStore
 	Banner() BannerStore
 	Notification() NotificationStore
-		Material() MaterialStore
-		Dashboard() DashboardStore
-	}
+	Material() MaterialStore
+	Dashboard() DashboardStore
+}
 
 type RetentionPolicyStore interface {
 	Save(policy *model.RetentionPolicyWithTeamAndChannelIDs) (*model.RetentionPolicyWithTeamAndChannelCounts, error)

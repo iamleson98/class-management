@@ -49,7 +49,11 @@ MMCTL_TESTFLAGS ?= -timeout 30m
 MMCTL_PKG = github.com/mattermost/mattermost/server/v8/cmd/mmctl/commands
 MMCTL_BUILD_DATE = $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 MMCTL_GIT_COMMIT = $(shell git rev-parse HEAD)
+ifeq ($(OS),Windows_NT)
+MMCTL_GIT_TREE_STATE = clean
+else
 MMCTL_GIT_TREE_STATE = $(shell if [ -n "$$(git status --porcelain 2>/dev/null)" ]; then echo "dirty"; else echo "clean"; fi)
+endif
 MMCTL_COMMIT_DATE = $(shell TZ=UTC git log -1 --date=format-local:'%Y-%m-%dT%H:%M:%SZ' --format='%cd' 2>/dev/null || echo "dev")
 MMCTL_LDFLAGS += -X "$(MMCTL_PKG).buildDate=$(MMCTL_BUILD_DATE)"
 MMCTL_LDFLAGS += -X "$(MMCTL_PKG).gitCommit=$(MMCTL_GIT_COMMIT)"
@@ -97,12 +101,17 @@ endif
 
 # Webapp
 BUILD_WEBAPP_DIR ?= ../webapp
+BUILD_WEBAPP_DIR_WIN := $(subst /,\,$(BUILD_WEBAPP_DIR))
 
 # We need current user's UID for `run-haserver` so docker compose does not run server
 # as root and mess up file permissions for devs. When running like this HOME will be blank
 # and docker will add '/', so we need to set the go-build cache location or we'll get
 # permission errors on build as it tries to create a cache in filesystem root.
+ifeq ($(OS),Windows_NT)
+export CURRENT_UID = 1000:1000
+else
 export CURRENT_UID = $(shell id -u):$(shell id -g)
+endif
 ifeq ($(HOME),/)
 	export XDG_CACHE_HOME = /tmp/go-cache/
 endif
@@ -112,7 +121,7 @@ endif
 export GOFLAGS ?= -buildvcs=false
 # We need to export GOBIN to allow it to be set
 # for processes spawned from the Makefile
-export GOBIN ?= $(PWD)/bin
+export GOBIN ?= $(CURDIR)/bin
 GO ?= go
 
 ifeq ($(FIPS_ENABLED),true)
@@ -255,6 +264,11 @@ ifeq ($(MM_USE_PGVECTOR),true)
 	@echo Using pgvector PostgreSQL image
 endif
 
+ifeq ($(OS),Windows_NT)
+	@if not exist logs mkdir logs
+	docker compose rm start_dependencies
+	$(GO) run ./build/docker-compose-generator/main.go $(ENABLED_DOCKER_SERVICES) | docker compose -f docker-compose.makefile.yml -f - $(DOCKER_COMPOSE_OVERRIDE) run -T --rm start_dependencies
+else
 	mkdir -p logs
 	docker compose rm start_dependencies
 	$(GO) run ./build/docker-compose-generator/main.go $(ENABLED_DOCKER_SERVICES) | docker compose -f docker-compose.makefile.yml -f /dev/stdin $(DOCKER_COMPOSE_OVERRIDE) run -T --rm start_dependencies
@@ -263,6 +277,7 @@ endif
 	cat tests/custom-schema-cpa.ldif | docker compose -f docker-compose.makefile.yml ${DOCKER_COMPOSE_OVERRIDE} exec -T openldap bash -c 'ldapadd -Y EXTERNAL -H ldapi:/// -w mostest || true';
 	cat tests/${LDAP_DATA}-data.ldif | docker compose -f docker-compose.makefile.yml ${DOCKER_COMPOSE_OVERRIDE} exec -T openldap bash -c 'ldapadd -x -D "cn=admin,dc=mm,dc=test,dc=com" -w mostest || true';
   endif
+endif
 endif
 
 update-docker: setup-go-work stop-docker ## Updates the docker containers for local development.
@@ -314,10 +329,14 @@ prepackaged-plugins: ## Populate the prepackaged-plugins directory.
 	done
 
 prepackaged-binaries: ## Populate the prepackaged-binaries to the bin directory
-ifeq ($(shell test -f bin/mmctl && printf "yes"),yes)
+ifeq ($(OS),Windows_NT)
+	@if exist bin\mmctl (echo "MMCTL already exists in bin/mmctl, not compiling.") else (echo "Skipping MMCTL build on Windows for run-server.")
+else
+ifeq ($(wildcard bin/mmctl),bin/mmctl)
 	@echo "MMCTL already exists in bin/mmctl, not compiling."
 else
 	$(MAKE) mmctl-build
+endif
 endif
 
 golang-versions: ## Install Golang versions used for compatibility testing (e.g. plugins)
@@ -422,6 +441,9 @@ endif
 setup-go-work: export BUILD_ENTERPRISE_READY := $(BUILD_ENTERPRISE_READY)
 setup-go-work: ## Sets up your go.work file
 ifneq ($(SKIP_SETUP_GO_WORK),true)
+ifeq ($(OS),Windows_NT)
+	@powershell -NoProfile -Command "$$ErrorActionPreference='Stop'; if (Test-Path go.work) { Copy-Item go.work go.work.bak -Force }; Remove-Item go.work -ErrorAction SilentlyContinue; $(GO) work init; $(GO) work use .; $(GO) work use ./public; if ('$(BUILD_ENTERPRISE_READY)' -eq 'true') { $(GO) work use '$(BUILD_ENTERPRISE_DIR)' }; if (Test-Path go.work.bak) { Remove-Item go.work.bak -Force }; Write-Output 'Created go.work file'"
+else
 	@set -e; \
 	if [ -f go.work ]; then cp -p go.work go.work.bak; fi; \
 	rm -f go.work; \
@@ -437,6 +459,7 @@ ifneq ($(SKIP_SETUP_GO_WORK),true)
 		rm -f go.work.bak; \
 		echo "Created go.work file"; \
 	fi
+endif
 endif
 
 check-style: plugin-checker vet golangci-lint ## Runs style/lint checks
@@ -598,6 +621,10 @@ test-mmctl-coverage: check-prereqs-enterprise gotestsum start-docker
 	$(GOBIN)/gotestsum --packages="$(MMCTL_PACKAGES)" -- -tags 'unit e2e $(MMCTL_BUILD_TAGS)' -coverprofile=mmctlcover.out $(MMCTL_TESTFLAGS)
 	$(GO) tool cover -html=mmctlcover.out
 
+ifeq ($(OS),Windows_NT)
+validate-go-version: ## Validates the installed version of go against Mattermost's minimum requirement.
+	@echo Skipping Go version validation on Windows.
+else
 validate-go-version: ## Validates the installed version of go against Mattermost's minimum requirement.
 	@if [ $(GO_MAJOR_VERSION) -gt $(MINIMUM_SUPPORTED_GO_MAJOR_VERSION) ]; then \
 		exit 0 ;\
@@ -608,6 +635,7 @@ validate-go-version: ## Validates the installed version of go against Mattermost
 		echo '$(GO_VERSION_VALIDATION_ERR_MSG)';\
 		exit 1; \
 	fi
+endif
 
 build-templates: ## Compile all mjml email templates
 	cd $(TEMPLATES_DIR) && $(MAKE) build
@@ -618,8 +646,18 @@ ifeq ($(MM_USE_PGVECTOR),true)
 	@echo With pgvector PostgreSQL support enabled
 endif
 
+ifeq ($(OS),Windows_NT)
+	@if not exist $(BUILD_WEBAPP_DIR_WIN)\channels\dist\files mkdir $(BUILD_WEBAPP_DIR_WIN)\channels\dist\files
+	$(GO) build $(GOFLAGS) -tags "$(BUILD_TAGS)" -o "$(GOBIN)\mattermost-dev.exe" $(PLATFORM_FILES)
+ifeq ($(RUN_SERVER_IN_BACKGROUND),true)
+	@start /B "" "$(GOBIN)\mattermost-dev.exe"
+else
+	"$(GOBIN)\mattermost-dev.exe"
+endif
+else
 	mkdir -p $(BUILD_WEBAPP_DIR)/channels/dist/files
 	$(GO) run $(GOFLAGS) -ldflags '$(LDFLAGS)' -tags '$(BUILD_TAGS)' $(PLATFORM_FILES) $(RUN_IN_BACKGROUND)
+endif
 
 run-server-faketime: setup-go-work prepackaged-binaries validate-go-version start-docker client ## Starts the server with FAKETIME.
 ifndef FAKETIME
@@ -693,7 +731,13 @@ run-client: client ## Runs the webapp.
 
 client: ## Sets up a symlink to the compiled files generated by the web app
 	@echo Setting up symlink to client directory
+
+ifeq ($(OS),Windows_NT)
+	-if exist client rmdir /S /Q client
+	cmd /c mklink /J client "$(BUILD_WEBAPP_DIR_WIN)\channels\dist" > NUL
+else
 	ln -nfs $(BUILD_WEBAPP_DIR)/channels/dist client
+endif
 
 run-client-fullmap: client ## Legacy alias to run-client
 	@echo Running mattermost client for development
@@ -719,9 +763,10 @@ ifneq ($(BUILDER_GOOS_GOARCH),"windows_amd64")
 	@rm -f $(GOBIN)/mattermost-dev
 	@echo Server stopped and cleaned up.
 else
-	wmic process where "Caption='go.exe' and CommandLine like '%go.exe run%'" call terminate
-	wmic process where "Caption='mattermost.exe' and CommandLine like '%go-build%'" call terminate
-	wmic process where "Caption='mattermost-dev.exe'" call terminate
+	-taskkill /F /IM go.exe > NUL 2>&1
+	-taskkill /F /IM mattermost.exe > NUL 2>&1
+	-taskkill /F /IM mattermost-dev.exe > NUL 2>&1
+	@echo Server stopped and cleaned up.
 endif
 
 stop-client: ## Stops the webapp.

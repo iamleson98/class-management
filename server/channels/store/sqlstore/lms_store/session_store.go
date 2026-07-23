@@ -41,7 +41,7 @@ func (s *SqlLMSSessionStore) GetAll(opts modelhelper.SessionFilterOpts) ([]*lms_
 		mods = append(mods, lms_models.LMSSessionWhere.TeacherID.EQ(opts.TeacherID))
 	}
 	if opts.StudentID != "" {
-		mods = append(mods, qm.SQL(lms_models.LMSSessionColumns.ClassID+" IN (SELECT class_id FROM student_classes WHERE student_id = ?)", opts.StudentID))
+		mods = append(mods, qm.Where(lms_models.LMSSessionColumns.ClassID+" IN (SELECT class_id FROM student_classes WHERE student_id = ?)", opts.StudentID))
 	}
 	if opts.Date != "" {
 		date, err := time.Parse("2006-01-02", opts.Date)
@@ -51,7 +51,7 @@ func (s *SqlLMSSessionStore) GetAll(opts modelhelper.SessionFilterOpts) ([]*lms_
 		mods = append(mods, lms_models.LMSSessionWhere.Date.EQ(date))
 	}
 	if opts.Month != "" {
-		mods = append(mods, qm.SQL("to_char("+lms_models.LMSSessionColumns.Date+", 'YYYY-MM') = ?", opts.Month))
+		mods = append(mods, qm.Where("to_char("+lms_models.LMSSessionColumns.Date+", 'YYYY-MM') = ?", opts.Month))
 	}
 
 	mods = append(mods, qm.OrderBy(lms_models.LMSSessionColumns.Date+" ASC, "+lms_models.LMSSessionColumns.StartTime+" ASC"))
@@ -121,7 +121,7 @@ func (s *SqlLMSSessionStore) Count(opts modelhelper.SessionFilterOpts) (int64, e
 		mods = append(mods, lms_models.LMSSessionWhere.TeacherID.EQ(opts.TeacherID))
 	}
 	if opts.StudentID != "" {
-		mods = append(mods, qm.SQL(lms_models.LMSSessionColumns.ClassID+" IN (SELECT class_id FROM student_classes WHERE student_id = ?)", opts.StudentID))
+		mods = append(mods, qm.Where(lms_models.LMSSessionColumns.ClassID+" IN (SELECT class_id FROM student_classes WHERE student_id = ?)", opts.StudentID))
 	}
 	if opts.Date != "" {
 		date, err := time.Parse("2006-01-02", opts.Date)
@@ -131,7 +131,7 @@ func (s *SqlLMSSessionStore) Count(opts modelhelper.SessionFilterOpts) (int64, e
 		mods = append(mods, lms_models.LMSSessionWhere.Date.EQ(date))
 	}
 	if opts.Month != "" {
-		mods = append(mods, qm.SQL("to_char("+lms_models.LMSSessionColumns.Date+", 'YYYY-MM') = ?", opts.Month))
+		mods = append(mods, qm.Where("to_char("+lms_models.LMSSessionColumns.Date+", 'YYYY-MM') = ?", opts.Month))
 	}
 
 	count, err := lms_models.LMSSessions(mods...).Count(s.sqlStore.GetReplicaExecuter())

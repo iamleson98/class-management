@@ -3,273 +3,6 @@
 
 package utils
 
-type AddressColumn string
-
-const (
-	AddressID               AddressColumn = "id"
-	AddressCreateat         AddressColumn = "createat"
-	AddressUpdateat         AddressColumn = "updateat"
-	AddressFirstname        AddressColumn = "firstname"
-	AddressLastname         AddressColumn = "lastname"
-	AddressEmail            AddressColumn = "email"
-	AddressCompanyName      AddressColumn = "company_name"
-	AddressStreetAddress1   AddressColumn = "street_address_1"
-	AddressStreetAddress2   AddressColumn = "street_address_2"
-	AddressCityID           AddressColumn = "city_id"
-	AddressCountry          AddressColumn = "country"
-	AddressPostalCode       AddressColumn = "postal_code"
-	AddressPhone            AddressColumn = "phone"
-	AddressLocation         AddressColumn = "location"
-	AddressUserID           AddressColumn = "user_id"
-	AddressTransportBrandID AddressColumn = "transport_brand_id"
-)
-
-func (c AddressColumn) IsValid() bool {
-	switch c {
-	case AddressID:
-		return true
-	case AddressCreateat:
-		return true
-	case AddressUpdateat:
-		return true
-	case AddressFirstname:
-		return true
-	case AddressLastname:
-		return true
-	case AddressEmail:
-		return true
-	case AddressCompanyName:
-		return true
-	case AddressStreetAddress1:
-		return true
-	case AddressStreetAddress2:
-		return true
-	case AddressCityID:
-		return true
-	case AddressCountry:
-		return true
-	case AddressPostalCode:
-		return true
-	case AddressPhone:
-		return true
-	case AddressLocation:
-		return true
-	case AddressUserID:
-		return true
-	case AddressTransportBrandID:
-		return true
-	default:
-		return false
-	}
-}
-
-type TransportBrandColumn string
-
-const (
-	TransportBrandID            TransportBrandColumn = "id"
-	TransportBrandCreateat      TransportBrandColumn = "createat"
-	TransportBrandUpdateat      TransportBrandColumn = "updateat"
-	TransportBrandDeleteat      TransportBrandColumn = "deleteat"
-	TransportBrandName          TransportBrandColumn = "name"
-	TransportBrandDescription   TransportBrandColumn = "description"
-	TransportBrandEmail         TransportBrandColumn = "email"
-	TransportBrandPhone         TransportBrandColumn = "phone"
-	TransportBrandVehicleTypes  TransportBrandColumn = "vehicle_types"
-	TransportBrandRepresentorID TransportBrandColumn = "representor_id"
-	TransportBrandAddressID     TransportBrandColumn = "address_id"
-)
-
-func (c TransportBrandColumn) IsValid() bool {
-	switch c {
-	case TransportBrandID:
-		return true
-	case TransportBrandCreateat:
-		return true
-	case TransportBrandUpdateat:
-		return true
-	case TransportBrandDeleteat:
-		return true
-	case TransportBrandName:
-		return true
-	case TransportBrandDescription:
-		return true
-	case TransportBrandEmail:
-		return true
-	case TransportBrandPhone:
-		return true
-	case TransportBrandVehicleTypes:
-		return true
-	case TransportBrandRepresentorID:
-		return true
-	case TransportBrandAddressID:
-		return true
-	default:
-		return false
-	}
-}
-
-type VehicleColumn string
-
-const (
-	VehicleID                  VehicleColumn = "id"
-	VehicleCreateat            VehicleColumn = "createat"
-	VehicleUpdateat            VehicleColumn = "updateat"
-	VehicleDeleteat            VehicleColumn = "deleteat"
-	VehicleName                VehicleColumn = "name"
-	VehicleNote                VehicleColumn = "note"
-	VehicleMaker               VehicleColumn = "maker"
-	VehicleLicensePlate        VehicleColumn = "license_plate"
-	VehicleVerifiedAt          VehicleColumn = "verified_at"
-	VehicleType                VehicleColumn = "type"
-	VehiclePhone               VehicleColumn = "phone"
-	VehicleDriverID            VehicleColumn = "driver_id"
-	VehicleDriverSupporterID   VehicleColumn = "driver_supporter_id"
-	VehicleSupervisorID        VehicleColumn = "supervisor_id"
-	VehicleTotalSeatsAvailable VehicleColumn = "total_seats_available"
-)
-
-func (c VehicleColumn) IsValid() bool {
-	switch c {
-	case VehicleID:
-		return true
-	case VehicleCreateat:
-		return true
-	case VehicleUpdateat:
-		return true
-	case VehicleDeleteat:
-		return true
-	case VehicleName:
-		return true
-	case VehicleNote:
-		return true
-	case VehicleMaker:
-		return true
-	case VehicleLicensePlate:
-		return true
-	case VehicleVerifiedAt:
-		return true
-	case VehicleType:
-		return true
-	case VehiclePhone:
-		return true
-	case VehicleDriverID:
-		return true
-	case VehicleDriverSupporterID:
-		return true
-	case VehicleSupervisorID:
-		return true
-	case VehicleTotalSeatsAvailable:
-		return true
-	default:
-		return false
-	}
-}
-
-type SeatColumn string
-
-const (
-	SeatID        SeatColumn = "id"
-	SeatNumber    SeatColumn = "number"
-	SeatVehicleID SeatColumn = "vehicle_id"
-	SeatCreateat  SeatColumn = "createat"
-	SeatUpdateat  SeatColumn = "updateat"
-	SeatDeleteat  SeatColumn = "deleteat"
-	SeatPrice     SeatColumn = "price"
-)
-
-func (c SeatColumn) IsValid() bool {
-	switch c {
-	case SeatID:
-		return true
-	case SeatNumber:
-		return true
-	case SeatVehicleID:
-		return true
-	case SeatCreateat:
-		return true
-	case SeatUpdateat:
-		return true
-	case SeatDeleteat:
-		return true
-	case SeatPrice:
-		return true
-	default:
-		return false
-	}
-}
-
-type TripColumn string
-
-const (
-	TripID         TripColumn = "id"
-	TripRouteID    TripColumn = "route_id"
-	TripVehicleID  TripColumn = "vehicle_id"
-	TripStartAt    TripColumn = "start_at"
-	TripEndAt      TripColumn = "end_at"
-	TripStatus     TripColumn = "status"
-	TripFailReason TripColumn = "fail_reason"
-)
-
-func (c TripColumn) IsValid() bool {
-	switch c {
-	case TripID:
-		return true
-	case TripRouteID:
-		return true
-	case TripVehicleID:
-		return true
-	case TripStartAt:
-		return true
-	case TripEndAt:
-		return true
-	case TripStatus:
-		return true
-	case TripFailReason:
-		return true
-	default:
-		return false
-	}
-}
-
-type RouteColumn string
-
-const (
-	RouteID                RouteColumn = "id"
-	RouteCreateat          RouteColumn = "createat"
-	RouteUpdateat          RouteColumn = "updateat"
-	RouteDeleteat          RouteColumn = "deleteat"
-	RouteName              RouteColumn = "name"
-	RouteDescription       RouteColumn = "description"
-	RouteStartCityID       RouteColumn = "start_city_id"
-	RouteDestinationCityID RouteColumn = "destination_city_id"
-	RouteTransportBrandID  RouteColumn = "transport_brand_id"
-)
-
-func (c RouteColumn) IsValid() bool {
-	switch c {
-	case RouteID:
-		return true
-	case RouteCreateat:
-		return true
-	case RouteUpdateat:
-		return true
-	case RouteDeleteat:
-		return true
-	case RouteName:
-		return true
-	case RouteDescription:
-		return true
-	case RouteStartCityID:
-		return true
-	case RouteDestinationCityID:
-		return true
-	case RouteTransportBrandID:
-		return true
-	default:
-		return false
-	}
-}
-
 type UserColumn string
 
 const (
@@ -301,8 +34,8 @@ const (
 	UserRemoteid           UserColumn = "remoteid"
 	UserLastlogin          UserColumn = "lastlogin"
 	UserMfausedtimestamps  UserColumn = "mfausedtimestamps"
-	UserAddressID          UserColumn = "address_id"
 	UserPhone              UserColumn = "phone"
+	UserParentID           UserColumn = "parent_id"
 )
 
 func (c UserColumn) IsValid() bool {
@@ -363,111 +96,9 @@ func (c UserColumn) IsValid() bool {
 		return true
 	case UserMfausedtimestamps:
 		return true
-	case UserAddressID:
-		return true
 	case UserPhone:
 		return true
-	default:
-		return false
-	}
-}
-
-type ReservationColumn string
-
-const (
-	ReservationID                              ReservationColumn = "id"
-	ReservationUserID                          ReservationColumn = "user_id"
-	ReservationScheduleID                      ReservationColumn = "schedule_id"
-	ReservationPickupLocation                  ReservationColumn = "pickup_location"
-	ReservationDestinationLocation             ReservationColumn = "destination_location"
-	ReservationNumOfAdults                     ReservationColumn = "num_of_adults"
-	ReservationNumOfKids                       ReservationColumn = "num_of_kids"
-	ReservationCreateat                        ReservationColumn = "createat"
-	ReservationUpdateat                        ReservationColumn = "updateat"
-	ReservationDeleteat                        ReservationColumn = "deleteat"
-	ReservationCancelAt                        ReservationColumn = "cancel_at"
-	ReservationCancelReason                    ReservationColumn = "cancel_reason"
-	ReservationStatus                          ReservationColumn = "status"
-	ReservationReservationPlacementConfirmedAt ReservationColumn = "reservation_placement_confirmed_at"
-	ReservationReservationPlacementConfirmedBy ReservationColumn = "reservation_placement_confirmed_by"
-	ReservationUserSatisfactionScore           ReservationColumn = "user_satisfaction_score"
-	ReservationUserSatisfactionNote            ReservationColumn = "user_satisfaction_note"
-	ReservationParentReservationID             ReservationColumn = "parent_reservation_id"
-)
-
-func (c ReservationColumn) IsValid() bool {
-	switch c {
-	case ReservationID:
-		return true
-	case ReservationUserID:
-		return true
-	case ReservationScheduleID:
-		return true
-	case ReservationPickupLocation:
-		return true
-	case ReservationDestinationLocation:
-		return true
-	case ReservationNumOfAdults:
-		return true
-	case ReservationNumOfKids:
-		return true
-	case ReservationCreateat:
-		return true
-	case ReservationUpdateat:
-		return true
-	case ReservationDeleteat:
-		return true
-	case ReservationCancelAt:
-		return true
-	case ReservationCancelReason:
-		return true
-	case ReservationStatus:
-		return true
-	case ReservationReservationPlacementConfirmedAt:
-		return true
-	case ReservationReservationPlacementConfirmedBy:
-		return true
-	case ReservationUserSatisfactionScore:
-		return true
-	case ReservationUserSatisfactionNote:
-		return true
-	case ReservationParentReservationID:
-		return true
-	default:
-		return false
-	}
-}
-
-type ScheduleColumn string
-
-const (
-	ScheduleID        ScheduleColumn = "id"
-	ScheduleCreateat  ScheduleColumn = "createat"
-	ScheduleUpdateat  ScheduleColumn = "updateat"
-	ScheduleDeleteat  ScheduleColumn = "deleteat"
-	ScheduleName      ScheduleColumn = "name"
-	ScheduleStartTime ScheduleColumn = "start_time"
-	ScheduleRouteID   ScheduleColumn = "route_id"
-	ScheduleAddressID ScheduleColumn = "address_id"
-)
-
-func (c ScheduleColumn) IsValid() bool {
-	switch c {
-	case ScheduleID:
-		return true
-	case ScheduleCreateat:
-		return true
-	case ScheduleUpdateat:
-		return true
-	case ScheduleDeleteat:
-		return true
-	case ScheduleName:
-		return true
-	case ScheduleStartTime:
-		return true
-	case ScheduleRouteID:
-		return true
-	case ScheduleAddressID:
+	case UserParentID:
 		return true
 	default:
 		return false
@@ -873,6 +504,1086 @@ func (c JobColumn) IsValid() bool {
 	case JobProgress:
 		return true
 	case JobData:
+		return true
+	default:
+		return false
+	}
+}
+
+type LMSSessionColumn string
+
+const (
+	LMSSessionID        LMSSessionColumn = "id"
+	LMSSessionTitle     LMSSessionColumn = "title"
+	LMSSessionClassID   LMSSessionColumn = "class_id"
+	LMSSessionStartTime LMSSessionColumn = "start_time"
+	LMSSessionEndTime   LMSSessionColumn = "end_time"
+	LMSSessionRoom      LMSSessionColumn = "room"
+	LMSSessionTeacherID LMSSessionColumn = "teacher_id"
+	LMSSessionLessonID  LMSSessionColumn = "lesson_id"
+	LMSSessionStatus    LMSSessionColumn = "status"
+	LMSSessionDate      LMSSessionColumn = "date"
+	LMSSessionCreateat  LMSSessionColumn = "createat"
+	LMSSessionUpdateat  LMSSessionColumn = "updateat"
+)
+
+func (c LMSSessionColumn) IsValid() bool {
+	switch c {
+	case LMSSessionID:
+		return true
+	case LMSSessionTitle:
+		return true
+	case LMSSessionClassID:
+		return true
+	case LMSSessionStartTime:
+		return true
+	case LMSSessionEndTime:
+		return true
+	case LMSSessionRoom:
+		return true
+	case LMSSessionTeacherID:
+		return true
+	case LMSSessionLessonID:
+		return true
+	case LMSSessionStatus:
+		return true
+	case LMSSessionDate:
+		return true
+	case LMSSessionCreateat:
+		return true
+	case LMSSessionUpdateat:
+		return true
+	default:
+		return false
+	}
+}
+
+type ClassColumn string
+
+const (
+	ClassID        ClassColumn = "id"
+	ClassCourseID  ClassColumn = "course_id"
+	ClassBranchID  ClassColumn = "branch_id"
+	ClassName      ClassColumn = "name"
+	ClassCode      ClassColumn = "code"
+	ClassTeacherID ClassColumn = "teacher_id"
+	ClassStatus    ClassColumn = "status"
+	ClassRoom      ClassColumn = "room"
+	ClassStartDate ClassColumn = "start_date"
+	ClassCreateat  ClassColumn = "createat"
+	ClassUpdateat  ClassColumn = "updateat"
+)
+
+func (c ClassColumn) IsValid() bool {
+	switch c {
+	case ClassID:
+		return true
+	case ClassCourseID:
+		return true
+	case ClassBranchID:
+		return true
+	case ClassName:
+		return true
+	case ClassCode:
+		return true
+	case ClassTeacherID:
+		return true
+	case ClassStatus:
+		return true
+	case ClassRoom:
+		return true
+	case ClassStartDate:
+		return true
+	case ClassCreateat:
+		return true
+	case ClassUpdateat:
+		return true
+	default:
+		return false
+	}
+}
+
+type StudentClassColumn string
+
+const (
+	StudentClassID           StudentClassColumn = "id"
+	StudentClassStudentID    StudentClassColumn = "student_id"
+	StudentClassClassID      StudentClassColumn = "class_id"
+	StudentClassEnrollmentAt StudentClassColumn = "enrollment_at"
+	StudentClassStatus       StudentClassColumn = "status"
+	StudentClassCreateat     StudentClassColumn = "createat"
+	StudentClassUpdateat     StudentClassColumn = "updateat"
+)
+
+func (c StudentClassColumn) IsValid() bool {
+	switch c {
+	case StudentClassID:
+		return true
+	case StudentClassStudentID:
+		return true
+	case StudentClassClassID:
+		return true
+	case StudentClassEnrollmentAt:
+		return true
+	case StudentClassStatus:
+		return true
+	case StudentClassCreateat:
+		return true
+	case StudentClassUpdateat:
+		return true
+	default:
+		return false
+	}
+}
+
+type BranchColumn string
+
+const (
+	BranchID       BranchColumn = "id"
+	BranchName     BranchColumn = "name"
+	BranchAddress  BranchColumn = "address"
+	BranchPhone    BranchColumn = "phone"
+	BranchCreateat BranchColumn = "createat"
+	BranchUpdateat BranchColumn = "updateat"
+)
+
+func (c BranchColumn) IsValid() bool {
+	switch c {
+	case BranchID:
+		return true
+	case BranchName:
+		return true
+	case BranchAddress:
+		return true
+	case BranchPhone:
+		return true
+	case BranchCreateat:
+		return true
+	case BranchUpdateat:
+		return true
+	default:
+		return false
+	}
+}
+
+type AttendanceColumn string
+
+const (
+	AttendanceID        AttendanceColumn = "id"
+	AttendanceSessionID AttendanceColumn = "session_id"
+	AttendanceStudentID AttendanceColumn = "student_id"
+	AttendanceStatus    AttendanceColumn = "status"
+	AttendanceNote      AttendanceColumn = "note"
+	AttendanceLocked    AttendanceColumn = "locked"
+	AttendanceCreateat  AttendanceColumn = "createat"
+	AttendanceUpdateat  AttendanceColumn = "updateat"
+)
+
+func (c AttendanceColumn) IsValid() bool {
+	switch c {
+	case AttendanceID:
+		return true
+	case AttendanceSessionID:
+		return true
+	case AttendanceStudentID:
+		return true
+	case AttendanceStatus:
+		return true
+	case AttendanceNote:
+		return true
+	case AttendanceLocked:
+		return true
+	case AttendanceCreateat:
+		return true
+	case AttendanceUpdateat:
+		return true
+	default:
+		return false
+	}
+}
+
+type AdditionalFeeColumn string
+
+const (
+	AdditionalFeeID        AdditionalFeeColumn = "id"
+	AdditionalFeeTuitionID AdditionalFeeColumn = "tuition_id"
+	AdditionalFeeLabel     AdditionalFeeColumn = "label"
+	AdditionalFeeAmount    AdditionalFeeColumn = "amount"
+	AdditionalFeeCreateat  AdditionalFeeColumn = "createat"
+	AdditionalFeeUpdateat  AdditionalFeeColumn = "updateat"
+)
+
+func (c AdditionalFeeColumn) IsValid() bool {
+	switch c {
+	case AdditionalFeeID:
+		return true
+	case AdditionalFeeTuitionID:
+		return true
+	case AdditionalFeeLabel:
+		return true
+	case AdditionalFeeAmount:
+		return true
+	case AdditionalFeeCreateat:
+		return true
+	case AdditionalFeeUpdateat:
+		return true
+	default:
+		return false
+	}
+}
+
+type BannerColumn string
+
+const (
+	BannerID       BannerColumn = "id"
+	BannerTitle    BannerColumn = "title"
+	BannerImageURL BannerColumn = "image_url"
+	BannerLinkURL  BannerColumn = "link_url"
+	BannerPosition BannerColumn = "position"
+	BannerIsActive BannerColumn = "is_active"
+	BannerCreateat BannerColumn = "createat"
+	BannerUpdateat BannerColumn = "updateat"
+)
+
+func (c BannerColumn) IsValid() bool {
+	switch c {
+	case BannerID:
+		return true
+	case BannerTitle:
+		return true
+	case BannerImageURL:
+		return true
+	case BannerLinkURL:
+		return true
+	case BannerPosition:
+		return true
+	case BannerIsActive:
+		return true
+	case BannerCreateat:
+		return true
+	case BannerUpdateat:
+		return true
+	default:
+		return false
+	}
+}
+
+type BlogPostColumn string
+
+const (
+	BlogPostID             BlogPostColumn = "id"
+	BlogPostTitle          BlogPostColumn = "title"
+	BlogPostSlug           BlogPostColumn = "slug"
+	BlogPostContent        BlogPostColumn = "content"
+	BlogPostExcerpt        BlogPostColumn = "excerpt"
+	BlogPostCategoryID     BlogPostColumn = "category_id"
+	BlogPostAuthorID       BlogPostColumn = "author_id"
+	BlogPostStatus         BlogPostColumn = "status"
+	BlogPostSeoTitle       BlogPostColumn = "seo_title"
+	BlogPostSeoDescription BlogPostColumn = "seo_description"
+	BlogPostSeoKeywords    BlogPostColumn = "seo_keywords"
+	BlogPostPublishedAt    BlogPostColumn = "published_at"
+	BlogPostCreateat       BlogPostColumn = "createat"
+	BlogPostUpdateat       BlogPostColumn = "updateat"
+)
+
+func (c BlogPostColumn) IsValid() bool {
+	switch c {
+	case BlogPostID:
+		return true
+	case BlogPostTitle:
+		return true
+	case BlogPostSlug:
+		return true
+	case BlogPostContent:
+		return true
+	case BlogPostExcerpt:
+		return true
+	case BlogPostCategoryID:
+		return true
+	case BlogPostAuthorID:
+		return true
+	case BlogPostStatus:
+		return true
+	case BlogPostSeoTitle:
+		return true
+	case BlogPostSeoDescription:
+		return true
+	case BlogPostSeoKeywords:
+		return true
+	case BlogPostPublishedAt:
+		return true
+	case BlogPostCreateat:
+		return true
+	case BlogPostUpdateat:
+		return true
+	default:
+		return false
+	}
+}
+
+type ClassMediumColumn string
+
+const (
+	ClassMediumID           ClassMediumColumn = "id"
+	ClassMediumClassID      ClassMediumColumn = "class_id"
+	ClassMediumSessionID    ClassMediumColumn = "session_id"
+	ClassMediumTitle        ClassMediumColumn = "title"
+	ClassMediumFileURL      ClassMediumColumn = "file_url"
+	ClassMediumFileType     ClassMediumColumn = "file_type"
+	ClassMediumUploadedByID ClassMediumColumn = "uploaded_by_id"
+	ClassMediumFileID       ClassMediumColumn = "file_id"
+	ClassMediumCreateat     ClassMediumColumn = "createat"
+	ClassMediumUpdateat     ClassMediumColumn = "updateat"
+)
+
+func (c ClassMediumColumn) IsValid() bool {
+	switch c {
+	case ClassMediumID:
+		return true
+	case ClassMediumClassID:
+		return true
+	case ClassMediumSessionID:
+		return true
+	case ClassMediumTitle:
+		return true
+	case ClassMediumFileURL:
+		return true
+	case ClassMediumFileType:
+		return true
+	case ClassMediumUploadedByID:
+		return true
+	case ClassMediumFileID:
+		return true
+	case ClassMediumCreateat:
+		return true
+	case ClassMediumUpdateat:
+		return true
+	default:
+		return false
+	}
+}
+
+type CourseLessonColumn string
+
+const (
+	CourseLessonID            CourseLessonColumn = "id"
+	CourseLessonCourseID      CourseLessonColumn = "course_id"
+	CourseLessonSessionNumber CourseLessonColumn = "session_number"
+	CourseLessonTitle         CourseLessonColumn = "title"
+	CourseLessonUnit          CourseLessonColumn = "unit"
+	CourseLessonPages         CourseLessonColumn = "pages"
+	CourseLessonObjectives    CourseLessonColumn = "objectives"
+	CourseLessonCreateat      CourseLessonColumn = "createat"
+	CourseLessonUpdateat      CourseLessonColumn = "updateat"
+)
+
+func (c CourseLessonColumn) IsValid() bool {
+	switch c {
+	case CourseLessonID:
+		return true
+	case CourseLessonCourseID:
+		return true
+	case CourseLessonSessionNumber:
+		return true
+	case CourseLessonTitle:
+		return true
+	case CourseLessonUnit:
+		return true
+	case CourseLessonPages:
+		return true
+	case CourseLessonObjectives:
+		return true
+	case CourseLessonCreateat:
+		return true
+	case CourseLessonUpdateat:
+		return true
+	default:
+		return false
+	}
+}
+
+type CourseColumn string
+
+const (
+	CourseID                 CourseColumn = "id"
+	CourseName               CourseColumn = "name"
+	CourseCode               CourseColumn = "code"
+	CourseLevel              CourseColumn = "level"
+	CourseAgeRange           CourseColumn = "age_range"
+	CourseTotalSessions      CourseColumn = "total_sessions"
+	CourseDurationPerSession CourseColumn = "duration_per_session"
+	CourseFee                CourseColumn = "fee"
+	CourseDescription        CourseColumn = "description"
+	CourseCurriculum         CourseColumn = "curriculum"
+	CourseCreateat           CourseColumn = "createat"
+	CourseUpdateat           CourseColumn = "updateat"
+)
+
+func (c CourseColumn) IsValid() bool {
+	switch c {
+	case CourseID:
+		return true
+	case CourseName:
+		return true
+	case CourseCode:
+		return true
+	case CourseLevel:
+		return true
+	case CourseAgeRange:
+		return true
+	case CourseTotalSessions:
+		return true
+	case CourseDurationPerSession:
+		return true
+	case CourseFee:
+		return true
+	case CourseDescription:
+		return true
+	case CourseCurriculum:
+		return true
+	case CourseCreateat:
+		return true
+	case CourseUpdateat:
+		return true
+	default:
+		return false
+	}
+}
+
+type FeePackageColumn string
+
+const (
+	FeePackageID               FeePackageColumn = "id"
+	FeePackageName             FeePackageColumn = "name"
+	FeePackageTotalFee         FeePackageColumn = "total_fee"
+	FeePackageCourseID         FeePackageColumn = "course_id"
+	FeePackageSessionsIncluded FeePackageColumn = "sessions_included"
+	FeePackageDiscountPercent  FeePackageColumn = "discount_percent"
+	FeePackageIsActive         FeePackageColumn = "is_active"
+	FeePackageCreateat         FeePackageColumn = "createat"
+	FeePackageUpdateat         FeePackageColumn = "updateat"
+)
+
+func (c FeePackageColumn) IsValid() bool {
+	switch c {
+	case FeePackageID:
+		return true
+	case FeePackageName:
+		return true
+	case FeePackageTotalFee:
+		return true
+	case FeePackageCourseID:
+		return true
+	case FeePackageSessionsIncluded:
+		return true
+	case FeePackageDiscountPercent:
+		return true
+	case FeePackageIsActive:
+		return true
+	case FeePackageCreateat:
+		return true
+	case FeePackageUpdateat:
+		return true
+	default:
+		return false
+	}
+}
+
+type FeeRefundColumn string
+
+const (
+	FeeRefundID           FeeRefundColumn = "id"
+	FeeRefundTuitionID    FeeRefundColumn = "tuition_id"
+	FeeRefundAmount       FeeRefundColumn = "amount"
+	FeeRefundRefundDate   FeeRefundColumn = "refund_date"
+	FeeRefundReason       FeeRefundColumn = "reason"
+	FeeRefundStatus       FeeRefundColumn = "status"
+	FeeRefundApprovedByID FeeRefundColumn = "approved_by_id"
+	FeeRefundCreateat     FeeRefundColumn = "createat"
+	FeeRefundUpdateat     FeeRefundColumn = "updateat"
+)
+
+func (c FeeRefundColumn) IsValid() bool {
+	switch c {
+	case FeeRefundID:
+		return true
+	case FeeRefundTuitionID:
+		return true
+	case FeeRefundAmount:
+		return true
+	case FeeRefundRefundDate:
+		return true
+	case FeeRefundReason:
+		return true
+	case FeeRefundStatus:
+		return true
+	case FeeRefundApprovedByID:
+		return true
+	case FeeRefundCreateat:
+		return true
+	case FeeRefundUpdateat:
+		return true
+	default:
+		return false
+	}
+}
+
+type FileinfoColumn string
+
+const (
+	FileinfoID              FileinfoColumn = "id"
+	FileinfoCreatorid       FileinfoColumn = "creatorid"
+	FileinfoPostid          FileinfoColumn = "postid"
+	FileinfoCreateat        FileinfoColumn = "createat"
+	FileinfoUpdateat        FileinfoColumn = "updateat"
+	FileinfoDeleteat        FileinfoColumn = "deleteat"
+	FileinfoPath            FileinfoColumn = "path"
+	FileinfoThumbnailpath   FileinfoColumn = "thumbnailpath"
+	FileinfoPreviewpath     FileinfoColumn = "previewpath"
+	FileinfoName            FileinfoColumn = "name"
+	FileinfoExtension       FileinfoColumn = "extension"
+	FileinfoSize            FileinfoColumn = "size"
+	FileinfoMimetype        FileinfoColumn = "mimetype"
+	FileinfoWidth           FileinfoColumn = "width"
+	FileinfoHeight          FileinfoColumn = "height"
+	FileinfoHaspreviewimage FileinfoColumn = "haspreviewimage"
+	FileinfoMinipreview     FileinfoColumn = "minipreview"
+	FileinfoContent         FileinfoColumn = "content"
+	FileinfoRemoteid        FileinfoColumn = "remoteid"
+	FileinfoArchived        FileinfoColumn = "archived"
+	FileinfoChannelid       FileinfoColumn = "channelid"
+	FileinfoCourseID        FileinfoColumn = "course_id"
+	FileinfoVersion         FileinfoColumn = "version"
+	FileinfoVisibility      FileinfoColumn = "visibility"
+)
+
+func (c FileinfoColumn) IsValid() bool {
+	switch c {
+	case FileinfoID:
+		return true
+	case FileinfoCreatorid:
+		return true
+	case FileinfoPostid:
+		return true
+	case FileinfoCreateat:
+		return true
+	case FileinfoUpdateat:
+		return true
+	case FileinfoDeleteat:
+		return true
+	case FileinfoPath:
+		return true
+	case FileinfoThumbnailpath:
+		return true
+	case FileinfoPreviewpath:
+		return true
+	case FileinfoName:
+		return true
+	case FileinfoExtension:
+		return true
+	case FileinfoSize:
+		return true
+	case FileinfoMimetype:
+		return true
+	case FileinfoWidth:
+		return true
+	case FileinfoHeight:
+		return true
+	case FileinfoHaspreviewimage:
+		return true
+	case FileinfoMinipreview:
+		return true
+	case FileinfoContent:
+		return true
+	case FileinfoRemoteid:
+		return true
+	case FileinfoArchived:
+		return true
+	case FileinfoChannelid:
+		return true
+	case FileinfoCourseID:
+		return true
+	case FileinfoVersion:
+		return true
+	case FileinfoVisibility:
+		return true
+	default:
+		return false
+	}
+}
+
+type HomeworkColumn string
+
+const (
+	HomeworkID          HomeworkColumn = "id"
+	HomeworkTitle       HomeworkColumn = "title"
+	HomeworkDescription HomeworkColumn = "description"
+	HomeworkSessionID   HomeworkColumn = "session_id"
+	HomeworkClassID     HomeworkColumn = "class_id"
+	HomeworkCourseID    HomeworkColumn = "course_id"
+	HomeworkTeacherID   HomeworkColumn = "teacher_id"
+	HomeworkDeadline    HomeworkColumn = "deadline"
+	HomeworkCreateat    HomeworkColumn = "createat"
+	HomeworkFileID      HomeworkColumn = "file_id"
+	HomeworkUpdateat    HomeworkColumn = "updateat"
+)
+
+func (c HomeworkColumn) IsValid() bool {
+	switch c {
+	case HomeworkID:
+		return true
+	case HomeworkTitle:
+		return true
+	case HomeworkDescription:
+		return true
+	case HomeworkSessionID:
+		return true
+	case HomeworkClassID:
+		return true
+	case HomeworkCourseID:
+		return true
+	case HomeworkTeacherID:
+		return true
+	case HomeworkDeadline:
+		return true
+	case HomeworkCreateat:
+		return true
+	case HomeworkFileID:
+		return true
+	case HomeworkUpdateat:
+		return true
+	default:
+		return false
+	}
+}
+
+type LeadActivityColumn string
+
+const (
+	LeadActivityID           LeadActivityColumn = "id"
+	LeadActivityLeadID       LeadActivityColumn = "lead_id"
+	LeadActivityType         LeadActivityColumn = "type"
+	LeadActivityContent      LeadActivityColumn = "content"
+	LeadActivityNextFollowUp LeadActivityColumn = "next_follow_up"
+	LeadActivityCreateat     LeadActivityColumn = "createat"
+	LeadActivityUpdateat     LeadActivityColumn = "updateat"
+)
+
+func (c LeadActivityColumn) IsValid() bool {
+	switch c {
+	case LeadActivityID:
+		return true
+	case LeadActivityLeadID:
+		return true
+	case LeadActivityType:
+		return true
+	case LeadActivityContent:
+		return true
+	case LeadActivityNextFollowUp:
+		return true
+	case LeadActivityCreateat:
+		return true
+	case LeadActivityUpdateat:
+		return true
+	default:
+		return false
+	}
+}
+
+type LeadColumn string
+
+const (
+	LeadID          LeadColumn = "id"
+	LeadName        LeadColumn = "name"
+	LeadEmail       LeadColumn = "email"
+	LeadPhone       LeadColumn = "phone"
+	LeadAge         LeadColumn = "age"
+	LeadSchool      LeadColumn = "school"
+	LeadSource      LeadColumn = "source"
+	LeadNeed        LeadColumn = "need"
+	LeadStatus      LeadColumn = "status"
+	LeadStudentID   LeadColumn = "student_id"
+	LeadNotes       LeadColumn = "notes"
+	LeadTestDate    LeadColumn = "test_date"
+	LeadTestResult  LeadColumn = "test_result"
+	LeadTestScore   LeadColumn = "test_score"
+	LeadCounselorID LeadColumn = "counselor_id"
+	LeadCreateat    LeadColumn = "createat"
+	LeadUpdateat    LeadColumn = "updateat"
+)
+
+func (c LeadColumn) IsValid() bool {
+	switch c {
+	case LeadID:
+		return true
+	case LeadName:
+		return true
+	case LeadEmail:
+		return true
+	case LeadPhone:
+		return true
+	case LeadAge:
+		return true
+	case LeadSchool:
+		return true
+	case LeadSource:
+		return true
+	case LeadNeed:
+		return true
+	case LeadStatus:
+		return true
+	case LeadStudentID:
+		return true
+	case LeadNotes:
+		return true
+	case LeadTestDate:
+		return true
+	case LeadTestResult:
+		return true
+	case LeadTestScore:
+		return true
+	case LeadCounselorID:
+		return true
+	case LeadCreateat:
+		return true
+	case LeadUpdateat:
+		return true
+	default:
+		return false
+	}
+}
+
+type MaterialColumn string
+
+const (
+	MaterialID           MaterialColumn = "id"
+	MaterialTitle        MaterialColumn = "title"
+	MaterialDescription  MaterialColumn = "description"
+	MaterialCourseID     MaterialColumn = "course_id"
+	MaterialUnit         MaterialColumn = "unit"
+	MaterialVisibility   MaterialColumn = "visibility"
+	MaterialFileID       MaterialColumn = "file_id"
+	MaterialUploadedByID MaterialColumn = "uploaded_by_id"
+	MaterialVersion      MaterialColumn = "version"
+	MaterialCreateat     MaterialColumn = "createat"
+	MaterialUpdateat     MaterialColumn = "updateat"
+)
+
+func (c MaterialColumn) IsValid() bool {
+	switch c {
+	case MaterialID:
+		return true
+	case MaterialTitle:
+		return true
+	case MaterialDescription:
+		return true
+	case MaterialCourseID:
+		return true
+	case MaterialUnit:
+		return true
+	case MaterialVisibility:
+		return true
+	case MaterialFileID:
+		return true
+	case MaterialUploadedByID:
+		return true
+	case MaterialVersion:
+		return true
+	case MaterialCreateat:
+		return true
+	case MaterialUpdateat:
+		return true
+	default:
+		return false
+	}
+}
+
+type NotificationColumn string
+
+const (
+	NotificationID       NotificationColumn = "id"
+	NotificationUserID   NotificationColumn = "user_id"
+	NotificationTitle    NotificationColumn = "title"
+	NotificationMessage  NotificationColumn = "message"
+	NotificationType     NotificationColumn = "type"
+	NotificationIsRead   NotificationColumn = "is_read"
+	NotificationLinkURL  NotificationColumn = "link_url"
+	NotificationCreateat NotificationColumn = "createat"
+	NotificationUpdateat NotificationColumn = "updateat"
+)
+
+func (c NotificationColumn) IsValid() bool {
+	switch c {
+	case NotificationID:
+		return true
+	case NotificationUserID:
+		return true
+	case NotificationTitle:
+		return true
+	case NotificationMessage:
+		return true
+	case NotificationType:
+		return true
+	case NotificationIsRead:
+		return true
+	case NotificationLinkURL:
+		return true
+	case NotificationCreateat:
+		return true
+	case NotificationUpdateat:
+		return true
+	default:
+		return false
+	}
+}
+
+type PaymentColumn string
+
+const (
+	PaymentID            PaymentColumn = "id"
+	PaymentTuitionID     PaymentColumn = "tuition_id"
+	PaymentAmount        PaymentColumn = "amount"
+	PaymentPaymentDate   PaymentColumn = "payment_date"
+	PaymentMethod        PaymentColumn = "method"
+	PaymentReceiptNumber PaymentColumn = "receipt_number"
+	PaymentPaidByID      PaymentColumn = "paid_by_id"
+	PaymentNote          PaymentColumn = "note"
+	PaymentCreateat      PaymentColumn = "createat"
+	PaymentUpdateat      PaymentColumn = "updateat"
+)
+
+func (c PaymentColumn) IsValid() bool {
+	switch c {
+	case PaymentID:
+		return true
+	case PaymentTuitionID:
+		return true
+	case PaymentAmount:
+		return true
+	case PaymentPaymentDate:
+		return true
+	case PaymentMethod:
+		return true
+	case PaymentReceiptNumber:
+		return true
+	case PaymentPaidByID:
+		return true
+	case PaymentNote:
+		return true
+	case PaymentCreateat:
+		return true
+	case PaymentUpdateat:
+		return true
+	default:
+		return false
+	}
+}
+
+type PostCategoryColumn string
+
+const (
+	PostCategoryID       PostCategoryColumn = "id"
+	PostCategoryName     PostCategoryColumn = "name"
+	PostCategorySlug     PostCategoryColumn = "slug"
+	PostCategoryCreateat PostCategoryColumn = "createat"
+	PostCategoryUpdateat PostCategoryColumn = "updateat"
+)
+
+func (c PostCategoryColumn) IsValid() bool {
+	switch c {
+	case PostCategoryID:
+		return true
+	case PostCategoryName:
+		return true
+	case PostCategorySlug:
+		return true
+	case PostCategoryCreateat:
+		return true
+	case PostCategoryUpdateat:
+		return true
+	default:
+		return false
+	}
+}
+
+type SubmissionColumn string
+
+const (
+	SubmissionID          SubmissionColumn = "id"
+	SubmissionTitle       SubmissionColumn = "title"
+	SubmissionStudentID   SubmissionColumn = "student_id"
+	SubmissionHomeworkID  SubmissionColumn = "homework_id"
+	SubmissionDescription SubmissionColumn = "description"
+	SubmissionFileID      SubmissionColumn = "file_id"
+	SubmissionFeedback    SubmissionColumn = "feedback"
+	SubmissionCreateat    SubmissionColumn = "createat"
+	SubmissionUpdateat    SubmissionColumn = "updateat"
+)
+
+func (c SubmissionColumn) IsValid() bool {
+	switch c {
+	case SubmissionID:
+		return true
+	case SubmissionTitle:
+		return true
+	case SubmissionStudentID:
+		return true
+	case SubmissionHomeworkID:
+		return true
+	case SubmissionDescription:
+		return true
+	case SubmissionFileID:
+		return true
+	case SubmissionFeedback:
+		return true
+	case SubmissionCreateat:
+		return true
+	case SubmissionUpdateat:
+		return true
+	default:
+		return false
+	}
+}
+
+type TaskColumn string
+
+const (
+	TaskID          TaskColumn = "id"
+	TaskTitle       TaskColumn = "title"
+	TaskDescription TaskColumn = "description"
+	TaskAssigneeID  TaskColumn = "assignee_id"
+	TaskCreatorID   TaskColumn = "creator_id"
+	TaskDeadline    TaskColumn = "deadline"
+	TaskPriority    TaskColumn = "priority"
+	TaskStatus      TaskColumn = "status"
+	TaskNotes       TaskColumn = "notes"
+	TaskCreateat    TaskColumn = "createat"
+	TaskUpdateat    TaskColumn = "updateat"
+)
+
+func (c TaskColumn) IsValid() bool {
+	switch c {
+	case TaskID:
+		return true
+	case TaskTitle:
+		return true
+	case TaskDescription:
+		return true
+	case TaskAssigneeID:
+		return true
+	case TaskCreatorID:
+		return true
+	case TaskDeadline:
+		return true
+	case TaskPriority:
+		return true
+	case TaskStatus:
+		return true
+	case TaskNotes:
+		return true
+	case TaskCreateat:
+		return true
+	case TaskUpdateat:
+		return true
+	default:
+		return false
+	}
+}
+
+type TuitionColumn string
+
+const (
+	TuitionID              TuitionColumn = "id"
+	TuitionStudentID       TuitionColumn = "student_id"
+	TuitionClassID         TuitionColumn = "class_id"
+	TuitionFeePackageID    TuitionColumn = "fee_package_id"
+	TuitionTotalAmount     TuitionColumn = "total_amount"
+	TuitionDiscountAmount  TuitionColumn = "discount_amount"
+	TuitionPaidAmount      TuitionColumn = "paid_amount"
+	TuitionRemainingAmount TuitionColumn = "remaining_amount"
+	TuitionStatus          TuitionColumn = "status"
+	TuitionDueDate         TuitionColumn = "due_date"
+	TuitionNote            TuitionColumn = "note"
+	TuitionPromotionalFee  TuitionColumn = "promotional_fee"
+	TuitionDiscountValue   TuitionColumn = "discount_value"
+	TuitionDiscountType    TuitionColumn = "discount_type"
+	TuitionCreateat        TuitionColumn = "createat"
+	TuitionUpdateat        TuitionColumn = "updateat"
+)
+
+func (c TuitionColumn) IsValid() bool {
+	switch c {
+	case TuitionID:
+		return true
+	case TuitionStudentID:
+		return true
+	case TuitionClassID:
+		return true
+	case TuitionFeePackageID:
+		return true
+	case TuitionTotalAmount:
+		return true
+	case TuitionDiscountAmount:
+		return true
+	case TuitionPaidAmount:
+		return true
+	case TuitionRemainingAmount:
+		return true
+	case TuitionStatus:
+		return true
+	case TuitionDueDate:
+		return true
+	case TuitionNote:
+		return true
+	case TuitionPromotionalFee:
+		return true
+	case TuitionDiscountValue:
+		return true
+	case TuitionDiscountType:
+		return true
+	case TuitionCreateat:
+		return true
+	case TuitionUpdateat:
+		return true
+	default:
+		return false
+	}
+}
+
+type WeeklyReviewColumn string
+
+const (
+	WeeklyReviewID         WeeklyReviewColumn = "id"
+	WeeklyReviewStudentID  WeeklyReviewColumn = "student_id"
+	WeeklyReviewClassID    WeeklyReviewColumn = "class_id"
+	WeeklyReviewWeekNumber WeeklyReviewColumn = "week_number"
+	WeeklyReviewContent    WeeklyReviewColumn = "content"
+	WeeklyReviewRating     WeeklyReviewColumn = "rating"
+	WeeklyReviewCreatedBy  WeeklyReviewColumn = "created_by"
+	WeeklyReviewCreateat   WeeklyReviewColumn = "createat"
+	WeeklyReviewUpdateat   WeeklyReviewColumn = "updateat"
+)
+
+func (c WeeklyReviewColumn) IsValid() bool {
+	switch c {
+	case WeeklyReviewID:
+		return true
+	case WeeklyReviewStudentID:
+		return true
+	case WeeklyReviewClassID:
+		return true
+	case WeeklyReviewWeekNumber:
+		return true
+	case WeeklyReviewContent:
+		return true
+	case WeeklyReviewRating:
+		return true
+	case WeeklyReviewCreatedBy:
+		return true
+	case WeeklyReviewCreateat:
+		return true
+	case WeeklyReviewUpdateat:
 		return true
 	default:
 		return false

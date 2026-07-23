@@ -5,23 +5,16 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/iamleson98/sitename/server/public/model"
+	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
 	"github.com/iamleson98/sitename/server/v8/channels/app/password/hashers"
 	"github.com/iamleson98/sitename/server/v8/channels/store"
-	"github.com/iamleson98/sitename/server/public/model"
 )
 
 // StudentFilterOpts defines filter options for querying students.
-type StudentFilterOpts struct {
-	ClassID    string
-	Status     string
-	Search     string
-	Page       int
-	PerPage    int
-	CountTotal bool
-}
 
 const (
-	studentPropsKey = "student"
+	studentPropsKey        = "student"
 	defaultStudentPassword = "Student@123"
 )
 
@@ -36,10 +29,10 @@ func (a *LMSApp) GetStudent(id string) (*model.User, *model.AppError) {
 	return user, nil
 }
 
-func (a *LMSApp) GetStudents(opts StudentFilterOpts) ([]*model.User, *model.AppError) {
+func (a *LMSApp) GetStudents(opts modelhelper.StudentFilterOpts) ([]*model.User, *model.AppError) {
 	// TODO: Implement student filtering via the store layer.
 	// For now, retrieve all profiles and filter in-memory or use a dedicated store query.
-	users, err := a.store.User().GetAll()
+	users, err := a.store.User().Search()
 	if err != nil {
 		return nil, model.NewAppError("GetStudents", "app.lms.student.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}

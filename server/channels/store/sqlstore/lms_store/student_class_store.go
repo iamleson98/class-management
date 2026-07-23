@@ -2,11 +2,14 @@ package lmsstore
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/aarondl/sqlboiler/v4/boil"
 	"github.com/aarondl/sqlboiler/v4/queries/qm"
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
+	"github.com/iamleson98/sitename/server/public/model"
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
+	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/v8/channels/store"
 	"github.com/pkg/errors"
 )
@@ -124,4 +127,35 @@ func (s *SqlStudentClassStore) CountByStudent(studentID, status string) (int64, 
 		return 0, errors.Wrap(err, "failed to count student classes")
 	}
 	return count, nil
+}
+
+func (ss *SqlStudentClassStore) SearchStudentUsers(opts modelhelper.StudentFilterOpts) (lms_models.UserSlice, int64, error) {
+	mods := []qm.QueryMod{
+		&opts.SearchOpts,
+		&utils.WhereCond[utils.UserColumn]{
+			Column:   utils.UserRoles,
+			Operator: utils.OperatorLike,
+			Value:    fmt.Sprintf("%%%s%%", model.RoleLmsStudentRoleId),
+		},
+	}
+
+	if opts.SelectRelatedParent {
+		mods = append(mods, qm.Load(lms_models.UserRels.Parent))
+	}
+	if opts.ClassID != "" {
+		mods = append(
+			mods,
+			qm.InnerJoin(
+				fmt.Sprintf("%s on %s = %s", lms_models.TableNames.StudentClasses, lms_models.StudentClassColumns.StudentID, lms_models.UserTableColumns.ID),
+			),
+			&utils.WhereCond[utils.StudentClassColumn]{
+				Column:   utils.StudentClassClassID,
+				Operator: utils.OperatorEq,
+				Value:    opts.ClassID,
+			},
+		)
+	}
+	if opts.Status.IsValid() {
+		mods = append(mods, qm.Where(fmt.Sprintf("%s ->> '%s' = ?", lms_models.UserTableColumns.Props, modelhelper.LmsStudentStatusProp), opts.Status))
+	}
 }

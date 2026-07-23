@@ -11,7 +11,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/aarondl/sqlboiler/v4/queries/qm"
 	sq "github.com/mattermost/squirrel"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -2496,18 +2495,7 @@ func (us *SqlUserStore) GetUserReport(filter *model.UserReportOptions) ([]*model
 }
 
 func (us *SqlUserStore) SearchUsers(opts utils.SearchOpts[utils.UserColumn]) (lms_models.UserSlice, int64, error) {
-	users, err := lms_models.Users(&opts, qm.Select(
-		lms_models.UserColumns.ID,
-		lms_models.UserColumns.Username,
-		lms_models.UserColumns.Firstname,
-		lms_models.UserColumns.Lastname,
-		lms_models.UserColumns.Email,
-		lms_models.UserColumns.Phone,
-		lms_models.UserColumns.Createat,
-		lms_models.UserColumns.Updateat,
-		lms_models.UserColumns.Deleteat,
-		lms_models.UserColumns.Roles,
-	)).All(us.GetReplica())
+	users, err := lms_models.Users(&opts).All(us.GetReplica())
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "search_users")
 	}

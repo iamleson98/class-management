@@ -274,7 +274,7 @@ export default function AdminStudents() {
               </TableHeader>
               <TableBody>
                 {paginated.data.map((student: any) => {
-                  const status = STATUS_MAP[student.status] || STATUS_MAP.ACTIVE
+                  const status = STATUS_MAP[student.status]
                   return (
                     <motion.tr
                       key={student.id}

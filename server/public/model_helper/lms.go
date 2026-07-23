@@ -6,6 +6,7 @@ import (
 
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
+	"github.com/iamleson98/sitename/server/public/utils"
 )
 
 // ============================================================================
@@ -13,8 +14,8 @@ import (
 // ============================================================================
 
 type BranchFilterOpts struct {
-	Page      int
-	PerPage   int
+	Page       int
+	PerPage    int
 	CountTotal bool
 }
 
@@ -254,6 +255,26 @@ func CourseLessonPreUpdate(cl *lms_models.CourseLesson) {
 //         room VARCHAR(100)
 // ============================================================================
 
+// Status of a class
+type ClassStatus string
+
+const (
+	ClassStatusOpen      ClassStatus = "OPEN" // waiting for start
+	ClassStatusClosed    ClassStatus = "CLOSED"
+	ClassStatusPaused    ClassStatus = "PAUSED"
+	ClassStatusActive    ClassStatus = "ACTIVE"
+	ClassStatusCompleted ClassStatus = "COMPLETED"
+)
+
+func (c ClassStatus) IsValid() bool {
+	switch c {
+	case ClassStatusOpen, ClassStatusClosed, ClassStatusPaused, ClassStatusActive, ClassStatusCompleted:
+		return true
+	default:
+		return false
+	}
+}
+
 func ClassIsValid(c *lms_models.Class) *model.AppError {
 	if c.ID != "" && !model.IsValidId(c.ID) {
 		return model.NewAppError("ClassIsValid", "model.lms.class.id.app_error", nil, "", http.StatusBadRequest)
@@ -276,11 +297,11 @@ func ClassIsValid(c *lms_models.Class) *model.AppError {
 	if c.TeacherID == "" {
 		return model.NewAppError("ClassIsValid", "model.lms.class.teacher_id.app_error", nil, "", http.StatusBadRequest)
 	}
-	if len(c.Status) > 50 {
+	if !ClassStatus(c.Status).IsValid() {
 		return model.NewAppError("ClassIsValid", "model.lms.class.status.len.app_error", nil, "", http.StatusBadRequest)
 	}
 	if c.Room.Valid && len(c.Room.String) > 100 {
-			return model.NewAppError("ClassIsValid", "model.lms.class.room.len.app_error", nil, "", http.StatusBadRequest)
+		return model.NewAppError("ClassIsValid", "model.lms.class.room.len.app_error", nil, "", http.StatusBadRequest)
 	}
 	return nil
 }
@@ -355,11 +376,11 @@ func LMSSessionIsValid(s *lms_models.LMSSession) *model.AppError {
 	if s.Date.IsZero() {
 		return model.NewAppError("LMSSessionIsValid", "model.lms.session.date.app_error", nil, "", http.StatusBadRequest)
 	}
-		if s.Title.Valid && len(s.Title.String) > 200 {
-			return model.NewAppError("LMSSessionIsValid", "model.lms.session.title.len.app_error", nil, "", http.StatusBadRequest)
-		}
-		if s.Room.Valid && len(s.Room.String) > 100 {
-			return model.NewAppError("LMSSessionIsValid", "model.lms.session.room.len.app_error", nil, "", http.StatusBadRequest)
+	if s.Title.Valid && len(s.Title.String) > 200 {
+		return model.NewAppError("LMSSessionIsValid", "model.lms.session.title.len.app_error", nil, "", http.StatusBadRequest)
+	}
+	if s.Room.Valid && len(s.Room.String) > 100 {
+		return model.NewAppError("LMSSessionIsValid", "model.lms.session.room.len.app_error", nil, "", http.StatusBadRequest)
 	}
 	if len(s.Status) > 50 {
 		return model.NewAppError("LMSSessionIsValid", "model.lms.session.status.len.app_error", nil, "", http.StatusBadRequest)
@@ -1123,4 +1144,38 @@ func MaterialPreCreate(m *lms_models.Material) {
 
 func MaterialPreUpdate(m *lms_models.Material) {
 	m.Updateat = time.Now().UnixMilli()
+}
+
+type UserGender string
+
+func (g UserGender) IsValid() bool {
+	return g == LmsUserGenderMale || g == LmsUserGenderFemale
+}
+
+type StudentStatus string
+
+func (s StudentStatus) IsValid() bool {
+	return s == LmsStudentStatusActive || s == LmsStudentStatusReserved || s == LmsStudentStatusDropped || s == LmsStudentStatusPending
+}
+
+const (
+	// fields for used in field Props of user model, for lms system only
+	LmsUserGenderProp              = "gender"
+	LmsUserGenderMale   UserGender = "male"
+	LmsUserGenderFemale UserGender = "female"
+
+	LmsStudentStatusProp                   = "student_status"
+	LmsStudentStatusActive   StudentStatus = "ACTIVE"
+	LmsStudentStatusReserved StudentStatus = "RESERVED"
+	LmsStudentStatusDropped  StudentStatus = "DROPPED"
+	LmsStudentStatusPending  StudentStatus = "PENDING"
+)
+
+type StudentFilterOpts struct {
+	utils.SearchOpts[utils.UserColumn]
+	SelectRelatedParent bool          `json:"select_related_parent"`
+	ClassID             string        `json:"class_id"`
+	Status              StudentStatus `json:"status"`
+	Search              string        `json:"search"`
+	Gender              UserGender    `json:"gender"`
 }

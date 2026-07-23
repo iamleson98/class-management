@@ -5,14 +5,14 @@ import (
 	"net/http"
 
 	"github.com/iamleson98/sitename/server/public/model"
+	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/v8/channels/api4"
-	"github.com/iamleson98/sitename/server/v8/channels/app/lms"
 	"github.com/iamleson98/sitename/server/v8/channels/web"
 )
 
 func (a *LMSAPI) InitStudents() {
-	a.routes.Method(http.MethodGet, "/students", a.api.APISessionRequired(getStudents))
-	a.routes.Method(http.MethodPost, "/students", a.api.APISessionRequired(createStudent))
+	a.routes.Method(http.MethodPost, "/students", a.api.APISessionRequired(getStudents))
+	a.routes.Method(http.MethodPost, "/students/create", a.api.APISessionRequired(createStudent))
 	a.routes.Method(http.MethodGet, "/students/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(getStudent))
 	a.routes.Method(http.MethodPut, "/students/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(updateStudent))
 	a.routes.Method(http.MethodDelete, "/students/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(deleteStudent))
@@ -24,12 +24,25 @@ func getStudents(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := r.URL.Query()
-	opts := lms.StudentFilterOpts{
-		ClassID: q.Get("class_id"),
-		Status:  q.Get("status"),
-		Search:  q.Get("search"),
+	var opts utils.SearchOpts[utils.UserColumn]
+	if err := json.NewDecoder(r.Body).Decode(&opts); err != nil {
+		c.Err = model.NewAppError("getStudents", model.PayloadParseError, nil, "", http.StatusBadRequest).Wrap(err)
+		return
 	}
+
+	q := r.URL.Query()
+	var (
+		classID            = q.Get("class_id")
+		status             = q.Get("status")
+		search             = q.Get("search")
+		page, okPage       = c.Params["page"]
+		perPage, okPerPage = c.Params["per_page"]
+	)
+	// opts := lms.StudentFilterOpts{
+	// 	ClassID: q.Get("class_id"),
+	// 	Status:  q.Get("status"),
+	// 	Search:  q.Get("search"),
+	// }
 
 	students, err := c.App.LMS().GetStudents(opts)
 	if err != nil {
