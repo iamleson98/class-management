@@ -1,0 +1,421 @@
+'use client'
+
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { motion } from 'framer-motion'
+import { Settings, Building2, Users, Image, Plus } from 'lucide-react'
+import { createBranchSchema, createUserSchema, type CreateBranchInput, type CreateUserInput } from '@/lib/schemas'
+import { getBranches, createBranch, getUsers, createUser, getBanners } from '@/lib/api'
+import { useToast } from '@/hooks/use-toast'
+import { PageHeader } from '@/components/lms/page-header'
+import { ErrorState } from '@/components/lms/error-state'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+} from '@/components/ui/dialog'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { staggerContainer } from '@/components/lms/shared/animations'
+import { useTranslation } from '@/lib/i18n'
+
+const ROLE_LABELS: Record<string, string> = {
+  SUPER_ADMIN: 'Super Admin',
+  ADMIN: 'Quản lý',
+  COUNSELOR: 'Tư vấn viên',
+  TEACHER: 'Giáo viên',
+  ACCOUNTANT: 'Kế toán',
+  MARKETING: 'Marketing',
+  PARENT: 'Phụ huynh',
+  STUDENT: 'Học viên',
+}
+
+export default function AdminSettings() {
+  const { toast } = useToast()
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+
+  const [branchDialogOpen, setBranchDialogOpen] = useState(false)
+  const [userDialogOpen, setUserDialogOpen] = useState(false)
+
+  const branchForm = useForm<CreateBranchInput>({
+    resolver: zodResolver(createBranchSchema),
+    defaultValues: { name: '', address: '', phone: '', email: '' },
+  })
+
+  const userForm = useForm<CreateUserInput>({
+    resolver: zodResolver(createUserSchema),
+    defaultValues: { name: '', email: '', phone: '', role: 'lms_teacher', password: '' },
+  })
+
+  const { data: branches = [], isLoading: branchesLoading, isError: isBranchesError, refetch: refetchBranches } = useQuery({
+    queryKey: ['branches'],
+    queryFn: () => getBranches(),
+  })
+
+  const { data: users = [], isLoading: usersLoading, isError: isUsersError, refetch: refetchUsers } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => getUsers(),
+  })
+
+  const { data: banners = [], isLoading: bannersLoading, isError: isBannersError, refetch: refetchBanners } = useQuery({
+    queryKey: ['banners'],
+    queryFn: () => getBanners(),
+  })
+
+  const branchMutation = useMutation({
+    mutationFn: (data: CreateBranchInput) => createBranch(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['branches'] })
+      toast({ title: t('settings.addBranchSuccess', 'Thêm chi nhánh thành công') })
+      setBranchDialogOpen(false)
+      branchForm.reset({ name: '', address: '', phone: '', email: '' })
+    },
+    onError: () => toast({ title: t('settings.addBranchFailed', 'Thêm chi nhánh thất bại'), variant: 'destructive' }),
+  })
+
+  const userMutation = useMutation({
+    mutationFn: (data: CreateUserInput) => createUser(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      toast({ title: t('settings.addUserSuccess', 'Thêm người dùng thành công') })
+      setUserDialogOpen(false)
+      userForm.reset({ name: '', email: '', phone: '', role: 'lms_teacher', password: '' })
+    },
+    onError: () => toast({ title: t('settings.addUserFailed', 'Thêm người dùng thất bại'), variant: 'destructive' }),
+  })
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="space-y-8">
+      <PageHeader
+        title={t('settings.title', 'Cài đặt hệ thống')}
+        description={t('settings.description', 'Quản lý chi nhánh, người dùng và banner')}
+        icon={Settings}
+        accentColor="sky"
+      />
+
+      {/* Branches Section */}
+      <motion.div variants={staggerContainer} initial="initial" animate="animate">
+        <Card className="rounded-xl">
+          <CardHeader className="pb-3 px-6 pt-6">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-sky-600" />
+                {t('settings.manageBranches', 'Quản lý chi nhánh')}
+                <Badge variant="secondary" className="text-xs">{branches.length}</Badge>
+              </CardTitle>
+              <Button onClick={() => { branchForm.reset({ name: '', address: '', phone: '', email: '' }); setBranchDialogOpen(true) }} className="bg-sky-600 hover:bg-sky-700 text-white rounded-lg h-8 text-xs">
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                {t('settings.addBranch', 'Thêm chi nhánh')}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="px-6 pb-6">
+            {isBranchesError ? (
+              <div className="py-8 text-center">
+                <ErrorState onRetry={() => refetchBranches()} />
+              </div>
+            ) : branchesLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin h-6 w-6 border-2 border-sky-500 border-t-transparent rounded-full" />
+              </div>
+            ) : branches.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">{t('settings.noBranches', 'Chưa có chi nhánh. Nhấn nút thêm để tạo chi nhánh đầu tiên.')}</p>
+            ) : (
+              <div className="rounded-xl overflow-hidden border">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50 hover:bg-muted/50">
+                      <TableHead className="uppercase text-xs font-semibold">{t('common.name', 'Tên')}</TableHead>
+                      <TableHead className="uppercase text-xs font-semibold hidden md:table-cell">{t('settings.address', 'Địa chỉ')}</TableHead>
+                      <TableHead className="uppercase text-xs font-semibold hidden sm:table-cell">{t('common.phone', 'SĐT')}</TableHead>
+                      <TableHead className="uppercase text-xs font-semibold hidden lg:table-cell">{t('common.email', 'Email')}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {branches.map((branch: any) => (
+                      <TableRow key={branch.id} className="hover:bg-muted/30">
+                        <TableCell className="font-medium text-sm">{branch.name}</TableCell>
+                        <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{branch.address || '-'}</TableCell>
+                        <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">{branch.phone || '-'}</TableCell>
+                        <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{branch.email || '-'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Users Section */}
+      <motion.div variants={staggerContainer} initial="initial" animate="animate">
+        <Card className="rounded-xl">
+          <CardHeader className="pb-3 px-6 pt-6">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Users className="h-4 w-4 text-sky-600" />
+                {t('settings.manageUsers', 'Quản lý người dùng')}
+                <Badge variant="secondary" className="text-xs">{users.length}</Badge>
+              </CardTitle>
+              <Button onClick={() => { userForm.reset({ name: '', email: '', phone: '', role: 'lms_teacher', password: '' }); setUserDialogOpen(true) }} className="bg-sky-600 hover:bg-sky-700 text-white rounded-lg h-8 text-xs">
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                {t('settings.addUser', 'Thêm người dùng')}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="px-6 pb-6">
+            {isUsersError ? (
+              <div className="py-8 text-center">
+                <ErrorState onRetry={() => refetchUsers()} />
+              </div>
+            ) : usersLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin h-6 w-6 border-2 border-sky-500 border-t-transparent rounded-full" />
+              </div>
+            ) : users.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">{t('settings.noUsers', 'Chưa có người dùng.')}</p>
+            ) : (
+              <div className="rounded-xl overflow-hidden border">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50 hover:bg-muted/50">
+                      <TableHead className="uppercase text-xs font-semibold">{t('common.name', 'Tên')}</TableHead>
+                      <TableHead className="uppercase text-xs font-semibold">{t('common.email', 'Email')}</TableHead>
+                      <TableHead className="uppercase text-xs font-semibold hidden md:table-cell">{t('common.phone', 'SĐT')}</TableHead>
+                      <TableHead className="uppercase text-xs font-semibold">{t('settings.role', 'Vai trò')}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user: any) => (
+                      <TableRow key={user.id} className="hover:bg-muted/30">
+                        <TableCell className="font-medium text-sm">{user.name}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
+                        <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{user.phone || '-'}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="rounded-full text-xs">
+                            {ROLE_LABELS[user.role] || user.role}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Banners Section */}
+      <motion.div variants={staggerContainer} initial="initial" animate="animate">
+        <Card className="rounded-xl">
+          <CardHeader className="pb-3 px-6 pt-6">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Image className="h-4 w-4 text-sky-600" />
+              {t('settings.manageBanners', 'Quản lý banner')}
+              <Badge variant="secondary" className="text-xs">{banners.length}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-6 pb-6">
+            {isBannersError ? (
+              <div className="py-8 text-center">
+                <ErrorState onRetry={() => refetchBanners()} />
+              </div>
+            ) : bannersLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin h-6 w-6 border-2 border-sky-500 border-t-transparent rounded-full" />
+              </div>
+            ) : banners.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">{t('settings.noBanners', 'Chưa có banner.')}</p>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {banners.map((banner: any) => (
+                  <div key={banner.id} className="rounded-xl border overflow-hidden">
+                    <div className="h-32 bg-muted">
+                      {banner.imageUrl ? (
+                        <img src={banner.imageUrl} alt={banner.title || ''} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-muted-foreground">
+                          <Image className="h-8 w-8" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-3">
+                      <p className="text-sm font-medium truncate">{banner.title || t('settings.noTitle', 'Không tiêu đề')}</p>
+                      <Badge variant={banner.isActive ? 'default' : 'secondary'} className="text-[10px] mt-1">
+                        {banner.isActive ? t('settings.active', 'Đang hiển thị') : t('settings.hidden', 'Ẩn')}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Branch Dialog */}
+      <Dialog open={branchDialogOpen} onOpenChange={setBranchDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('settings.addBranch', 'Thêm chi nhánh')}</DialogTitle>
+            <DialogDescription />
+          </DialogHeader>
+          <Form {...branchForm} schema={createBranchSchema}>
+            <form onSubmit={branchForm.handleSubmit((data) => branchMutation.mutate(data))} className="space-y-4">
+              <FormField
+                control={branchForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('settings.branchName', 'Tên chi nhánh')}</FormLabel>
+                    <FormControl><Input {...field} value={field.value ?? ''} placeholder="Trung tâm ABC" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={branchForm.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('settings.address', 'Địa chỉ')}</FormLabel>
+                    <FormControl><Input {...field} value={field.value ?? ''} placeholder="123 Đường XYZ, Quận Z" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="grid grid-cols-2 gap-4 items-start">
+                <FormField
+                  control={branchForm.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('common.phone', 'Số điện thoại')}</FormLabel>
+                      <FormControl><Input {...field} value={field.value ?? ''} placeholder="028-xxxx" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={branchForm.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('common.email', 'Email')}</FormLabel>
+                      <FormControl><Input type="email" {...field} value={field.value ?? ''} placeholder="info@abc.vn" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" type="button" onClick={() => setBranchDialogOpen(false)}>{t('common.cancel', 'Hủy')}</Button>
+                <Button type="submit" disabled={branchMutation.isPending} className="bg-sky-600 hover:bg-sky-700 text-white">
+                  {branchMutation.isPending ? t('common.loading', 'Đang lưu...') : t('common.create', 'Thêm')}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* User Dialog */}
+      <Dialog open={userDialogOpen} onOpenChange={setUserDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('settings.addUser', 'Thêm người dùng')}</DialogTitle>
+            <DialogDescription />
+          </DialogHeader>
+          <Form {...userForm} schema={createUserSchema}>
+            <form onSubmit={userForm.handleSubmit((data) => userMutation.mutate(data))} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 items-start">
+                <FormField
+                  control={userForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('settings.fullName', 'Họ tên')}</FormLabel>
+                      <FormControl><Input {...field} value={field.value ?? ''} placeholder="Nguyễn Văn A" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={userForm.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('common.email', 'Email')}</FormLabel>
+                      <FormControl><Input type="email" {...field} value={field.value ?? ''} placeholder="email@example.com" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4 items-start">
+                <FormField
+                  control={userForm.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('common.phone', 'Số điện thoại')}</FormLabel>
+                      <FormControl><Input {...field} value={field.value ?? ''} placeholder="0901xxx" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={userForm.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('settings.role', 'Vai trò')}</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          {Object.entries(ROLE_LABELS).map(([key, label]) => (
+                            <SelectItem key={key} value={key}>{label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <FormField
+                control={userForm.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('settings.password', 'Mật khẩu')}</FormLabel>
+                    <FormControl><Input type="password" {...field} value={field.value ?? ''} placeholder={t('settings.defaultPassword', 'Mật khẩu mặc định')} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button variant="outline" type="button" onClick={() => setUserDialogOpen(false)}>{t('common.cancel', 'Hủy')}</Button>
+                <Button type="submit" disabled={userMutation.isPending} className="bg-sky-600 hover:bg-sky-700 text-white">
+                  {userMutation.isPending ? t('common.loading', 'Đang lưu...') : t('common.create', 'Thêm')}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    </motion.div>
+  )
+}

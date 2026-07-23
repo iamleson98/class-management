@@ -1,0 +1,12 @@
+package email
+
+import "github.com/pkg/errors"
+
+var (
+	CreateEmailTokenError  = errors.New("could not create token")
+	SaveTokenError         = errors.New("could not save token")
+	NoRateLimiterError     = errors.New("the rate limit could not be found")
+	SetupRateLimiterError  = errors.New("the rate limiter could not be set")
+	RateLimitExceededError = errors.New("the rate limit is exceeded")
+	SendMailError          = errors.New("could not send the email")
+)

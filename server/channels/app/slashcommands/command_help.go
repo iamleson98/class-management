@@ -1,0 +1,47 @@
+package slashcommands
+
+import (
+	"github.com/iamleson98/sitename/server/public/model"
+	"github.com/iamleson98/sitename/server/public/shared/i18n"
+	"github.com/iamleson98/sitename/server/public/shared/request"
+	"github.com/iamleson98/sitename/server/v8/channels/app"
+)
+
+type HelpProvider struct {
+}
+
+const (
+	CmdHelp = "help"
+)
+
+func init() {
+	app.RegisterCommandProvider(&HelpProvider{})
+}
+
+func (h *HelpProvider) GetTrigger() string {
+	return CmdHelp
+}
+
+func (h *HelpProvider) GetCommand(a *app.App, T i18n.TranslateFunc) *model.Command {
+	return &model.Command{
+		Trigger:          CmdHelp,
+		AutoComplete:     true,
+		AutoCompleteDesc: T("api.command_help.desc"),
+		DisplayName:      T("api.command_help.name"),
+	}
+}
+
+func (h *HelpProvider) DoCommand(a *app.App, rctx request.CTX, args *model.CommandArgs, message string) *model.CommandResponse {
+	helpLink := *a.Config().SupportSettings.HelpLink
+
+	if helpLink == "" {
+		helpLink = model.SupportSettingsDefaultHelpLink
+	}
+
+	return &model.CommandResponse{
+		ResponseType: model.CommandResponseTypeEphemeral,
+		Text: args.T("api.command_help.success", map[string]any{
+			"HelpLink": helpLink,
+		}),
+	}
+}

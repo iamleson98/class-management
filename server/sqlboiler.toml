@@ -1,0 +1,60 @@
+# NOTE: This file use dev database to generate models
+# all the database configs are provided by 
+
+output   = "public/lms_models"
+wipe     = true
+no-tests = true
+add-enum-types = true
+pkgname = "lms_models"
+tracing = false
+no-auto-timestamps = true
+no-hooks = true
+debug = false
+no-context = true
+tag-ignore = "annotations"
+
+[psql]
+  dbname = "mattermost_test"
+  host   = "localhost"
+  port   = 5432
+  user   = "mmuser"
+  pass   = "mostest"
+  sslmode = "disable"
+  blacklist = ["migrations", "other", "db_migrations"]
+  whitelist = [
+    "branches", 
+    "courses", 
+    "course_lessons", 
+    "classes", 
+    "student_classes", 
+    "lms_sessions", 
+    "attendances", 
+    "fileinfo", 
+    "leads", 
+    "lead_activities", 
+    "fee_packages",
+    "tuitions",
+    "payments",
+    "fee_refunds",
+    "post_categories",
+    "blog_posts",
+    "weekly_reviews",
+    "homeworks",
+    "submissions",
+    "class_media",
+    "additional_fees",
+    "tasks",
+    "banners",
+    "notifications",
+    "materials",
+    "users",
+  ]
+
+[[types]]
+  [types.match]
+    type = "types.Decimal"
+    nullable = false
+  [types.replace]
+    type = "decimal.Decimal"
+  [types.imports]
+    third_party = ['"github.com/shopspring/decimal"']
