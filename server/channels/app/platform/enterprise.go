@@ -1,0 +1,36 @@
+package platform
+
+import (
+	"github.com/iamleson98/sitename/server/v8/einterfaces"
+	"github.com/iamleson98/sitename/server/v8/platform/services/searchengine"
+)
+
+var clusterInterface func(*PlatformService) einterfaces.ClusterInterface
+
+func RegisterClusterInterface(f func(*PlatformService) einterfaces.ClusterInterface) {
+	clusterInterface = f
+}
+
+var elasticsearchInterface func(*PlatformService) searchengine.SearchEngineInterface
+
+func RegisterElasticsearchInterface(f func(*PlatformService) searchengine.SearchEngineInterface) {
+	elasticsearchInterface = f
+}
+
+var ldapDiagnosticInterface func(*PlatformService) einterfaces.LdapDiagnosticInterface
+
+func RegisterLdapDiagnosticInterface(f func(*PlatformService) einterfaces.LdapDiagnosticInterface) {
+	ldapDiagnosticInterface = f
+}
+
+var metricsInterfaceFn func(*PlatformService, string, string) einterfaces.MetricsInterface
+
+func RegisterMetricsInterface(f func(*PlatformService, string, string) einterfaces.MetricsInterface) {
+	metricsInterfaceFn = f
+}
+
+var accessControlServiceInterface func(*PlatformService) einterfaces.AccessControlServiceInterface
+
+func RegisterAccessControlServiceInterface(f func(*PlatformService) einterfaces.AccessControlServiceInterface) {
+	accessControlServiceInterface = f
+}

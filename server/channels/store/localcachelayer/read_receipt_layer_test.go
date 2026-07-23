@@ -1,0 +1,11 @@
+package localcachelayer
+
+import (
+	"testing"
+
+	"github.com/iamleson98/sitename/server/v8/channels/store/storetest"
+)
+
+func TestReadReceiptStore(t *testing.T) {
+	StoreTestWithSqlStore(t, storetest.TestReadReceiptStore)
+}

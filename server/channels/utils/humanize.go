@@ -1,0 +1,21 @@
+package utils
+
+import (
+	"strings"
+
+	"github.com/iamleson98/sitename/server/public/shared/i18n"
+)
+
+func JoinList(items []string) string {
+	if len(items) == 0 {
+		return ""
+	} else if len(items) == 1 {
+		return items[0]
+	}
+	return i18n.T(
+		"humanize.list_join",
+		map[string]any{
+			"OtherItems": strings.Join(items[:len(items)-1], ", "),
+			"LastItem":   items[len(items)-1],
+		})
+}

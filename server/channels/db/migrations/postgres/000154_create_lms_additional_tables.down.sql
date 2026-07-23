@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS materials;
+DROP TABLE IF EXISTS notifications;
+DROP TABLE IF EXISTS banners;
+DROP TABLE IF EXISTS tasks;

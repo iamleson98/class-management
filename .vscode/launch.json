@@ -1,0 +1,20 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Go: Launch Mattermost Backend",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/server/cmd/mattermost",
+            "cwd": "${workspaceFolder}/server",
+            "console": "integratedTerminal",
+            "args": [],
+            "buildFlags": ["-tags", "sourceavailable"],
+            "env": {
+                "MM_SERVICESETTINGS_ENABLELOCALMODE": "true",
+                "MM_SERVICESETTINGS_LOCALMODESOCKETLOCATION": "/tmp/mattermost_local.socket"
+            },
+        },
+    ],
+}
