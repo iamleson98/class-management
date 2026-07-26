@@ -220,7 +220,7 @@ export default function MarketingCMSPage() {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog() }}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingPost ? t('marketing.cms.editPost', 'Chỉnh sửa bài viết') : t('marketing.cms.newPost', 'Thêm bài viết mới')}</DialogTitle>
             <DialogDescription>

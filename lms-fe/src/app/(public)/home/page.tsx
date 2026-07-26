@@ -58,6 +58,7 @@ export default function HomePage() {
   }, [])
 
   /* ---------- CTA form ---------- */
+  const ctaNeedLabel = t('home.cta.need', 'Đăng ký từ trang chủ')
   const ctaForm = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -66,12 +67,12 @@ export default function HomePage() {
       email: '',
       age: '',
       source: 'Website',
-      need: 'Đăng ký từ trang chủ',
+      need: ctaNeedLabel,
     },
   })
 
   const ctaMutation = useMutation({
-    mutationFn: (values: RegisterInput) => submitRegistration({ ...values, source: 'Website', need: 'Đăng ký từ trang chủ' }),
+    mutationFn: (values: RegisterInput) => submitRegistration({ ...values, source: 'Website', need: ctaNeedLabel }),
     onSuccess: () => {
       setCtaSuccess(true)
       ctaForm.reset({
@@ -80,7 +81,7 @@ export default function HomePage() {
         email: '',
         age: '',
         source: 'Website',
-        need: 'Đăng ký từ trang chủ',
+        need: ctaNeedLabel,
       })
     },
   })
@@ -113,9 +114,9 @@ export default function HomePage() {
   ]
 
   const testimonials = [
-    { name: 'Nguyễn Minh Anh', role: 'IELTS 7.5', text: t('home.testimonials.1', 'Nhờ VMG mà mình đạt IELTS 7.5 sau 6 tháng học. Giáo viên rất tận tâm và phương pháp học hiệu quả.') },
+    { name: 'Nguyễn Minh Anh', role: t('home.testimonials.role1', 'IELTS 7.5'), text: t('home.testimonials.1', 'Nhờ VMG mà mình đạt IELTS 7.5 sau 6 tháng học. Giáo viên rất tận tâm và phương pháp học hiệu quả.') },
     { name: 'Trần Văn Hùng', role: t('home.testimonials.role2', 'Khóa Giao tiếp'), text: t('home.testimonials.2', 'Lớp học vui, giáo viên hài hước. Mình tự tin giao tiếp tiếng Anh hơn rất nhiều sau khóa học.') },
-    { name: 'Lê Thị Mai', role: 'Toeic 850', text: t('home.testimonials.3', 'Lộ trình học được cá nhân hóa, phù hợp với level và mục tiêu của mình. Rất recommend!') },
+    { name: 'Lê Thị Mai', role: t('home.testimonials.role3', 'Toeic 850'), text: t('home.testimonials.3', 'Lộ trình học được cá nhân hóa, phù hợp với level và mục tiêu của mình. Rất recommend!') },
   ]
 
   const steps = [
@@ -128,7 +129,7 @@ export default function HomePage() {
   const contacts = [
     { icon: Phone, label: t('home.contact.hotline', 'Hotline'), value: '(028) 1234 5678', desc: t('home.contact.hotlineHours', 'Thứ 2 - Chủ nhật, 8:00 - 21:00') },
     { icon: Mail, label: t('common.email', 'Email'), value: 'info@vmg.edu.vn', desc: t('home.contact.emailReply', 'Phản hồi trong vòng 24 giờ') },
-    { icon: MapPin, label: t('home.contact.mainBranch', 'Cơ sở chính'), value: '123 Nguyễn Văn Linh, Quận 7, TP. HCM', desc: '' },
+    { icon: MapPin, label: t('home.contact.mainBranch', 'Cơ sở chính'), value: t('home.contact.address', '123 Nguyễn Văn Linh, Quận 7, TP. HCM'), desc: '' },
     { icon: Clock, label: t('home.contact.openingHours', 'Giờ mở cửa'), value: t('home.contact.openingHoursValue', 'T2 - CN: 8:00 - 21:00'), desc: '' },
   ]
 

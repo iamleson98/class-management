@@ -282,7 +282,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
               <div className="space-y-2 text-sm">
                 <div className="flex items-start gap-2">
                   <MapPin className="h-4 w-4 text-sky-400 mt-0.5 shrink-0" />
-                  <span>123 Nguyễn Văn Linh, Quận 7, TP. Hồ Chí Minh</span>
+                  <span>{t('layout.footer.address', '123 Nguyễn Văn Linh, Quận 7, TP. Hồ Chí Minh')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-sky-400 shrink-0" />
@@ -339,7 +339,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
                   <Clock className="h-4 w-4 text-sky-400 shrink-0" />
                   <span>{t('layout.footer.openingHours', 'Giờ mở cửa')}: {t('layout.footer.openingDays', 'T2 - CN')}</span>
                 </div>
-                <div className="text-sm text-gray-400 ml-6">8:00 - 21:00</div>
+                <div className="text-sm text-gray-400 ml-6">{t('layout.footer.openingHoursRange', '8:00 - 21:00')}</div>
               </div>
             </div>
           </div>
@@ -349,7 +349,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
         <div className="border-t border-gray-800">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
-              <p>&copy; 2024 {t('layout.brand', 'Việt Mỹ Global')}. {t('layout.footer.copyright', 'Tất cả quyền được bảo lưu.')}.</p>
+              <p>&copy; {new Date().getFullYear()} {t('layout.brand', 'Việt Mỹ Global')}. {t('layout.footer.copyright', 'Tất cả quyền được bảo lưu.')}.</p>
               <div className="flex items-center gap-4">
                 <a href="#" className="hover:text-sky-400 transition-colors">{t('layout.footer.privacyPolicy', 'Chính sách bảo mật')}</a>
                 <a href="#" className="hover:text-sky-400 transition-colors">{t('layout.footer.termsOfUse', 'Điều khoản sử dụng')}</a>

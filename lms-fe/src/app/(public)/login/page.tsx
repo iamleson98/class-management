@@ -96,7 +96,7 @@ export default function PublicLoginPage() {
             </div>
             <div>
               <span className="font-bold text-2xl text-white tracking-tight">VMG</span>
-              <p className="text-sky-100 text-sm font-medium">Viet My Global</p>
+              <p className="text-sky-100 text-sm font-medium">{t('layout.brand', 'Việt Mỹ Global')}</p>
             </div>
           </Link>
         </div>
@@ -130,7 +130,7 @@ export default function PublicLoginPage() {
 
         {/* Bottom: Copyright */}
         <div className="relative z-10 text-sky-200/60 text-sm">
-          &copy; {new Date().getFullYear()} Viet My Global. All rights reserved.
+          &copy; {new Date().getFullYear()} {t('layout.brand', 'Việt Mỹ Global')}. {t('layout.footer.copyright', 'Tất cả quyền được bảo lưu.')}
         </div>
       </div>
 
@@ -150,7 +150,7 @@ export default function PublicLoginPage() {
             </div>
             <div>
               <span className="font-bold text-xl text-sky-600">VMG</span>
-              <p className="text-xs text-muted-foreground">Viet My Global</p>
+              <p className="text-xs text-muted-foreground">{t('layout.brand', 'Việt Mỹ Global')}</p>
             </div>
           </div>
 
@@ -176,7 +176,7 @@ export default function PublicLoginPage() {
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                           type="email"
-                          placeholder="example@vmg.edu.vn"
+                          placeholder={t('login.hero.emailPlaceholder', 'example@vmg.edu.vn')}
                           autoComplete="email"
                           {...field}
                           value={field.value ?? ''}

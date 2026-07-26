@@ -124,10 +124,11 @@ export default function AdminCRM() {
   const leads = data?.items ?? []
   const pageInfo = derivePageInfo(data?.totalCount ?? 0, pagination.pageIndex, pagination.pageSize, leads.length)
 
-  const { data: counselors = [], isLoading: isLoadingCounselors, isError: isCounselorsError, refetch: refetchCounselors } = useQuery({
+  const { data: counselorsData, isLoading: isLoadingCounselors, isError: isCounselorsError, refetch: refetchCounselors } = useQuery({
     queryKey: ['users-counselors'],
     queryFn: () => getUsers({ role: 'lms_counselor' }),
   })
+  const counselors = counselorsData?.items ?? []
 
   const { data: activities = [], isLoading: isLoadingActivities, isError: isActivitiesError, refetch: refetchActivities } = useQuery({
     queryKey: ['lead-activities', selectedLead?.id],

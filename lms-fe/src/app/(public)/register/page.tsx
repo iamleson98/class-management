@@ -315,7 +315,7 @@ export default function RegisterPage() {
                   <div className="space-y-2 text-sm">
                     <p className="font-medium">{t('register.sidebar.hotline', 'Hotline')}: (028) 1234 5678</p>
                     <p className="font-medium">{t('common.email', 'Email')}: info@vmg.edu.vn</p>
-                    <p className="text-muted-foreground">{t('register.sidebar.workingHours', 'Giờ làm việc')}: T2 - CN, 8:00 - 21:00</p>
+                    <p className="text-muted-foreground">{t('register.sidebar.workingHours', 'Giờ làm việc')}: {t('register.sidebar.workingHoursValue', 'T2 - CN, 8:00 - 21:00')}</p>
                   </div>
                 </CardContent>
               </Card>

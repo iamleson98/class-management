@@ -189,7 +189,7 @@ function SidebarContent({
   return (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="p-4 flex items-center gap-3">
+      <div className="h-14 flex items-center gap-3 px-2">
         <div className="p-2 bg-sky-100 dark:bg-sky-900/30 rounded-xl">
           <GraduationCap className="h-6 w-6 text-sky-600 dark:text-sky-400" />
         </div>

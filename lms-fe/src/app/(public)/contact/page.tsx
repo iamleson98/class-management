@@ -44,7 +44,7 @@ export default function ContactPage() {
   const contactInfo = [
     { icon: Phone, title: t('contact.info.hotline', 'Hotline'), value: '(028) 1234 5678', desc: t('contact.info.hotlineHours', 'Thứ 2 - Chủ nhật, 8:00 - 21:00') },
     { icon: Mail, title: t('common.email', 'Email'), value: 'info@vmg.edu.vn', desc: t('contact.info.emailReply', 'Phản hồi trong vòng 24 giờ') },
-    { icon: MapPin, title: t('contact.info.mainBranch', 'Cơ sở chính'), value: '123 Nguyễn Văn Linh, Quận 7', desc: t('contact.info.city', 'TP. Hồ Chí Minh') },
+    { icon: MapPin, title: t('contact.info.mainBranch', 'Cơ sở chính'), value: t('contact.info.address', '123 Nguyễn Văn Linh, Quận 7'), desc: t('contact.info.city', 'TP. Hồ Chí Minh') },
     { icon: Clock, title: t('contact.info.workingHours', 'Giờ làm việc'), value: t('contact.info.workingHoursValue', 'T2 - CN: 8:00 - 21:00'), desc: t('contact.info.workingHoursNote', 'Cả ngày lễ và chủ nhật') },
   ]
 
@@ -120,7 +120,7 @@ export default function ContactPage() {
                   <div className="text-center">
                     <MapPin className="h-8 w-8 mx-auto mb-2" />
                     <p className="text-sm">{t('contact.map', 'Bản đồ')}</p>
-                    <p className="text-xs mt-1">123 Nguyễn Văn Linh, Quận 7, TP. HCM</p>
+                    <p className="text-xs mt-1">{t('contact.mapAddress', '123 Nguyễn Văn Linh, Quận 7, TP. HCM')}</p>
                   </div>
                 </div>
               </motion.div>

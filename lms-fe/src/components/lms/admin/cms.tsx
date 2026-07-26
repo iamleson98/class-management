@@ -286,7 +286,7 @@ export default function AdminCMS() {
 
       {/* Add/Edit Post Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog() }}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingPost ? t('cms.editPost', 'Chỉnh sửa bài viết') : t('cms.newPost', 'Viết bài mới')}</DialogTitle>
             <DialogDescription />

@@ -254,10 +254,11 @@ export default function AdminClasses() {
     queryFn: () => getCourses(),
   })
 
-  const { data: teachers = [], isLoading: isLoadingTeachers, isError: isTeachersError } = useQuery({
+  const { data: teachersData, isLoading: isLoadingTeachers, isError: isTeachersError } = useQuery({
     queryKey: ['users-teachers'],
     queryFn: () => getUsers({ role: 'lms_teacher' }),
   })
+  const teachers = teachersData?.items ?? []
 
   const { data: students = [], isLoading: isLoadingStudents, isError: isStudentsError } = useQuery({
     queryKey: ['students-enroll'],
