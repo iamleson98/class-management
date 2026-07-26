@@ -9,6 +9,7 @@ import {
 } from 'date-fns'
 import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, CheckCircle2, Circle } from 'lucide-react'
 import { getSessions } from '@/lib/api'
+import { eq, and } from '@/lib/query'
 import { PageHeader } from '@/components/lms/page-header'
 import { EmptyState } from '@/components/lms/empty-state'
 import { useLMSStore } from '@/store/lms-store'
@@ -60,8 +61,11 @@ export default function TeacherSchedule() {
 
   const { data: sessions = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['teacher-sessions', monthStr, authUser?.id],
-    queryFn: () => getSessions({ teacherId: authUser?.id, month: monthStr }),
+    // `teacherId` is filterable server-side; the sessions table has no
+    // `month` column, so filter to the current month client-side.
+    queryFn: () => getSessions({ where_ands: and(eq('lms_sessions.teacher_id', authUser?.id)) }),
     enabled: !!authUser?.id,
+    select: (all) => all.filter((s) => (s.date || '').startsWith(monthStr)),
   })
 
   // Calendar grid

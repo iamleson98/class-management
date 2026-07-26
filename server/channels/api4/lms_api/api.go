@@ -1,6 +1,8 @@
 package lmsapi
 
 import (
+	"net/http"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/iamleson98/sitename/server/v8/channels/api4"
 )
@@ -24,6 +26,11 @@ func Init(api *api4.API) error {
 
 	// Public routes (no auth required)
 	lmsAPI.InitPublic()
+
+	// Dev-only: serve OpenAPI JSON spec
+	api4.InitSwaggerRoutes(func(method, pattern string, handler http.Handler) {
+		lmsAPI.routes.Method(method, pattern, handler)
+	})
 
 	// Authenticated routes
 	lmsAPI.InitBranches()

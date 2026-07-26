@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
 import vi from './locales/vi'
 import en from './locales/en'
 
@@ -50,11 +50,25 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // Resolve a translation string, optionally substituting {placeholder} tokens
+  // with values from `args`. Unknown tokens are left untouched.
+  const resolve = useCallback(
+    (template: string, args?: Record<string, any>): string => {
+      if (!args) return template
+      return template.replace(/\{(\w+)\}/g, (match, key: string) =>
+        key in args ? String(args[key]) : match
+      )
+    },
+    []
+  )
+
   const t = useCallback(
     (key: string, fallback?: string, args?: Record<string, any>): string => {
-      return translations[locale][key] ?? translations['vi'][key] ?? fallback ?? key
+      const template =
+        translations[locale][key] ?? translations['vi'][key] ?? fallback ?? key
+      return resolve(template, args)
     },
-    [locale]
+    [locale, resolve]
   )
 
   return (
@@ -68,7 +82,13 @@ export function useTranslation() {
   const context = useContext(I18nContext)
   if (!context) {
     // Fallback for SSR or outside provider
-    const t = (key: string, fallback?: string) => vi[key as keyof typeof vi] ?? fallback ?? key
+    const t = (key: string, fallback?: string, args?: Record<string, any>): string => {
+      const template = vi[key as keyof typeof vi] ?? fallback ?? key
+      if (!args) return template
+      return template.replace(/\{(\w+)\}/g, (match, k: string) =>
+        k in args ? String(args[k]) : match
+      )
+    }
     return { locale: 'vi' as Locale, setLocale: (_l: Locale) => {}, t }
   }
   return context

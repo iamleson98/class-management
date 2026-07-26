@@ -5,6 +5,8 @@ import (
 	"net/http"
 
 	"github.com/iamleson98/sitename/server/public/model"
+	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
+	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/v8/channels/api4"
 	"github.com/iamleson98/sitename/server/v8/channels/web"
@@ -16,6 +18,11 @@ func (a *LMSAPI) InitStudents() {
 	a.routes.Method(http.MethodGet, "/students/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(getStudent))
 	a.routes.Method(http.MethodPut, "/students/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(updateStudent))
 	a.routes.Method(http.MethodDelete, "/students/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(deleteStudent))
+
+	// Counselor user <-> student conversions (gated by PermissionLmsManageStudents).
+	a.routes.Method(http.MethodGet, "/students/convertible-users", a.api.APISessionRequired(getConvertibleUsers))
+	a.routes.Method(http.MethodPost, "/users/{id:[A-Za-z0-9]+}/convert-to-student", a.api.APISessionRequired(convertUserToStudent))
+	a.routes.Method(http.MethodPost, "/students/{id:[A-Za-z0-9]+}/revert-to-user", a.api.APISessionRequired(revertStudentToUser))
 }
 
 func getStudents(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -24,37 +31,26 @@ func getStudents(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var opts utils.SearchOpts[utils.UserColumn]
+	var opts modelhelper.StudentFilterOpts
 	if err := json.NewDecoder(r.Body).Decode(&opts); err != nil {
 		c.Err = model.NewAppError("getStudents", model.PayloadParseError, nil, "", http.StatusBadRequest).Wrap(err)
 		return
 	}
 
-	q := r.URL.Query()
-	var (
-		classID            = q.Get("class_id")
-		status             = q.Get("status")
-		search             = q.Get("search")
-		page, okPage       = c.Params["page"]
-		perPage, okPerPage = c.Params["per_page"]
-	)
-	// opts := lms.StudentFilterOpts{
-	// 	ClassID: q.Get("class_id"),
-	// 	Status:  q.Get("status"),
-	// 	Search:  q.Get("search"),
-	// }
-
-	students, err := c.App.LMS().GetStudents(opts)
+	students, totalCount, err := c.App.LMS().GetStudents(opts)
 	if err != nil {
 		c.Err = err
 		return
 	}
-	if students == nil {
-		students = []*model.User{}
+
+	res := utils.ResponseList{
+		Items:      students,
+		TotalCount: totalCount,
 	}
 
-	data, _ := json.Marshal(LMSResponse{Data: students})
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func createStudent(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -156,4 +152,72 @@ func deleteStudent(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write([]byte(`{"data":true}`))
+}
+
+// getConvertibleUsers lists non-student, non-deactivated users that a counselor
+// can convert into students.
+func getConvertibleUsers(c *api4.Context, w http.ResponseWriter, r *http.Request) {
+	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageStudents) {
+		c.SetPermissionError(model.PermissionLmsManageStudents)
+		return
+	}
+
+	users, err := c.App.LMS().GetConvertibleUsers()
+	if err != nil {
+		c.Err = err
+		return
+	}
+
+	if users == nil {
+		users = []*model.User{}
+	}
+
+	data, _ := json.Marshal(LMSResponse{Data: users})
+	w.Write(data)
+}
+
+// convertUserToStudent promotes an existing user to a student.
+func convertUserToStudent(c *api4.Context, w http.ResponseWriter, r *http.Request) {
+	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageStudents) {
+		c.SetPermissionError(model.PermissionLmsManageStudents)
+		return
+	}
+
+	idVal := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
+		return
+	}
+	id := idVal.(string)
+
+	updated, err := c.App.LMS().ConvertUserToStudent(id)
+	if err != nil {
+		c.Err = err
+		return
+	}
+
+	data, _ := json.Marshal(LMSResponse{Data: updated})
+	w.Write(data)
+}
+
+// revertStudentToUser demotes a student back to a regular user.
+func revertStudentToUser(c *api4.Context, w http.ResponseWriter, r *http.Request) {
+	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageStudents) {
+		c.SetPermissionError(model.PermissionLmsManageStudents)
+		return
+	}
+
+	idVal := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
+		return
+	}
+	id := idVal.(string)
+
+	updated, err := c.App.LMS().RevertStudentToUser(id)
+	if err != nil {
+		c.Err = err
+		return
+	}
+
+	data, _ := json.Marshal(LMSResponse{Data: updated})
+	w.Write(data)
 }

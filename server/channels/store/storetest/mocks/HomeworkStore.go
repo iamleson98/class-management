@@ -63,36 +63,6 @@ func (_m *HomeworkStore) Get(id string) (*lms_models.Homework, error) {
 	return r0, r1
 }
 
-// GetAll provides a mock function with given fields: opts
-func (_m *HomeworkStore) GetAll(opts modelhelper.HomeworkFilterOpts) ([]*lms_models.Homework, error) {
-	ret := _m.Called(opts)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetAll")
-	}
-
-	var r0 []*lms_models.Homework
-	var r1 error
-	if rf, ok := ret.Get(0).(func(modelhelper.HomeworkFilterOpts) ([]*lms_models.Homework, error)); ok {
-		return rf(opts)
-	}
-	if rf, ok := ret.Get(0).(func(modelhelper.HomeworkFilterOpts) []*lms_models.Homework); ok {
-		r0 = rf(opts)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*lms_models.Homework)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(modelhelper.HomeworkFilterOpts) error); ok {
-		r1 = rf(opts)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // Save provides a mock function with given fields: hw
 func (_m *HomeworkStore) Save(hw *lms_models.Homework) (*lms_models.Homework, error) {
 	ret := _m.Called(hw)
@@ -123,6 +93,43 @@ func (_m *HomeworkStore) Save(hw *lms_models.Homework) (*lms_models.Homework, er
 	return r0, r1
 }
 
+// Search provides a mock function with given fields: opts
+func (_m *HomeworkStore) Search(opts modelhelper.HomeworkFilterOpts) ([]*lms_models.Homework, int64, error) {
+	ret := _m.Called(opts)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Search")
+	}
+
+	var r0 []*lms_models.Homework
+	var r1 int64
+	var r2 error
+	if rf, ok := ret.Get(0).(func(modelhelper.HomeworkFilterOpts) ([]*lms_models.Homework, int64, error)); ok {
+		return rf(opts)
+	}
+	if rf, ok := ret.Get(0).(func(modelhelper.HomeworkFilterOpts) []*lms_models.Homework); ok {
+		r0 = rf(opts)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*lms_models.Homework)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(modelhelper.HomeworkFilterOpts) int64); ok {
+		r1 = rf(opts)
+	} else {
+		r1 = ret.Get(1).(int64)
+	}
+
+	if rf, ok := ret.Get(2).(func(modelhelper.HomeworkFilterOpts) error); ok {
+		r2 = rf(opts)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
 // Update provides a mock function with given fields: hw
 func (_m *HomeworkStore) Update(hw *lms_models.Homework) (*lms_models.Homework, error) {
 	ret := _m.Called(hw)
@@ -146,34 +153,6 @@ func (_m *HomeworkStore) Update(hw *lms_models.Homework) (*lms_models.Homework, 
 
 	if rf, ok := ret.Get(1).(func(*lms_models.Homework) error); ok {
 		r1 = rf(hw)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// Count provides a mock function with given fields: opts
-func (_m *HomeworkStore) Count(opts modelhelper.HomeworkFilterOpts) (int64, error) {
-	ret := _m.Called(opts)
-
-	if len(ret) == 0 {
-		panic("no return value specified for Count")
-	}
-
-	var r0 int64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(modelhelper.HomeworkFilterOpts) (int64, error)); ok {
-		return rf(opts)
-	}
-	if rf, ok := ret.Get(0).(func(modelhelper.HomeworkFilterOpts) int64); ok {
-		r0 = rf(opts)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-
-	if rf, ok := ret.Get(1).(func(modelhelper.HomeworkFilterOpts) error); ok {
-		r1 = rf(opts)
 	} else {
 		r1 = ret.Error(1)
 	}

@@ -8,7 +8,7 @@ import {
   Clock, DollarSign, TrendingUp, UserPlus, Plus, School, Contact,
   ArrowRight, Zap, CreditCard, Target,
 } from 'lucide-react'
-import { useLMSStore } from '@/store/lms-store'
+// import { useLMSStore } from '@/store/lms-store'
 import { formatVND, getDashboard, getSessions } from '@/lib/api'
 import { PageHeader } from '@/components/lms/page-header'
 import { EmptyState } from '@/components/lms/empty-state'
@@ -22,14 +22,14 @@ import { staggerContainer, staggerItem } from '@/components/lms/shared/animation
 import { useTranslation } from '@/lib/i18n'
 
 const QUICK_ACTIONS = [
-  { id: 'students', label: 'Thêm học viên', icon: UserPlus, color: 'bg-sky-50 dark:bg-sky-950/30 text-sky-600 hover:bg-sky-100 dark:hover:bg-sky-950/50' },
-  { id: 'courses', label: 'Thêm khóa học', icon: Plus, color: 'bg-violet-50 dark:bg-violet-950/30 text-violet-600 hover:bg-violet-100 dark:hover:bg-violet-950/50' },
-  { id: 'classes', label: 'Tạo lớp', icon: School, color: 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-950/50' },
-  { id: 'crm', label: 'Quản lý CRM', icon: Contact, color: 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-950/50' },
+  { id: 'students', label: 'students.addStudent', icon: UserPlus, color: 'bg-sky-50 dark:bg-sky-950/30 text-sky-600 hover:bg-sky-100 dark:hover:bg-sky-950/50' },
+  { id: 'courses', label: 'courses.addCourse', icon: Plus, color: 'bg-violet-50 dark:bg-violet-950/30 text-violet-600 hover:bg-violet-100 dark:hover:bg-violet-950/50' },
+  { id: 'classes', label: 'classes.createClass', icon: School, color: 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-950/50' },
+  { id: 'crm', label: 'crm.manage', icon: Contact, color: 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-950/50' },
 ]
 
 export default function AdminDashboard() {
-  const { setActiveView } = useLMSStore()
+  // const { setActiveView } = useLMSStore()
   const { t } = useTranslation()
 
   const currentMonth = format(new Date(), 'yyyy-MM')
@@ -41,7 +41,9 @@ export default function AdminDashboard() {
 
   const sessionsQuery = useQuery({
     queryKey: ['sessions', 'admin-recent', currentMonth],
-    queryFn: () => getSessions({ month: currentMonth }),
+    // The sessions table has no `month` column, so we fetch all and filter
+    // by current month client-side.
+    queryFn: () => getSessions(),
   })
 
   if (dashboardQuery.isLoading || sessionsQuery.isLoading) {
@@ -58,7 +60,7 @@ export default function AdminDashboard() {
 
   const dashboard = dashboardQuery.data || {}
   const stats = dashboard
-  const sessions = sessionsQuery.data || []
+  const sessions = (sessionsQuery.data || []).filter((s: any) => (s.date || '').startsWith(currentMonth))
 
   const todaySessions = sessions
     .filter((s: any) => isToday(parseISO(s.date)))
@@ -177,7 +179,7 @@ export default function AdminDashboard() {
                   <div className={cn('p-2.5 rounded-xl transition-all duration-200 group-hover:scale-110', action.color)}>
                     <Icon className="h-4 w-4" />
                   </div>
-                  <span className="text-sm font-medium text-nowrap">{action.label}</span>
+                  <span className="text-sm font-medium text-nowrap">{t(action.label)}</span>
                   <ArrowRight className="h-3.5 w-3.5 text-muted-foreground ml-auto opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
                 </motion.a>
               )

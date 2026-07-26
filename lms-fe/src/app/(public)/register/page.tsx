@@ -31,10 +31,10 @@ export default function RegisterPage() {
     mutationFn: (values: RegisterInput) => submitRegistration({
       name: values.name,
       phone: values.phone,
-      email: values.email || null,
-      age: values.age || null,
-      source: values.source || 'Website',
-      need: values.need || null,
+      email: values.email,
+      age: values.age,
+      source: values.source,
+      need: values.need,
     }),
     onSuccess: () => setSuccess(true),
     onError: (err) => setError(err.message || t('register.failed', 'Đăng ký thất bại. Vui lòng thử lại.')),
@@ -135,7 +135,7 @@ export default function RegisterPage() {
                     </div>
                     <div>
                       <h2 className="text-xl font-bold">{t('register.form.title', 'Thông tin đăng ký')}</h2>
-                      <p className="text-sm text-muted-foreground">{t('register.form.required', 'Các trường (*) là bắt buộc')}</p>
+                      <p className="text-sm text-muted-foreground">{t('register.form.note', 'Các trường (*) là bắt buộc')}</p>
                     </div>
                   </div>
 

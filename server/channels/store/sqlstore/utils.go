@@ -23,10 +23,10 @@ var escapeLikeSearchChar = []string{
 }
 
 func sanitizeSearchTerm(term string, escapeChar string) string {
-	term = strings.Replace(term, escapeChar, "", -1)
+	term = strings.ReplaceAll(term, escapeChar, "")
 
 	for _, c := range escapeLikeSearchChar {
-		term = strings.Replace(term, c, escapeChar+c, -1)
+		term = strings.ReplaceAll(term, c, escapeChar+c)
 	}
 
 	return term
@@ -43,7 +43,8 @@ func MapStringsToQueryParams(list []string, paramPrefix string) (string, map[str
 		}
 
 		key := paramPrefix + strconv.Itoa(i)
-		keys.WriteString(":" + key)
+		keys.WriteString(":")
+		keys.WriteString(key)
 		params[key] = entry
 	}
 

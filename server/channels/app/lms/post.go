@@ -42,12 +42,12 @@ func (a *LMSApp) GetPost(id string) (*lms_models.BlogPost, *model.AppError) {
 	return post, nil
 }
 
-func (a *LMSApp) GetPosts(opts modelhelper.BlogPostFilterOpts) ([]*lms_models.BlogPost, *model.AppError) {
-	posts, err := a.store.BlogPost().GetAll(opts)
+func (a *LMSApp) GetPosts(opts modelhelper.BlogPostFilterOpts) ([]*lms_models.BlogPost, int64, *model.AppError) {
+	posts, totalCount, err := a.store.BlogPost().Search(opts)
 	if err != nil {
-		return nil, model.NewAppError("GetPosts", "app.lms.blog_post.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		return nil, 0, model.NewAppError("GetPosts", "app.lms.blog_post.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}
-	return posts, nil
+	return posts, totalCount, nil
 }
 
 func (a *LMSApp) CreatePost(post *lms_models.BlogPost) (*lms_models.BlogPost, *model.AppError) {

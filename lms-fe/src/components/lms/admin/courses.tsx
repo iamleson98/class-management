@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod/v4'
@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { formatVND, getCourses, createCourse, updateCourse, deleteCourse } from '@/lib/api'
+import { PaginationControls, usePagination, derivePageInfo } from '@/components/lms/shared/pagination'
 import { useTranslation } from '@/lib/i18n'
 
 type CourseFormValues = z.input<typeof createCourseSchema>
@@ -49,6 +50,7 @@ export default function CoursesPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [editingCourse, setEditingCourse] = useState<any>(null)
+  const pagination = usePagination(12)
 
   const form = useForm<CourseFormValues>({
     resolver: zodResolver(createCourseSchema),
@@ -59,6 +61,9 @@ export default function CoursesPage() {
     queryKey: ['courses'],
     queryFn: () => getCourses(),
   })
+
+  // Reset to first page whenever the client-side filters/sort change.
+  useEffect(() => { pagination.setPageIndex(0) }, [search, levelFilter, priceFilter, sortBy])
 
   const mutation = useMutation({
     mutationFn: (data: any) => editingCourse ? updateCourse(editingCourse.id, data) : createCourse(data),
@@ -147,6 +152,13 @@ export default function CoursesPage() {
     }
     return sorted
   }, [courses, search, levelFilter, priceFilter, sortBy])
+
+  // Courses are served via GET (no server-side filter/sort body), so paging is
+  // applied CLIENT-SIDE over the filtered+sorted list. derivePageInfo yields the
+  // server-style page-control props for consistency with other listings.
+  const startIndex = pagination.pageIndex * pagination.pageSize
+  const pageCourses = filteredCourses.slice(startIndex, startIndex + pagination.pageSize)
+  const pageInfo = derivePageInfo(filteredCourses.length, pagination.pageIndex, pagination.pageSize, pageCourses.length)
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
@@ -243,8 +255,9 @@ export default function CoursesPage() {
           onAction={handleAdd}
         />
       ) : (
+        <>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredCourses.map((course: any) => (
+          {pageCourses.map((course: any) => (
             <Card key={course.id} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -273,6 +286,12 @@ export default function CoursesPage() {
             </Card>
           ))}
         </div>
+        <PaginationControls
+          {...pageInfo}
+          onPageIndexChange={pagination.setPageIndex}
+          onPageSizeChange={pagination.setPageSize}
+        />
+        </>
       )}
 
       {/* Add/Edit Dialog */}

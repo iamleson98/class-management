@@ -3,20 +3,20 @@ package lmsapi
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
 	"github.com/iamleson98/sitename/server/public/utils"
+	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"github.com/iamleson98/sitename/server/v8/channels/api4"
 	"github.com/iamleson98/sitename/server/v8/channels/web"
 )
 
 // InitSessions registers session routes on the LMS router.
 func (a *LMSAPI) InitSessions() {
-	a.routes.Method(http.MethodGet, "/sessions", a.api.APISessionRequired(getSessions))
-	a.routes.Method(http.MethodPost, "/sessions", a.api.APISessionRequired(createSession))
+	a.routes.Method(http.MethodPost, "/sessions", a.api.APISessionRequired(getSessions))
+	a.routes.Method(http.MethodPost, "/sessions/create", a.api.APISessionRequired(createSession))
 	a.routes.Method(http.MethodGet, "/sessions/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(getSession))
 	a.routes.Method(http.MethodPut, "/sessions/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(updateSession))
 	a.routes.Method(http.MethodDelete, "/sessions/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(deleteSession))
@@ -29,37 +29,27 @@ func getSessions(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		c.SetPermissionError(model.PermissionLmsManageSessions)
 		return
 	}
-	q := r.URL.Query()
-	opts := modelhelper.SessionFilterOpts{
-		ClassID:   q.Get("class_id"),
-		TeacherID: q.Get("teacher_id"),
-		StudentID: q.Get("student_id"),
-		Month:     q.Get("month"),
-		Date:      q.Get("date"),
-	}
-	if v := q.Get("page"); v != "" {
-		opts.Page, _ = strconv.Atoi(v)
-	}
-	if v := q.Get("per_page"); v != "" {
-		opts.PerPage, _ = strconv.Atoi(v)
-	}
-	if q.Get("count_total") == "true" {
-		opts.CountTotal = true
+
+	var opts modelhelper.SessionFilterOpts
+	if err := json.NewDecoder(r.Body).Decode(&opts); err != nil {
+		c.Err = model.NewAppError("getSessions", model.PayloadParseError, nil, "", http.StatusBadRequest).Wrap(err)
+		return
 	}
 
-	sessions, err := c.App.LMS().GetSessions(opts)
+	items, totalCount, err := c.App.LMS().GetSessions(opts)
 	if err != nil {
 		c.Err = err
 		return
 	}
 
-	if sessions == nil {
-		sessions = []*lms_models.LMSSession{}
+	res := utils.ResponseList{
+		Items:      items,
+		TotalCount: totalCount,
 	}
 
-	res := utils.ResponseList{Items: sessions}
-	data, _ := json.Marshal(res)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func createSession(c *api4.Context, w http.ResponseWriter, r *http.Request) {

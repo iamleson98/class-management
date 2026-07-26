@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod/v4'
@@ -9,7 +9,8 @@ import { motion } from 'framer-motion'
 import { DollarSign, Plus, CreditCard } from 'lucide-react'
 import { createTuitionSchema, paymentSchema, type CreateTuitionInput, type PaymentInput } from '@/lib/schemas'
 import { useLMSStore } from '@/store/lms-store'
-import { formatVND, getTuitions, createTuition, createPayment, getTuitionPayments } from '@/lib/api'
+import { formatVND, getTuitionsPaginated, createTuition, createPayment, getTuitionPayments } from '@/lib/api'
+import { eq, and, paginate } from '@/lib/query'
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/lms/page-header'
 import { EmptyState } from '@/components/lms/empty-state'
@@ -28,7 +29,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { PaginationControls, usePagination, paginate } from '@/components/lms/shared/pagination'
+import { PaginationControls, usePagination, derivePageInfo } from '@/components/lms/shared/pagination'
 import { cn } from '@/lib/utils'
 import { staggerContainer, staggerItem } from '@/components/lms/shared/animations'
 import { useTranslation } from '@/lib/i18n'
@@ -67,10 +68,26 @@ export default function AdminTuition() {
     defaultValues: EMPTY_PAYMENT_FORM,
   })
 
-  const { data: tuitions = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ['tuitions', statusFilter],
-    queryFn: () => getTuitions({ status: statusFilter !== 'all' ? statusFilter : undefined }),
+  // Reset to first page whenever the status filter changes so the user doesn't
+  // land on an empty page after narrowing the result set.
+  useEffect(() => { pagination.setPageIndex(0) }, [statusFilter])
+
+  // Build the typed SearchOpts body. TuitionFilterOpts honors a top-level
+  // `search` field (see server/public/model_helper/lms.go), so that goes at the
+  // body root; `tuitions.status` is a column condition expressed via eq().
+  const opts = useMemo(() => ({
+    search: undefined,
+    where_ands: and(eq('tuitions.status', statusFilter !== 'all' ? statusFilter : undefined)),
+    ...paginate(pagination.pageIndex, pagination.pageSize),
+  }), [statusFilter, pagination.pageIndex, pagination.pageSize])
+
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['tuitions', opts],
+    queryFn: () => getTuitionsPaginated(opts),
   })
+
+  const tuitions = data?.items ?? []
+  const pageInfo = derivePageInfo(data?.totalCount ?? 0, pagination.pageIndex, pagination.pageSize, tuitions.length)
 
   const { data: payments = [], isLoading: isLoadingPayments, isError: isPaymentsError } = useQuery({
     queryKey: ['tuition-payments', selectedTuition?.id],
@@ -100,9 +117,6 @@ export default function AdminTuition() {
     },
     onError: () => toast({ title: t('tuition.paymentFail', 'Ghi nhận thanh toán thất bại'), variant: 'destructive' }),
   })
-
-  const filtered = useMemo(() => tuitions, [tuitions])
-  const paginated = paginate(filtered, pagination.pageIndex, pagination.pageSize)
 
   const openCreate = () => {
     createForm.reset(EMPTY_CREATE_TUITION_FORM)
@@ -164,7 +178,7 @@ export default function AdminTuition() {
         </div>
       </Card>
 
-      {paginated.data.length === 0 ? (
+      {tuitions.length === 0 ? (
         <EmptyState icon={DollarSign} title={t('tuition.emptyTitle', 'Chưa có khoản học phí')} description={t('tuition.emptyDescription', 'Tạo khoản học phí đầu tiên.')} actionLabel={t('tuition.createTuition', 'Tạo học phí')} onAction={openCreate} />
       ) : (
         <>
@@ -182,7 +196,7 @@ export default function AdminTuition() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginated.data.map((tuition: any) => {
+                {tuitions.map((tuition: any) => {
                   const status = STATUS_MAP[tuition.status] || STATUS_MAP.UNPAID
                   const remaining = (tuition.totalFee || tuition.totalAmount || 0) - (tuition.paidAmount || 0)
                   return (
@@ -204,7 +218,7 @@ export default function AdminTuition() {
               </TableBody>
             </Table>
           </motion.div>
-          <PaginationControls {...paginated} onPageIndexChange={pagination.setPageIndex} onPageSizeChange={pagination.setPageSize} />
+          <PaginationControls {...pageInfo} onPageIndexChange={pagination.setPageIndex} onPageSizeChange={pagination.setPageSize} />
         </>
       )}
 

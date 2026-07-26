@@ -43,6 +43,7 @@ import { PageHeader } from '@/components/lms/page-header'
 import { EmptyState } from '@/components/lms/empty-state'
 import { ErrorState } from '@/components/lms/error-state'
 import { DatePicker } from '@/components/ui/date-picker'
+import { TimePicker } from '@/components/ui/time-picker'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -142,7 +143,10 @@ export default function AdminSchedule() {
 
   const { data: sessions = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['sessions', monthStr],
-    queryFn: () => getSessions({ month: monthStr }),
+    // The sessions table has no `month` column — fetch all and filter to the
+    // current month client-side.
+    queryFn: () => getSessions(),
+    select: (all) => all.filter((s) => (s.date || '').startsWith(monthStr)),
   })
 
   const { data: classes = [], isLoading: isLoadingClasses, isError: isClassesError } = useQuery({
@@ -860,10 +864,11 @@ function CreateSessionDialog({
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 mt-2">
           {/* Ngày học */}
           <div className="space-y-1.5">
-            <Label>{t('schedule.sessionDate', 'Ngày học')} <span className="text-destructive">*</span></Label>
+            <Label data-error={!!form.formState.errors.date} className="data-[error=true]:text-destructive">{t('schedule.sessionDate', 'Ngày học')} <span className="text-destructive">*</span></Label>
             <DatePicker
               value={watchedDate}
               onChange={(v) => form.setValue('date', v, { shouldValidate: true })}
+              invalid={!!form.formState.errors.date}
             />
             {form.formState.errors.date && (
               <p className="text-xs text-destructive">{form.formState.errors.date.message}</p>
@@ -871,22 +876,24 @@ function CreateSessionDialog({
           </div>
 
           {/* Thời gian */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 items-start">
             <div className="space-y-1.5">
-              <Label>{t('schedule.startTime', 'Giờ bắt đầu')} <span className="text-destructive">*</span></Label>
-              <Input
-                type="time"
-                {...form.register('startTime')}
+              <Label data-error={!!form.formState.errors.startTime} className="data-[error=true]:text-destructive">{t('schedule.startTime', 'Giờ bắt đầu')} <span className="text-destructive">*</span></Label>
+              <TimePicker
+                value={form.watch('startTime') ?? ''}
+                onChange={(v) => form.setValue('startTime', v, { shouldValidate: true })}
+                invalid={!!form.formState.errors.startTime}
               />
               {form.formState.errors.startTime && (
                 <p className="text-xs text-destructive">{form.formState.errors.startTime.message}</p>
               )}
             </div>
             <div className="space-y-1.5">
-              <Label>{t('schedule.endTime', 'Giờ kết thúc')} <span className="text-destructive">*</span></Label>
-              <Input
-                type="time"
-                {...form.register('endTime')}
+              <Label data-error={!!form.formState.errors.endTime} className="data-[error=true]:text-destructive">{t('schedule.endTime', 'Giờ kết thúc')} <span className="text-destructive">*</span></Label>
+              <TimePicker
+                value={form.watch('endTime') ?? ''}
+                onChange={(v) => form.setValue('endTime', v, { shouldValidate: true })}
+                invalid={!!form.formState.errors.endTime}
               />
               {form.formState.errors.endTime && (
                 <p className="text-xs text-destructive">{form.formState.errors.endTime.message}</p>
@@ -896,9 +903,9 @@ function CreateSessionDialog({
 
           {/* Lớp học */}
           <div className="space-y-1.5">
-            <Label>{t('schedule.className', 'Lớp học')} <span className="text-destructive">*</span></Label>
+            <Label data-error={!!form.formState.errors.classId} className="data-[error=true]:text-destructive">{t('schedule.className', 'Lớp học')} <span className="text-destructive">*</span></Label>
             <Select value={watchedClassId || ''} onValueChange={(v) => form.setValue('classId', v, { shouldValidate: true })}>
-              <SelectTrigger>
+              <SelectTrigger aria-invalid={!!form.formState.errors.classId || undefined}>
                 {isLoadingClasses ? (
                   <SelectValue placeholder={t('common.loading', 'Đang tải...')} />
                 ) : (
@@ -930,9 +937,9 @@ function CreateSessionDialog({
 
           {/* Giáo viên */}
           <div className="space-y-1.5">
-            <Label>{t('schedule.teacher', 'Giáo viên')} <span className="text-destructive">*</span></Label>
+            <Label data-error={!!form.formState.errors.teacherId} className="data-[error=true]:text-destructive">{t('schedule.teacher', 'Giáo viên')} <span className="text-destructive">*</span></Label>
             <Select value={watchedTeacherId || ''} onValueChange={(v) => form.setValue('teacherId', v, { shouldValidate: true })}>
-              <SelectTrigger>
+              <SelectTrigger aria-invalid={!!form.formState.errors.teacherId || undefined}>
                 <SelectValue placeholder={t('schedule.selectTeacherPlaceholder', 'Chọn giáo viên')} />
               </SelectTrigger>
               <SelectContent>
@@ -950,14 +957,14 @@ function CreateSessionDialog({
 
           {/* Phòng học */}
           <div className="space-y-1.5">
-            <Label>{t('schedule.room', 'Phòng học')}</Label>
-            <Input placeholder={t('schedule.roomPlaceholder', 'Nhập phòng học (tùy chọn)')} {...form.register('room')} />
+            <Label data-error={!!form.formState.errors.room} className="data-[error=true]:text-destructive">{t('schedule.room', 'Phòng học')}</Label>
+            <Input placeholder={t('schedule.roomPlaceholder', 'Nhập phòng học (tùy chọn)')} aria-invalid={!!form.formState.errors.room || undefined} {...form.register('room')} />
           </div>
 
           {/* Tiêu đề */}
           <div className="space-y-1.5">
-            <Label>{t('schedule.sessionTitle', 'Tiêu đề')}</Label>
-            <Input placeholder={t('schedule.sessionTitlePlaceholder', 'Tên buổi học (mặc định: tên khóa học)')} {...form.register('title')} />
+            <Label data-error={!!form.formState.errors.title} className="data-[error=true]:text-destructive">{t('schedule.sessionTitle', 'Tiêu đề')}</Label>
+            <Input placeholder={t('schedule.sessionTitlePlaceholder', 'Tên buổi học (mặc định: tên khóa học)')} aria-invalid={!!form.formState.errors.title || undefined} {...form.register('title')} />
           </div>
 
           <DialogFooter className="pt-2">
@@ -1047,33 +1054,51 @@ function EditSessionDialog({
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 mt-2">
           {/* Ngày học */}
           <div className="space-y-1.5">
-            <Label>{t('schedule.sessionDate', 'Ngày học')}</Label>
+            <Label data-error={!!form.formState.errors.date} className="data-[error=true]:text-destructive">{t('schedule.sessionDate', 'Ngày học')}</Label>
             <DatePicker
               value={watchedDate}
               onChange={(v) => form.setValue('date', v)}
+              invalid={!!form.formState.errors.date}
             />
+            {form.formState.errors.date && (
+              <p className="text-xs text-destructive">{form.formState.errors.date.message}</p>
+            )}
           </div>
 
           {/* Thời gian */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 items-start">
             <div className="space-y-1.5">
-              <Label>{t('schedule.startTime', 'Giờ bắt đầu')}</Label>
-              <Input type="time" {...form.register('startTime')} />
+              <Label data-error={!!form.formState.errors.startTime} className="data-[error=true]:text-destructive">{t('schedule.startTime', 'Giờ bắt đầu')}</Label>
+              <TimePicker
+                value={form.watch('startTime') ?? ''}
+                onChange={(v) => form.setValue('startTime', v, { shouldValidate: true })}
+                invalid={!!form.formState.errors.startTime}
+              />
+              {form.formState.errors.startTime && (
+                <p className="text-xs text-destructive">{form.formState.errors.startTime.message}</p>
+              )}
             </div>
             <div className="space-y-1.5">
-              <Label>{t('schedule.endTime', 'Giờ kết thúc')}</Label>
-              <Input type="time" {...form.register('endTime')} />
+              <Label data-error={!!form.formState.errors.endTime} className="data-[error=true]:text-destructive">{t('schedule.endTime', 'Giờ kết thúc')}</Label>
+              <TimePicker
+                value={form.watch('endTime') ?? ''}
+                onChange={(v) => form.setValue('endTime', v, { shouldValidate: true })}
+                invalid={!!form.formState.errors.endTime}
+              />
+              {form.formState.errors.endTime && (
+                <p className="text-xs text-destructive">{form.formState.errors.endTime.message}</p>
+              )}
             </div>
           </div>
 
           {/* Trạng thái */}
           <div className="space-y-1.5">
-            <Label>{t('common.status', 'Trạng thái')}</Label>
+            <Label data-error={!!form.formState.errors.status} className="data-[error=true]:text-destructive">{t('common.status', 'Trạng thái')}</Label>
             <Select
               value={watchedStatus || 'SCHEDULED'}
               onValueChange={(v) => form.setValue('status', v as 'SCHEDULED' | 'COMPLETED' | 'CANCELLED')}
             >
-              <SelectTrigger>
+              <SelectTrigger aria-invalid={!!form.formState.errors.status || undefined}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1086,9 +1111,9 @@ function EditSessionDialog({
 
           {/* Lớp học */}
           <div className="space-y-1.5">
-            <Label>{t('schedule.className', 'Lớp học')}</Label>
+            <Label data-error={!!form.formState.errors.classId} className="data-[error=true]:text-destructive">{t('schedule.className', 'Lớp học')}</Label>
             <Select value={watchedClassId || ''} onValueChange={(v) => form.setValue('classId', v)}>
-              <SelectTrigger>
+              <SelectTrigger aria-invalid={!!form.formState.errors.classId || undefined}>
                 {isLoadingClasses ? (
                   <SelectValue placeholder={t('common.loading', 'Đang tải...')} />
                 ) : (
@@ -1117,9 +1142,9 @@ function EditSessionDialog({
 
           {/* Giáo viên */}
           <div className="space-y-1.5">
-            <Label>{t('schedule.teacher', 'Giáo viên')}</Label>
+            <Label data-error={!!form.formState.errors.teacherId} className="data-[error=true]:text-destructive">{t('schedule.teacher', 'Giáo viên')}</Label>
             <Select value={watchedTeacherId || ''} onValueChange={(v) => form.setValue('teacherId', v)}>
-              <SelectTrigger>
+              <SelectTrigger aria-invalid={!!form.formState.errors.teacherId || undefined}>
                 <SelectValue placeholder={t('schedule.selectTeacherPlaceholder', 'Chọn giáo viên')} />
               </SelectTrigger>
               <SelectContent>
@@ -1140,14 +1165,14 @@ function EditSessionDialog({
 
           {/* Phòng học */}
           <div className="space-y-1.5">
-            <Label>{t('schedule.room', 'Phòng học')}</Label>
-            <Input placeholder={t('schedule.roomPlaceholderEdit', 'Nhập phòng học')} {...form.register('room')} />
+            <Label data-error={!!form.formState.errors.room} className="data-[error=true]:text-destructive">{t('schedule.room', 'Phòng học')}</Label>
+            <Input placeholder={t('schedule.roomPlaceholderEdit', 'Nhập phòng học')} aria-invalid={!!form.formState.errors.room || undefined} {...form.register('room')} />
           </div>
 
           {/* Tiêu đề */}
           <div className="space-y-1.5">
-            <Label>{t('schedule.sessionTitle', 'Tiêu đề')}</Label>
-            <Input placeholder={t('schedule.sessionTitlePlaceholderEdit', 'Tên buổi học')} {...form.register('title')} />
+            <Label data-error={!!form.formState.errors.title} className="data-[error=true]:text-destructive">{t('schedule.sessionTitle', 'Tiêu đề')}</Label>
+            <Input placeholder={t('schedule.sessionTitlePlaceholderEdit', 'Tên buổi học')} aria-invalid={!!form.formState.errors.title || undefined} {...form.register('title')} />
           </div>
 
           <DialogFooter className="pt-2 flex-row gap-2 justify-between sm:justify-end">

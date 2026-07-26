@@ -30,24 +30,25 @@ func (s *SqlBranchStore) Get(id string) (*lms_models.Branch, error) {
 	return branch, nil
 }
 
-func (s *SqlBranchStore) GetAll(opts modelhelper.BranchFilterOpts) ([]*lms_models.Branch, error) {
-	var mods []qm.QueryMod
+func (s *SqlBranchStore) Search(opts modelhelper.BranchFilterOpts) ([]*lms_models.Branch, int64, error) {
+	mods := []qm.QueryMod{}
 
-	mods = append(mods, qm.OrderBy(lms_models.BranchColumns.Name+" ASC"))
+	modsWithPagination := append(mods, &opts.SearchOpts)
+	branches, err := lms_models.Branches(modsWithPagination...).All(s.sqlStore.GetReplicaExecuter())
+	if err != nil {
+		return nil, 0, errors.Wrap(err, "failed to search branches")
+	}
+	totalCount := int64(len(branches))
 
-	if opts.PerPage > 0 {
-		mods = append(mods, qm.Limit(opts.PerPage))
-		if opts.Page > 0 {
-			mods = append(mods, qm.Offset((opts.Page-1)*opts.PerPage))
+	if opts.CountTotal {
+		modsWithoutPagination := append(mods, opts.SearchOpts.ExludePaginationForCount())
+		totalCount, err = lms_models.Branches(modsWithoutPagination...).Count(s.sqlStore.GetReplicaExecuter())
+		if err != nil {
+			return nil, 0, errors.Wrap(err, "failed to count branches")
 		}
 	}
 
-	branches, err := lms_models.Branches(mods...).All(s.sqlStore.GetReplicaExecuter())
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get all branches")
-	}
-
-	return branches, nil
+	return branches, totalCount, nil
 }
 
 func (s *SqlBranchStore) Save(branch *lms_models.Branch) (*lms_models.Branch, error) {
@@ -79,12 +80,4 @@ func (s *SqlBranchStore) Delete(id string) error {
 		return store.NewErrNotFound("Branch", id)
 	}
 	return nil
-}
-
-func (s *SqlBranchStore) Count(opts modelhelper.BranchFilterOpts) (int64, error) {
-	count, err := lms_models.Branches().Count(s.sqlStore.GetReplicaExecuter())
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to count branches")
-	}
-	return count, nil
 }

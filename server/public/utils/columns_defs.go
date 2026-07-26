@@ -6,36 +6,36 @@ package utils
 type UserColumn string
 
 const (
-	UserID                 UserColumn = "id"
-	UserCreateat           UserColumn = "createat"
-	UserUpdateat           UserColumn = "updateat"
-	UserDeleteat           UserColumn = "deleteat"
-	UserUsername           UserColumn = "username"
-	UserPassword           UserColumn = "password"
-	UserAuthdata           UserColumn = "authdata"
-	UserAuthservice        UserColumn = "authservice"
-	UserEmail              UserColumn = "email"
-	UserEmailverified      UserColumn = "emailverified"
-	UserNickname           UserColumn = "nickname"
-	UserFirstname          UserColumn = "firstname"
-	UserLastname           UserColumn = "lastname"
-	UserRoles              UserColumn = "roles"
-	UserAllowmarketing     UserColumn = "allowmarketing"
-	UserProps              UserColumn = "props"
-	UserNotifyprops        UserColumn = "notifyprops"
-	UserLastpasswordupdate UserColumn = "lastpasswordupdate"
-	UserLastpictureupdate  UserColumn = "lastpictureupdate"
-	UserFailedattempts     UserColumn = "failedattempts"
-	UserLocale             UserColumn = "locale"
-	UserMfaactive          UserColumn = "mfaactive"
-	UserMfasecret          UserColumn = "mfasecret"
-	UserPosition           UserColumn = "position"
-	UserTimezone           UserColumn = "timezone"
-	UserRemoteid           UserColumn = "remoteid"
-	UserLastlogin          UserColumn = "lastlogin"
-	UserMfausedtimestamps  UserColumn = "mfausedtimestamps"
-	UserPhone              UserColumn = "phone"
-	UserParentID           UserColumn = "parent_id"
+	UserID                 UserColumn = "users.id"
+	UserCreateat           UserColumn = "users.createat"
+	UserUpdateat           UserColumn = "users.updateat"
+	UserDeleteat           UserColumn = "users.deleteat"
+	UserUsername           UserColumn = "users.username"
+	UserPassword           UserColumn = "users.password"
+	UserAuthdata           UserColumn = "users.authdata"
+	UserAuthservice        UserColumn = "users.authservice"
+	UserEmail              UserColumn = "users.email"
+	UserEmailverified      UserColumn = "users.emailverified"
+	UserNickname           UserColumn = "users.nickname"
+	UserFirstname          UserColumn = "users.firstname"
+	UserLastname           UserColumn = "users.lastname"
+	UserRoles              UserColumn = "users.roles"
+	UserAllowmarketing     UserColumn = "users.allowmarketing"
+	UserProps              UserColumn = "users.props"
+	UserNotifyprops        UserColumn = "users.notifyprops"
+	UserLastpasswordupdate UserColumn = "users.lastpasswordupdate"
+	UserLastpictureupdate  UserColumn = "users.lastpictureupdate"
+	UserFailedattempts     UserColumn = "users.failedattempts"
+	UserLocale             UserColumn = "users.locale"
+	UserMfaactive          UserColumn = "users.mfaactive"
+	UserMfasecret          UserColumn = "users.mfasecret"
+	UserPosition           UserColumn = "users.position"
+	UserTimezone           UserColumn = "users.timezone"
+	UserRemoteid           UserColumn = "users.remoteid"
+	UserLastlogin          UserColumn = "users.lastlogin"
+	UserMfausedtimestamps  UserColumn = "users.mfausedtimestamps"
+	UserPhone              UserColumn = "users.phone"
+	UserParentID           UserColumn = "users.parent_id"
 )
 
 func (c UserColumn) IsValid() bool {
@@ -105,426 +105,21 @@ func (c UserColumn) IsValid() bool {
 	}
 }
 
-type ChannelColumn string
-
-const (
-	ChannelId                  ChannelColumn = "id"
-	ChannelCreateAt            ChannelColumn = "create_at"
-	ChannelUpdateAt            ChannelColumn = "update_at"
-	ChannelDeleteAt            ChannelColumn = "delete_at"
-	ChannelTeamId              ChannelColumn = "team_id"
-	ChannelType                ChannelColumn = "type"
-	ChannelDisplayName         ChannelColumn = "display_name"
-	ChannelName                ChannelColumn = "name"
-	ChannelHeader              ChannelColumn = "header"
-	ChannelPurpose             ChannelColumn = "purpose"
-	ChannelLastPostAt          ChannelColumn = "last_post_at"
-	ChannelTotalMsgCount       ChannelColumn = "total_msg_count"
-	ChannelExtraUpdateAt       ChannelColumn = "extra_update_at"
-	ChannelCreatorId           ChannelColumn = "creator_id"
-	ChannelSchemeId            ChannelColumn = "scheme_id"
-	ChannelProps               ChannelColumn = "props"
-	ChannelGroupConstrained    ChannelColumn = "group_constrained"
-	ChannelAutoTranslation     ChannelColumn = "autotranslation"
-	ChannelShared              ChannelColumn = "shared"
-	ChannelTotalMsgCountRoot   ChannelColumn = "total_msg_count_root"
-	ChannelPolicyID            ChannelColumn = "policy_id"
-	ChannelLastRootPostAt      ChannelColumn = "last_root_post_at"
-	ChannelBannerInfo          ChannelColumn = "banner_info"
-	ChannelPolicyEnforced      ChannelColumn = "policy_enforced"
-	ChannelPolicyIsActive      ChannelColumn = "policy_is_active"
-	ChannelDefaultCategoryName ChannelColumn = "default_category_name"
-)
-
-func (c ChannelColumn) IsValid() bool {
-	switch c {
-	case ChannelId:
-		return true
-	case ChannelCreateAt:
-		return true
-	case ChannelUpdateAt:
-		return true
-	case ChannelDeleteAt:
-		return true
-	case ChannelTeamId:
-		return true
-	case ChannelType:
-		return true
-	case ChannelDisplayName:
-		return true
-	case ChannelName:
-		return true
-	case ChannelHeader:
-		return true
-	case ChannelPurpose:
-		return true
-	case ChannelLastPostAt:
-		return true
-	case ChannelTotalMsgCount:
-		return true
-	case ChannelExtraUpdateAt:
-		return true
-	case ChannelCreatorId:
-		return true
-	case ChannelSchemeId:
-		return true
-	case ChannelProps:
-		return true
-	case ChannelGroupConstrained:
-		return true
-	case ChannelAutoTranslation:
-		return true
-	case ChannelShared:
-		return true
-	case ChannelTotalMsgCountRoot:
-		return true
-	case ChannelPolicyID:
-		return true
-	case ChannelLastRootPostAt:
-		return true
-	case ChannelBannerInfo:
-		return true
-	case ChannelPolicyEnforced:
-		return true
-	case ChannelPolicyIsActive:
-		return true
-	case ChannelDefaultCategoryName:
-		return true
-	default:
-		return false
-	}
-}
-
-type PostColumn string
-
-const (
-	PostId            PostColumn = "id"
-	PostCreateAt      PostColumn = "create_at"
-	PostUpdateAt      PostColumn = "update_at"
-	PostEditAt        PostColumn = "edit_at"
-	PostDeleteAt      PostColumn = "delete_at"
-	PostIsPinned      PostColumn = "is_pinned"
-	PostUserId        PostColumn = "user_id"
-	PostChannelId     PostColumn = "channel_id"
-	PostRootId        PostColumn = "root_id"
-	PostOriginalId    PostColumn = "original_id"
-	PostMessage       PostColumn = "message"
-	PostMessageSource PostColumn = "message_source"
-	PostType          PostColumn = "type"
-	PostProps         PostColumn = "props"
-	PostHashtags      PostColumn = "hashtags"
-	PostFileIds       PostColumn = "file_ids"
-	PostPendingPostId PostColumn = "pending_post_id"
-	PostHasReactions  PostColumn = "has_reactions"
-	PostRemoteId      PostColumn = "remote_id"
-	PostReplyCount    PostColumn = "reply_count"
-	PostLastReplyAt   PostColumn = "last_reply_at"
-	PostParticipants  PostColumn = "participants"
-	PostIsFollowing   PostColumn = "is_following"
-	PostMetadata      PostColumn = "metadata"
-)
-
-func (c PostColumn) IsValid() bool {
-	switch c {
-	case PostId:
-		return true
-	case PostCreateAt:
-		return true
-	case PostUpdateAt:
-		return true
-	case PostEditAt:
-		return true
-	case PostDeleteAt:
-		return true
-	case PostIsPinned:
-		return true
-	case PostUserId:
-		return true
-	case PostChannelId:
-		return true
-	case PostRootId:
-		return true
-	case PostOriginalId:
-		return true
-	case PostMessage:
-		return true
-	case PostMessageSource:
-		return true
-	case PostType:
-		return true
-	case PostProps:
-		return true
-	case PostHashtags:
-		return true
-	case PostFileIds:
-		return true
-	case PostPendingPostId:
-		return true
-	case PostHasReactions:
-		return true
-	case PostRemoteId:
-		return true
-	case PostReplyCount:
-		return true
-	case PostLastReplyAt:
-		return true
-	case PostParticipants:
-		return true
-	case PostIsFollowing:
-		return true
-	case PostMetadata:
-		return true
-	default:
-		return false
-	}
-}
-
-type ThreadColumn string
-
-const (
-	ThreadPostId       ThreadColumn = "id"
-	ThreadChannelId    ThreadColumn = "channel_id"
-	ThreadReplyCount   ThreadColumn = "reply_count"
-	ThreadLastReplyAt  ThreadColumn = "last_reply_at"
-	ThreadParticipants ThreadColumn = "participants"
-	ThreadDeleteAt     ThreadColumn = "delete_at"
-	ThreadTeamId       ThreadColumn = "team_id"
-)
-
-func (c ThreadColumn) IsValid() bool {
-	switch c {
-	case ThreadPostId:
-		return true
-	case ThreadChannelId:
-		return true
-	case ThreadReplyCount:
-		return true
-	case ThreadLastReplyAt:
-		return true
-	case ThreadParticipants:
-		return true
-	case ThreadDeleteAt:
-		return true
-	case ThreadTeamId:
-		return true
-	default:
-		return false
-	}
-}
-
-type StatusColumn string
-
-const (
-	StatusUserId         StatusColumn = "user_id"
-	StatusStatus         StatusColumn = "status"
-	StatusManual         StatusColumn = "manual"
-	StatusLastActivityAt StatusColumn = "last_activity_at"
-	StatusActiveChannel  StatusColumn = "active_channel"
-	StatusDNDEndTime     StatusColumn = "dnd_end_time"
-)
-
-func (c StatusColumn) IsValid() bool {
-	switch c {
-	case StatusUserId:
-		return true
-	case StatusStatus:
-		return true
-	case StatusManual:
-		return true
-	case StatusLastActivityAt:
-		return true
-	case StatusActiveChannel:
-		return true
-	case StatusDNDEndTime:
-		return true
-	default:
-		return false
-	}
-}
-
-type SessionColumn string
-
-const (
-	SessionId             SessionColumn = "id"
-	SessionToken          SessionColumn = "token"
-	SessionCreateAt       SessionColumn = "create_at"
-	SessionExpiresAt      SessionColumn = "expires_at"
-	SessionLastActivityAt SessionColumn = "last_activity_at"
-	SessionUserId         SessionColumn = "user_id"
-	SessionDeviceId       SessionColumn = "device_id"
-	SessionRoles          SessionColumn = "roles"
-	SessionIsOAuth        SessionColumn = "is_oauth"
-	SessionExpiredNotify  SessionColumn = "expired_notify"
-	SessionProps          SessionColumn = "props"
-	SessionTeamMembers    SessionColumn = "team_members"
-	SessionLocal          SessionColumn = "local"
-)
-
-func (c SessionColumn) IsValid() bool {
-	switch c {
-	case SessionId:
-		return true
-	case SessionToken:
-		return true
-	case SessionCreateAt:
-		return true
-	case SessionExpiresAt:
-		return true
-	case SessionLastActivityAt:
-		return true
-	case SessionUserId:
-		return true
-	case SessionDeviceId:
-		return true
-	case SessionRoles:
-		return true
-	case SessionIsOAuth:
-		return true
-	case SessionExpiredNotify:
-		return true
-	case SessionProps:
-		return true
-	case SessionTeamMembers:
-		return true
-	case SessionLocal:
-		return true
-	default:
-		return false
-	}
-}
-
-type RoleColumn string
-
-const (
-	RoleId            RoleColumn = "id"
-	RoleName          RoleColumn = "name"
-	RoleDisplayName   RoleColumn = "display_name"
-	RoleDescription   RoleColumn = "description"
-	RoleCreateAt      RoleColumn = "create_at"
-	RoleUpdateAt      RoleColumn = "update_at"
-	RoleDeleteAt      RoleColumn = "delete_at"
-	RolePermissions   RoleColumn = "permissions"
-	RoleSchemeManaged RoleColumn = "scheme_managed"
-	RoleBuiltIn       RoleColumn = "built_in"
-)
-
-func (c RoleColumn) IsValid() bool {
-	switch c {
-	case RoleId:
-		return true
-	case RoleName:
-		return true
-	case RoleDisplayName:
-		return true
-	case RoleDescription:
-		return true
-	case RoleCreateAt:
-		return true
-	case RoleUpdateAt:
-		return true
-	case RoleDeleteAt:
-		return true
-	case RolePermissions:
-		return true
-	case RoleSchemeManaged:
-		return true
-	case RoleBuiltIn:
-		return true
-	default:
-		return false
-	}
-}
-
-type ReactionColumn string
-
-const (
-	ReactionUserId    ReactionColumn = "user_id"
-	ReactionPostId    ReactionColumn = "post_id"
-	ReactionEmojiName ReactionColumn = "emoji_name"
-	ReactionCreateAt  ReactionColumn = "create_at"
-	ReactionUpdateAt  ReactionColumn = "update_at"
-	ReactionDeleteAt  ReactionColumn = "delete_at"
-	ReactionRemoteId  ReactionColumn = "remote_id"
-	ReactionChannelId ReactionColumn = "channel_id"
-)
-
-func (c ReactionColumn) IsValid() bool {
-	switch c {
-	case ReactionUserId:
-		return true
-	case ReactionPostId:
-		return true
-	case ReactionEmojiName:
-		return true
-	case ReactionCreateAt:
-		return true
-	case ReactionUpdateAt:
-		return true
-	case ReactionDeleteAt:
-		return true
-	case ReactionRemoteId:
-		return true
-	case ReactionChannelId:
-		return true
-	default:
-		return false
-	}
-}
-
-type JobColumn string
-
-const (
-	JobId             JobColumn = "id"
-	JobType           JobColumn = "type"
-	JobPriority       JobColumn = "priority"
-	JobCreateAt       JobColumn = "create_at"
-	JobStartAt        JobColumn = "start_at"
-	JobLastActivityAt JobColumn = "last_activity_at"
-	JobStatus         JobColumn = "status"
-	JobProgress       JobColumn = "progress"
-	JobData           JobColumn = "data"
-)
-
-func (c JobColumn) IsValid() bool {
-	switch c {
-	case JobId:
-		return true
-	case JobType:
-		return true
-	case JobPriority:
-		return true
-	case JobCreateAt:
-		return true
-	case JobStartAt:
-		return true
-	case JobLastActivityAt:
-		return true
-	case JobStatus:
-		return true
-	case JobProgress:
-		return true
-	case JobData:
-		return true
-	default:
-		return false
-	}
-}
-
 type LMSSessionColumn string
 
 const (
-	LMSSessionID        LMSSessionColumn = "id"
-	LMSSessionTitle     LMSSessionColumn = "title"
-	LMSSessionClassID   LMSSessionColumn = "class_id"
-	LMSSessionStartTime LMSSessionColumn = "start_time"
-	LMSSessionEndTime   LMSSessionColumn = "end_time"
-	LMSSessionRoom      LMSSessionColumn = "room"
-	LMSSessionTeacherID LMSSessionColumn = "teacher_id"
-	LMSSessionLessonID  LMSSessionColumn = "lesson_id"
-	LMSSessionStatus    LMSSessionColumn = "status"
-	LMSSessionDate      LMSSessionColumn = "date"
-	LMSSessionCreateat  LMSSessionColumn = "createat"
-	LMSSessionUpdateat  LMSSessionColumn = "updateat"
+	LMSSessionID        LMSSessionColumn = "lms_sessions.id"
+	LMSSessionTitle     LMSSessionColumn = "lms_sessions.title"
+	LMSSessionClassID   LMSSessionColumn = "lms_sessions.class_id"
+	LMSSessionStartTime LMSSessionColumn = "lms_sessions.start_time"
+	LMSSessionEndTime   LMSSessionColumn = "lms_sessions.end_time"
+	LMSSessionRoom      LMSSessionColumn = "lms_sessions.room"
+	LMSSessionTeacherID LMSSessionColumn = "lms_sessions.teacher_id"
+	LMSSessionLessonID  LMSSessionColumn = "lms_sessions.lesson_id"
+	LMSSessionStatus    LMSSessionColumn = "lms_sessions.status"
+	LMSSessionDate      LMSSessionColumn = "lms_sessions.date"
+	LMSSessionCreateat  LMSSessionColumn = "lms_sessions.createat"
+	LMSSessionUpdateat  LMSSessionColumn = "lms_sessions.updateat"
 )
 
 func (c LMSSessionColumn) IsValid() bool {
@@ -561,17 +156,17 @@ func (c LMSSessionColumn) IsValid() bool {
 type ClassColumn string
 
 const (
-	ClassID        ClassColumn = "id"
-	ClassCourseID  ClassColumn = "course_id"
-	ClassBranchID  ClassColumn = "branch_id"
-	ClassName      ClassColumn = "name"
-	ClassCode      ClassColumn = "code"
-	ClassTeacherID ClassColumn = "teacher_id"
-	ClassStatus    ClassColumn = "status"
-	ClassRoom      ClassColumn = "room"
-	ClassStartDate ClassColumn = "start_date"
-	ClassCreateat  ClassColumn = "createat"
-	ClassUpdateat  ClassColumn = "updateat"
+	ClassID        ClassColumn = "classes.id"
+	ClassCourseID  ClassColumn = "classes.course_id"
+	ClassBranchID  ClassColumn = "classes.branch_id"
+	ClassName      ClassColumn = "classes.name"
+	ClassCode      ClassColumn = "classes.code"
+	ClassTeacherID ClassColumn = "classes.teacher_id"
+	ClassStatus    ClassColumn = "classes.status"
+	ClassRoom      ClassColumn = "classes.room"
+	ClassStartDate ClassColumn = "classes.start_date"
+	ClassCreateat  ClassColumn = "classes.createat"
+	ClassUpdateat  ClassColumn = "classes.updateat"
 )
 
 func (c ClassColumn) IsValid() bool {
@@ -606,13 +201,13 @@ func (c ClassColumn) IsValid() bool {
 type StudentClassColumn string
 
 const (
-	StudentClassID           StudentClassColumn = "id"
-	StudentClassStudentID    StudentClassColumn = "student_id"
-	StudentClassClassID      StudentClassColumn = "class_id"
-	StudentClassEnrollmentAt StudentClassColumn = "enrollment_at"
-	StudentClassStatus       StudentClassColumn = "status"
-	StudentClassCreateat     StudentClassColumn = "createat"
-	StudentClassUpdateat     StudentClassColumn = "updateat"
+	StudentClassID           StudentClassColumn = "student_classes.id"
+	StudentClassStudentID    StudentClassColumn = "student_classes.student_id"
+	StudentClassClassID      StudentClassColumn = "student_classes.class_id"
+	StudentClassEnrollmentAt StudentClassColumn = "student_classes.enrollment_at"
+	StudentClassStatus       StudentClassColumn = "student_classes.status"
+	StudentClassCreateat     StudentClassColumn = "student_classes.createat"
+	StudentClassUpdateat     StudentClassColumn = "student_classes.updateat"
 )
 
 func (c StudentClassColumn) IsValid() bool {
@@ -639,12 +234,12 @@ func (c StudentClassColumn) IsValid() bool {
 type BranchColumn string
 
 const (
-	BranchID       BranchColumn = "id"
-	BranchName     BranchColumn = "name"
-	BranchAddress  BranchColumn = "address"
-	BranchPhone    BranchColumn = "phone"
-	BranchCreateat BranchColumn = "createat"
-	BranchUpdateat BranchColumn = "updateat"
+	BranchID       BranchColumn = "branches.id"
+	BranchName     BranchColumn = "branches.name"
+	BranchAddress  BranchColumn = "branches.address"
+	BranchPhone    BranchColumn = "branches.phone"
+	BranchCreateat BranchColumn = "branches.createat"
+	BranchUpdateat BranchColumn = "branches.updateat"
 )
 
 func (c BranchColumn) IsValid() bool {
@@ -669,14 +264,14 @@ func (c BranchColumn) IsValid() bool {
 type AttendanceColumn string
 
 const (
-	AttendanceID        AttendanceColumn = "id"
-	AttendanceSessionID AttendanceColumn = "session_id"
-	AttendanceStudentID AttendanceColumn = "student_id"
-	AttendanceStatus    AttendanceColumn = "status"
-	AttendanceNote      AttendanceColumn = "note"
-	AttendanceLocked    AttendanceColumn = "locked"
-	AttendanceCreateat  AttendanceColumn = "createat"
-	AttendanceUpdateat  AttendanceColumn = "updateat"
+	AttendanceID        AttendanceColumn = "attendances.id"
+	AttendanceSessionID AttendanceColumn = "attendances.session_id"
+	AttendanceStudentID AttendanceColumn = "attendances.student_id"
+	AttendanceStatus    AttendanceColumn = "attendances.status"
+	AttendanceNote      AttendanceColumn = "attendances.note"
+	AttendanceLocked    AttendanceColumn = "attendances.locked"
+	AttendanceCreateat  AttendanceColumn = "attendances.createat"
+	AttendanceUpdateat  AttendanceColumn = "attendances.updateat"
 )
 
 func (c AttendanceColumn) IsValid() bool {
@@ -705,12 +300,12 @@ func (c AttendanceColumn) IsValid() bool {
 type AdditionalFeeColumn string
 
 const (
-	AdditionalFeeID        AdditionalFeeColumn = "id"
-	AdditionalFeeTuitionID AdditionalFeeColumn = "tuition_id"
-	AdditionalFeeLabel     AdditionalFeeColumn = "label"
-	AdditionalFeeAmount    AdditionalFeeColumn = "amount"
-	AdditionalFeeCreateat  AdditionalFeeColumn = "createat"
-	AdditionalFeeUpdateat  AdditionalFeeColumn = "updateat"
+	AdditionalFeeID        AdditionalFeeColumn = "additional_fees.id"
+	AdditionalFeeTuitionID AdditionalFeeColumn = "additional_fees.tuition_id"
+	AdditionalFeeLabel     AdditionalFeeColumn = "additional_fees.label"
+	AdditionalFeeAmount    AdditionalFeeColumn = "additional_fees.amount"
+	AdditionalFeeCreateat  AdditionalFeeColumn = "additional_fees.createat"
+	AdditionalFeeUpdateat  AdditionalFeeColumn = "additional_fees.updateat"
 )
 
 func (c AdditionalFeeColumn) IsValid() bool {
@@ -735,14 +330,14 @@ func (c AdditionalFeeColumn) IsValid() bool {
 type BannerColumn string
 
 const (
-	BannerID       BannerColumn = "id"
-	BannerTitle    BannerColumn = "title"
-	BannerImageURL BannerColumn = "image_url"
-	BannerLinkURL  BannerColumn = "link_url"
-	BannerPosition BannerColumn = "position"
-	BannerIsActive BannerColumn = "is_active"
-	BannerCreateat BannerColumn = "createat"
-	BannerUpdateat BannerColumn = "updateat"
+	BannerID       BannerColumn = "banners.id"
+	BannerTitle    BannerColumn = "banners.title"
+	BannerImageURL BannerColumn = "banners.image_url"
+	BannerLinkURL  BannerColumn = "banners.link_url"
+	BannerPosition BannerColumn = "banners.position"
+	BannerIsActive BannerColumn = "banners.is_active"
+	BannerCreateat BannerColumn = "banners.createat"
+	BannerUpdateat BannerColumn = "banners.updateat"
 )
 
 func (c BannerColumn) IsValid() bool {
@@ -771,20 +366,20 @@ func (c BannerColumn) IsValid() bool {
 type BlogPostColumn string
 
 const (
-	BlogPostID             BlogPostColumn = "id"
-	BlogPostTitle          BlogPostColumn = "title"
-	BlogPostSlug           BlogPostColumn = "slug"
-	BlogPostContent        BlogPostColumn = "content"
-	BlogPostExcerpt        BlogPostColumn = "excerpt"
-	BlogPostCategoryID     BlogPostColumn = "category_id"
-	BlogPostAuthorID       BlogPostColumn = "author_id"
-	BlogPostStatus         BlogPostColumn = "status"
-	BlogPostSeoTitle       BlogPostColumn = "seo_title"
-	BlogPostSeoDescription BlogPostColumn = "seo_description"
-	BlogPostSeoKeywords    BlogPostColumn = "seo_keywords"
-	BlogPostPublishedAt    BlogPostColumn = "published_at"
-	BlogPostCreateat       BlogPostColumn = "createat"
-	BlogPostUpdateat       BlogPostColumn = "updateat"
+	BlogPostID             BlogPostColumn = "blog_posts.id"
+	BlogPostTitle          BlogPostColumn = "blog_posts.title"
+	BlogPostSlug           BlogPostColumn = "blog_posts.slug"
+	BlogPostContent        BlogPostColumn = "blog_posts.content"
+	BlogPostExcerpt        BlogPostColumn = "blog_posts.excerpt"
+	BlogPostCategoryID     BlogPostColumn = "blog_posts.category_id"
+	BlogPostAuthorID       BlogPostColumn = "blog_posts.author_id"
+	BlogPostStatus         BlogPostColumn = "blog_posts.status"
+	BlogPostSeoTitle       BlogPostColumn = "blog_posts.seo_title"
+	BlogPostSeoDescription BlogPostColumn = "blog_posts.seo_description"
+	BlogPostSeoKeywords    BlogPostColumn = "blog_posts.seo_keywords"
+	BlogPostPublishedAt    BlogPostColumn = "blog_posts.published_at"
+	BlogPostCreateat       BlogPostColumn = "blog_posts.createat"
+	BlogPostUpdateat       BlogPostColumn = "blog_posts.updateat"
 )
 
 func (c BlogPostColumn) IsValid() bool {
@@ -825,16 +420,16 @@ func (c BlogPostColumn) IsValid() bool {
 type ClassMediumColumn string
 
 const (
-	ClassMediumID           ClassMediumColumn = "id"
-	ClassMediumClassID      ClassMediumColumn = "class_id"
-	ClassMediumSessionID    ClassMediumColumn = "session_id"
-	ClassMediumTitle        ClassMediumColumn = "title"
-	ClassMediumFileURL      ClassMediumColumn = "file_url"
-	ClassMediumFileType     ClassMediumColumn = "file_type"
-	ClassMediumUploadedByID ClassMediumColumn = "uploaded_by_id"
-	ClassMediumFileID       ClassMediumColumn = "file_id"
-	ClassMediumCreateat     ClassMediumColumn = "createat"
-	ClassMediumUpdateat     ClassMediumColumn = "updateat"
+	ClassMediumID           ClassMediumColumn = "class_media.id"
+	ClassMediumClassID      ClassMediumColumn = "class_media.class_id"
+	ClassMediumSessionID    ClassMediumColumn = "class_media.session_id"
+	ClassMediumTitle        ClassMediumColumn = "class_media.title"
+	ClassMediumFileURL      ClassMediumColumn = "class_media.file_url"
+	ClassMediumFileType     ClassMediumColumn = "class_media.file_type"
+	ClassMediumUploadedByID ClassMediumColumn = "class_media.uploaded_by_id"
+	ClassMediumFileID       ClassMediumColumn = "class_media.file_id"
+	ClassMediumCreateat     ClassMediumColumn = "class_media.createat"
+	ClassMediumUpdateat     ClassMediumColumn = "class_media.updateat"
 )
 
 func (c ClassMediumColumn) IsValid() bool {
@@ -867,15 +462,15 @@ func (c ClassMediumColumn) IsValid() bool {
 type CourseLessonColumn string
 
 const (
-	CourseLessonID            CourseLessonColumn = "id"
-	CourseLessonCourseID      CourseLessonColumn = "course_id"
-	CourseLessonSessionNumber CourseLessonColumn = "session_number"
-	CourseLessonTitle         CourseLessonColumn = "title"
-	CourseLessonUnit          CourseLessonColumn = "unit"
-	CourseLessonPages         CourseLessonColumn = "pages"
-	CourseLessonObjectives    CourseLessonColumn = "objectives"
-	CourseLessonCreateat      CourseLessonColumn = "createat"
-	CourseLessonUpdateat      CourseLessonColumn = "updateat"
+	CourseLessonID            CourseLessonColumn = "course_lessons.id"
+	CourseLessonCourseID      CourseLessonColumn = "course_lessons.course_id"
+	CourseLessonSessionNumber CourseLessonColumn = "course_lessons.session_number"
+	CourseLessonTitle         CourseLessonColumn = "course_lessons.title"
+	CourseLessonUnit          CourseLessonColumn = "course_lessons.unit"
+	CourseLessonPages         CourseLessonColumn = "course_lessons.pages"
+	CourseLessonObjectives    CourseLessonColumn = "course_lessons.objectives"
+	CourseLessonCreateat      CourseLessonColumn = "course_lessons.createat"
+	CourseLessonUpdateat      CourseLessonColumn = "course_lessons.updateat"
 )
 
 func (c CourseLessonColumn) IsValid() bool {
@@ -906,18 +501,18 @@ func (c CourseLessonColumn) IsValid() bool {
 type CourseColumn string
 
 const (
-	CourseID                 CourseColumn = "id"
-	CourseName               CourseColumn = "name"
-	CourseCode               CourseColumn = "code"
-	CourseLevel              CourseColumn = "level"
-	CourseAgeRange           CourseColumn = "age_range"
-	CourseTotalSessions      CourseColumn = "total_sessions"
-	CourseDurationPerSession CourseColumn = "duration_per_session"
-	CourseFee                CourseColumn = "fee"
-	CourseDescription        CourseColumn = "description"
-	CourseCurriculum         CourseColumn = "curriculum"
-	CourseCreateat           CourseColumn = "createat"
-	CourseUpdateat           CourseColumn = "updateat"
+	CourseID                 CourseColumn = "courses.id"
+	CourseName               CourseColumn = "courses.name"
+	CourseCode               CourseColumn = "courses.code"
+	CourseLevel              CourseColumn = "courses.level"
+	CourseAgeRange           CourseColumn = "courses.age_range"
+	CourseTotalSessions      CourseColumn = "courses.total_sessions"
+	CourseDurationPerSession CourseColumn = "courses.duration_per_session"
+	CourseFee                CourseColumn = "courses.fee"
+	CourseDescription        CourseColumn = "courses.description"
+	CourseCurriculum         CourseColumn = "courses.curriculum"
+	CourseCreateat           CourseColumn = "courses.createat"
+	CourseUpdateat           CourseColumn = "courses.updateat"
 )
 
 func (c CourseColumn) IsValid() bool {
@@ -954,15 +549,15 @@ func (c CourseColumn) IsValid() bool {
 type FeePackageColumn string
 
 const (
-	FeePackageID               FeePackageColumn = "id"
-	FeePackageName             FeePackageColumn = "name"
-	FeePackageTotalFee         FeePackageColumn = "total_fee"
-	FeePackageCourseID         FeePackageColumn = "course_id"
-	FeePackageSessionsIncluded FeePackageColumn = "sessions_included"
-	FeePackageDiscountPercent  FeePackageColumn = "discount_percent"
-	FeePackageIsActive         FeePackageColumn = "is_active"
-	FeePackageCreateat         FeePackageColumn = "createat"
-	FeePackageUpdateat         FeePackageColumn = "updateat"
+	FeePackageID               FeePackageColumn = "fee_packages.id"
+	FeePackageName             FeePackageColumn = "fee_packages.name"
+	FeePackageTotalFee         FeePackageColumn = "fee_packages.total_fee"
+	FeePackageCourseID         FeePackageColumn = "fee_packages.course_id"
+	FeePackageSessionsIncluded FeePackageColumn = "fee_packages.sessions_included"
+	FeePackageDiscountPercent  FeePackageColumn = "fee_packages.discount_percent"
+	FeePackageIsActive         FeePackageColumn = "fee_packages.is_active"
+	FeePackageCreateat         FeePackageColumn = "fee_packages.createat"
+	FeePackageUpdateat         FeePackageColumn = "fee_packages.updateat"
 )
 
 func (c FeePackageColumn) IsValid() bool {
@@ -993,15 +588,15 @@ func (c FeePackageColumn) IsValid() bool {
 type FeeRefundColumn string
 
 const (
-	FeeRefundID           FeeRefundColumn = "id"
-	FeeRefundTuitionID    FeeRefundColumn = "tuition_id"
-	FeeRefundAmount       FeeRefundColumn = "amount"
-	FeeRefundRefundDate   FeeRefundColumn = "refund_date"
-	FeeRefundReason       FeeRefundColumn = "reason"
-	FeeRefundStatus       FeeRefundColumn = "status"
-	FeeRefundApprovedByID FeeRefundColumn = "approved_by_id"
-	FeeRefundCreateat     FeeRefundColumn = "createat"
-	FeeRefundUpdateat     FeeRefundColumn = "updateat"
+	FeeRefundID           FeeRefundColumn = "fee_refunds.id"
+	FeeRefundTuitionID    FeeRefundColumn = "fee_refunds.tuition_id"
+	FeeRefundAmount       FeeRefundColumn = "fee_refunds.amount"
+	FeeRefundRefundDate   FeeRefundColumn = "fee_refunds.refund_date"
+	FeeRefundReason       FeeRefundColumn = "fee_refunds.reason"
+	FeeRefundStatus       FeeRefundColumn = "fee_refunds.status"
+	FeeRefundApprovedByID FeeRefundColumn = "fee_refunds.approved_by_id"
+	FeeRefundCreateat     FeeRefundColumn = "fee_refunds.createat"
+	FeeRefundUpdateat     FeeRefundColumn = "fee_refunds.updateat"
 )
 
 func (c FeeRefundColumn) IsValid() bool {
@@ -1032,30 +627,30 @@ func (c FeeRefundColumn) IsValid() bool {
 type FileinfoColumn string
 
 const (
-	FileinfoID              FileinfoColumn = "id"
-	FileinfoCreatorid       FileinfoColumn = "creatorid"
-	FileinfoPostid          FileinfoColumn = "postid"
-	FileinfoCreateat        FileinfoColumn = "createat"
-	FileinfoUpdateat        FileinfoColumn = "updateat"
-	FileinfoDeleteat        FileinfoColumn = "deleteat"
-	FileinfoPath            FileinfoColumn = "path"
-	FileinfoThumbnailpath   FileinfoColumn = "thumbnailpath"
-	FileinfoPreviewpath     FileinfoColumn = "previewpath"
-	FileinfoName            FileinfoColumn = "name"
-	FileinfoExtension       FileinfoColumn = "extension"
-	FileinfoSize            FileinfoColumn = "size"
-	FileinfoMimetype        FileinfoColumn = "mimetype"
-	FileinfoWidth           FileinfoColumn = "width"
-	FileinfoHeight          FileinfoColumn = "height"
-	FileinfoHaspreviewimage FileinfoColumn = "haspreviewimage"
-	FileinfoMinipreview     FileinfoColumn = "minipreview"
-	FileinfoContent         FileinfoColumn = "content"
-	FileinfoRemoteid        FileinfoColumn = "remoteid"
-	FileinfoArchived        FileinfoColumn = "archived"
-	FileinfoChannelid       FileinfoColumn = "channelid"
-	FileinfoCourseID        FileinfoColumn = "course_id"
-	FileinfoVersion         FileinfoColumn = "version"
-	FileinfoVisibility      FileinfoColumn = "visibility"
+	FileinfoID              FileinfoColumn = "fileinfos.id"
+	FileinfoCreatorid       FileinfoColumn = "fileinfos.creatorid"
+	FileinfoPostid          FileinfoColumn = "fileinfos.postid"
+	FileinfoCreateat        FileinfoColumn = "fileinfos.createat"
+	FileinfoUpdateat        FileinfoColumn = "fileinfos.updateat"
+	FileinfoDeleteat        FileinfoColumn = "fileinfos.deleteat"
+	FileinfoPath            FileinfoColumn = "fileinfos.path"
+	FileinfoThumbnailpath   FileinfoColumn = "fileinfos.thumbnailpath"
+	FileinfoPreviewpath     FileinfoColumn = "fileinfos.previewpath"
+	FileinfoName            FileinfoColumn = "fileinfos.name"
+	FileinfoExtension       FileinfoColumn = "fileinfos.extension"
+	FileinfoSize            FileinfoColumn = "fileinfos.size"
+	FileinfoMimetype        FileinfoColumn = "fileinfos.mimetype"
+	FileinfoWidth           FileinfoColumn = "fileinfos.width"
+	FileinfoHeight          FileinfoColumn = "fileinfos.height"
+	FileinfoHaspreviewimage FileinfoColumn = "fileinfos.haspreviewimage"
+	FileinfoMinipreview     FileinfoColumn = "fileinfos.minipreview"
+	FileinfoContent         FileinfoColumn = "fileinfos.content"
+	FileinfoRemoteid        FileinfoColumn = "fileinfos.remoteid"
+	FileinfoArchived        FileinfoColumn = "fileinfos.archived"
+	FileinfoChannelid       FileinfoColumn = "fileinfos.channelid"
+	FileinfoCourseID        FileinfoColumn = "fileinfos.course_id"
+	FileinfoVersion         FileinfoColumn = "fileinfos.version"
+	FileinfoVisibility      FileinfoColumn = "fileinfos.visibility"
 )
 
 func (c FileinfoColumn) IsValid() bool {
@@ -1116,17 +711,17 @@ func (c FileinfoColumn) IsValid() bool {
 type HomeworkColumn string
 
 const (
-	HomeworkID          HomeworkColumn = "id"
-	HomeworkTitle       HomeworkColumn = "title"
-	HomeworkDescription HomeworkColumn = "description"
-	HomeworkSessionID   HomeworkColumn = "session_id"
-	HomeworkClassID     HomeworkColumn = "class_id"
-	HomeworkCourseID    HomeworkColumn = "course_id"
-	HomeworkTeacherID   HomeworkColumn = "teacher_id"
-	HomeworkDeadline    HomeworkColumn = "deadline"
-	HomeworkCreateat    HomeworkColumn = "createat"
-	HomeworkFileID      HomeworkColumn = "file_id"
-	HomeworkUpdateat    HomeworkColumn = "updateat"
+	HomeworkID          HomeworkColumn = "homeworks.id"
+	HomeworkTitle       HomeworkColumn = "homeworks.title"
+	HomeworkDescription HomeworkColumn = "homeworks.description"
+	HomeworkSessionID   HomeworkColumn = "homeworks.session_id"
+	HomeworkClassID     HomeworkColumn = "homeworks.class_id"
+	HomeworkCourseID    HomeworkColumn = "homeworks.course_id"
+	HomeworkTeacherID   HomeworkColumn = "homeworks.teacher_id"
+	HomeworkDeadline    HomeworkColumn = "homeworks.deadline"
+	HomeworkCreateat    HomeworkColumn = "homeworks.createat"
+	HomeworkFileID      HomeworkColumn = "homeworks.file_id"
+	HomeworkUpdateat    HomeworkColumn = "homeworks.updateat"
 )
 
 func (c HomeworkColumn) IsValid() bool {
@@ -1161,13 +756,13 @@ func (c HomeworkColumn) IsValid() bool {
 type LeadActivityColumn string
 
 const (
-	LeadActivityID           LeadActivityColumn = "id"
-	LeadActivityLeadID       LeadActivityColumn = "lead_id"
-	LeadActivityType         LeadActivityColumn = "type"
-	LeadActivityContent      LeadActivityColumn = "content"
-	LeadActivityNextFollowUp LeadActivityColumn = "next_follow_up"
-	LeadActivityCreateat     LeadActivityColumn = "createat"
-	LeadActivityUpdateat     LeadActivityColumn = "updateat"
+	LeadActivityID           LeadActivityColumn = "lead_activities.id"
+	LeadActivityLeadID       LeadActivityColumn = "lead_activities.lead_id"
+	LeadActivityType         LeadActivityColumn = "lead_activities.type"
+	LeadActivityContent      LeadActivityColumn = "lead_activities.content"
+	LeadActivityNextFollowUp LeadActivityColumn = "lead_activities.next_follow_up"
+	LeadActivityCreateat     LeadActivityColumn = "lead_activities.createat"
+	LeadActivityUpdateat     LeadActivityColumn = "lead_activities.updateat"
 )
 
 func (c LeadActivityColumn) IsValid() bool {
@@ -1194,23 +789,23 @@ func (c LeadActivityColumn) IsValid() bool {
 type LeadColumn string
 
 const (
-	LeadID          LeadColumn = "id"
-	LeadName        LeadColumn = "name"
-	LeadEmail       LeadColumn = "email"
-	LeadPhone       LeadColumn = "phone"
-	LeadAge         LeadColumn = "age"
-	LeadSchool      LeadColumn = "school"
-	LeadSource      LeadColumn = "source"
-	LeadNeed        LeadColumn = "need"
-	LeadStatus      LeadColumn = "status"
-	LeadStudentID   LeadColumn = "student_id"
-	LeadNotes       LeadColumn = "notes"
-	LeadTestDate    LeadColumn = "test_date"
-	LeadTestResult  LeadColumn = "test_result"
-	LeadTestScore   LeadColumn = "test_score"
-	LeadCounselorID LeadColumn = "counselor_id"
-	LeadCreateat    LeadColumn = "createat"
-	LeadUpdateat    LeadColumn = "updateat"
+	LeadID          LeadColumn = "leads.id"
+	LeadName        LeadColumn = "leads.name"
+	LeadEmail       LeadColumn = "leads.email"
+	LeadPhone       LeadColumn = "leads.phone"
+	LeadAge         LeadColumn = "leads.age"
+	LeadSchool      LeadColumn = "leads.school"
+	LeadSource      LeadColumn = "leads.source"
+	LeadNeed        LeadColumn = "leads.need"
+	LeadStatus      LeadColumn = "leads.status"
+	LeadStudentID   LeadColumn = "leads.student_id"
+	LeadNotes       LeadColumn = "leads.notes"
+	LeadTestDate    LeadColumn = "leads.test_date"
+	LeadTestResult  LeadColumn = "leads.test_result"
+	LeadTestScore   LeadColumn = "leads.test_score"
+	LeadCounselorID LeadColumn = "leads.counselor_id"
+	LeadCreateat    LeadColumn = "leads.createat"
+	LeadUpdateat    LeadColumn = "leads.updateat"
 )
 
 func (c LeadColumn) IsValid() bool {
@@ -1257,17 +852,17 @@ func (c LeadColumn) IsValid() bool {
 type MaterialColumn string
 
 const (
-	MaterialID           MaterialColumn = "id"
-	MaterialTitle        MaterialColumn = "title"
-	MaterialDescription  MaterialColumn = "description"
-	MaterialCourseID     MaterialColumn = "course_id"
-	MaterialUnit         MaterialColumn = "unit"
-	MaterialVisibility   MaterialColumn = "visibility"
-	MaterialFileID       MaterialColumn = "file_id"
-	MaterialUploadedByID MaterialColumn = "uploaded_by_id"
-	MaterialVersion      MaterialColumn = "version"
-	MaterialCreateat     MaterialColumn = "createat"
-	MaterialUpdateat     MaterialColumn = "updateat"
+	MaterialID           MaterialColumn = "materials.id"
+	MaterialTitle        MaterialColumn = "materials.title"
+	MaterialDescription  MaterialColumn = "materials.description"
+	MaterialCourseID     MaterialColumn = "materials.course_id"
+	MaterialUnit         MaterialColumn = "materials.unit"
+	MaterialVisibility   MaterialColumn = "materials.visibility"
+	MaterialFileID       MaterialColumn = "materials.file_id"
+	MaterialUploadedByID MaterialColumn = "materials.uploaded_by_id"
+	MaterialVersion      MaterialColumn = "materials.version"
+	MaterialCreateat     MaterialColumn = "materials.createat"
+	MaterialUpdateat     MaterialColumn = "materials.updateat"
 )
 
 func (c MaterialColumn) IsValid() bool {
@@ -1302,15 +897,15 @@ func (c MaterialColumn) IsValid() bool {
 type NotificationColumn string
 
 const (
-	NotificationID       NotificationColumn = "id"
-	NotificationUserID   NotificationColumn = "user_id"
-	NotificationTitle    NotificationColumn = "title"
-	NotificationMessage  NotificationColumn = "message"
-	NotificationType     NotificationColumn = "type"
-	NotificationIsRead   NotificationColumn = "is_read"
-	NotificationLinkURL  NotificationColumn = "link_url"
-	NotificationCreateat NotificationColumn = "createat"
-	NotificationUpdateat NotificationColumn = "updateat"
+	NotificationID       NotificationColumn = "notifications.id"
+	NotificationUserID   NotificationColumn = "notifications.user_id"
+	NotificationTitle    NotificationColumn = "notifications.title"
+	NotificationMessage  NotificationColumn = "notifications.message"
+	NotificationType     NotificationColumn = "notifications.type"
+	NotificationIsRead   NotificationColumn = "notifications.is_read"
+	NotificationLinkURL  NotificationColumn = "notifications.link_url"
+	NotificationCreateat NotificationColumn = "notifications.createat"
+	NotificationUpdateat NotificationColumn = "notifications.updateat"
 )
 
 func (c NotificationColumn) IsValid() bool {
@@ -1341,16 +936,16 @@ func (c NotificationColumn) IsValid() bool {
 type PaymentColumn string
 
 const (
-	PaymentID            PaymentColumn = "id"
-	PaymentTuitionID     PaymentColumn = "tuition_id"
-	PaymentAmount        PaymentColumn = "amount"
-	PaymentPaymentDate   PaymentColumn = "payment_date"
-	PaymentMethod        PaymentColumn = "method"
-	PaymentReceiptNumber PaymentColumn = "receipt_number"
-	PaymentPaidByID      PaymentColumn = "paid_by_id"
-	PaymentNote          PaymentColumn = "note"
-	PaymentCreateat      PaymentColumn = "createat"
-	PaymentUpdateat      PaymentColumn = "updateat"
+	PaymentID            PaymentColumn = "payments.id"
+	PaymentTuitionID     PaymentColumn = "payments.tuition_id"
+	PaymentAmount        PaymentColumn = "payments.amount"
+	PaymentPaymentDate   PaymentColumn = "payments.payment_date"
+	PaymentMethod        PaymentColumn = "payments.method"
+	PaymentReceiptNumber PaymentColumn = "payments.receipt_number"
+	PaymentPaidByID      PaymentColumn = "payments.paid_by_id"
+	PaymentNote          PaymentColumn = "payments.note"
+	PaymentCreateat      PaymentColumn = "payments.createat"
+	PaymentUpdateat      PaymentColumn = "payments.updateat"
 )
 
 func (c PaymentColumn) IsValid() bool {
@@ -1383,11 +978,11 @@ func (c PaymentColumn) IsValid() bool {
 type PostCategoryColumn string
 
 const (
-	PostCategoryID       PostCategoryColumn = "id"
-	PostCategoryName     PostCategoryColumn = "name"
-	PostCategorySlug     PostCategoryColumn = "slug"
-	PostCategoryCreateat PostCategoryColumn = "createat"
-	PostCategoryUpdateat PostCategoryColumn = "updateat"
+	PostCategoryID       PostCategoryColumn = "post_categories.id"
+	PostCategoryName     PostCategoryColumn = "post_categories.name"
+	PostCategorySlug     PostCategoryColumn = "post_categories.slug"
+	PostCategoryCreateat PostCategoryColumn = "post_categories.createat"
+	PostCategoryUpdateat PostCategoryColumn = "post_categories.updateat"
 )
 
 func (c PostCategoryColumn) IsValid() bool {
@@ -1410,15 +1005,15 @@ func (c PostCategoryColumn) IsValid() bool {
 type SubmissionColumn string
 
 const (
-	SubmissionID          SubmissionColumn = "id"
-	SubmissionTitle       SubmissionColumn = "title"
-	SubmissionStudentID   SubmissionColumn = "student_id"
-	SubmissionHomeworkID  SubmissionColumn = "homework_id"
-	SubmissionDescription SubmissionColumn = "description"
-	SubmissionFileID      SubmissionColumn = "file_id"
-	SubmissionFeedback    SubmissionColumn = "feedback"
-	SubmissionCreateat    SubmissionColumn = "createat"
-	SubmissionUpdateat    SubmissionColumn = "updateat"
+	SubmissionID          SubmissionColumn = "submissions.id"
+	SubmissionTitle       SubmissionColumn = "submissions.title"
+	SubmissionStudentID   SubmissionColumn = "submissions.student_id"
+	SubmissionHomeworkID  SubmissionColumn = "submissions.homework_id"
+	SubmissionDescription SubmissionColumn = "submissions.description"
+	SubmissionFileID      SubmissionColumn = "submissions.file_id"
+	SubmissionFeedback    SubmissionColumn = "submissions.feedback"
+	SubmissionCreateat    SubmissionColumn = "submissions.createat"
+	SubmissionUpdateat    SubmissionColumn = "submissions.updateat"
 )
 
 func (c SubmissionColumn) IsValid() bool {
@@ -1449,17 +1044,17 @@ func (c SubmissionColumn) IsValid() bool {
 type TaskColumn string
 
 const (
-	TaskID          TaskColumn = "id"
-	TaskTitle       TaskColumn = "title"
-	TaskDescription TaskColumn = "description"
-	TaskAssigneeID  TaskColumn = "assignee_id"
-	TaskCreatorID   TaskColumn = "creator_id"
-	TaskDeadline    TaskColumn = "deadline"
-	TaskPriority    TaskColumn = "priority"
-	TaskStatus      TaskColumn = "status"
-	TaskNotes       TaskColumn = "notes"
-	TaskCreateat    TaskColumn = "createat"
-	TaskUpdateat    TaskColumn = "updateat"
+	TaskID          TaskColumn = "tasks.id"
+	TaskTitle       TaskColumn = "tasks.title"
+	TaskDescription TaskColumn = "tasks.description"
+	TaskAssigneeID  TaskColumn = "tasks.assignee_id"
+	TaskCreatorID   TaskColumn = "tasks.creator_id"
+	TaskDeadline    TaskColumn = "tasks.deadline"
+	TaskPriority    TaskColumn = "tasks.priority"
+	TaskStatus      TaskColumn = "tasks.status"
+	TaskNotes       TaskColumn = "tasks.notes"
+	TaskCreateat    TaskColumn = "tasks.createat"
+	TaskUpdateat    TaskColumn = "tasks.updateat"
 )
 
 func (c TaskColumn) IsValid() bool {
@@ -1494,22 +1089,22 @@ func (c TaskColumn) IsValid() bool {
 type TuitionColumn string
 
 const (
-	TuitionID              TuitionColumn = "id"
-	TuitionStudentID       TuitionColumn = "student_id"
-	TuitionClassID         TuitionColumn = "class_id"
-	TuitionFeePackageID    TuitionColumn = "fee_package_id"
-	TuitionTotalAmount     TuitionColumn = "total_amount"
-	TuitionDiscountAmount  TuitionColumn = "discount_amount"
-	TuitionPaidAmount      TuitionColumn = "paid_amount"
-	TuitionRemainingAmount TuitionColumn = "remaining_amount"
-	TuitionStatus          TuitionColumn = "status"
-	TuitionDueDate         TuitionColumn = "due_date"
-	TuitionNote            TuitionColumn = "note"
-	TuitionPromotionalFee  TuitionColumn = "promotional_fee"
-	TuitionDiscountValue   TuitionColumn = "discount_value"
-	TuitionDiscountType    TuitionColumn = "discount_type"
-	TuitionCreateat        TuitionColumn = "createat"
-	TuitionUpdateat        TuitionColumn = "updateat"
+	TuitionID              TuitionColumn = "tuitions.id"
+	TuitionStudentID       TuitionColumn = "tuitions.student_id"
+	TuitionClassID         TuitionColumn = "tuitions.class_id"
+	TuitionFeePackageID    TuitionColumn = "tuitions.fee_package_id"
+	TuitionTotalAmount     TuitionColumn = "tuitions.total_amount"
+	TuitionDiscountAmount  TuitionColumn = "tuitions.discount_amount"
+	TuitionPaidAmount      TuitionColumn = "tuitions.paid_amount"
+	TuitionRemainingAmount TuitionColumn = "tuitions.remaining_amount"
+	TuitionStatus          TuitionColumn = "tuitions.status"
+	TuitionDueDate         TuitionColumn = "tuitions.due_date"
+	TuitionNote            TuitionColumn = "tuitions.note"
+	TuitionPromotionalFee  TuitionColumn = "tuitions.promotional_fee"
+	TuitionDiscountValue   TuitionColumn = "tuitions.discount_value"
+	TuitionDiscountType    TuitionColumn = "tuitions.discount_type"
+	TuitionCreateat        TuitionColumn = "tuitions.createat"
+	TuitionUpdateat        TuitionColumn = "tuitions.updateat"
 )
 
 func (c TuitionColumn) IsValid() bool {
@@ -1554,15 +1149,15 @@ func (c TuitionColumn) IsValid() bool {
 type WeeklyReviewColumn string
 
 const (
-	WeeklyReviewID         WeeklyReviewColumn = "id"
-	WeeklyReviewStudentID  WeeklyReviewColumn = "student_id"
-	WeeklyReviewClassID    WeeklyReviewColumn = "class_id"
-	WeeklyReviewWeekNumber WeeklyReviewColumn = "week_number"
-	WeeklyReviewContent    WeeklyReviewColumn = "content"
-	WeeklyReviewRating     WeeklyReviewColumn = "rating"
-	WeeklyReviewCreatedBy  WeeklyReviewColumn = "created_by"
-	WeeklyReviewCreateat   WeeklyReviewColumn = "createat"
-	WeeklyReviewUpdateat   WeeklyReviewColumn = "updateat"
+	WeeklyReviewID         WeeklyReviewColumn = "weekly_reviews.id"
+	WeeklyReviewStudentID  WeeklyReviewColumn = "weekly_reviews.student_id"
+	WeeklyReviewClassID    WeeklyReviewColumn = "weekly_reviews.class_id"
+	WeeklyReviewWeekNumber WeeklyReviewColumn = "weekly_reviews.week_number"
+	WeeklyReviewContent    WeeklyReviewColumn = "weekly_reviews.content"
+	WeeklyReviewRating     WeeklyReviewColumn = "weekly_reviews.rating"
+	WeeklyReviewCreatedBy  WeeklyReviewColumn = "weekly_reviews.created_by"
+	WeeklyReviewCreateat   WeeklyReviewColumn = "weekly_reviews.createat"
+	WeeklyReviewUpdateat   WeeklyReviewColumn = "weekly_reviews.updateat"
 )
 
 func (c WeeklyReviewColumn) IsValid() bool {

@@ -20,12 +20,12 @@ func (a *LMSApp) GetWeeklyReview(id string) (*lms_models.WeeklyReview, *model.Ap
 	return review, nil
 }
 
-func (a *LMSApp) GetWeeklyReviews(opts modelhelper.WeeklyReviewFilterOpts) ([]*lms_models.WeeklyReview, *model.AppError) {
-	reviews, err := a.store.WeeklyReview().GetAll(opts)
+func (a *LMSApp) GetWeeklyReviews(opts modelhelper.WeeklyReviewFilterOpts) ([]*lms_models.WeeklyReview, int64, *model.AppError) {
+	reviews, totalCount, err := a.store.WeeklyReview().Search(opts)
 	if err != nil {
-		return nil, model.NewAppError("GetWeeklyReviews", "app.lms.weekly_review.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		return nil, 0, model.NewAppError("GetWeeklyReviews", "app.lms.weekly_review.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}
-	return reviews, nil
+	return reviews, totalCount, nil
 }
 
 func (a *LMSApp) CreateWeeklyReview(wr *lms_models.WeeklyReview) (*lms_models.WeeklyReview, *model.AppError) {

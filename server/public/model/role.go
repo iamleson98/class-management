@@ -1236,7 +1236,7 @@ func MakeDefaultLMSRoles() map[string]*Role {
 	roles[RoleLmsAdminRoleId] = &Role{
 		Name:          RoleLmsAdminRoleId,
 		DisplayName:   "LMS Admin",
-		Description:   "Manage all LMS features except user management",
+		Description:   "Manage all LMS features including employees and users",
 		Permissions: []string{
 			PermissionLmsManageBranches.Id,
 			PermissionLmsManageCourses.Id,

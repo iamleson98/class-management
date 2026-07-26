@@ -3,6 +3,7 @@ package main
 //go:generate go run ./gen_model_field_types.go
 
 import (
+	"fmt"
 	"go/format"
 	"log"
 	"os"
@@ -11,7 +12,6 @@ import (
 	"text/template"
 
 	"github.com/iamleson98/sitename/server/public/lms_models"
-	"github.com/iamleson98/sitename/server/public/model"
 )
 
 type FieldInfo struct {
@@ -67,75 +67,63 @@ export type ColumnNames =
    | "{{$field.JSONName}}"
 {{- end}}
 {{end}};
-
 `
 
+type ModalConfig struct {
+	Model  any
+	DbName string
+}
+
 func main() {
-	models := []any{
-		// lms_models.Address{},
-		// lms_models.TransportBrand{},
-		// lms_models.Vehicle{},
-		// lms_models.Seat{},
-		// lms_models.Trip{},
-		// lms_models.Route{},
-		lms_models.User{},
-		// lms_models.Reservation{},
-		// lms_models.Schedule{},
-		model.Channel{},
-		model.Post{},
-		model.Thread{},
-		model.Status{},
-		model.Session{},
-		model.Role{},
-		model.Reaction{},
-		model.Job{},
-		lms_models.LMSSession{},
-		lms_models.Class{},
-		lms_models.StudentClass{},
-		lms_models.Branch{},
-		lms_models.Attendance{},
-		lms_models.AdditionalFee{},
-		lms_models.Banner{},
-		lms_models.BlogPost{},
-		lms_models.ClassMedium{},
-		lms_models.CourseLesson{},
-		lms_models.Course{},
-		lms_models.FeePackage{},
-		lms_models.FeeRefund{},
-		lms_models.Fileinfo{},
-		lms_models.Homework{},
-		lms_models.LeadActivity{},
-		lms_models.Lead{},
-		lms_models.Material{},
-		lms_models.Notification{},
-		lms_models.Payment{},
-		lms_models.PostCategory{},
-		lms_models.Submission{},
-		lms_models.Task{},
-		lms_models.Tuition{},
-		lms_models.WeeklyReview{},
+	models := []ModalConfig{
+		{Model: lms_models.User{}, DbName: "users"},
+		{Model: lms_models.LMSSession{}, DbName: "lms_sessions"},
+		{Model: lms_models.Class{}, DbName: "classes"},
+		{Model: lms_models.StudentClass{}, DbName: "student_classes"},
+		{Model: lms_models.Branch{}, DbName: "branches"},
+		{Model: lms_models.Attendance{}, DbName: "attendances"},
+		{Model: lms_models.AdditionalFee{}, DbName: "additional_fees"},
+		{Model: lms_models.Banner{}, DbName: "banners"},
+		{Model: lms_models.BlogPost{}, DbName: "blog_posts"},
+		{Model: lms_models.ClassMedium{}, DbName: "class_media"},
+		{Model: lms_models.CourseLesson{}, DbName: "course_lessons"},
+		{Model: lms_models.Course{}, DbName: "courses"},
+		{Model: lms_models.FeePackage{}, DbName: "fee_packages"},
+		{Model: lms_models.FeeRefund{}, DbName: "fee_refunds"},
+		{Model: lms_models.Fileinfo{}, DbName: "fileinfos"},
+		{Model: lms_models.Homework{}, DbName: "homeworks"},
+		{Model: lms_models.LeadActivity{}, DbName: "lead_activities"},
+		{Model: lms_models.Lead{}, DbName: "leads"},
+		{Model: lms_models.Material{}, DbName: "materials"},
+		{Model: lms_models.Notification{}, DbName: "notifications"},
+		{Model: lms_models.Payment{}, DbName: "payments"},
+		{Model: lms_models.PostCategory{}, DbName: "post_categories"},
+		{Model: lms_models.Submission{}, DbName: "submissions"},
+		{Model: lms_models.Task{}, DbName: "tasks"},
+		{Model: lms_models.Tuition{}, DbName: "tuitions"},
+		{Model: lms_models.WeeklyReview{}, DbName: "weekly_reviews"},
 	}
 
 	var types []TypeInfo
 
 	for _, m := range models {
-		t := reflect.TypeOf(m)
+		t := reflect.TypeOf(m.Model)
 		typeName := t.Name()
 
 		var fields []FieldInfo
 
 		for f := range t.Fields() {
-			f := f
 			jsonTag := f.Tag.Get("json")
 			if jsonTag == "" || jsonTag == "-" {
 				continue
 			}
 
 			jsonName, _, _ := strings.Cut(jsonTag, ",")
+			tableName := fmt.Sprintf("%s.%s", m.DbName, jsonName)
 
 			fields = append(fields, FieldInfo{
 				GoName:   f.Name,
-				JSONName: jsonName,
+				JSONName: tableName,
 			})
 		}
 

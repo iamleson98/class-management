@@ -13,116 +13,98 @@ import (
 // Filter Option Structs
 // ============================================================================
 
+type UserGender string
+
+func (g UserGender) IsValid() bool {
+	return g == LmsUserGenderMale || g == LmsUserGenderFemale
+}
+
+type StudentStatus string
+
+func (s StudentStatus) IsValid() bool {
+	return s == LmsStudentStatusActive || s == LmsStudentStatusReserved || s == LmsStudentStatusDropped || s == LmsStudentStatusPending
+}
+
+const (
+	// fields for used in field Props of user model, for lms system only
+	LmsUserGenderProp              = "gender"
+	LmsUserGenderMale   UserGender = "male"
+	LmsUserGenderFemale UserGender = "female"
+
+	// this is used for key in props field of user model
+	LmsStudentStatusProp                   = "student_status"
+	LmsStudentStatusActive   StudentStatus = "ACTIVE"
+	LmsStudentStatusReserved StudentStatus = "RESERVED"
+	LmsStudentStatusDropped  StudentStatus = "DROPPED"
+	LmsStudentStatusPending  StudentStatus = "PENDING"
+)
+
+type StudentFilterOpts struct {
+	utils.SearchOpts[utils.UserColumn]
+	SelectRelatedParent bool          `json:"select_related_parent"`
+	ClassID             string        `json:"class_id"`
+	Status              StudentStatus `json:"status"`
+	Search              string        `json:"search"`
+	Gender              UserGender    `json:"gender"`
+}
+
 type BranchFilterOpts struct {
-	Page       int
-	PerPage    int
-	CountTotal bool
+	utils.SearchOpts[utils.BranchColumn]
 }
 
 type ClassFilterOpts struct {
-	CourseID   string
-	Status     string
-	TeacherID  string
-	Page       int
-	PerPage    int
-	CountTotal bool
+	utils.SearchOpts[utils.ClassColumn]
+	Search string `json:"search"`
 }
 
 type SessionFilterOpts struct {
-	ClassID    string
-	TeacherID  string
-	StudentID  string
-	Month      string
-	Date       string
-	Page       int
-	PerPage    int
-	CountTotal bool
+	utils.SearchOpts[utils.LMSSessionColumn]
 }
 
 type LeadFilterOpts struct {
-	Status      string
-	Source      string
-	CounselorID string
-	Search      string
-	Page        int
-	PerPage     int
-	CountTotal  bool
+	utils.SearchOpts[utils.LeadColumn]
+	Search string `json:"search"`
 }
 
 type FeePackageFilterOpts struct {
-	CourseID   string
-	Page       int
-	PerPage    int
-	CountTotal bool
+	utils.SearchOpts[utils.FeePackageColumn]
 }
 
 type TuitionFilterOpts struct {
-	StudentID  string
-	ClassID    string
-	Status     string
-	Search     string
-	Page       int
-	PerPage    int
-	CountTotal bool
+	utils.SearchOpts[utils.TuitionColumn]
+	Search string `json:"search"`
 }
 
 type PaymentFilterOpts struct {
-	FromDate   string
-	ToDate     string
-	Page       int
-	PerPage    int
-	CountTotal bool
+	utils.SearchOpts[utils.PaymentColumn]
 }
 
 type BlogPostFilterOpts struct {
-	Status     string
-	CategoryID string
-	Page       int
-	PerPage    int
-	CountTotal bool
+	utils.SearchOpts[utils.BlogPostColumn]
 }
 
 type WeeklyReviewFilterOpts struct {
-	StudentID  string
-	ClassID    string
-	Page       int
-	PerPage    int
-	CountTotal bool
+	utils.SearchOpts[utils.WeeklyReviewColumn]
 }
 
 type HomeworkFilterOpts struct {
-	ClassID    string
-	StudentID  string
-	TeacherID  string
-	CourseID   string
-	Page       int
-	PerPage    int
-	CountTotal bool
+	utils.SearchOpts[utils.HomeworkColumn]
 }
 
 type ClassMediaFilterOpts struct {
-	ClassID    string
-	SessionID  string
-	Page       int
-	PerPage    int
-	CountTotal bool
+	utils.SearchOpts[utils.ClassMediumColumn]
 }
 
 type TaskFilterOpts struct {
-	AssigneeID string
-	Status     string
-	Priority   string
-	Page       int
-	PerPage    int
-	CountTotal bool
+	utils.SearchOpts[utils.TaskColumn]
 }
 
 type MaterialFilterOpts struct {
-	CourseID   string
-	Visibility string
-	Page       int
-	PerPage    int
-	CountTotal bool
+	utils.SearchOpts[utils.MaterialColumn]
+}
+
+type UserFilterOpts struct {
+	utils.SearchOpts[utils.UserColumn]
 }
 
 // ============================================================================
@@ -1144,38 +1126,4 @@ func MaterialPreCreate(m *lms_models.Material) {
 
 func MaterialPreUpdate(m *lms_models.Material) {
 	m.Updateat = time.Now().UnixMilli()
-}
-
-type UserGender string
-
-func (g UserGender) IsValid() bool {
-	return g == LmsUserGenderMale || g == LmsUserGenderFemale
-}
-
-type StudentStatus string
-
-func (s StudentStatus) IsValid() bool {
-	return s == LmsStudentStatusActive || s == LmsStudentStatusReserved || s == LmsStudentStatusDropped || s == LmsStudentStatusPending
-}
-
-const (
-	// fields for used in field Props of user model, for lms system only
-	LmsUserGenderProp              = "gender"
-	LmsUserGenderMale   UserGender = "male"
-	LmsUserGenderFemale UserGender = "female"
-
-	LmsStudentStatusProp                   = "student_status"
-	LmsStudentStatusActive   StudentStatus = "ACTIVE"
-	LmsStudentStatusReserved StudentStatus = "RESERVED"
-	LmsStudentStatusDropped  StudentStatus = "DROPPED"
-	LmsStudentStatusPending  StudentStatus = "PENDING"
-)
-
-type StudentFilterOpts struct {
-	utils.SearchOpts[utils.UserColumn]
-	SelectRelatedParent bool          `json:"select_related_parent"`
-	ClassID             string        `json:"class_id"`
-	Status              StudentStatus `json:"status"`
-	Search              string        `json:"search"`
-	Gender              UserGender    `json:"gender"`
 }

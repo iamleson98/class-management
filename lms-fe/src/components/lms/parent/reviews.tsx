@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { useLMSStore } from '@/store/lms-store'
 import { format, parseISO } from 'date-fns'
 import { getDashboard, getWeeklyReviews } from '@/lib/api'
+import { eq, and } from '@/lib/query'
 import { staggerContainer, staggerItem } from '@/components/lms/shared/animations'
 import { useTranslation } from '@/lib/i18n'
 
@@ -45,7 +46,7 @@ export default function ParentReviews() {
 
   const reviewsQuery = useQuery({
     queryKey: ['weekly-reviews', 'parent', childStudentId],
-    queryFn: () => getWeeklyReviews({ studentId: childStudentId }),
+    queryFn: () => getWeeklyReviews({ where_ands: and(eq('weekly_reviews.student_id', childStudentId)) }),
     enabled: !!childStudentId,
   })
 

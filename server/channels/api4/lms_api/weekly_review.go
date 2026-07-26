@@ -3,19 +3,19 @@ package lmsapi
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
 	"github.com/iamleson98/sitename/server/public/utils"
+	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"github.com/iamleson98/sitename/server/v8/channels/api4"
 	"github.com/iamleson98/sitename/server/v8/channels/web"
 )
 
 func (a *LMSAPI) InitWeeklyReviews() {
-	a.routes.Method(http.MethodGet, "/weekly-reviews", a.api.APISessionRequired(getWeeklyReviews))
-	a.routes.Method(http.MethodPost, "/weekly-reviews", a.api.APISessionRequired(createWeeklyReview))
+	a.routes.Method(http.MethodPost, "/weekly-reviews", a.api.APISessionRequired(getWeeklyReviews))
+	a.routes.Method(http.MethodPost, "/weekly-reviews/create", a.api.APISessionRequired(createWeeklyReview))
 	a.routes.Method(http.MethodGet, "/weekly-reviews/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(getWeeklyReview))
 	a.routes.Method(http.MethodPut, "/weekly-reviews/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(updateWeeklyReview))
 	a.routes.Method(http.MethodDelete, "/weekly-reviews/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(deleteWeeklyReview))
@@ -27,34 +27,26 @@ func getWeeklyReviews(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := r.URL.Query()
-	opts := modelhelper.WeeklyReviewFilterOpts{
-		StudentID: q.Get("student_id"),
-		ClassID:   q.Get("class_id"),
-	}
-	if v := q.Get("page"); v != "" {
-		opts.Page, _ = strconv.Atoi(v)
-	}
-	if v := q.Get("per_page"); v != "" {
-		opts.PerPage, _ = strconv.Atoi(v)
-	}
-	if q.Get("count_total") == "true" {
-		opts.CountTotal = true
+	var opts modelhelper.WeeklyReviewFilterOpts
+	if err := json.NewDecoder(r.Body).Decode(&opts); err != nil {
+		c.Err = model.NewAppError("getWeeklyReviews", model.PayloadParseError, nil, "", http.StatusBadRequest).Wrap(err)
+		return
 	}
 
-	reviews, err := c.App.LMS().GetWeeklyReviews(opts)
+	items, totalCount, err := c.App.LMS().GetWeeklyReviews(opts)
 	if err != nil {
 		c.Err = err
 		return
 	}
 
-	if reviews == nil {
-		reviews = []*lms_models.WeeklyReview{}
+	res := utils.ResponseList{
+		Items:      items,
+		TotalCount: totalCount,
 	}
 
-	res := utils.ResponseList{Items: reviews}
-	data, _ := json.Marshal(res)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func createWeeklyReview(c *api4.Context, w http.ResponseWriter, r *http.Request) {

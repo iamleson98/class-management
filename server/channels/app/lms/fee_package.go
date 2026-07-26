@@ -9,12 +9,12 @@ import (
 	"github.com/iamleson98/sitename/server/v8/channels/store"
 )
 
-func (a *LMSApp) GetFeePackages(opts modelhelper.FeePackageFilterOpts) ([]*lms_models.FeePackage, *model.AppError) {
-	packages, err := a.store.FeePackage().GetAll(opts)
+func (a *LMSApp) GetFeePackages(opts modelhelper.FeePackageFilterOpts) ([]*lms_models.FeePackage, int64, *model.AppError) {
+	packages, totalCount, err := a.store.FeePackage().Search(opts)
 	if err != nil {
-		return nil, model.NewAppError("GetFeePackages", "app.lms.fee_package.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		return nil, 0, model.NewAppError("GetFeePackages", "app.lms.fee_package.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}
-	return packages, nil
+	return packages, totalCount, nil
 }
 
 func (a *LMSApp) CreateFeePackage(fp *lms_models.FeePackage) (*lms_models.FeePackage, *model.AppError) {

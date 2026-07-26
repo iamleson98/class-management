@@ -20,12 +20,12 @@ func (a *LMSApp) GetMaterial(id string) (*lms_models.Material, *model.AppError) 
 	return material, nil
 }
 
-func (a *LMSApp) GetMaterials(opts modelhelper.MaterialFilterOpts) ([]*lms_models.Material, *model.AppError) {
-	materials, err := a.store.Material().GetAll(opts)
+func (a *LMSApp) GetMaterials(opts modelhelper.MaterialFilterOpts) ([]*lms_models.Material, int64, *model.AppError) {
+	materials, totalCount, err := a.store.Material().Search(opts)
 	if err != nil {
-		return nil, model.NewAppError("GetMaterials", "app.lms.material.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		return nil, 0, model.NewAppError("GetMaterials", "app.lms.material.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}
-	return materials, nil
+	return materials, totalCount, nil
 }
 
 func (a *LMSApp) CreateMaterial(m *lms_models.Material) (*lms_models.Material, *model.AppError) {

@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { useLMSStore } from '@/store/lms-store'
 import { format, parseISO } from 'date-fns'
 import { getDashboard, getClassMedia } from '@/lib/api'
+import { eq, and } from '@/lib/query'
 import { staggerContainer, staggerItem } from '@/components/lms/shared/animations'
 import { useTranslation } from '@/lib/i18n'
 
@@ -35,7 +36,7 @@ export default function ParentMedia() {
 
   const mediaQuery = useQuery({
     queryKey: ['class-media', 'parent', classId],
-    queryFn: () => getClassMedia({ classId }),
+    queryFn: () => getClassMedia({ where_ands: and(eq('class_media.class_id', classId)) }),
     enabled: !!classId,
   })
 

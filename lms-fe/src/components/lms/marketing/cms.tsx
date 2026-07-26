@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod/v4'
@@ -24,6 +24,7 @@ import { uploadFile } from '@/lib/file-upload'
 import { Textarea } from '@/components/ui/textarea'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { getPosts, createPost, updatePost } from '@/lib/api'
+import { contains, or } from '@/lib/query'
 import { useTranslation } from '@/lib/i18n'
 
 type MarketingPostFormValues = z.input<typeof createPostSchema>
@@ -46,9 +47,12 @@ export default function MarketingCMSPage() {
     defaultValues: EMPTY_CREATE,
   })
 
+  // BlogPostFilterOpts has no top-level `search` field → ILIKE on title.
+  const opts = useMemo(() => ({ where_ors: or(contains('blog_posts.title', search)) }), [search])
+
   const { data: posts, isLoading, isError, refetch } = useQuery({
-    queryKey: ['posts'],
-    queryFn: () => getPosts(),
+    queryKey: ['posts', opts],
+    queryFn: () => getPosts(opts),
   })
 
   const mutation = useMutation({
@@ -134,9 +138,7 @@ export default function MarketingCMSPage() {
     }
   }
 
-  const filteredPosts = (posts || []).filter((p: any) =>
-    p.title?.toLowerCase().includes(search.toLowerCase())
-  )
+  const filteredPosts = posts || []
 
   if (isError) {
     return <ErrorState onRetry={() => refetch()} />

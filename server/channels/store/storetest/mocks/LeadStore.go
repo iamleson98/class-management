@@ -15,6 +15,34 @@ type LeadStore struct {
 	mock.Mock
 }
 
+// CountNewThisMonth provides a mock function with no fields
+func (_m *LeadStore) CountNewThisMonth() (int64, error) {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountNewThisMonth")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func() (int64, error)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() int64); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // Delete provides a mock function with given fields: id
 func (_m *LeadStore) Delete(id string) error {
 	ret := _m.Called(id)
@@ -63,36 +91,6 @@ func (_m *LeadStore) Get(id string) (*lms_models.Lead, error) {
 	return r0, r1
 }
 
-// GetAll provides a mock function with given fields: opts
-func (_m *LeadStore) GetAll(opts modelhelper.LeadFilterOpts) ([]*lms_models.Lead, error) {
-	ret := _m.Called(opts)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetAll")
-	}
-
-	var r0 []*lms_models.Lead
-	var r1 error
-	if rf, ok := ret.Get(0).(func(modelhelper.LeadFilterOpts) ([]*lms_models.Lead, error)); ok {
-		return rf(opts)
-	}
-	if rf, ok := ret.Get(0).(func(modelhelper.LeadFilterOpts) []*lms_models.Lead); ok {
-		r0 = rf(opts)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*lms_models.Lead)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(modelhelper.LeadFilterOpts) error); ok {
-		r1 = rf(opts)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // Save provides a mock function with given fields: lead
 func (_m *LeadStore) Save(lead *lms_models.Lead) (*lms_models.Lead, error) {
 	ret := _m.Called(lead)
@@ -123,6 +121,43 @@ func (_m *LeadStore) Save(lead *lms_models.Lead) (*lms_models.Lead, error) {
 	return r0, r1
 }
 
+// Search provides a mock function with given fields: opts
+func (_m *LeadStore) Search(opts modelhelper.LeadFilterOpts) ([]*lms_models.Lead, int64, error) {
+	ret := _m.Called(opts)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Search")
+	}
+
+	var r0 []*lms_models.Lead
+	var r1 int64
+	var r2 error
+	if rf, ok := ret.Get(0).(func(modelhelper.LeadFilterOpts) ([]*lms_models.Lead, int64, error)); ok {
+		return rf(opts)
+	}
+	if rf, ok := ret.Get(0).(func(modelhelper.LeadFilterOpts) []*lms_models.Lead); ok {
+		r0 = rf(opts)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*lms_models.Lead)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(modelhelper.LeadFilterOpts) int64); ok {
+		r1 = rf(opts)
+	} else {
+		r1 = ret.Get(1).(int64)
+	}
+
+	if rf, ok := ret.Get(2).(func(modelhelper.LeadFilterOpts) error); ok {
+		r2 = rf(opts)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
 // Update provides a mock function with given fields: lead
 func (_m *LeadStore) Update(lead *lms_models.Lead) (*lms_models.Lead, error) {
 	ret := _m.Called(lead)
@@ -146,62 +181,6 @@ func (_m *LeadStore) Update(lead *lms_models.Lead) (*lms_models.Lead, error) {
 
 	if rf, ok := ret.Get(1).(func(*lms_models.Lead) error); ok {
 		r1 = rf(lead)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// Count provides a mock function with given fields: opts
-func (_m *LeadStore) Count(opts modelhelper.LeadFilterOpts) (int64, error) {
-	ret := _m.Called(opts)
-
-	if len(ret) == 0 {
-		panic("no return value specified for Count")
-	}
-
-	var r0 int64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(modelhelper.LeadFilterOpts) (int64, error)); ok {
-		return rf(opts)
-	}
-	if rf, ok := ret.Get(0).(func(modelhelper.LeadFilterOpts) int64); ok {
-		r0 = rf(opts)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-
-	if rf, ok := ret.Get(1).(func(modelhelper.LeadFilterOpts) error); ok {
-		r1 = rf(opts)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// CountNewThisMonth provides a mock function with given fields:
-func (_m *LeadStore) CountNewThisMonth() (int64, error) {
-	ret := _m.Called()
-
-	if len(ret) == 0 {
-		panic("no return value specified for CountNewThisMonth")
-	}
-
-	var r0 int64
-	var r1 error
-	if rf, ok := ret.Get(0).(func() (int64, error)); ok {
-		return rf()
-	}
-	if rf, ok := ret.Get(0).(func() int64); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
 	} else {
 		r1 = ret.Error(1)
 	}

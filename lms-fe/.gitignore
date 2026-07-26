@@ -55,5 +55,11 @@ test
 prompt
 
 server.log
+
+# Generated API types (regenerate with: bun run generate:api)
+src/lib/schemas/openapi-types.ts
+src/lib/api-client.ts
+.openapi-spec.json
+
 # Skills directory
 /skills/

@@ -31,31 +31,25 @@ func (s *SqlBlogPostStore) Get(id string) (*lms_models.BlogPost, error) {
 	return post, nil
 }
 
-func (s *SqlBlogPostStore) GetAll(opts modelhelper.BlogPostFilterOpts) ([]*lms_models.BlogPost, error) {
+func (s *SqlBlogPostStore) Search(opts modelhelper.BlogPostFilterOpts) ([]*lms_models.BlogPost, int64, error) {
 	mods := []qm.QueryMod{}
 
-	if opts.Status != "" {
-		mods = append(mods, lms_models.BlogPostWhere.Status.EQ(opts.Status))
+	modsWithPagination := append(mods, &opts.SearchOpts)
+	posts, err := lms_models.BlogPosts(modsWithPagination...).All(s.sqlStore.GetReplicaExecuter())
+	if err != nil {
+		return nil, 0, errors.Wrap(err, "failed to search blog posts")
 	}
-	if opts.CategoryID != "" {
-		mods = append(mods, lms_models.BlogPostWhere.CategoryID.EQ(opts.CategoryID))
-	}
+	totalCount := int64(len(posts))
 
-	if opts.PerPage > 0 {
-		mods = append(mods, qm.Limit(opts.PerPage))
-		if opts.Page > 0 {
-			mods = append(mods, qm.Offset((opts.Page-1)*opts.PerPage))
+	if opts.CountTotal {
+		modsWithoutPagination := append(mods, opts.SearchOpts.ExludePaginationForCount())
+		totalCount, err = lms_models.BlogPosts(modsWithoutPagination...).Count(s.sqlStore.GetReplicaExecuter())
+		if err != nil {
+			return nil, 0, errors.Wrap(err, "failed to count blog posts")
 		}
 	}
 
-	mods = append(mods, qm.OrderBy(lms_models.BlogPostColumns.Createat+" DESC"))
-
-	posts, err := lms_models.BlogPosts(mods...).All(s.sqlStore.GetReplicaExecuter())
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get blog posts")
-	}
-
-	return posts, nil
+	return posts, totalCount, nil
 }
 
 func (s *SqlBlogPostStore) GetPublished() ([]*lms_models.BlogPost, error) {
@@ -124,21 +118,4 @@ func (s *SqlBlogPostStore) Delete(id string) error {
 	}
 
 	return nil
-}
-
-func (s *SqlBlogPostStore) Count(opts modelhelper.BlogPostFilterOpts) (int64, error) {
-	var mods []qm.QueryMod
-
-	if opts.Status != "" {
-		mods = append(mods, lms_models.BlogPostWhere.Status.EQ(opts.Status))
-	}
-	if opts.CategoryID != "" {
-		mods = append(mods, lms_models.BlogPostWhere.CategoryID.EQ(opts.CategoryID))
-	}
-
-	count, err := lms_models.BlogPosts(mods...).Count(s.sqlStore.GetReplicaExecuter())
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to count blog posts")
-	}
-	return count, nil
 }

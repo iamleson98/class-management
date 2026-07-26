@@ -3,11 +3,11 @@ package lmsapi
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
+	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/v8/channels/api4"
 	"github.com/iamleson98/sitename/server/v8/channels/web"
@@ -15,8 +15,8 @@ import (
 
 // InitClasses registers class routes on the LMS router.
 func (a *LMSAPI) InitClasses() {
-	a.routes.Method(http.MethodGet, "/classes", a.api.APISessionRequired(getClasses))
-	a.routes.Method(http.MethodPost, "/classes", a.api.APISessionRequired(createClass))
+	a.routes.Method(http.MethodPost, "/classes", a.api.APISessionRequired(getClasses))
+	a.routes.Method(http.MethodPost, "/classes/create", a.api.APISessionRequired(createClass))
 	a.routes.Method(http.MethodGet, "/classes/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(getClass))
 	a.routes.Method(http.MethodPut, "/classes/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(updateClass))
 	a.routes.Method(http.MethodDelete, "/classes/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(deleteClass))
@@ -28,38 +28,25 @@ func getClasses(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		c.SetPermissionError(model.PermissionLmsManageClasses)
 		return
 	}
-	q := r.URL.Query()
-	opts := modelhelper.ClassFilterOpts{
-		CourseID:  q.Get("course_id"),
-		Status:    q.Get("status"),
-		TeacherID: q.Get("teacher_id"),
-	}
-	if v := q.Get("page"); v != "" {
-		opts.Page, _ = strconv.Atoi(v)
-	}
-	if v := q.Get("per_page"); v != "" {
-		opts.PerPage, _ = strconv.Atoi(v)
-	}
-	if q.Get("count_total") == "true" {
-		opts.CountTotal = true
+
+	var opts modelhelper.ClassFilterOpts
+	if err := json.NewDecoder(r.Body).Decode(&opts); err != nil {
+		c.Err = model.NewAppError("getClasses", model.PayloadParseError, nil, "", http.StatusBadRequest).Wrap(err)
+		return
 	}
 
-	classes, err := c.App.LMS().GetClasses(opts)
+	items, totalCount, err := c.App.LMS().GetClasses(opts)
 	if err != nil {
 		c.Err = err
 		return
 	}
 
-	if classes == nil {
-		classes = []*lms_models.Class{}
+	if err := json.NewEncoder(w).Encode(utils.ResponseList{
+		Items:      items,
+		TotalCount: totalCount,
+	}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
 	}
-
-	res := utils.ResponseList{
-		Items:      classes,
-		TotalCount: int64(len(classes)),
-	}
-	data, _ := json.Marshal(res)
-	w.Write(data)
 }
 
 func createClass(c *api4.Context, w http.ResponseWriter, r *http.Request) {

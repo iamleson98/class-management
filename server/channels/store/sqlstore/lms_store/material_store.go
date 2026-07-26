@@ -5,11 +5,10 @@ import (
 
 	"github.com/aarondl/sqlboiler/v4/boil"
 	"github.com/aarondl/sqlboiler/v4/queries/qm"
-	"github.com/pkg/errors"
-
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
 	"github.com/iamleson98/sitename/server/v8/channels/store"
+	"github.com/pkg/errors"
 )
 
 type SqlMaterialStore struct {
@@ -32,24 +31,25 @@ func (s *SqlMaterialStore) Get(id string) (*lms_models.Material, error) {
 	return material, nil
 }
 
-func (s *SqlMaterialStore) GetAll(opts modelhelper.MaterialFilterOpts) ([]*lms_models.Material, error) {
-	var mods []qm.QueryMod
+func (s *SqlMaterialStore) Search(opts modelhelper.MaterialFilterOpts) ([]*lms_models.Material, int64, error) {
+	mods := []qm.QueryMod{}
 
-	if opts.CourseID != "" {
-		mods = append(mods, lms_models.MaterialWhere.CourseID.EQ(opts.CourseID))
-	}
-	if opts.Visibility != "" {
-		mods = append(mods, lms_models.MaterialWhere.Visibility.EQ(opts.Visibility))
-	}
-
-	mods = append(mods, qm.OrderBy(lms_models.MaterialColumns.Createat+" DESC"))
-
-	materials, err := lms_models.Materials(mods...).All(s.sqlStore.GetReplicaExecuter())
+	modsWithPagination := append(mods, &opts.SearchOpts)
+	materials, err := lms_models.Materials(modsWithPagination...).All(s.sqlStore.GetReplicaExecuter())
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get materials")
+		return nil, 0, errors.Wrap(err, "failed to search materials")
+	}
+	totalCount := int64(len(materials))
+
+	if opts.CountTotal {
+		modsWithoutPagination := append(mods, opts.SearchOpts.ExludePaginationForCount())
+		totalCount, err = lms_models.Materials(modsWithoutPagination...).Count(s.sqlStore.GetReplicaExecuter())
+		if err != nil {
+			return nil, 0, errors.Wrap(err, "failed to count materials")
+		}
 	}
 
-	return materials, nil
+	return materials, totalCount, nil
 }
 
 func (s *SqlMaterialStore) Save(m *lms_models.Material) (*lms_models.Material, error) {
@@ -100,21 +100,4 @@ func (s *SqlMaterialStore) Delete(id string) error {
 	}
 
 	return nil
-}
-
-func (s *SqlMaterialStore) Count(opts modelhelper.MaterialFilterOpts) (int64, error) {
-	var mods []qm.QueryMod
-
-	if opts.CourseID != "" {
-		mods = append(mods, lms_models.MaterialWhere.CourseID.EQ(opts.CourseID))
-	}
-	if opts.Visibility != "" {
-		mods = append(mods, lms_models.MaterialWhere.Visibility.EQ(opts.Visibility))
-	}
-
-	count, err := lms_models.Materials(mods...).Count(s.sqlStore.GetReplicaExecuter())
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to count materials")
-	}
-	return count, nil
 }

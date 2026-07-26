@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
 	"github.com/iamleson98/sitename/server/v8/channels/app/password/hashers"
@@ -29,25 +30,13 @@ func (a *LMSApp) GetStudent(id string) (*model.User, *model.AppError) {
 	return user, nil
 }
 
-func (a *LMSApp) GetStudents(opts modelhelper.StudentFilterOpts) ([]*model.User, *model.AppError) {
-	// TODO: Implement student filtering via the store layer.
-	// For now, retrieve all profiles and filter in-memory or use a dedicated store query.
-	users, err := a.store.User().Search()
+func (a *LMSApp) GetStudents(opts modelhelper.StudentFilterOpts) (lms_models.UserSlice, int64, *model.AppError) {
+	users, totalCount, err := a.store.StudentClass().SearchStudentUsers(opts)
 	if err != nil {
-		return nil, model.NewAppError("GetStudents", "app.lms.student.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		return nil, 0, model.NewAppError("GetStudents", "app.lms.student.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}
 
-	var students []*model.User
-	for _, u := range users {
-		roles := u.GetRoles()
-		for _, r := range roles {
-			if r == model.SystemUserRoleId || r == "STUDENT" {
-				students = append(students, u)
-				break
-			}
-		}
-	}
-	return students, nil
+	return users, totalCount, nil
 }
 
 func (a *LMSApp) CreateStudent(user *model.User, props map[string]any) (*model.User, *model.AppError) {
@@ -58,8 +47,10 @@ func (a *LMSApp) CreateStudent(user *model.User, props map[string]any) (*model.U
 		return nil, model.NewAppError("CreateStudent", "app.lms.student.username.app_error", nil, "", http.StatusBadRequest)
 	}
 
-	// Set role to STUDENT
-	user.Roles = "STUDENT"
+	// Set role to lms_student. Use the canonical lowercase role ID (not the
+	// legacy uppercase "STUDENT" string) so the user matches the store's
+	// `users.roles LIKE '%lms_student%'` filter used by SearchStudentUsers.
+	user.Roles = model.RoleLmsStudentRoleId
 
 	// Hash the default password
 	hasher := hashers.NewBCrypt()
@@ -169,4 +160,82 @@ func (a *LMSApp) DeleteStudent(id string) *model.AppError {
 		return model.NewAppError("DeleteStudent", "app.lms.student.delete.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}
 	return nil
+}
+
+// GetConvertibleUsers returns users that are NOT currently students and are not
+// deactivated, i.e. the set of users a counselor can convert into students.
+func (a *LMSApp) GetConvertibleUsers() ([]*model.User, *model.AppError) {
+	users, err := a.store.User().GetAll()
+	if err != nil {
+		return nil, model.NewAppError("GetConvertibleUsers", "app.lms.student.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+	}
+
+	convertible := make([]*model.User, 0, len(users))
+	for _, u := range users {
+		// Skip deactivated users.
+		if u.DeleteAt != 0 {
+			continue
+		}
+		// Skip existing students.
+		if u.IsInRole(model.RoleLmsStudentRoleId) {
+			continue
+		}
+		convertible = append(convertible, u)
+	}
+	return convertible, nil
+}
+
+// ConvertUserToStudent promotes an existing user to a student by setting the
+// lms_student role. The user's existing password and props are preserved
+// (unlike CreateStudent, which creates a brand-new row with a default password).
+func (a *LMSApp) ConvertUserToStudent(userID string) (*model.User, *model.AppError) {
+	user, err := a.store.User().Get(context.Background(), userID)
+	if err != nil {
+		if store.IsErrNotFound(err) {
+			return nil, model.NewAppError("ConvertUserToStudent", "app.lms.student.not_found.app_error", nil, "", http.StatusNotFound)
+		}
+		return nil, model.NewAppError("ConvertUserToStudent", "app.lms.student.get.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+	}
+
+	// Keep the base system_user role and swap any staff roles for the student role.
+	user.Roles = model.SystemUserRoleId + " " + model.RoleLmsStudentRoleId
+
+	_, err = a.store.User().Update(nil, user, true) // TODO: pass proper request.CTX
+	if err != nil {
+		if store.IsErrNotFound(err) {
+			return nil, model.NewAppError("ConvertUserToStudent", "app.lms.student.not_found.app_error", nil, "", http.StatusNotFound)
+		}
+		return nil, model.NewAppError("ConvertUserToStudent", "app.lms.student.update.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+	}
+	return user, nil
+}
+
+// RevertStudentToUser demotes a student back to a regular user by removing the
+// lms_student role and clearing the student-specific props key.
+func (a *LMSApp) RevertStudentToUser(studentID string) (*model.User, *model.AppError) {
+	user, err := a.store.User().Get(context.Background(), studentID)
+	if err != nil {
+		if store.IsErrNotFound(err) {
+			return nil, model.NewAppError("RevertStudentToUser", "app.lms.student.not_found.app_error", nil, "", http.StatusNotFound)
+		}
+		return nil, model.NewAppError("RevertStudentToUser", "app.lms.student.get.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+	}
+
+	user.Roles = model.SystemUserRoleId
+
+	// Clear the student-specific props key if present.
+	if user.Props != nil {
+		if _, ok := user.Props[studentPropsKey]; ok {
+			delete(user.Props, studentPropsKey)
+		}
+	}
+
+	_, err = a.store.User().Update(nil, user, true) // TODO: pass proper request.CTX
+	if err != nil {
+		if store.IsErrNotFound(err) {
+			return nil, model.NewAppError("RevertStudentToUser", "app.lms.student.not_found.app_error", nil, "", http.StatusNotFound)
+		}
+		return nil, model.NewAppError("RevertStudentToUser", "app.lms.student.update.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+	}
+	return user, nil
 }

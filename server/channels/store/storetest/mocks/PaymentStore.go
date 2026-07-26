@@ -45,36 +45,6 @@ func (_m *PaymentStore) Get(id string) (*lms_models.Payment, error) {
 	return r0, r1
 }
 
-// GetAll provides a mock function with given fields: opts
-func (_m *PaymentStore) GetAll(opts modelhelper.PaymentFilterOpts) ([]*lms_models.Payment, error) {
-	ret := _m.Called(opts)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetAll")
-	}
-
-	var r0 []*lms_models.Payment
-	var r1 error
-	if rf, ok := ret.Get(0).(func(modelhelper.PaymentFilterOpts) ([]*lms_models.Payment, error)); ok {
-		return rf(opts)
-	}
-	if rf, ok := ret.Get(0).(func(modelhelper.PaymentFilterOpts) []*lms_models.Payment); ok {
-		r0 = rf(opts)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*lms_models.Payment)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(modelhelper.PaymentFilterOpts) error); ok {
-		r1 = rf(opts)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetByTuition provides a mock function with given fields: tuitionID
 func (_m *PaymentStore) GetByTuition(tuitionID string) ([]*lms_models.Payment, error) {
 	ret := _m.Called(tuitionID)
@@ -135,32 +105,41 @@ func (_m *PaymentStore) Save(payment *lms_models.Payment) (*lms_models.Payment, 
 	return r0, r1
 }
 
-// Count provides a mock function with given fields: opts
-func (_m *PaymentStore) Count(opts modelhelper.PaymentFilterOpts) (int64, error) {
+// Search provides a mock function with given fields: opts
+func (_m *PaymentStore) Search(opts modelhelper.PaymentFilterOpts) ([]*lms_models.Payment, int64, error) {
 	ret := _m.Called(opts)
 
 	if len(ret) == 0 {
-		panic("no return value specified for Count")
+		panic("no return value specified for Search")
 	}
 
-	var r0 int64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(modelhelper.PaymentFilterOpts) (int64, error)); ok {
+	var r0 []*lms_models.Payment
+	var r1 int64
+	var r2 error
+	if rf, ok := ret.Get(0).(func(modelhelper.PaymentFilterOpts) ([]*lms_models.Payment, int64, error)); ok {
 		return rf(opts)
 	}
-	if rf, ok := ret.Get(0).(func(modelhelper.PaymentFilterOpts) int64); ok {
+	if rf, ok := ret.Get(0).(func(modelhelper.PaymentFilterOpts) []*lms_models.Payment); ok {
 		r0 = rf(opts)
 	} else {
-		r0 = ret.Get(0).(int64)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*lms_models.Payment)
+		}
 	}
 
-	if rf, ok := ret.Get(1).(func(modelhelper.PaymentFilterOpts) error); ok {
+	if rf, ok := ret.Get(1).(func(modelhelper.PaymentFilterOpts) int64); ok {
 		r1 = rf(opts)
 	} else {
-		r1 = ret.Error(1)
+		r1 = ret.Get(1).(int64)
 	}
 
-	return r0, r1
+	if rf, ok := ret.Get(2).(func(modelhelper.PaymentFilterOpts) error); ok {
+		r2 = rf(opts)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // NewPaymentStore creates a new instance of PaymentStore. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

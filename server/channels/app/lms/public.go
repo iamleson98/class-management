@@ -30,8 +30,6 @@ func (a *LMSApp) GetPublicPosts() ([]*lms_models.BlogPost, *model.AppError) {
 }
 
 func (a *LMSApp) PublicRegister(lead *lms_models.Lead) (*lms_models.Lead, *model.AppError) {
-	// Set source and status for public website registrations
-	lead.Source = null.StringFrom("WEBSITE")
 	lead.Status = "NEW"
 
 	result, err := a.store.Lead().Save(lead)
@@ -140,7 +138,7 @@ func (a *LMSApp) ResetPassword(token, newPassword string) *model.AppError {
 
 			// Update password via Update
 			u.Password = newPassword
-				_, updateErr := a.store.User().Update(nil, u, false)
+			_, updateErr := a.store.User().Update(nil, u, false)
 			if updateErr != nil {
 				return model.NewAppError("ResetPassword", "app.lms.public.update_password.app_error", nil, "", http.StatusInternalServerError).Wrap(updateErr)
 			}
@@ -155,16 +153,16 @@ func (a *LMSApp) ResetPassword(token, newPassword string) *model.AppError {
 
 // SubmitContact creates a lead from the contact form data.
 func (a *LMSApp) SubmitContact(name, email, phone, message string) (*lms_models.Lead, *model.AppError) {
-		lead := &lms_models.Lead{
-			Name:    name,
-			Email:   null.StringFrom(email),
-			Phone:   null.StringFrom(phone),
-			Source:  null.StringFrom("WEBSITE"),
-			Status:  "NEW",
-			Notes:   null.StringFrom(message),
-		}
+	lead := &lms_models.Lead{
+		Name:   name,
+		Email:  null.StringFrom(email),
+		Phone:  null.StringFrom(phone),
+		Source: null.StringFrom("WEBSITE"),
+		Status: "NEW",
+		Notes:  null.StringFrom(message),
+	}
 
-		result, err := a.store.Lead().Save(lead)
+	result, err := a.store.Lead().Save(lead)
 	if err != nil {
 		return nil, model.NewAppError("SubmitContact", "app.lms.public.contact.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}

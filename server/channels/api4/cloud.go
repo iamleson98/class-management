@@ -45,25 +45,6 @@ func ensureCloudInterface(c *Context, where string) bool {
 	return true
 }
 
-// func getPreviewSubscription(c *Context, w http.ResponseWriter, r *http.Request) {
-// 	subscription := &model.Subscription{
-// 		ID: "cloud-preview",
-
-// 		IsFreeTrial:    "true",
-// 		IsCloudPreview: true,
-// 	}
-
-// 	json, err := json.Marshal(subscription)
-// 	if err != nil {
-// 		c.Err = model.NewAppError("Api4.getSubscription", "api.cloud.request_error", nil, "", http.StatusInternalServerError).Wrap(err)
-// 		return
-// 	}
-
-// 	if _, err := w.Write(json); err != nil {
-// 		c.Logger.Warn("Error while writing response", mlog.Err(err))
-// 	}
-// }
-
 func getSubscription(c *Context, w http.ResponseWriter, r *http.Request) {
 	ensured := ensureCloudInterface(c, "Api4.getSubscription")
 	if !ensured {

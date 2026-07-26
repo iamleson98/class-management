@@ -3,14 +3,12 @@ package lmsstore
 import (
 	"database/sql"
 
-	"github.com/aarondl/null/v8"
 	"github.com/aarondl/sqlboiler/v4/boil"
 	"github.com/aarondl/sqlboiler/v4/queries/qm"
-	"github.com/pkg/errors"
-
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
 	"github.com/iamleson98/sitename/server/v8/channels/store"
+	"github.com/pkg/errors"
 )
 
 type SqlClassMediaStore struct {
@@ -33,24 +31,25 @@ func (s *SqlClassMediaStore) Get(id string) (*lms_models.ClassMedium, error) {
 	return classMedia, nil
 }
 
-func (s *SqlClassMediaStore) GetAll(opts modelhelper.ClassMediaFilterOpts) ([]*lms_models.ClassMedium, error) {
-	var mods []qm.QueryMod
+func (s *SqlClassMediaStore) Search(opts modelhelper.ClassMediaFilterOpts) ([]*lms_models.ClassMedium, int64, error) {
+	mods := []qm.QueryMod{}
 
-	if opts.ClassID != "" {
-		mods = append(mods, lms_models.ClassMediumWhere.ClassID.EQ(opts.ClassID))
-	}
-	if opts.SessionID != "" {
-		mods = append(mods, lms_models.ClassMediumWhere.SessionID.EQ(null.StringFrom(opts.SessionID)))
-	}
-
-	mods = append(mods, qm.OrderBy(lms_models.ClassMediumColumns.Createat+" DESC"))
-
-	classMedia, err := lms_models.ClassMedia(mods...).All(s.sqlStore.GetReplicaExecuter())
+	modsWithPagination := append(mods, &opts.SearchOpts)
+	classMedia, err := lms_models.ClassMedia(modsWithPagination...).All(s.sqlStore.GetReplicaExecuter())
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get class media")
+		return nil, 0, errors.Wrap(err, "failed to search class media")
+	}
+	totalCount := int64(len(classMedia))
+
+	if opts.CountTotal {
+		modsWithoutPagination := append(mods, opts.SearchOpts.ExludePaginationForCount())
+		totalCount, err = lms_models.ClassMedia(modsWithoutPagination...).Count(s.sqlStore.GetReplicaExecuter())
+		if err != nil {
+			return nil, 0, errors.Wrap(err, "failed to count class media")
+		}
 	}
 
-	return classMedia, nil
+	return classMedia, totalCount, nil
 }
 
 func (s *SqlClassMediaStore) Save(cm *lms_models.ClassMedium) (*lms_models.ClassMedium, error) {
@@ -80,21 +79,4 @@ func (s *SqlClassMediaStore) Delete(id string) error {
 	}
 
 	return nil
-}
-
-func (s *SqlClassMediaStore) Count(opts modelhelper.ClassMediaFilterOpts) (int64, error) {
-	var mods []qm.QueryMod
-
-	if opts.ClassID != "" {
-		mods = append(mods, lms_models.ClassMediumWhere.ClassID.EQ(opts.ClassID))
-	}
-	if opts.SessionID != "" {
-		mods = append(mods, lms_models.ClassMediumWhere.SessionID.EQ(null.StringFrom(opts.SessionID)))
-	}
-
-	count, err := lms_models.ClassMedia(mods...).Count(s.sqlStore.GetReplicaExecuter())
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to count class media")
-	}
-	return count, nil
 }

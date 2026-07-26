@@ -63,36 +63,6 @@ func (_m *FeePackageStore) Get(id string) (*lms_models.FeePackage, error) {
 	return r0, r1
 }
 
-// GetAll provides a mock function with given fields: opts
-func (_m *FeePackageStore) GetAll(opts modelhelper.FeePackageFilterOpts) ([]*lms_models.FeePackage, error) {
-	ret := _m.Called(opts)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetAll")
-	}
-
-	var r0 []*lms_models.FeePackage
-	var r1 error
-	if rf, ok := ret.Get(0).(func(modelhelper.FeePackageFilterOpts) ([]*lms_models.FeePackage, error)); ok {
-		return rf(opts)
-	}
-	if rf, ok := ret.Get(0).(func(modelhelper.FeePackageFilterOpts) []*lms_models.FeePackage); ok {
-		r0 = rf(opts)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*lms_models.FeePackage)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(modelhelper.FeePackageFilterOpts) error); ok {
-		r1 = rf(opts)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // Save provides a mock function with given fields: fp
 func (_m *FeePackageStore) Save(fp *lms_models.FeePackage) (*lms_models.FeePackage, error) {
 	ret := _m.Called(fp)
@@ -123,32 +93,41 @@ func (_m *FeePackageStore) Save(fp *lms_models.FeePackage) (*lms_models.FeePacka
 	return r0, r1
 }
 
-// Count provides a mock function with given fields: opts
-func (_m *FeePackageStore) Count(opts modelhelper.FeePackageFilterOpts) (int64, error) {
+// Search provides a mock function with given fields: opts
+func (_m *FeePackageStore) Search(opts modelhelper.FeePackageFilterOpts) ([]*lms_models.FeePackage, int64, error) {
 	ret := _m.Called(opts)
 
 	if len(ret) == 0 {
-		panic("no return value specified for Count")
+		panic("no return value specified for Search")
 	}
 
-	var r0 int64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(modelhelper.FeePackageFilterOpts) (int64, error)); ok {
+	var r0 []*lms_models.FeePackage
+	var r1 int64
+	var r2 error
+	if rf, ok := ret.Get(0).(func(modelhelper.FeePackageFilterOpts) ([]*lms_models.FeePackage, int64, error)); ok {
 		return rf(opts)
 	}
-	if rf, ok := ret.Get(0).(func(modelhelper.FeePackageFilterOpts) int64); ok {
+	if rf, ok := ret.Get(0).(func(modelhelper.FeePackageFilterOpts) []*lms_models.FeePackage); ok {
 		r0 = rf(opts)
 	} else {
-		r0 = ret.Get(0).(int64)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*lms_models.FeePackage)
+		}
 	}
 
-	if rf, ok := ret.Get(1).(func(modelhelper.FeePackageFilterOpts) error); ok {
+	if rf, ok := ret.Get(1).(func(modelhelper.FeePackageFilterOpts) int64); ok {
 		r1 = rf(opts)
 	} else {
-		r1 = ret.Error(1)
+		r1 = ret.Get(1).(int64)
 	}
 
-	return r0, r1
+	if rf, ok := ret.Get(2).(func(modelhelper.FeePackageFilterOpts) error); ok {
+		r2 = rf(opts)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // NewFeePackageStore creates a new instance of FeePackageStore. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

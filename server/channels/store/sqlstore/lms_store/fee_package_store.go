@@ -31,19 +31,25 @@ func (s *SqlFeePackageStore) Get(id string) (*lms_models.FeePackage, error) {
 	return fp, nil
 }
 
-func (s *SqlFeePackageStore) GetAll(opts modelhelper.FeePackageFilterOpts) ([]*lms_models.FeePackage, error) {
+func (s *SqlFeePackageStore) Search(opts modelhelper.FeePackageFilterOpts) ([]*lms_models.FeePackage, int64, error) {
 	mods := []qm.QueryMod{}
 
-	if opts.CourseID != "" {
-		mods = append(mods, lms_models.FeePackageWhere.CourseID.EQ(opts.CourseID))
-	}
-
-	feePackages, err := lms_models.FeePackages(mods...).All(s.sqlStore.GetReplicaExecuter())
+	modsWithPagination := append(mods, &opts.SearchOpts)
+	feePackages, err := lms_models.FeePackages(modsWithPagination...).All(s.sqlStore.GetReplicaExecuter())
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get fee packages")
+		return nil, 0, errors.Wrap(err, "failed to search fee packages")
+	}
+	totalCount := int64(len(feePackages))
+
+	if opts.CountTotal {
+		modsWithoutPagination := append(mods, opts.SearchOpts.ExludePaginationForCount())
+		totalCount, err = lms_models.FeePackages(modsWithoutPagination...).Count(s.sqlStore.GetReplicaExecuter())
+		if err != nil {
+			return nil, 0, errors.Wrap(err, "failed to count fee packages")
+		}
 	}
 
-	return feePackages, nil
+	return feePackages, totalCount, nil
 }
 
 func (s *SqlFeePackageStore) Save(fp *lms_models.FeePackage) (*lms_models.FeePackage, error) {
@@ -78,18 +84,4 @@ func (s *SqlFeePackageStore) Delete(id string) error {
 	}
 
 	return nil
-}
-
-func (s *SqlFeePackageStore) Count(opts modelhelper.FeePackageFilterOpts) (int64, error) {
-	var mods []qm.QueryMod
-
-	if opts.CourseID != "" {
-		mods = append(mods, lms_models.FeePackageWhere.CourseID.EQ(opts.CourseID))
-	}
-
-	count, err := lms_models.FeePackages(mods...).Count(s.sqlStore.GetReplicaExecuter())
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to count fee packages")
-	}
-	return count, nil
 }

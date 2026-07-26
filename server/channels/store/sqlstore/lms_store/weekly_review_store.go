@@ -5,11 +5,10 @@ import (
 
 	"github.com/aarondl/sqlboiler/v4/boil"
 	"github.com/aarondl/sqlboiler/v4/queries/qm"
+	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
+	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
+	"github.com/iamleson98/sitename/server/v8/channels/store"
 	"github.com/pkg/errors"
-
-		lms_models "github.com/iamleson98/sitename/server/public/lms_models"
-		modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
-		"github.com/iamleson98/sitename/server/v8/channels/store"
 )
 
 type SqlWeeklyReviewStore struct {
@@ -32,24 +31,25 @@ func (s *SqlWeeklyReviewStore) Get(id string) (*lms_models.WeeklyReview, error) 
 	return review, nil
 }
 
-func (s *SqlWeeklyReviewStore) GetAll(opts modelhelper.WeeklyReviewFilterOpts) ([]*lms_models.WeeklyReview, error) {
-	var mods []qm.QueryMod
+func (s *SqlWeeklyReviewStore) Search(opts modelhelper.WeeklyReviewFilterOpts) ([]*lms_models.WeeklyReview, int64, error) {
+	mods := []qm.QueryMod{}
 
-	if opts.StudentID != "" {
-		mods = append(mods, lms_models.WeeklyReviewWhere.StudentID.EQ(opts.StudentID))
-	}
-	if opts.ClassID != "" {
-		mods = append(mods, lms_models.WeeklyReviewWhere.ClassID.EQ(opts.ClassID))
-	}
-
-	mods = append(mods, qm.OrderBy(lms_models.WeeklyReviewColumns.WeekNumber+" ASC"))
-
-	reviews, err := lms_models.WeeklyReviews(mods...).All(s.sqlStore.GetReplicaExecuter())
+	modsWithPagination := append(mods, &opts.SearchOpts)
+	reviews, err := lms_models.WeeklyReviews(modsWithPagination...).All(s.sqlStore.GetReplicaExecuter())
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get weekly reviews")
+		return nil, 0, errors.Wrap(err, "failed to search weekly reviews")
+	}
+	totalCount := int64(len(reviews))
+
+	if opts.CountTotal {
+		modsWithoutPagination := append(mods, opts.SearchOpts.ExludePaginationForCount())
+		totalCount, err = lms_models.WeeklyReviews(modsWithoutPagination...).Count(s.sqlStore.GetReplicaExecuter())
+		if err != nil {
+			return nil, 0, errors.Wrap(err, "failed to count weekly reviews")
+		}
 	}
 
-	return reviews, nil
+	return reviews, totalCount, nil
 }
 
 func (s *SqlWeeklyReviewStore) Save(wr *lms_models.WeeklyReview) (*lms_models.WeeklyReview, error) {
@@ -100,21 +100,4 @@ func (s *SqlWeeklyReviewStore) Delete(id string) error {
 	}
 
 	return nil
-}
-
-func (s *SqlWeeklyReviewStore) Count(opts modelhelper.WeeklyReviewFilterOpts) (int64, error) {
-	var mods []qm.QueryMod
-
-	if opts.StudentID != "" {
-		mods = append(mods, lms_models.WeeklyReviewWhere.StudentID.EQ(opts.StudentID))
-	}
-	if opts.ClassID != "" {
-		mods = append(mods, lms_models.WeeklyReviewWhere.ClassID.EQ(opts.ClassID))
-	}
-
-	count, err := lms_models.WeeklyReviews(mods...).Count(s.sqlStore.GetReplicaExecuter())
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to count weekly reviews")
-	}
-	return count, nil
 }

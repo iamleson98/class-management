@@ -3,19 +3,19 @@ package lmsapi
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
 	"github.com/iamleson98/sitename/server/public/utils"
+	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"github.com/iamleson98/sitename/server/v8/channels/api4"
 	"github.com/iamleson98/sitename/server/v8/channels/web"
 )
 
 func (a *LMSAPI) InitHomework() {
-	a.routes.Method(http.MethodGet, "/homeworks", a.api.APISessionRequired(getHomeworks))
-	a.routes.Method(http.MethodPost, "/homeworks", a.api.APISessionRequired(createHomework))
+	a.routes.Method(http.MethodPost, "/homeworks", a.api.APISessionRequired(getHomeworks))
+	a.routes.Method(http.MethodPost, "/homeworks/create", a.api.APISessionRequired(createHomework))
 	a.routes.Method(http.MethodGet, "/homeworks/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(getHomework))
 	a.routes.Method(http.MethodPut, "/homeworks/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(updateHomework))
 	a.routes.Method(http.MethodDelete, "/homeworks/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(deleteHomework))
@@ -30,39 +30,26 @@ func getHomeworks(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := r.URL.Query()
-	opts := modelhelper.HomeworkFilterOpts{
-		ClassID:   q.Get("class_id"),
-		StudentID: q.Get("student_id"),
-		TeacherID: q.Get("teacher_id"),
-		CourseID:  q.Get("course_id"),
-	}
-	if v := q.Get("page"); v != "" {
-		opts.Page, _ = strconv.Atoi(v)
-	}
-	if v := q.Get("per_page"); v != "" {
-		opts.PerPage, _ = strconv.Atoi(v)
-	}
-	if q.Get("count_total") == "true" {
-		opts.CountTotal = true
+	var opts modelhelper.HomeworkFilterOpts
+	if err := json.NewDecoder(r.Body).Decode(&opts); err != nil {
+		c.Err = model.NewAppError("getHomeworks", model.PayloadParseError, nil, "", http.StatusBadRequest).Wrap(err)
+		return
 	}
 
-	homeworks, err := c.App.LMS().GetHomework(opts)
+	items, totalCount, err := c.App.LMS().GetHomework(opts)
 	if err != nil {
 		c.Err = err
 		return
 	}
 
-	if homeworks == nil {
-		homeworks = []*lms_models.Homework{}
+	res := utils.ResponseList{
+		Items:      items,
+		TotalCount: totalCount,
 	}
 
-	res := utils.ResponseList{
-		Items:      homeworks,
-		TotalCount: int64(len(homeworks)),
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
 	}
-	data, _ := json.Marshal(res)
-	w.Write(data)
 }
 
 func createHomework(c *api4.Context, w http.ResponseWriter, r *http.Request) {

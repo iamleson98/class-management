@@ -15,34 +15,6 @@ type ClassStore struct {
 	mock.Mock
 }
 
-// Count provides a mock function with given fields: opts
-func (_m *ClassStore) Count(opts modelhelper.ClassFilterOpts) (int64, error) {
-	ret := _m.Called(opts)
-
-	if len(ret) == 0 {
-		panic("no return value specified for Count")
-	}
-
-	var r0 int64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(modelhelper.ClassFilterOpts) (int64, error)); ok {
-		return rf(opts)
-	}
-	if rf, ok := ret.Get(0).(func(modelhelper.ClassFilterOpts) int64); ok {
-		r0 = rf(opts)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-
-	if rf, ok := ret.Get(1).(func(modelhelper.ClassFilterOpts) error); ok {
-		r1 = rf(opts)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // Delete provides a mock function with given fields: id
 func (_m *ClassStore) Delete(id string) error {
 	ret := _m.Called(id)
@@ -91,36 +63,6 @@ func (_m *ClassStore) Get(id string) (*lms_models.Class, error) {
 	return r0, r1
 }
 
-// GetAll provides a mock function with given fields: opts
-func (_m *ClassStore) GetAll(opts modelhelper.ClassFilterOpts) ([]*lms_models.Class, error) {
-	ret := _m.Called(opts)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetAll")
-	}
-
-	var r0 []*lms_models.Class
-	var r1 error
-	if rf, ok := ret.Get(0).(func(modelhelper.ClassFilterOpts) ([]*lms_models.Class, error)); ok {
-		return rf(opts)
-	}
-	if rf, ok := ret.Get(0).(func(modelhelper.ClassFilterOpts) []*lms_models.Class); ok {
-		r0 = rf(opts)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*lms_models.Class)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(modelhelper.ClassFilterOpts) error); ok {
-		r1 = rf(opts)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // Save provides a mock function with given fields: class
 func (_m *ClassStore) Save(class *lms_models.Class) (*lms_models.Class, error) {
 	ret := _m.Called(class)
@@ -149,6 +91,43 @@ func (_m *ClassStore) Save(class *lms_models.Class) (*lms_models.Class, error) {
 	}
 
 	return r0, r1
+}
+
+// Search provides a mock function with given fields: opts
+func (_m *ClassStore) Search(opts modelhelper.ClassFilterOpts) ([]*lms_models.Class, int64, error) {
+	ret := _m.Called(opts)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Search")
+	}
+
+	var r0 []*lms_models.Class
+	var r1 int64
+	var r2 error
+	if rf, ok := ret.Get(0).(func(modelhelper.ClassFilterOpts) ([]*lms_models.Class, int64, error)); ok {
+		return rf(opts)
+	}
+	if rf, ok := ret.Get(0).(func(modelhelper.ClassFilterOpts) []*lms_models.Class); ok {
+		r0 = rf(opts)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*lms_models.Class)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(modelhelper.ClassFilterOpts) int64); ok {
+		r1 = rf(opts)
+	} else {
+		r1 = ret.Get(1).(int64)
+	}
+
+	if rf, ok := ret.Get(2).(func(modelhelper.ClassFilterOpts) error); ok {
+		r2 = rf(opts)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // Update provides a mock function with given fields: class

@@ -9,8 +9,8 @@ import (
 
 	"github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
+	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
 	"github.com/iamleson98/sitename/server/public/shared/request"
-	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/v8/channels/store"
 	"github.com/iamleson98/sitename/server/v8/einterfaces"
 )
@@ -13289,7 +13289,7 @@ func (s *TimerLayerUserStore) SearchTeamContentFlaggingReviewers(teamId string, 
 	return result, err
 }
 
-func (s *TimerLayerUserStore) SearchUsers(opts utils.SearchOpts[utils.UserColumn]) (lms_models.UserSlice, int64, error) {
+func (s *TimerLayerUserStore) SearchUsers(opts modelhelper.UserFilterOpts) (lms_models.UserSlice, int64, error) {
 	start := time.Now()
 
 	result, resultVar1, err := s.UserStore.SearchUsers(opts)

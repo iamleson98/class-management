@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod/v4'
@@ -8,9 +8,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { Star, Plus, Search, Eye, Pencil, Trash2, MessageSquare } from 'lucide-react'
 import {
-  getWeeklyReviews, createWeeklyReview, updateWeeklyReview, deleteWeeklyReview,
+  getWeeklyReviewsPaginated, createWeeklyReview, updateWeeklyReview, deleteWeeklyReview,
   getClasses, getStudents,
 } from '@/lib/api'
+import { eq, contains, and, or, paginate } from '@/lib/query'
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/lms/page-header'
 import { EmptyState } from '@/components/lms/empty-state'
@@ -33,7 +34,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { PaginationControls, usePagination, paginate } from '@/components/lms/shared/pagination'
+import { PaginationControls, usePagination, derivePageInfo } from '@/components/lms/shared/pagination'
 import { cn } from '@/lib/utils'
 import { staggerContainer, staggerItem } from '@/components/lms/shared/animations'
 import { useTranslation } from '@/lib/i18n'
@@ -122,14 +123,30 @@ export default function AdminReviews() {
     },
   })
 
+  // Reset to first page whenever filters change so the user doesn't land on
+  // an empty page after narrowing the result set.
+  useEffect(() => { pagination.setPageIndex(0) }, [search, filterClassId, filterStudentId])
+
+  // Build the typed SearchOpts body. WeeklyReviewFilterOpts has NO top-level
+  // search field, so text search is expressed as an ILIKE on
+  // weekly_reviews.content via contains(). Class/student filters are EQ.
+  const opts = useMemo(() => ({
+    where_ands: and(
+      eq('weekly_reviews.class_id', filterClassId),
+      eq('weekly_reviews.student_id', filterStudentId),
+    ),
+    where_ors: or(contains('weekly_reviews.content', search)),
+    ...paginate(pagination.pageIndex, pagination.pageSize),
+  }), [search, filterClassId, filterStudentId, pagination.pageIndex, pagination.pageSize])
+
   // ── Queries ─────────────────────────────────────────────────────
-  const { data: reviews = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ['weekly-reviews', filterClassId, filterStudentId],
-    queryFn: () => getWeeklyReviews({
-      classId: filterClassId || undefined,
-      studentId: filterStudentId || undefined,
-    }),
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['weekly-reviews', opts],
+    queryFn: () => getWeeklyReviewsPaginated(opts),
   })
+
+  const reviews = data?.items ?? []
+  const pageInfo = derivePageInfo(data?.totalCount ?? 0, pagination.pageIndex, pagination.pageSize, reviews.length)
 
   const { data: classes = [], isLoading: isLoadingClasses, isError: isClassesError } = useQuery({
     queryKey: ['classes', 'all'],
@@ -138,13 +155,13 @@ export default function AdminReviews() {
 
   const { data: students = [], isLoading: isLoadingStudents, isError: isStudentsError } = useQuery({
     queryKey: ['students', form.watch('classId'), 'filter'],
-    queryFn: () => getStudents({ classId: form.watch('classId') }),
+    queryFn: () => getStudents({ class_id: form.watch('classId') }),
     enabled: !!form.watch('classId'),
   })
 
   const { data: filterStudents = [], isLoading: isLoadingFilterStudents, isError: isFilterStudentsError } = useQuery({
     queryKey: ['students', filterClassId, 'filter-dropdown'],
-    queryFn: () => getStudents({ classId: filterClassId }),
+    queryFn: () => getStudents({ class_id: filterClassId }),
     enabled: !!filterClassId,
   })
 
@@ -209,20 +226,6 @@ export default function AdminReviews() {
     setSelectedReview(review)
     setDeleteDialogOpen(true)
   }
-
-  // ── Filter & paginate ──────────────────────────────────────────
-  const filtered = useMemo(() => {
-    let list = reviews
-    if (search) {
-      list = list.filter((r: any) =>
-        r.student?.name?.toLowerCase().includes(search.toLowerCase()) ||
-        r.content?.toLowerCase().includes(search.toLowerCase()),
-      )
-    }
-    return list
-  }, [reviews, search])
-
-  const paginated = paginate(filtered, pagination.pageIndex, pagination.pageSize)
 
   // ── Loading state ──────────────────────────────────────────────
   if (isLoading) {
@@ -318,7 +321,7 @@ export default function AdminReviews() {
       </Card>
 
       {/* Table */}
-      {paginated.data.length === 0 ? (
+      {reviews.length === 0 ? (
         <EmptyState
           icon={MessageSquare}
           title={t('reviews.noReviews', 'Chưa có nhận xét')}
@@ -342,7 +345,7 @@ export default function AdminReviews() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginated.data.map((review: any) => (
+                {reviews.map((review: any) => (
                   <motion.tr key={review.id} variants={staggerItem} className="hover:bg-muted/30">
                     <TableCell className="font-medium text-sm">
                       {review.student?.name || review.studentName || '-'}
@@ -383,7 +386,7 @@ export default function AdminReviews() {
             </Table>
           </motion.div>
           <PaginationControls
-            {...paginated}
+            {...pageInfo}
             onPageIndexChange={pagination.setPageIndex}
             onPageSizeChange={pagination.setPageSize}
           />
@@ -452,7 +455,7 @@ export default function AdminReviews() {
                 </FormItem>
               )} />
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 items-start">
                 <FormField control={form.control} name="weekNumber" render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t('reviews.weekNumber', 'Tuần thứ')} </FormLabel>

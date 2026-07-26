@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod/v4'
@@ -8,7 +8,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { School, Plus, Pencil, Trash2, UserPlus, Users, Eye, Camera, ClipboardList, Calendar, Play } from 'lucide-react'
 import { createClassSchema, updateClassSchema, type CreateClassInput, type UpdateClassInput } from '@/lib/schemas'
-import { getClasses, createClass, updateClass, deleteClass, enrollStudents, getCourses, getStudents, getUsers, getClassDetail, getClassMedia, createClassMedia, deleteClassMedia, getSessions, getSessionAttendance } from '@/lib/api'
+import { getClasses, getClassesPaginated, createClass, updateClass, deleteClass, enrollStudents, getCourses, getStudents, getUsers, getClassDetail, getClassMedia, createClassMedia, deleteClassMedia, getSessions, getSessionAttendance } from '@/lib/api'
+import { eq, and, paginate } from '@/lib/query'
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/lms/page-header'
 import { EmptyState } from '@/components/lms/empty-state'
@@ -34,7 +35,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { PaginationControls, usePagination, paginate } from '@/components/lms/shared/pagination'
+import { PaginationControls, usePagination, derivePageInfo } from '@/components/lms/shared/pagination'
 import { cn } from '@/lib/utils'
 import { staggerContainer, staggerItem } from '@/components/lms/shared/animations'
 import { useTranslation } from '@/lib/i18n'
@@ -227,10 +228,26 @@ export default function AdminClasses() {
     defaultValues: EMPTY_CLASS,
   })
 
-  const { data: classes = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ['classes', statusFilter],
-    queryFn: () => getClasses({ status: statusFilter !== 'all' ? statusFilter : undefined }),
+  // Reset to first page whenever filters change so the user doesn't land on
+  // an empty page after narrowing the result set.
+  useEffect(() => { pagination.setPageIndex(0) }, [statusFilter])
+
+  // Build the typed SearchOpts body. ClassFilterOpts honors a top-level
+  // `search` field (see server/public/model_helper/lms.go); the status filter
+  // goes into where_ands via eq() since there is no top-level status field.
+  const opts = useMemo(() => ({
+    search: undefined,
+    where_ands: and(eq('classes.status', statusFilter !== 'all' ? statusFilter : undefined)),
+    ...paginate(pagination.pageIndex, pagination.pageSize),
+  }), [statusFilter, pagination.pageIndex, pagination.pageSize])
+
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['classes', opts],
+    queryFn: () => getClassesPaginated(opts),
   })
+
+  const classes = data?.items ?? []
+  const pageInfo = derivePageInfo(data?.totalCount ?? 0, pagination.pageIndex, pagination.pageSize, classes.length)
 
   const { data: courses = [], isLoading: isLoadingCourses, isError: isCoursesError } = useQuery({
     queryKey: ['courses-select'],
@@ -239,7 +256,7 @@ export default function AdminClasses() {
 
   const { data: teachers = [], isLoading: isLoadingTeachers, isError: isTeachersError } = useQuery({
     queryKey: ['users-teachers'],
-    queryFn: () => getUsers('TEACHER'),
+    queryFn: () => getUsers({ role: 'lms_teacher' }),
   })
 
   const { data: students = [], isLoading: isLoadingStudents, isError: isStudentsError } = useQuery({
@@ -257,13 +274,13 @@ export default function AdminClasses() {
 
   const { data: classSessions = [], isLoading: isLoadingSessions, isError: isSessionsError } = useQuery({
     queryKey: ['class-sessions', viewingClassId],
-    queryFn: () => getSessions({ classId: viewingClassId! }),
+    queryFn: () => getSessions({ where_ands: and(eq('lms_sessions.class_id', viewingClassId!)) }),
     enabled: !!viewingClassId && detailOpen,
   })
 
   const { data: classMedia = [], isLoading: isLoadingMedia, isError: isMediaError } = useQuery({
     queryKey: ['class-media', viewingClassId],
-    queryFn: () => getClassMedia({ classId: viewingClassId! }),
+    queryFn: () => getClassMedia({ where_ands: and(eq('class_media.class_id', viewingClassId!)) }),
     enabled: !!viewingClassId && detailOpen,
   })
 
@@ -323,9 +340,6 @@ export default function AdminClasses() {
     setEditingClass(null)
     form.reset(EMPTY_CLASS)
   }
-
-  const filtered = useMemo(() => classes, [classes])
-  const paginated = paginate(filtered, pagination.pageIndex, pagination.pageSize)
 
   const openCreate = () => {
     setEditingClass(null)
@@ -413,7 +427,7 @@ export default function AdminClasses() {
       </Card>
 
       {/* Table */}
-      {paginated.data.length === 0 ? (
+      {classes.length === 0 ? (
         <EmptyState
           icon={School}
           title={t('classes.emptyTitle', 'Chưa có lớp học')}
@@ -438,7 +452,7 @@ export default function AdminClasses() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginated.data.map((cls: any) => {
+                {classes.map((cls: any) => {
                   const status = STATUS_MAP[cls.status] || STATUS_MAP.OPEN
                   const enrolled = cls._count?.studentEnrollments || cls.enrollments?.length || cls.studentCount || 0
                   return (
@@ -481,7 +495,7 @@ export default function AdminClasses() {
               </TableBody>
             </Table>
           </motion.div>
-          <PaginationControls {...paginated} onPageIndexChange={pagination.setPageIndex} onPageSizeChange={pagination.setPageSize} />
+          <PaginationControls {...pageInfo} onPageIndexChange={pagination.setPageIndex} onPageSizeChange={pagination.setPageSize} />
         </>
       )}
 

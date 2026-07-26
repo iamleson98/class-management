@@ -366,6 +366,16 @@ function AppContent() {
     }
   }, [])
 
+  // Central auth gate: whenever auth is resolved as invalid (either initial
+  // hydration returned 401, or a later API call fired `auth:expired` → logout),
+  // redirect to /login. This effect reacts to state changes, so it also covers
+  // the "session dies mid-dashboard" case — not just the mount-time check.
+  useEffect(() => {
+    if (!isHydrating && (!isAuthenticated || !authUser || !currentRole)) {
+      router.replace('/login')
+    }
+  }, [isHydrating, isAuthenticated, authUser, currentRole, router])
+
   // Hash-based routing sync
   useEffect(() => {
     const syncHash = () => {
@@ -395,19 +405,6 @@ function AppContent() {
       }
     }
   }, [activeView, currentRole, isAuthenticated])
-
-  // Redirect to landing page for unauthenticated users
-  useEffect(() => {
-    if (!isHydrating && (!isAuthenticated || !authUser || !currentRole)) {
-      const hash = window.location.hash
-      if (hash && hash.startsWith('#lms_')) return
-      router.replace('/home')
-    }
-  }, [isHydrating, isAuthenticated, authUser, currentRole, router])
-
-  // const handleLogin = (user: AuthUser) => {
-  //   useLMSStore.getState().login(user)
-  // }
 
   // Show loading spinner while checking auth from server
   if (isHydrating) {
@@ -568,7 +565,7 @@ function AppContent() {
 
         {/* Footer */}
         <footer className="border-t px-4 py-3 text-center text-xs text-muted-foreground">
-          © 2024 Việt Mỹ Global — Hệ thống Quản lý Trung tâm Anh ngữ
+          © 2026 Việt Mỹ Global — Hệ thống Quản lý Trung tâm Anh ngữ
         </footer>
       </div>
     </div>

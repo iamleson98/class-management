@@ -9,8 +9,8 @@ import (
 
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	model "github.com/iamleson98/sitename/server/public/model"
+	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
 	request "github.com/iamleson98/sitename/server/public/shared/request"
-	utils "github.com/iamleson98/sitename/server/public/utils"
 	store "github.com/iamleson98/sitename/server/v8/channels/store"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -1975,7 +1975,7 @@ func (_m *UserStore) SearchTeamContentFlaggingReviewers(teamId string, term stri
 }
 
 // SearchUsers provides a mock function with given fields: opts
-func (_m *UserStore) SearchUsers(opts utils.SearchOpts[utils.UserColumn]) (lms_models.UserSlice, int64, error) {
+func (_m *UserStore) SearchUsers(opts modelhelper.UserFilterOpts) (lms_models.UserSlice, int64, error) {
 	ret := _m.Called(opts)
 
 	if len(ret) == 0 {
@@ -1985,10 +1985,10 @@ func (_m *UserStore) SearchUsers(opts utils.SearchOpts[utils.UserColumn]) (lms_m
 	var r0 lms_models.UserSlice
 	var r1 int64
 	var r2 error
-	if rf, ok := ret.Get(0).(func(utils.SearchOpts[utils.UserColumn]) (lms_models.UserSlice, int64, error)); ok {
+	if rf, ok := ret.Get(0).(func(modelhelper.UserFilterOpts) (lms_models.UserSlice, int64, error)); ok {
 		return rf(opts)
 	}
-	if rf, ok := ret.Get(0).(func(utils.SearchOpts[utils.UserColumn]) lms_models.UserSlice); ok {
+	if rf, ok := ret.Get(0).(func(modelhelper.UserFilterOpts) lms_models.UserSlice); ok {
 		r0 = rf(opts)
 	} else {
 		if ret.Get(0) != nil {
@@ -1996,13 +1996,13 @@ func (_m *UserStore) SearchUsers(opts utils.SearchOpts[utils.UserColumn]) (lms_m
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(utils.SearchOpts[utils.UserColumn]) int64); ok {
+	if rf, ok := ret.Get(1).(func(modelhelper.UserFilterOpts) int64); ok {
 		r1 = rf(opts)
 	} else {
 		r1 = ret.Get(1).(int64)
 	}
 
-	if rf, ok := ret.Get(2).(func(utils.SearchOpts[utils.UserColumn]) error); ok {
+	if rf, ok := ret.Get(2).(func(modelhelper.UserFilterOpts) error); ok {
 		r2 = rf(opts)
 	} else {
 		r2 = ret.Error(2)

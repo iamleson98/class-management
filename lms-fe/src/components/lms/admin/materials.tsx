@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod/v4'
@@ -9,7 +9,8 @@ import { motion } from 'framer-motion'
 import { FileText, Plus, Search, Eye, Download } from 'lucide-react'
 import { createMaterialSchema, type CreateMaterialInput } from '@/lib/schemas'
 import { useLMSStore } from '@/store/lms-store'
-import { getMaterials, createMaterial, getCourses } from '@/lib/api'
+import { getMaterialsPaginated, createMaterial, getCourses } from '@/lib/api'
+import { eq, and, or, contains, paginate } from '@/lib/query'
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/lms/page-header'
 import { EmptyState } from '@/components/lms/empty-state'
@@ -30,7 +31,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { PaginationControls, usePagination, paginate } from '@/components/lms/shared/pagination'
+import { PaginationControls, usePagination, derivePageInfo } from '@/components/lms/shared/pagination'
 import { cn } from '@/lib/utils'
 import { staggerContainer, staggerItem } from '@/components/lms/shared/animations'
 import { useTranslation } from '@/lib/i18n'
@@ -52,6 +53,9 @@ export default function AdminMaterials() {
   const [search, setSearch] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const pagination = usePagination(10)
+  // TODO: wire courseId / visibility filter UI; undefined drops the condition.
+  const courseId: string | undefined = undefined
+  const visibility: string | undefined = undefined
 
   type MaterialFormValues = z.input<typeof createMaterialSchema>
   const emptyMaterialForm: MaterialFormValues = {
@@ -64,10 +68,27 @@ export default function AdminMaterials() {
     defaultValues: emptyMaterialForm,
   })
 
-  const { data: materials = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ['materials', search],
-    queryFn: () => getMaterials({ courseId: undefined }),
+  // Reset to first page whenever the search box changes so the user doesn't
+  // land on an empty page after narrowing the result set.
+  useEffect(() => { pagination.setPageIndex(0) }, [search])
+
+  // Build the typed SearchOpts body. MaterialFilterOpts has NO top-level
+  // `search` field, so free-text search on the title goes via where_ors +
+  // ILIKE (contains()). course_id / visibility filters are EQ conditions; they
+  // are undefined until filter UI is added, and the helpers drop empty values.
+  const opts = useMemo(() => ({
+    where_ands: and(eq('materials.course_id', courseId), eq('materials.visibility', visibility)),
+    where_ors: or(contains('materials.title', search)),
+    ...paginate(pagination.pageIndex, pagination.pageSize),
+  }), [search, courseId, visibility, pagination.pageIndex, pagination.pageSize])
+
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['materials', opts],
+    queryFn: () => getMaterialsPaginated(opts),
   })
+
+  const materials = data?.items ?? []
+  const pageInfo = derivePageInfo(data?.totalCount ?? 0, pagination.pageIndex, pagination.pageSize, materials.length)
 
   const { data: courses = [], isLoading: isLoadingCourses, isError: isCoursesError } = useQuery({
     queryKey: ['courses-materials'],
@@ -83,15 +104,6 @@ export default function AdminMaterials() {
     },
     onError: () => toast({ title: t('materials.addFailed', 'Thêm tài liệu thất bại'), variant: 'destructive' }),
   })
-
-  const filtered = useMemo(() => {
-    if (!search) return materials
-    return materials.filter((m: any) =>
-      m.title?.toLowerCase().includes(search.toLowerCase())
-    )
-  }, [materials, search])
-
-  const paginated = paginate(filtered, pagination.pageIndex, pagination.pageSize)
 
   const openCreate = () => {
     form.reset({ ...emptyMaterialForm, uploadedById: authUser?.id || '' })
@@ -132,7 +144,7 @@ export default function AdminMaterials() {
         </div>
       </Card>
 
-      {paginated.data.length === 0 ? (
+      {materials.length === 0 ? (
         <EmptyState icon={FileText} title={t('materials.noMaterials', 'Chưa có tài liệu')} description={t('materials.noMaterialsDesc', 'Thêm tài liệu giảng dạy đầu tiên.')} actionLabel={t('materials.addMaterial', 'Thêm tài liệu')} onAction={openCreate} />
       ) : (
         <>
@@ -149,7 +161,7 @@ export default function AdminMaterials() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginated.data.map((material: any) => {
+                {materials.map((material: any) => {
                   const type = TYPE_MAP[material.type] || TYPE_MAP.DOCUMENT
                   return (
                     <motion.tr key={material.id} variants={staggerItem} className="hover:bg-muted/30">
@@ -174,7 +186,7 @@ export default function AdminMaterials() {
               </TableBody>
             </Table>
           </motion.div>
-          <PaginationControls {...paginated} onPageIndexChange={pagination.setPageIndex} onPageSizeChange={pagination.setPageSize} />
+          <PaginationControls {...pageInfo} onPageIndexChange={pagination.setPageIndex} onPageSizeChange={pagination.setPageSize} />
         </>
       )}
 

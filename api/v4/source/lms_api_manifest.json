@@ -1,0 +1,857 @@
+{
+  "/public/courses": {
+    "get": {
+      "summary": "Get public courses",
+      "description": "Returns all published courses. No authentication required.",
+      "public": true,
+      "responseType": "LmsResponseList",
+      "responseItemsSchema": "LmsCourse"
+    }
+  },
+  "/public/posts": {
+    "get": {
+      "summary": "Get public blog posts",
+      "description": "Returns all published blog posts. No authentication required.",
+      "public": true,
+      "responseType": "LmsResponseList",
+      "responseItemsSchema": "LmsBlogPost"
+    }
+  },
+  "/public/register": {
+    "post": {
+      "summary": "Public lead registration",
+      "description": "Register a new lead via the public form. No authentication required.",
+      "public": true,
+      "requestBody": { "$ref": "#/components/schemas/LmsLead" },
+      "responseSchema": "LmsLead",
+      "statusCode": "201"
+    }
+  },
+  "/public/contact": {
+    "post": {
+      "summary": "Submit contact form",
+      "description": "Submit a public contact/inquiry form. No authentication required.",
+      "public": true,
+      "requestBody": { "$ref": "#/components/schemas/LmsPublicContactRequest" },
+      "statusCode": "201"
+    }
+  },
+  "/public/forgot-password": {
+    "post": {
+      "summary": "Request password reset",
+      "description": "Send a password reset email. No authentication required.",
+      "public": true,
+      "requestBody": { "$ref": "#/components/schemas/LmsForgotPasswordRequest" },
+      "responseSchema": "LmsSuccessMessage"
+    }
+  },
+  "/public/reset-password": {
+    "post": {
+      "summary": "Reset password",
+      "description": "Reset password using a token. No authentication required.",
+      "public": true,
+      "requestBody": { "$ref": "#/components/schemas/LmsResetPasswordRequest" },
+      "responseSchema": "LmsSuccessMessage"
+    }
+  },
+  "/public/verify-token": {
+    "get": {
+      "summary": "Verify password reset token",
+      "description": "Check if a password reset token is valid. No authentication required.",
+      "public": true,
+      "queryParams": [
+        { "name": "token", "type": "string", "required": true, "description": "The password reset token" }
+      ],
+      "responseSchema": "LmsVerifyTokenResponse"
+    }
+  },
+
+  "/branches": {
+    "post": {
+      "summary": "Get branches",
+      "description": "Get a filtered list of branches. Uses POST body for filter options.",
+      "permission": "lms_manage_branches",
+      "requestBody": { "$ref": "#/components/schemas/LmsBranchFilterOpts" },
+      "responseType": "LmsResponseList",
+      "responseItemsSchema": "LmsBranch",
+      "statusCode": "200"
+    }
+  },
+  "/branches/create": {
+    "post": {
+      "summary": "Create a branch",
+      "description": "Create a new branch.",
+      "permission": "lms_manage_branches",
+      "requestBody": { "$ref": "#/components/schemas/LmsBranch" },
+      "responseSchema": "LmsBranch",
+      "statusCode": "201"
+    }
+  },
+
+  "/courses": {
+    "get": {
+      "summary": "Get courses",
+      "description": "Get a list of all courses.",
+      "queryParams": [],
+      "responseType": "LmsResponseList",
+      "responseItemsSchema": "LmsCourse"
+    },
+    "post": {
+      "summary": "Create a course",
+      "description": "Create a new course.",
+      "permission": "lms_manage_courses",
+      "requestBody": { "$ref": "#/components/schemas/LmsCourse" },
+      "responseSchema": "LmsCourse",
+      "statusCode": "201"
+    }
+  },
+  "/courses/{id}": {
+    "get": {
+      "summary": "Get a course",
+      "description": "Get a course by ID.",
+      "permission": "lms_manage_courses",
+      "responseSchema": "LmsCourse"
+    },
+    "put": {
+      "summary": "Update a course",
+      "description": "Update a course by ID.",
+      "permission": "lms_manage_courses",
+      "requestBody": { "$ref": "#/components/schemas/LmsCourse" },
+      "responseSchema": "LmsCourse"
+    },
+    "delete": {
+      "summary": "Delete a course",
+      "description": "Delete a course by ID.",
+      "permission": "lms_manage_courses",
+      "responseType": "LmsStatusOK"
+    }
+  },
+
+  "/classes": {
+    "post": {
+      "summary": "Get classes",
+      "description": "Get a filtered list of classes. Uses POST body for filter options.",
+      "permission": "lms_manage_classes",
+      "requestBody": { "$ref": "#/components/schemas/LmsClassFilterOpts" },
+      "responseType": "LmsResponseList",
+      "responseItemsSchema": "LmsClass",
+      "statusCode": "200"
+    }
+  },
+  "/classes/create": {
+    "post": {
+      "summary": "Create a class",
+      "description": "Create a new class.",
+      "permission": "lms_manage_classes",
+      "requestBody": { "$ref": "#/components/schemas/LmsClass" },
+      "responseSchema": "LmsClass",
+      "statusCode": "201"
+    }
+  },
+  "/classes/{id}": {
+    "get": {
+      "summary": "Get a class",
+      "description": "Get a class by ID.",
+      "permission": "lms_manage_classes",
+      "responseSchema": "LmsClass"
+    },
+    "put": {
+      "summary": "Update a class",
+      "description": "Update a class by ID.",
+      "permission": "lms_manage_classes",
+      "requestBody": { "$ref": "#/components/schemas/LmsClass" },
+      "responseSchema": "LmsClass"
+    },
+    "delete": {
+      "summary": "Delete a class",
+      "description": "Delete a class by ID.",
+      "permission": "lms_manage_classes",
+      "responseType": "LmsStatusOK"
+    }
+  },
+  "/classes/{id}/enroll": {
+    "post": {
+      "summary": "Enroll students in a class",
+      "description": "Enroll a list of students into the specified class.",
+      "permission": "lms_manage_classes",
+      "requestBody": { "$ref": "#/components/schemas/LmsEnrollStudentsRequest" }
+    }
+  },
+
+  "/sessions": {
+    "post": {
+      "summary": "Get sessions",
+      "description": "Get a filtered list of class sessions. Uses POST body for filter options.",
+      "permission": "lms_manage_sessions",
+      "requestBody": { "$ref": "#/components/schemas/LmsSessionFilterOpts" },
+      "responseType": "LmsResponseList",
+      "responseItemsSchema": "LmsSession",
+      "statusCode": "200"
+    }
+  },
+  "/sessions/create": {
+    "post": {
+      "summary": "Create a session",
+      "description": "Create a new class session.",
+      "permission": "lms_manage_sessions",
+      "requestBody": { "$ref": "#/components/schemas/LmsSession" },
+      "responseSchema": "LmsSession",
+      "responseWrapper": "LmsResponse",
+      "statusCode": "201"
+    }
+  },
+  "/sessions/{id}": {
+    "get": {
+      "summary": "Get a session",
+      "description": "Get a session by ID.",
+      "permission": "lms_manage_sessions",
+      "responseSchema": "LmsSession",
+      "responseWrapper": "LmsResponse"
+    },
+    "put": {
+      "summary": "Update a session",
+      "description": "Update a session by ID.",
+      "permission": "lms_manage_sessions",
+      "requestBody": { "$ref": "#/components/schemas/LmsSession" },
+      "responseSchema": "LmsSession",
+      "responseWrapper": "LmsResponse"
+    },
+    "delete": {
+      "summary": "Delete a session",
+      "description": "Delete a session by ID.",
+      "permission": "lms_manage_sessions",
+      "responseType": "LmsDataTrue"
+    }
+  },
+  "/sessions/{id}/attendance": {
+    "get": {
+      "summary": "Get session attendance",
+      "description": "Get attendance records for a session.",
+      "permission": "lms_manage_attendance",
+      "responseWrapper": "LmsResponse"
+    },
+    "post": {
+      "summary": "Save session attendance",
+      "description": "Save attendance records for a session.",
+      "permission": "lms_manage_attendance",
+      "requestBody": { "type": "array", "items": { "$ref": "#/components/schemas/LmsAttendance" } },
+      "responseWrapper": "LmsResponse"
+    }
+  },
+
+  "/leads": {
+    "post": {
+      "summary": "Get leads",
+      "description": "Get a filtered list of leads. Uses POST body for filter options.",
+      "permission": "lms_manage_leads",
+      "requestBody": { "$ref": "#/components/schemas/LmsLeadFilterOpts" },
+      "responseType": "LmsResponseList",
+      "responseItemsSchema": "LmsLead",
+      "statusCode": "200"
+    }
+  },
+  "/leads/create": {
+    "post": {
+      "summary": "Create a lead",
+      "description": "Create a new lead.",
+      "permission": "lms_manage_leads",
+      "requestBody": { "$ref": "#/components/schemas/LmsLead" },
+      "responseSchema": "LmsLead",
+      "statusCode": "201"
+    }
+  },
+  "/leads/{id}": {
+    "get": {
+      "summary": "Get a lead",
+      "description": "Get a lead by ID.",
+      "permission": "lms_manage_leads",
+      "responseSchema": "LmsLead"
+    },
+    "put": {
+      "summary": "Update a lead",
+      "description": "Update a lead by ID.",
+      "permission": "lms_manage_leads",
+      "requestBody": { "$ref": "#/components/schemas/LmsLead" },
+      "responseSchema": "LmsLead"
+    },
+    "delete": {
+      "summary": "Delete a lead",
+      "description": "Delete a lead by ID.",
+      "permission": "lms_manage_leads",
+      "responseType": "LmsStatusOK"
+    }
+  },
+  "/leads/{id}/activities": {
+    "get": {
+      "summary": "Get lead activities",
+      "description": "Get activities for a lead.",
+      "permission": "lms_manage_leads",
+      "responseSchema": "LmsLeadActivity",
+      "responseIsArray": true
+    },
+    "post": {
+      "summary": "Create a lead activity",
+      "description": "Create an activity for a lead.",
+      "permission": "lms_manage_leads",
+      "requestBody": { "$ref": "#/components/schemas/LmsLeadActivity" },
+      "responseSchema": "LmsLeadActivity",
+      "statusCode": "201"
+    }
+  },
+  "/leads/{id}/convert": {
+    "post": {
+      "summary": "Convert lead to student",
+      "description": "Convert a lead into a student.",
+      "permission": "lms_manage_leads",
+      "responseSchema": "LmsConvertLeadResponse",
+      "responseWrapper": "LmsResponse"
+    }
+  },
+
+  "/fee-packages": {
+    "post": {
+      "summary": "Get fee packages",
+      "description": "Get a filtered list of fee packages. Uses POST body for filter options.",
+      "permission": "lms_manage_fee_packages",
+      "requestBody": { "$ref": "#/components/schemas/LmsFeePackageFilterOpts" },
+      "responseType": "LmsResponseList",
+      "responseItemsSchema": "LmsFeePackage",
+      "statusCode": "200"
+    }
+  },
+  "/fee-packages/create": {
+    "post": {
+      "summary": "Create a fee package",
+      "description": "Create a new fee package.",
+      "permission": "lms_manage_fee_packages",
+      "requestBody": { "$ref": "#/components/schemas/LmsFeePackage" },
+      "responseSchema": "LmsFeePackage",
+      "statusCode": "201"
+    }
+  },
+
+  "/tuitions": {
+    "post": {
+      "summary": "Get tuitions",
+      "description": "Get a filtered list of tuitions. Uses POST body for filter options.",
+      "permission": "lms_manage_tuition",
+      "requestBody": { "$ref": "#/components/schemas/LmsTuitionFilterOpts" },
+      "responseType": "LmsResponseList",
+      "responseItemsSchema": "LmsTuition",
+      "statusCode": "200"
+    }
+  },
+  "/tuitions/create": {
+    "post": {
+      "summary": "Create a tuition",
+      "description": "Create a new tuition record.",
+      "permission": "lms_manage_tuition",
+      "requestBody": { "$ref": "#/components/schemas/LmsTuition" },
+      "responseSchema": "LmsTuition",
+      "statusCode": "201"
+    }
+  },
+  "/tuitions/{id}": {
+    "get": {
+      "summary": "Get a tuition",
+      "description": "Get a tuition by ID.",
+      "permission": "lms_manage_tuition",
+      "responseSchema": "LmsTuition"
+    },
+    "put": {
+      "summary": "Update a tuition",
+      "description": "Update a tuition by ID.",
+      "permission": "lms_manage_tuition",
+      "requestBody": { "$ref": "#/components/schemas/LmsTuition" },
+      "responseSchema": "LmsTuition"
+    },
+    "delete": {
+      "summary": "Delete a tuition",
+      "description": "Delete a tuition by ID.",
+      "permission": "lms_manage_tuition",
+      "responseType": "LmsStatusOK"
+    }
+  },
+  "/tuitions/{id}/payments": {
+    "get": {
+      "summary": "Get tuition payments",
+      "description": "Get payments for a specific tuition.",
+      "permission": "lms_manage_tuition"
+    },
+    "post": {
+      "summary": "Create a tuition payment",
+      "description": "Create a payment for a specific tuition. The tuition_id is set from the URL path.",
+      "permission": "lms_manage_tuition",
+      "requestBody": { "$ref": "#/components/schemas/LmsPayment" },
+      "responseSchema": "LmsPayment",
+      "statusCode": "201"
+    }
+  },
+
+  "/payments": {
+    "post": {
+      "summary": "Get payments",
+      "description": "Get a filtered list of payments. Uses POST body for filter options.",
+      "permission": "lms_manage_tuition",
+      "requestBody": { "$ref": "#/components/schemas/LmsPaymentFilterOpts" },
+      "responseType": "LmsResponseList",
+      "responseItemsSchema": "LmsPayment",
+      "statusCode": "200"
+    }
+  },
+
+  "/posts/categories": {
+    "get": {
+      "summary": "Get post categories",
+      "description": "Get all post categories.",
+      "permission": "lms_manage_posts",
+      "responseType": "LmsResponseList",
+      "responseItemsSchema": "LmsPostCategory"
+    },
+    "post": {
+      "summary": "Create a post category",
+      "description": "Create a new post category.",
+      "permission": "lms_manage_posts",
+      "requestBody": { "$ref": "#/components/schemas/LmsPostCategory" },
+      "responseSchema": "LmsPostCategory",
+      "statusCode": "201"
+    }
+  },
+  "/posts": {
+    "post": {
+      "summary": "Get blog posts",
+      "description": "Get a filtered list of blog posts. Uses POST body for filter options.",
+      "permission": "lms_manage_posts",
+      "requestBody": { "$ref": "#/components/schemas/LmsBlogPostFilterOpts" },
+      "responseType": "LmsResponseList",
+      "responseItemsSchema": "LmsBlogPost",
+      "statusCode": "200"
+    }
+  },
+  "/posts/create": {
+    "post": {
+      "summary": "Create a blog post",
+      "description": "Create a new blog post.",
+      "permission": "lms_manage_posts",
+      "requestBody": { "$ref": "#/components/schemas/LmsBlogPost" },
+      "responseSchema": "LmsBlogPost",
+      "statusCode": "201"
+    }
+  },
+  "/posts/{id}": {
+    "get": {
+      "summary": "Get a blog post",
+      "description": "Get a blog post by ID.",
+      "permission": "lms_manage_posts",
+      "responseSchema": "LmsBlogPost"
+    },
+    "put": {
+      "summary": "Update a blog post",
+      "description": "Update a blog post by ID.",
+      "permission": "lms_manage_posts",
+      "requestBody": { "$ref": "#/components/schemas/LmsBlogPost" },
+      "responseSchema": "LmsBlogPost"
+    },
+    "delete": {
+      "summary": "Delete a blog post",
+      "description": "Delete a blog post by ID.",
+      "permission": "lms_manage_posts",
+      "responseType": "LmsStatusOK"
+    }
+  },
+
+  "/homeworks": {
+    "post": {
+      "summary": "Get homeworks",
+      "description": "Get a filtered list of homeworks. Uses POST body for filter options.",
+      "permission": "lms_manage_homework",
+      "requestBody": { "$ref": "#/components/schemas/LmsHomeworkFilterOpts" },
+      "responseType": "LmsResponseList",
+      "responseItemsSchema": "LmsHomework",
+      "statusCode": "200"
+    }
+  },
+  "/homeworks/create": {
+    "post": {
+      "summary": "Create a homework",
+      "description": "Create a new homework assignment.",
+      "permission": "lms_manage_homework",
+      "requestBody": { "$ref": "#/components/schemas/LmsHomework" },
+      "responseSchema": "LmsHomework",
+      "statusCode": "201"
+    }
+  },
+  "/homeworks/{id}": {
+    "get": {
+      "summary": "Get a homework",
+      "description": "Get a homework by ID.",
+      "permission": "lms_manage_homework",
+      "responseSchema": "LmsHomework"
+    },
+    "put": {
+      "summary": "Update a homework",
+      "description": "Update a homework by ID.",
+      "permission": "lms_manage_homework",
+      "requestBody": { "$ref": "#/components/schemas/LmsHomework" },
+      "responseSchema": "LmsHomework"
+    },
+    "delete": {
+      "summary": "Delete a homework",
+      "description": "Delete a homework by ID.",
+      "permission": "lms_manage_homework",
+      "responseType": "LmsStatusOK"
+    }
+  },
+  "/homeworks/{id}/submissions": {
+    "get": {
+      "summary": "Get homework submissions",
+      "description": "Get submissions for a homework assignment.",
+      "permission": "lms_manage_homework"
+    },
+    "post": {
+      "summary": "Upsert a homework submission",
+      "description": "Create or update a homework submission.",
+      "permission": "lms_manage_homework",
+      "requestBody": { "$ref": "#/components/schemas/LmsSubmission" }
+    }
+  },
+  "/homeworks/bulk-assign": {
+    "post": {
+      "summary": "Bulk assign homework",
+      "description": "Create a homework and assign it to multiple students at once.",
+      "permission": "lms_manage_homework",
+      "requestBody": { "$ref": "#/components/schemas/LmsBulkAssignHomeworkRequest" },
+      "responseSchema": "LmsBulkAssignHomeworkResponse"
+    }
+  },
+
+  "/weekly-reviews": {
+    "post": {
+      "summary": "Get weekly reviews",
+      "description": "Get a filtered list of weekly reviews. Uses POST body for filter options.",
+      "permission": "lms_manage_weekly_reviews",
+      "requestBody": { "$ref": "#/components/schemas/LmsWeeklyReviewFilterOpts" },
+      "responseType": "LmsResponseList",
+      "responseItemsSchema": "LmsWeeklyReview",
+      "statusCode": "200"
+    }
+  },
+  "/weekly-reviews/create": {
+    "post": {
+      "summary": "Create a weekly review",
+      "description": "Create a new weekly review.",
+      "permission": "lms_manage_weekly_reviews",
+      "requestBody": { "$ref": "#/components/schemas/LmsWeeklyReview" },
+      "responseSchema": "LmsWeeklyReview",
+      "responseWrapper": "LmsResponse",
+      "statusCode": "201"
+    }
+  },
+  "/weekly-reviews/{id}": {
+    "get": {
+      "summary": "Get a weekly review",
+      "description": "Get a weekly review by ID.",
+      "permission": "lms_manage_weekly_reviews",
+      "responseSchema": "LmsWeeklyReview",
+      "responseWrapper": "LmsResponse"
+    },
+    "put": {
+      "summary": "Update a weekly review",
+      "description": "Update a weekly review by ID.",
+      "permission": "lms_manage_weekly_reviews",
+      "requestBody": { "$ref": "#/components/schemas/LmsWeeklyReview" },
+      "responseSchema": "LmsWeeklyReview",
+      "responseWrapper": "LmsResponse"
+    },
+    "delete": {
+      "summary": "Delete a weekly review",
+      "description": "Delete a weekly review by ID.",
+      "permission": "lms_manage_weekly_reviews",
+      "responseType": "LmsDataTrue"
+    }
+  },
+
+  "/tasks": {
+    "post": {
+      "summary": "Get tasks",
+      "description": "Get a filtered list of tasks. Uses POST body for filter options.",
+      "permission": "lms_manage_tasks",
+      "requestBody": { "$ref": "#/components/schemas/LmsTaskFilterOpts" },
+      "responseType": "LmsResponseList",
+      "responseItemsSchema": "LmsTask",
+      "statusCode": "200"
+    }
+  },
+  "/tasks/create": {
+    "post": {
+      "summary": "Create a task",
+      "description": "Create a new task.",
+      "permission": "lms_manage_tasks",
+      "requestBody": { "$ref": "#/components/schemas/LmsTask" },
+      "responseSchema": "LmsTask",
+      "responseWrapper": "LmsResponse",
+      "statusCode": "201"
+    }
+  },
+  "/tasks/{id}": {
+    "get": {
+      "summary": "Get a task",
+      "description": "Get a task by ID.",
+      "permission": "lms_manage_tasks",
+      "responseSchema": "LmsTask",
+      "responseWrapper": "LmsResponse"
+    },
+    "put": {
+      "summary": "Update a task",
+      "description": "Update a task by ID.",
+      "permission": "lms_manage_tasks",
+      "requestBody": { "$ref": "#/components/schemas/LmsTask" },
+      "responseSchema": "LmsTask",
+      "responseWrapper": "LmsResponse"
+    },
+    "delete": {
+      "summary": "Delete a task",
+      "description": "Delete a task by ID.",
+      "permission": "lms_manage_tasks",
+      "responseType": "LmsDataTrue"
+    }
+  },
+
+  "/banners": {
+    "get": {
+      "summary": "Get banners",
+      "description": "Get all banners.",
+      "permission": "lms_manage_banners",
+      "responseType": "LmsResponseList",
+      "responseItemsSchema": "LmsBanner"
+    },
+    "post": {
+      "summary": "Create a banner",
+      "description": "Create a new banner.",
+      "permission": "lms_manage_banners",
+      "requestBody": { "$ref": "#/components/schemas/LmsBanner" },
+      "responseSchema": "LmsBanner",
+      "statusCode": "201"
+    }
+  },
+  "/banners/{id}": {
+    "get": {
+      "summary": "Get a banner",
+      "description": "Get a banner by ID.",
+      "permission": "lms_manage_banners",
+      "responseSchema": "LmsBanner"
+    },
+    "put": {
+      "summary": "Update a banner",
+      "description": "Update a banner by ID.",
+      "permission": "lms_manage_banners",
+      "requestBody": { "$ref": "#/components/schemas/LmsBanner" },
+      "responseSchema": "LmsBanner"
+    },
+    "delete": {
+      "summary": "Delete a banner",
+      "description": "Delete a banner by ID.",
+      "permission": "lms_manage_banners",
+      "responseType": "LmsStatusOK"
+    }
+  },
+
+  "/notifications": {
+    "get": {
+      "summary": "Get notifications",
+      "description": "Get notifications for the current user.",
+      "permission": "lms_view_notifications",
+      "responseSchema": "LmsNotificationListResponse",
+      "responseWrapper": "LmsResponse"
+    }
+  },
+  "/notifications/{id}/read": {
+    "post": {
+      "summary": "Mark notification as read",
+      "description": "Mark a notification as read.",
+      "permission": "lms_view_notifications",
+      "responseType": "LmsStatusOK"
+    }
+  },
+
+  "/materials": {
+    "post": {
+      "summary": "Get materials",
+      "description": "Get a filtered list of study materials. Uses POST body for filter options.",
+      "permission": "lms_manage_materials",
+      "requestBody": { "$ref": "#/components/schemas/LmsMaterialFilterOpts" },
+      "responseType": "LmsResponseList",
+      "responseItemsSchema": "LmsMaterial",
+      "statusCode": "200"
+    }
+  },
+  "/materials/create": {
+    "post": {
+      "summary": "Create a material",
+      "description": "Create a new study material.",
+      "permission": "lms_manage_materials",
+      "requestBody": { "$ref": "#/components/schemas/LmsMaterial" },
+      "responseSchema": "LmsMaterial",
+      "statusCode": "201"
+    }
+  },
+  "/materials/{id}": {
+    "get": {
+      "summary": "Get a material",
+      "description": "Get a material by ID.",
+      "permission": "lms_manage_materials",
+      "responseSchema": "LmsMaterial"
+    },
+    "put": {
+      "summary": "Update a material",
+      "description": "Update a material by ID.",
+      "permission": "lms_manage_materials",
+      "requestBody": { "$ref": "#/components/schemas/LmsMaterial" },
+      "responseSchema": "LmsMaterial"
+    },
+    "delete": {
+      "summary": "Delete a material",
+      "description": "Delete a material by ID.",
+      "permission": "lms_manage_materials",
+      "responseType": "LmsStatusOK"
+    }
+  },
+
+  "/class-media": {
+    "post": {
+      "summary": "Create class media",
+      "description": "Upload a new class media (photo or video).",
+      "permission": "lms_manage_class_media",
+      "requestBody": { "$ref": "#/components/schemas/LmsClassMedium" },
+      "responseSchema": "LmsClassMedium",
+      "statusCode": "201"
+    }
+  },
+  "/class-media/search": {
+    "post": {
+      "summary": "Get class media",
+      "description": "Get a filtered list of class media (photos/videos). Uses POST body for filter options.",
+      "permission": "lms_manage_class_media",
+      "requestBody": { "$ref": "#/components/schemas/LmsClassMediaFilterOpts" },
+      "responseType": "LmsResponseList",
+      "responseItemsSchema": "LmsClassMedium",
+      "statusCode": "200"
+    }
+  },
+  "/class-media/{id}": {
+    "delete": {
+      "summary": "Delete class media",
+      "description": "Delete a class media by ID.",
+      "permission": "lms_manage_class_media",
+      "responseType": "LmsStatusOK"
+    }
+  },
+
+  "/students": {
+    "post": {
+      "summary": "Get students",
+      "description": "Get a filtered list of students. Uses POST body for filter options instead of query parameters.",
+      "permission": "lms_manage_students",
+      "requestBody": { "$ref": "#/components/schemas/LmsStudentFilterOpts" },
+      "responseType": "LmsResponseList",
+      "statusCode": "200"
+    }
+  },
+  "/students/create": {
+    "post": {
+      "summary": "Create a student",
+      "description": "Create a new student with user account and student properties.",
+      "permission": "lms_manage_students",
+      "requestBody": { "$ref": "#/components/schemas/LmsStudent" },
+      "responseSchema": "LmsStudent",
+      "responseWrapper": "LmsResponse",
+      "statusCode": "201"
+    }
+  },
+  "/students/{id}": {
+    "get": {
+      "summary": "Get a student",
+      "description": "Get a student by ID.",
+      "permission": "lms_manage_students",
+      "responseSchema": "LmsStudent",
+      "responseWrapper": "LmsResponse"
+    },
+    "put": {
+      "summary": "Update a student",
+      "description": "Update a student by ID.",
+      "permission": "lms_manage_students",
+      "requestBody": { "$ref": "#/components/schemas/LmsStudent" },
+      "responseSchema": "LmsStudent",
+      "responseWrapper": "LmsResponse"
+    },
+    "delete": {
+      "summary": "Delete a student",
+      "description": "Delete a student by ID.",
+      "permission": "lms_manage_students",
+      "responseType": "LmsDataTrue"
+    }
+  },
+
+  "/users": {
+    "get": {
+      "summary": "Get LMS users",
+      "description": "Get a list of LMS users (staff/admin).",
+      "permission": "lms_manage_users",
+      "queryParams": [
+        { "name": "role", "type": "string", "description": "Filter by user role" }
+      ],
+      "responseWrapper": "LmsResponse"
+    },
+    "post": {
+      "summary": "Create an LMS user",
+      "description": "Create a new LMS user (staff/admin).",
+      "permission": "lms_manage_users",
+      "requestBody": { "$ref": "#/components/schemas/User" },
+      "responseSchema": "User",
+      "responseWrapper": "LmsResponse",
+      "statusCode": "201"
+    }
+  },
+  "/users/{id}": {
+    "get": {
+      "summary": "Get an LMS user",
+      "description": "Get an LMS user by ID.",
+      "permission": "lms_manage_users",
+      "responseSchema": "User",
+      "responseWrapper": "LmsResponse"
+    },
+    "put": {
+      "summary": "Update an LMS user",
+      "description": "Update an LMS user by ID.",
+      "permission": "lms_manage_users",
+      "requestBody": { "$ref": "#/components/schemas/User" },
+      "responseSchema": "User",
+      "responseWrapper": "LmsResponse"
+    },
+    "delete": {
+      "summary": "Delete an LMS user",
+      "description": "Delete an LMS user by ID.",
+      "permission": "lms_manage_users",
+      "responseType": "LmsDataTrue"
+    }
+  },
+
+  "/dashboard": {
+    "get": {
+      "summary": "Get dashboard stats",
+      "description": "Get dashboard statistics and summary data.",
+      "permission": "lms_manage_dashboard"
+    }
+  },
+
+  "/reports": {
+    "get": {
+      "summary": "Get a report",
+      "description": "Get a report by type. The response structure varies based on the report type.",
+      "permission": "lms_view_reports",
+      "queryParams": [
+        { "name": "type", "type": "string", "required": true, "description": "The type of report to generate" }
+      ]
+    }
+  }
+}

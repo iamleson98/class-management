@@ -86,6 +86,51 @@ export function paginate<T>(items: T[], pageIndex: number, pageSize: number): Pa
   }
 }
 
+/**
+ * Compute page-control props from a SERVER-reported total count (server-driven
+ * paging). Use this with the typed query mechanism: the API returns
+ * { items, totalCount } for the requested page, and this helper derives the
+ * PaginationControls props (totalPages, startIndex, hasNextPage, ...) without
+ * needing the full client-side array.
+ *
+ * `itemsOnPage` is the number of items in the current page's response — used
+ * only to compute endIndex for the "Showing X–Y of Z" label.
+ */
+export interface ServerPageInfo {
+  totalItems: number
+  totalPages: number
+  startIndex: number
+  endIndex: number
+  hasPreviousPage: boolean
+  hasNextPage: boolean
+  pageIndex: number
+  pageSize: number
+}
+
+export function derivePageInfo(
+  totalCount: number,
+  pageIndex: number,
+  pageSize: number,
+  itemsOnPage: number,
+): ServerPageInfo {
+  const totalItems = totalCount
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
+  const safePageIndex = Math.min(Math.max(0, pageIndex), totalPages - 1)
+  const startIndex = safePageIndex * pageSize
+  const endIndex = startIndex + Math.max(0, itemsOnPage)
+
+  return {
+    totalItems,
+    totalPages,
+    startIndex,
+    endIndex,
+    hasPreviousPage: safePageIndex > 0,
+    hasNextPage: safePageIndex < totalPages - 1,
+    pageIndex: safePageIndex,
+    pageSize,
+  }
+}
+
 interface PaginationControlsProps {
   pageIndex: number
   totalPages: number

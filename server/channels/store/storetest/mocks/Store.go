@@ -485,6 +485,26 @@ func (_m *Store) CourseLesson() store.CourseLessonStore {
 	return r0
 }
 
+// Dashboard provides a mock function with no fields
+func (_m *Store) Dashboard() store.DashboardStore {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for Dashboard")
+	}
+
+	var r0 store.DashboardStore
+	if rf, ok := ret.Get(0).(func() store.DashboardStore); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(store.DashboardStore)
+		}
+	}
+
+	return r0
+}
+
 // DesktopTokens provides a mock function with no fields
 func (_m *Store) DesktopTokens() store.DesktopTokensStore {
 	ret := _m.Called()
@@ -1998,26 +2018,6 @@ func (_m *Store) WeeklyReview() store.WeeklyReviewStore {
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(store.WeeklyReviewStore)
-		}
-	}
-
-	return r0
-}
-
-// Dashboard provides a mock function with no fields
-func (_m *Store) Dashboard() store.DashboardStore {
-	ret := _m.Called()
-
-	if len(ret) == 0 {
-		panic("no return value specified for Dashboard")
-	}
-
-	var r0 store.DashboardStore
-	if rf, ok := ret.Get(0).(func() store.DashboardStore); ok {
-		r0 = rf()
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(store.DashboardStore)
 		}
 	}
 

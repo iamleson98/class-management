@@ -20,6 +20,10 @@ interface DatePickerProps {
   placeholder?: string
   className?: string
   disabled?: boolean
+  /** When true (or when rendered inside a FormField with an error), the
+   *  trigger border/label turn destructive red. Forwarded as aria-invalid so
+   *  the Button's built-in `aria-invalid:border-destructive` styling applies. */
+  invalid?: boolean
 }
 
 export function DatePicker({
@@ -28,6 +32,7 @@ export function DatePicker({
   placeholder = 'Chọn ngày',
   className,
   disabled = false,
+  invalid = false,
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false)
 
@@ -48,10 +53,12 @@ export function DatePicker({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          type="button"
           variant="outline"
           disabled={disabled}
+          aria-invalid={invalid || undefined}
           className={cn(
-            'h-9 justify-start text-left font-normal',
+            'h-9 w-full justify-start text-left font-normal',
             !formattedValue && 'text-muted-foreground',
             className
           )}

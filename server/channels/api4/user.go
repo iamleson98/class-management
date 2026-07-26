@@ -15,6 +15,7 @@ import (
 
 	"github.com/blang/semver/v4"
 	"github.com/iamleson98/sitename/server/public/model"
+	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
 	"github.com/iamleson98/sitename/server/public/shared/mlog"
 
 	model_utils "github.com/iamleson98/sitename/server/public/utils"
@@ -954,11 +955,12 @@ func getUsers(c *Context, w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if sort == "last_activity_at" {
+		switch sort {
+		case "last_activity_at":
 			profiles, appErr = c.App.GetRecentlyActiveUsersForTeamPage(c.AppContext, inTeamId, c.Params["page"].(int), c.Params["per_page"].(int), c.IsSystemAdmin(), restrictions)
-		} else if sort == "create_at" {
+		case "create_at":
 			profiles, appErr = c.App.GetNewUsersForTeamPage(c.AppContext, inTeamId, c.Params["page"].(int), c.Params["per_page"].(int), c.IsSystemAdmin(), restrictions)
-		} else {
+		default:
 			etag = c.App.GetUsersInTeamEtag(inTeamId, restrictions.Hash())
 			if c.HandleEtag(etag, "Get Users in Team", w, r) {
 				return
@@ -1138,7 +1140,7 @@ func getKnownUsers(c *Context, w http.ResponseWriter, r *http.Request) {
 
 // Advanced version of [searchUsers]
 func searchUsers2(c *Context, w http.ResponseWriter, r *http.Request) {
-	var props model_utils.SearchOpts[model_utils.UserColumn]
+	var props modelhelper.UserFilterOpts
 	if err := json.NewDecoder(r.Body).Decode(&props); err != nil {
 		c.SetInvalidParamWithErr("props", err)
 		return
@@ -1166,8 +1168,7 @@ func searchUsers2(c *Context, w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewEncoder(w).Encode(res)
 	if err != nil {
-		c.Err = model.NewAppError("searchUsers2", "api.marshal_error", nil, "", http.StatusInternalServerError).Wrap(err)
-		return
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
 	}
 }
 

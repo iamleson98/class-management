@@ -11,6 +11,7 @@ import { LoadingState } from '@/components/lms/loading-state'
 import { ErrorState } from '@/components/lms/error-state'
 import { useLMSStore } from '@/store/lms-store'
 import { getWeeklyReviews } from '@/lib/api'
+import { eq, and } from '@/lib/query'
 import { format, parseISO } from 'date-fns'
 import { staggerContainer, staggerItem } from '@/components/lms/shared/animations'
 import { useTranslation } from '@/lib/i18n'
@@ -38,7 +39,7 @@ export default function StudentReviews() {
 
   const { data: reviews, isLoading, isError, refetch } = useQuery({
     queryKey: ['weekly-reviews', 'student', authUser?.id],
-    queryFn: () => getWeeklyReviews({ studentId: authUser!.id }),
+    queryFn: () => getWeeklyReviews({ where_ands: and(eq('weekly_reviews.student_id', authUser!.id)) }),
     enabled: !!authUser?.id,
   })
 

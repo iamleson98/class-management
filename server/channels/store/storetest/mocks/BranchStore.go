@@ -63,36 +63,6 @@ func (_m *BranchStore) Get(id string) (*lms_models.Branch, error) {
 	return r0, r1
 }
 
-// GetAll provides a mock function with given fields: opts
-func (_m *BranchStore) GetAll(opts modelhelper.BranchFilterOpts) ([]*lms_models.Branch, error) {
-	ret := _m.Called(opts)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetAll")
-	}
-
-	var r0 []*lms_models.Branch
-	var r1 error
-	if rf, ok := ret.Get(0).(func(modelhelper.BranchFilterOpts) ([]*lms_models.Branch, error)); ok {
-		return rf(opts)
-	}
-	if rf, ok := ret.Get(0).(func(modelhelper.BranchFilterOpts) []*lms_models.Branch); ok {
-		r0 = rf(opts)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*lms_models.Branch)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(modelhelper.BranchFilterOpts) error); ok {
-		r1 = rf(opts)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // Save provides a mock function with given fields: branch
 func (_m *BranchStore) Save(branch *lms_models.Branch) (*lms_models.Branch, error) {
 	ret := _m.Called(branch)
@@ -123,32 +93,41 @@ func (_m *BranchStore) Save(branch *lms_models.Branch) (*lms_models.Branch, erro
 	return r0, r1
 }
 
-// Count provides a mock function with given fields: opts
-func (_m *BranchStore) Count(opts modelhelper.BranchFilterOpts) (int64, error) {
+// Search provides a mock function with given fields: opts
+func (_m *BranchStore) Search(opts modelhelper.BranchFilterOpts) ([]*lms_models.Branch, int64, error) {
 	ret := _m.Called(opts)
 
 	if len(ret) == 0 {
-		panic("no return value specified for Count")
+		panic("no return value specified for Search")
 	}
 
-	var r0 int64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(modelhelper.BranchFilterOpts) (int64, error)); ok {
+	var r0 []*lms_models.Branch
+	var r1 int64
+	var r2 error
+	if rf, ok := ret.Get(0).(func(modelhelper.BranchFilterOpts) ([]*lms_models.Branch, int64, error)); ok {
 		return rf(opts)
 	}
-	if rf, ok := ret.Get(0).(func(modelhelper.BranchFilterOpts) int64); ok {
+	if rf, ok := ret.Get(0).(func(modelhelper.BranchFilterOpts) []*lms_models.Branch); ok {
 		r0 = rf(opts)
 	} else {
-		r0 = ret.Get(0).(int64)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*lms_models.Branch)
+		}
 	}
 
-	if rf, ok := ret.Get(1).(func(modelhelper.BranchFilterOpts) error); ok {
+	if rf, ok := ret.Get(1).(func(modelhelper.BranchFilterOpts) int64); ok {
 		r1 = rf(opts)
 	} else {
-		r1 = ret.Error(1)
+		r1 = ret.Get(1).(int64)
 	}
 
-	return r0, r1
+	if rf, ok := ret.Get(2).(func(modelhelper.BranchFilterOpts) error); ok {
+		r2 = rf(opts)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // NewBranchStore creates a new instance of BranchStore. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

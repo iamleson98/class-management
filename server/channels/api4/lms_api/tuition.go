@@ -3,20 +3,20 @@ package lmsapi
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
 	"github.com/iamleson98/sitename/server/public/utils"
+	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"github.com/iamleson98/sitename/server/v8/channels/api4"
 	"github.com/iamleson98/sitename/server/v8/channels/web"
 )
 
 // InitTuitions registers tuition routes on the LMS router.
 func (a *LMSAPI) InitTuitions() {
-	a.routes.Method(http.MethodGet, "/tuitions", a.api.APISessionRequired(getTuitions))
-	a.routes.Method(http.MethodPost, "/tuitions", a.api.APISessionRequired(createTuition))
+	a.routes.Method(http.MethodPost, "/tuitions", a.api.APISessionRequired(getTuitions))
+	a.routes.Method(http.MethodPost, "/tuitions/create", a.api.APISessionRequired(createTuition))
 	a.routes.Method(http.MethodGet, "/tuitions/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(getTuition))
 	a.routes.Method(http.MethodPut, "/tuitions/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(updateTuition))
 	a.routes.Method(http.MethodDelete, "/tuitions/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(deleteTuition))
@@ -30,36 +30,26 @@ func getTuitions(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := r.URL.Query()
-	opts := modelhelper.TuitionFilterOpts{
-		StudentID: q.Get("student_id"),
-		ClassID:   q.Get("class_id"),
-		Status:    q.Get("status"),
-		Search:    q.Get("search"),
-	}
-	if v := q.Get("page"); v != "" {
-		opts.Page, _ = strconv.Atoi(v)
-	}
-	if v := q.Get("per_page"); v != "" {
-		opts.PerPage, _ = strconv.Atoi(v)
-	}
-	if q.Get("count_total") == "true" {
-		opts.CountTotal = true
+	var opts modelhelper.TuitionFilterOpts
+	if err := json.NewDecoder(r.Body).Decode(&opts); err != nil {
+		c.Err = model.NewAppError("getTuitions", model.PayloadParseError, nil, "", http.StatusBadRequest).Wrap(err)
+		return
 	}
 
-	tuitions, err := c.App.LMS().GetTuitions(opts)
+	items, totalCount, err := c.App.LMS().GetTuitions(opts)
 	if err != nil {
 		c.Err = err
 		return
 	}
 
-	if tuitions == nil {
-		tuitions = []*lms_models.Tuition{}
+	res := utils.ResponseList{
+		Items:      items,
+		TotalCount: totalCount,
 	}
 
-	res := utils.ResponseList{Items: tuitions}
-	data, _ := json.Marshal(res)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func createTuition(c *api4.Context, w http.ResponseWriter, r *http.Request) {

@@ -131,9 +131,8 @@ func (s *SqlStudentClassStore) CountByStudent(studentID, status string) (int64, 
 
 func (ss *SqlStudentClassStore) SearchStudentUsers(opts modelhelper.StudentFilterOpts) (lms_models.UserSlice, int64, error) {
 	mods := []qm.QueryMod{
-		&opts.SearchOpts,
 		&utils.WhereCond[utils.UserColumn]{
-			Column:   utils.UserRoles,
+			Column:   utils.UserColumn(lms_models.UserTableColumns.Roles),
 			Operator: utils.OperatorLike,
 			Value:    fmt.Sprintf("%%%s%%", model.RoleLmsStudentRoleId),
 		},
@@ -149,7 +148,7 @@ func (ss *SqlStudentClassStore) SearchStudentUsers(opts modelhelper.StudentFilte
 				fmt.Sprintf("%s on %s = %s", lms_models.TableNames.StudentClasses, lms_models.StudentClassColumns.StudentID, lms_models.UserTableColumns.ID),
 			),
 			&utils.WhereCond[utils.StudentClassColumn]{
-				Column:   utils.StudentClassClassID,
+				Column:   utils.StudentClassColumn(lms_models.StudentClassTableColumns.ClassID),
 				Operator: utils.OperatorEq,
 				Value:    opts.ClassID,
 			},
@@ -158,4 +157,40 @@ func (ss *SqlStudentClassStore) SearchStudentUsers(opts modelhelper.StudentFilte
 	if opts.Status.IsValid() {
 		mods = append(mods, qm.Where(fmt.Sprintf("%s ->> '%s' = ?", lms_models.UserTableColumns.Props, modelhelper.LmsStudentStatusProp), opts.Status))
 	}
+	if opts.Search != "" {
+		mods = append(mods, &utils.WhereOrs[utils.UserColumn]{
+			{
+				Column:   utils.UserColumn(lms_models.UserTableColumns.Firstname),
+				Operator: utils.OperatorILike,
+				Value:    fmt.Sprintf("%%%s%%", opts.Search),
+			},
+			{
+				Column:   utils.UserColumn(lms_models.UserTableColumns.Lastname),
+				Operator: utils.OperatorILike,
+				Value:    fmt.Sprintf("%%%s%%", opts.Search),
+			},
+			{
+				Column:   utils.UserColumn(lms_models.UserTableColumns.Email),
+				Operator: utils.OperatorILike,
+				Value:    fmt.Sprintf("%%%s%%", opts.Search),
+			},
+		})
+	}
+
+	modsWithPagination := append(mods, &opts.SearchOpts)
+	users, err := lms_models.Users(modsWithPagination...).All(ss.sqlStore.GetReplicaExecuter())
+	if err != nil {
+		return nil, 0, errors.Wrap(err, "failed to search students")
+	}
+	totalCount := int64(len(users))
+
+	if opts.CountTotal {
+		modsWithoutPagination := append(mods, opts.SearchOpts.ExludePaginationForCount())
+		totalCount, err = lms_models.Users(modsWithoutPagination...).Count(ss.sqlStore.GetReplicaExecuter())
+		if err != nil {
+			return nil, 0, errors.Wrap(err, "failed to count students")
+		}
+	}
+
+	return users, totalCount, nil
 }

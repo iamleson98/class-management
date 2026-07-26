@@ -82,8 +82,11 @@ export default function ParentSchedule() {
 
   const { data: sessions = [], isLoading: loadingSessions, isError: isErrorSessions, refetch: refetchSessions } = useQuery({
     queryKey: ['parent-sessions', monthStr, effectiveStudentId],
-    queryFn: () => getSessions({ studentId: effectiveStudentId, month: monthStr }),
+    // The sessions table has no `student_id` or `month` column, so we fetch all
+    // and filter to the current month client-side.
+    queryFn: () => getSessions(),
     enabled: !!effectiveStudentId,
+    select: (all) => all.filter((s) => (s.date || '').startsWith(monthStr)),
   })
 
   // Calendar grid

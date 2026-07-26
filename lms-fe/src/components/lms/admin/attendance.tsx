@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { ClipboardCheck, Check, X, Clock, LogOut, RotateCcw, Save } from 'lucide-react'
 import { getClasses, getSessions, getSessionAttendance, saveAttendance } from '@/lib/api'
+import { eq, and } from '@/lib/query'
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/lms/page-header'
 import { EmptyState } from '@/components/lms/empty-state'
@@ -61,12 +62,12 @@ export default function AdminAttendance() {
 
   const { data: classes = [], isLoading: classesLoading, isError: isClassesError, refetch: refetchClasses } = useQuery({
     queryKey: ['classes', 'active'],
-    queryFn: () => getClasses({ status: 'ACTIVE' }),
+    queryFn: () => getClasses({ where_ands: and(eq('classes.status', 'ACTIVE')) }),
   })
 
   const { data: sessions = [], isLoading: isLoadingSessions, isError: isSessionsError } = useQuery({
     queryKey: ['sessions', selectedDate, selectedClassId],
-    queryFn: () => getSessions({ date: selectedDate, classId: selectedClassId || undefined }),
+    queryFn: () => getSessions({ where_ands: and(eq('lms_sessions.date', selectedDate), eq('lms_sessions.class_id', selectedClassId || undefined)) }),
     enabled: !!selectedDate,
   })
 

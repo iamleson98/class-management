@@ -31,18 +31,9 @@ func (s *SqlTuitionStore) Get(id string) (*lms_models.Tuition, error) {
 	return tuition, nil
 }
 
-func (s *SqlTuitionStore) GetAll(opts modelhelper.TuitionFilterOpts) ([]*lms_models.Tuition, error) {
+func (s *SqlTuitionStore) Search(opts modelhelper.TuitionFilterOpts) ([]*lms_models.Tuition, int64, error) {
 	mods := []qm.QueryMod{}
 
-	if opts.StudentID != "" {
-		mods = append(mods, lms_models.TuitionWhere.StudentID.EQ(opts.StudentID))
-	}
-	if opts.ClassID != "" {
-		mods = append(mods, lms_models.TuitionWhere.ClassID.EQ(opts.ClassID))
-	}
-	if opts.Status != "" {
-		mods = append(mods, lms_models.TuitionWhere.Status.EQ(opts.Status))
-	}
 	if opts.Search != "" {
 		searchPattern := "%" + opts.Search + "%"
 		mods = append(mods, qm.Or(
@@ -53,21 +44,22 @@ func (s *SqlTuitionStore) GetAll(opts modelhelper.TuitionFilterOpts) ([]*lms_mod
 		))
 	}
 
-	mods = append(mods, qm.OrderBy(lms_models.TuitionColumns.Createat+" DESC"))
+	modsWithPagination := append(mods, &opts.SearchOpts)
+	tuitions, err := lms_models.Tuitions(modsWithPagination...).All(s.sqlStore.GetReplicaExecuter())
+	if err != nil {
+		return nil, 0, errors.Wrap(err, "failed to search tuitions")
+	}
+	totalCount := int64(len(tuitions))
 
-	if opts.PerPage > 0 {
-		mods = append(mods, qm.Limit(opts.PerPage))
-		if opts.Page > 0 {
-			mods = append(mods, qm.Offset((opts.Page-1)*opts.PerPage))
+	if opts.CountTotal {
+		modsWithoutPagination := append(mods, opts.SearchOpts.ExludePaginationForCount())
+		totalCount, err = lms_models.Tuitions(modsWithoutPagination...).Count(s.sqlStore.GetReplicaExecuter())
+		if err != nil {
+			return nil, 0, errors.Wrap(err, "failed to count tuitions")
 		}
 	}
 
-	tuitions, err := lms_models.Tuitions(mods...).All(s.sqlStore.GetReplicaExecuter())
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get tuitions")
-	}
-
-	return tuitions, nil
+	return tuitions, totalCount, nil
 }
 
 func (s *SqlTuitionStore) Save(tuition *lms_models.Tuition) (*lms_models.Tuition, error) {
@@ -124,33 +116,4 @@ func (s *SqlTuitionStore) Delete(id string) error {
 	}
 
 	return nil
-}
-
-func (s *SqlTuitionStore) Count(opts modelhelper.TuitionFilterOpts) (int64, error) {
-	var mods []qm.QueryMod
-
-	if opts.StudentID != "" {
-		mods = append(mods, lms_models.TuitionWhere.StudentID.EQ(opts.StudentID))
-	}
-	if opts.ClassID != "" {
-		mods = append(mods, lms_models.TuitionWhere.ClassID.EQ(opts.ClassID))
-	}
-	if opts.Status != "" {
-		mods = append(mods, lms_models.TuitionWhere.Status.EQ(opts.Status))
-	}
-	if opts.Search != "" {
-		searchPattern := "%" + opts.Search + "%"
-		mods = append(mods, qm.Or(
-			"("+lms_models.TuitionTableColumns.StudentID+" IN (SELECT id FROM users WHERE username ILIKE ?) OR "+
-				lms_models.TuitionTableColumns.StudentID+" IN (SELECT id FROM users WHERE first_name ILIKE ?) OR "+
-				lms_models.TuitionTableColumns.StudentID+" IN (SELECT id FROM users WHERE last_name ILIKE ?))",
-			searchPattern, searchPattern, searchPattern,
-		))
-	}
-
-	count, err := lms_models.Tuitions(mods...).Count(s.sqlStore.GetReplicaExecuter())
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to count tuitions")
-	}
-	return count, nil
 }

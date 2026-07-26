@@ -10,12 +10,12 @@ import (
 	"github.com/iamleson98/sitename/server/v8/channels/store"
 )
 
-func (a *LMSApp) GetHomework(opts modelhelper.HomeworkFilterOpts) ([]*lms_models.Homework, *model.AppError) {
-	homeworks, err := a.store.Homework().GetAll(opts)
+func (a *LMSApp) GetHomework(opts modelhelper.HomeworkFilterOpts) ([]*lms_models.Homework, int64, *model.AppError) {
+	homeworks, totalCount, err := a.store.Homework().Search(opts)
 	if err != nil {
-		return nil, model.NewAppError("GetHomework", "app.lms.homework.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		return nil, 0, model.NewAppError("GetHomework", "app.lms.homework.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}
-	return homeworks, nil
+	return homeworks, totalCount, nil
 }
 
 // GetHomeworkByID returns a homework by ID along with its submissions.

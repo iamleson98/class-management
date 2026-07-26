@@ -11,12 +11,12 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func (a *LMSApp) GetPayments(opts modelhelper.PaymentFilterOpts) ([]*lms_models.Payment, *model.AppError) {
-	payments, err := a.store.Payment().GetAll(opts)
+func (a *LMSApp) GetPayments(opts modelhelper.PaymentFilterOpts) ([]*lms_models.Payment, int64, *model.AppError) {
+	payments, totalCount, err := a.store.Payment().Search(opts)
 	if err != nil {
-		return nil, model.NewAppError("GetPayments", "app.lms.payment.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		return nil, 0, model.NewAppError("GetPayments", "app.lms.payment.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}
-	return payments, nil
+	return payments, totalCount, nil
 }
 
 func (a *LMSApp) GetTuitionPayments(tuitionID string) ([]*lms_models.Payment, *model.AppError) {

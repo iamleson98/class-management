@@ -468,6 +468,8 @@ tags:
     description: Endpoints for interacting with AI agents and LLM services.
   - name: booking
     description: Endpoints for transport booking domain resources such as routes, trips, reservations, seats, vehicles, addresses and transport brands.
+  - name: lms
+    description: Endpoints for Learning Management System resources such as courses, classes, sessions, students, leads, payments, homework, tasks, and more.
 servers:
   - url: "{your-mattermost-url}"
     variables:

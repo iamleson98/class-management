@@ -3,19 +3,19 @@ package lmsapi
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
 	"github.com/iamleson98/sitename/server/public/utils"
+	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"github.com/iamleson98/sitename/server/v8/channels/api4"
 )
 
 // InitFeePackages registers fee package routes on the LMS router.
 func (a *LMSAPI) InitFeePackages() {
-	a.routes.Method(http.MethodGet, "/fee-packages", a.api.APISessionRequired(getFeePackages))
-	a.routes.Method(http.MethodPost, "/fee-packages", a.api.APISessionRequired(createFeePackage))
+	a.routes.Method(http.MethodPost, "/fee-packages", a.api.APISessionRequired(getFeePackages))
+	a.routes.Method(http.MethodPost, "/fee-packages/create", a.api.APISessionRequired(createFeePackage))
 }
 
 func getFeePackages(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -24,36 +24,26 @@ func getFeePackages(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := r.URL.Query()
-	opts := modelhelper.FeePackageFilterOpts{
-		CourseID: q.Get("course_id"),
-	}
-	if v := q.Get("page"); v != "" {
-		opts.Page, _ = strconv.Atoi(v)
-	}
-	if v := q.Get("per_page"); v != "" {
-		opts.PerPage, _ = strconv.Atoi(v)
-	}
-	if q.Get("count_total") == "true" {
-		opts.CountTotal = true
+	var opts modelhelper.FeePackageFilterOpts
+	if err := json.NewDecoder(r.Body).Decode(&opts); err != nil {
+		c.Err = model.NewAppError("getFeePackages", model.PayloadParseError, nil, "", http.StatusBadRequest).Wrap(err)
+		return
 	}
 
-	feePackages, err := c.App.LMS().GetFeePackages(opts)
+	items, totalCount, err := c.App.LMS().GetFeePackages(opts)
 	if err != nil {
 		c.Err = err
 		return
 	}
 
-	if feePackages == nil {
-		feePackages = []*lms_models.FeePackage{}
+	res := utils.ResponseList{
+		Items:      items,
+		TotalCount: totalCount,
 	}
 
-	res := utils.ResponseList{
-		Items:      feePackages,
-		TotalCount: int64(len(feePackages)),
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
 	}
-	data, _ := json.Marshal(res)
-	w.Write(data)
 }
 
 func createFeePackage(c *api4.Context, w http.ResponseWriter, r *http.Request) {

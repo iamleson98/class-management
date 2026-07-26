@@ -12,6 +12,7 @@ import { Users, UserPlus, Target, ArrowRight, Phone, Mail, MessageSquare, Layout
 import { parseISO, isToday } from 'date-fns'
 import { useLMSStore } from '@/store/lms-store'
 import { getDashboard, getLeads } from '@/lib/api'
+import { eq, and } from '@/lib/query'
 import { useToast } from '@/hooks/use-toast'
 import { useTranslation } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
@@ -39,7 +40,7 @@ function CounselorDashboardInner() {
 
   const leadsQuery = useQuery({
     queryKey: ['leads', 'counselor', authUser?.id],
-    queryFn: () => getLeads({ counselorId: authUser!.id }),
+    queryFn: () => getLeads({ where_ands: and(eq('leads.counselor_id', authUser!.id)) }),
     enabled: !!authUser?.id,
   })
 

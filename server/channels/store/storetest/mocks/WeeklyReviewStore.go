@@ -63,36 +63,6 @@ func (_m *WeeklyReviewStore) Get(id string) (*lms_models.WeeklyReview, error) {
 	return r0, r1
 }
 
-// GetAll provides a mock function with given fields: opts
-func (_m *WeeklyReviewStore) GetAll(opts modelhelper.WeeklyReviewFilterOpts) ([]*lms_models.WeeklyReview, error) {
-	ret := _m.Called(opts)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetAll")
-	}
-
-	var r0 []*lms_models.WeeklyReview
-	var r1 error
-	if rf, ok := ret.Get(0).(func(modelhelper.WeeklyReviewFilterOpts) ([]*lms_models.WeeklyReview, error)); ok {
-		return rf(opts)
-	}
-	if rf, ok := ret.Get(0).(func(modelhelper.WeeklyReviewFilterOpts) []*lms_models.WeeklyReview); ok {
-		r0 = rf(opts)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*lms_models.WeeklyReview)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(modelhelper.WeeklyReviewFilterOpts) error); ok {
-		r1 = rf(opts)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // Save provides a mock function with given fields: wr
 func (_m *WeeklyReviewStore) Save(wr *lms_models.WeeklyReview) (*lms_models.WeeklyReview, error) {
 	ret := _m.Called(wr)
@@ -123,6 +93,43 @@ func (_m *WeeklyReviewStore) Save(wr *lms_models.WeeklyReview) (*lms_models.Week
 	return r0, r1
 }
 
+// Search provides a mock function with given fields: opts
+func (_m *WeeklyReviewStore) Search(opts modelhelper.WeeklyReviewFilterOpts) ([]*lms_models.WeeklyReview, int64, error) {
+	ret := _m.Called(opts)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Search")
+	}
+
+	var r0 []*lms_models.WeeklyReview
+	var r1 int64
+	var r2 error
+	if rf, ok := ret.Get(0).(func(modelhelper.WeeklyReviewFilterOpts) ([]*lms_models.WeeklyReview, int64, error)); ok {
+		return rf(opts)
+	}
+	if rf, ok := ret.Get(0).(func(modelhelper.WeeklyReviewFilterOpts) []*lms_models.WeeklyReview); ok {
+		r0 = rf(opts)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*lms_models.WeeklyReview)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(modelhelper.WeeklyReviewFilterOpts) int64); ok {
+		r1 = rf(opts)
+	} else {
+		r1 = ret.Get(1).(int64)
+	}
+
+	if rf, ok := ret.Get(2).(func(modelhelper.WeeklyReviewFilterOpts) error); ok {
+		r2 = rf(opts)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
 // Update provides a mock function with given fields: wr
 func (_m *WeeklyReviewStore) Update(wr *lms_models.WeeklyReview) (*lms_models.WeeklyReview, error) {
 	ret := _m.Called(wr)
@@ -146,34 +153,6 @@ func (_m *WeeklyReviewStore) Update(wr *lms_models.WeeklyReview) (*lms_models.We
 
 	if rf, ok := ret.Get(1).(func(*lms_models.WeeklyReview) error); ok {
 		r1 = rf(wr)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// Count provides a mock function with given fields: opts
-func (_m *WeeklyReviewStore) Count(opts modelhelper.WeeklyReviewFilterOpts) (int64, error) {
-	ret := _m.Called(opts)
-
-	if len(ret) == 0 {
-		panic("no return value specified for Count")
-	}
-
-	var r0 int64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(modelhelper.WeeklyReviewFilterOpts) (int64, error)); ok {
-		return rf(opts)
-	}
-	if rf, ok := ret.Get(0).(func(modelhelper.WeeklyReviewFilterOpts) int64); ok {
-		r0 = rf(opts)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-
-	if rf, ok := ret.Get(1).(func(modelhelper.WeeklyReviewFilterOpts) error); ok {
-		r1 = rf(opts)
 	} else {
 		r1 = ret.Error(1)
 	}

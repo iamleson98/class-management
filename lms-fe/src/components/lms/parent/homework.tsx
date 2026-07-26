@@ -55,7 +55,10 @@ export default function ParentHomework() {
 
   const homeworkQuery = useQuery({
     queryKey: ['homework', 'parent', childStudentId],
-    queryFn: () => getHomework({ studentId: childStudentId }),
+    // NOTE: homeworks has no student_id column (homework↔student is via
+    // submissions/enrollment, a backend join not exposed here). Fetch all
+    // homework; child-scoping is a backend follow-up.
+    queryFn: () => getHomework(),
     enabled: !!childStudentId,
   })
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod/v4'
@@ -11,10 +11,11 @@ import {
   CheckCircle, Clock, AlertTriangle,
 } from 'lucide-react'
 import {
-  getHomework, createHomework, deleteHomework,
+  getHomeworkPaginated, createHomework, deleteHomework,
   bulkAssignHomework, getHomeworkSubmissions, getClasses, getStudents,
 } from '@/lib/api'
 import { gradeHomework } from '@/lib/api'
+import { eq, contains, and, or, paginate } from '@/lib/query'
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/lms/page-header'
 import { EmptyState } from '@/components/lms/empty-state'
@@ -39,7 +40,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { PaginationControls, usePagination, paginate } from '@/components/lms/shared/pagination'
+import { DatePicker } from '@/components/ui/date-picker'
+import { PaginationControls, usePagination, derivePageInfo } from '@/components/lms/shared/pagination'
 import { cn } from '@/lib/utils'
 import { staggerContainer, staggerItem } from '@/components/lms/shared/animations'
 import { useTranslation } from '@/lib/i18n'
@@ -127,11 +129,27 @@ export default function AdminHomework() {
     },
   })
 
+  // Reset to first page whenever filters change so the user doesn't land on
+  // an empty page after narrowing the result set.
+  useEffect(() => { pagination.setPageIndex(0) }, [search, filterClassId])
+
+  // Build the typed SearchOpts body. HomeworkFilterOpts has NO top-level
+  // search field, so text search is expressed as an ILIKE on homeworks.title
+  // via contains(), and the class filter is an EQ on homeworks.class_id.
+  const opts = useMemo(() => ({
+    where_ands: and(eq('homeworks.class_id', filterClassId)),
+    where_ors: or(contains('homeworks.title', search)),
+    ...paginate(pagination.pageIndex, pagination.pageSize),
+  }), [search, filterClassId, pagination.pageIndex, pagination.pageSize])
+
   // ── Queries ─────────────────────────────────────────────────────
-  const { data: homeworkList = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ['homework', filterClassId],
-    queryFn: () => getHomework({ classId: filterClassId || undefined }),
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['homework', opts],
+    queryFn: () => getHomeworkPaginated(opts),
   })
+
+  const homeworkList = data?.items ?? []
+  const pageInfo = derivePageInfo(data?.totalCount ?? 0, pagination.pageIndex, pagination.pageSize, homeworkList.length)
 
   const { data: classes = [], isLoading: isLoadingClasses, isError: isClassesError, refetch: refetchClasses } = useQuery({
     queryKey: ['classes', 'all'],
@@ -146,7 +164,7 @@ export default function AdminHomework() {
 
   const { data: bulkClassStudents = [], isLoading: isLoadingBulkStudents, isError: isBulkStudentsError } = useQuery({
     queryKey: ['students', bulkForm.watch('classId')],
-    queryFn: () => getStudents({ classId: bulkForm.watch('classId') }),
+    queryFn: () => getStudents({ class_id: bulkForm.watch('classId') }),
     enabled: !!bulkForm.watch('classId'),
   })
 
@@ -281,19 +299,6 @@ export default function AdminHomework() {
 
   const selectedBulkStudents = bulkForm.watch('studentIds') || []
 
-  // ── Filter & paginate ──────────────────────────────────────────
-  const filtered = useMemo(() => {
-    let list = homeworkList
-    if (search) {
-      list = list.filter((hw: any) =>
-        hw.title?.toLowerCase().includes(search.toLowerCase()),
-      )
-    }
-    return list
-  }, [homeworkList, search])
-
-  const paginated = paginate(filtered, pagination.pageIndex, pagination.pageSize)
-
   // ── Loading state ──────────────────────────────────────────────
   if (isLoading) {
     return (
@@ -342,7 +347,7 @@ export default function AdminHomework() {
           </div>
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('homework.className', 'Lớp học')}</p>
-                <Select value={filterClassId} onValueChange={(v) => { setFilterClassId(v); pagination.reset() }}>
+                <Select value={filterClassId || '__all__'} onValueChange={(v) => { setFilterClassId(v === '__all__' ? '' : v); pagination.reset() }}>
                   <SelectTrigger className="w-60">
                     {isLoadingClasses ? (
                       <SelectValue placeholder={t('common.loading', 'Đang tải...')} />
@@ -370,7 +375,7 @@ export default function AdminHomework() {
       </Card>
 
       {/* Table */}
-      {paginated.data.length === 0 ? (
+      {homeworkList.length === 0 ? (
         <EmptyState
           icon={BookOpen}
           title={t('homework.noHomework', 'Chưa có bài tập')}
@@ -394,7 +399,7 @@ export default function AdminHomework() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginated.data.map((hw: any) => {
+                {homeworkList.map((hw: any) => {
                   const status = getHomeworkStatus(hw.deadline, hw.submissionsCount || 0, hw.totalStudents || 0)
                   const statusInfo = STATUS_MAP[status] || STATUS_MAP.PENDING
                   const StatusIcon = statusInfo.icon
@@ -442,7 +447,7 @@ export default function AdminHomework() {
             </Table>
           </motion.div>
           <PaginationControls
-            {...paginated}
+            {...pageInfo}
             onPageIndexChange={pagination.setPageIndex}
             onPageSizeChange={pagination.setPageSize}
           />
@@ -499,7 +504,7 @@ export default function AdminHomework() {
               )} />
 
               {selectedClass && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 items-start">
                   <div className="space-y-1.5">
                     <p className="text-xs text-muted-foreground font-medium">{t('homework.course', 'Khóa học')}</p>
                     <Input value={selectedClass.course?.name || '-'} disabled />
@@ -524,10 +529,16 @@ export default function AdminHomework() {
                 </FormItem>
               )} />
 
-              <FormField control={form.control} name="deadline" render={({ field }) => (
+              <FormField control={form.control} name="deadline" render={({ field, fieldState }) => (
                 <FormItem>
                   <FormLabel>{t('homework.deadline', 'Hạn nộp')}</FormLabel>
-                  <FormControl><Input type="date" {...field} value={field.value ?? ''} /></FormControl>
+                  <FormControl>
+                    <DatePicker
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      invalid={!!fieldState.error}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
@@ -603,7 +614,7 @@ export default function AdminHomework() {
               )} />
 
               {bulkForm.watch('classId') && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 items-start">
                   <div className="space-y-1.5">
                     <p className="text-xs text-muted-foreground font-medium">{t('homework.course', 'Khóa học')}</p>
                     <Input value={bulkForm.getValues('courseName') || '-'} disabled />
@@ -615,10 +626,16 @@ export default function AdminHomework() {
                 </div>
               )}
 
-              <FormField control={bulkForm.control} name="deadline" render={({ field }) => (
+              <FormField control={bulkForm.control} name="deadline" render={({ field, fieldState }) => (
                 <FormItem>
                   <FormLabel>{t('homework.deadline', 'Hạn nộp')}</FormLabel>
-                  <FormControl><Input type="date" {...field} value={field.value ?? ''} /></FormControl>
+                  <FormControl>
+                    <DatePicker
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      invalid={!!fieldState.error}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )} />

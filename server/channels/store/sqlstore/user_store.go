@@ -17,9 +17,9 @@ import (
 
 	"github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
+	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
 	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"github.com/iamleson98/sitename/server/public/shared/request"
-	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/v8/channels/store"
 	"github.com/iamleson98/sitename/server/v8/einterfaces"
 )
@@ -2494,7 +2494,7 @@ func (us *SqlUserStore) GetUserReport(filter *model.UserReportOptions) ([]*model
 	return userResults, nil
 }
 
-func (us *SqlUserStore) SearchUsers(opts utils.SearchOpts[utils.UserColumn]) (lms_models.UserSlice, int64, error) {
+func (us *SqlUserStore) SearchUsers(opts modelhelper.UserFilterOpts) (lms_models.UserSlice, int64, error) {
 	users, err := lms_models.Users(&opts).All(us.GetReplica())
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "search_users")

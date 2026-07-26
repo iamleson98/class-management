@@ -187,7 +187,7 @@ func testUpdateExpiredDNDStatuses(t *testing.T, rctx request.CTX, ss store.Store
 
 func insertNullStatus(t *testing.T, ss store.Store, s SqlStore) string {
 	userId := model.NewId()
-	db := ss.GetInternalMasterDB()
+	db := ss.GetMasterExecuter()
 
 	// Insert status with explicit NULL values
 	builder := sq.StatementBuilder.PlaceholderFormat(s.GetQueryPlaceholder()).

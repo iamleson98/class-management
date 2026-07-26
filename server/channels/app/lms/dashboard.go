@@ -4,7 +4,8 @@ import (
 	"net/http"
 
 	"github.com/iamleson98/sitename/server/public/model"
-	"github.com/iamleson98/sitename/server/public/model_helper"
+	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
+	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/v8/channels/store"
 )
 
@@ -21,11 +22,11 @@ type DashboardStats struct {
 func (a *LMSApp) GetDashboardStats() (*DashboardStats, *model.AppError) {
 	stats := &DashboardStats{}
 
-	classes, err := a.store.Class().GetAll(modelhelper.ClassFilterOpts{})
+	_, totalCount, err := a.store.Class().Search(modelhelper.ClassFilterOpts{SearchOpts: utils.SearchOpts[utils.ClassColumn]{CountTotal: true}})
 	if err != nil {
 		return nil, model.NewAppError("GetDashboardStats", "app.lms.dashboard.get_classes.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}
-	stats.TotalClasses = int64(len(classes))
+	stats.TotalClasses = totalCount
 
 	courses, err := a.store.Course().GetAll()
 	if err != nil {
@@ -33,11 +34,11 @@ func (a *LMSApp) GetDashboardStats() (*DashboardStats, *model.AppError) {
 	}
 	stats.TotalCourses = int64(len(courses))
 
-	leads, err := a.store.Lead().GetAll(modelhelper.LeadFilterOpts{})
+	_, leadCount, err := a.store.Lead().Search(modelhelper.LeadFilterOpts{SearchOpts: utils.SearchOpts[utils.LeadColumn]{CountTotal: true}})
 	if err != nil {
 		return nil, model.NewAppError("GetDashboardStats", "app.lms.dashboard.get_leads.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}
-	stats.TotalLeads = int64(len(leads))
+	stats.TotalLeads = leadCount
 
 	return stats, nil
 }
@@ -77,7 +78,15 @@ func (a *LMSApp) getAdminDashboard(data map[string]any) *model.AppError {
 	}
 	data["totalStudents"] = totalStudents
 
-	activeClasses, err := a.store.Class().Count(modelhelper.ClassFilterOpts{Status: "OPEN"})
+	_, activeClasses, err := a.store.Class().Search(
+		modelhelper.ClassFilterOpts{
+			SearchOpts: utils.SearchOpts[utils.ClassColumn]{
+				CountTotal: true,
+				WhereAnds: utils.WhereAnds[utils.ClassColumn]{
+					{Column: utils.ClassStatus, Operator: utils.OperatorEq, Value: modelhelper.ClassStatusOpen},
+				},
+			},
+		})
 	if err != nil {
 		return model.NewAppError("GetDashboard", "app.lms.dashboard.active_classes.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}
@@ -93,7 +102,16 @@ func (a *LMSApp) getAdminDashboard(data map[string]any) *model.AppError {
 }
 
 func (a *LMSApp) getTeacherDashboard(userID string, data map[string]any) *model.AppError {
-	myClasses, err := a.store.Class().Count(modelhelper.ClassFilterOpts{TeacherID: userID})
+	_, myClasses, err := a.store.Class().Search(
+		modelhelper.ClassFilterOpts{
+			SearchOpts: utils.SearchOpts[utils.ClassColumn]{
+				CountTotal: true,
+				WhereAnds: utils.WhereAnds[utils.ClassColumn]{
+					{Column: utils.ClassTeacherID, Operator: utils.OperatorEq, Value: userID},
+				},
+			},
+		},
+	)
 	if err != nil {
 		return model.NewAppError("GetDashboard", "app.lms.dashboard.my_classes.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}

@@ -12,8 +12,8 @@ import (
 
 	"github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
+	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
 	"github.com/iamleson98/sitename/server/public/shared/request"
-	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/v8/channels/store"
 )
 
@@ -16798,7 +16798,7 @@ func (s *RetryLayerUserStore) SearchTeamContentFlaggingReviewers(teamId string, 
 
 }
 
-func (s *RetryLayerUserStore) SearchUsers(opts utils.SearchOpts[utils.UserColumn]) (lms_models.UserSlice, int64, error) {
+func (s *RetryLayerUserStore) SearchUsers(opts modelhelper.UserFilterOpts) (lms_models.UserSlice, int64, error) {
 
 	tries := 0
 	for {

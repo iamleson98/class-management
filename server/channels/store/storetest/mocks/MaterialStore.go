@@ -63,36 +63,6 @@ func (_m *MaterialStore) Get(id string) (*lms_models.Material, error) {
 	return r0, r1
 }
 
-// GetAll provides a mock function with given fields: opts
-func (_m *MaterialStore) GetAll(opts modelhelper.MaterialFilterOpts) ([]*lms_models.Material, error) {
-	ret := _m.Called(opts)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetAll")
-	}
-
-	var r0 []*lms_models.Material
-	var r1 error
-	if rf, ok := ret.Get(0).(func(modelhelper.MaterialFilterOpts) ([]*lms_models.Material, error)); ok {
-		return rf(opts)
-	}
-	if rf, ok := ret.Get(0).(func(modelhelper.MaterialFilterOpts) []*lms_models.Material); ok {
-		r0 = rf(opts)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*lms_models.Material)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(modelhelper.MaterialFilterOpts) error); ok {
-		r1 = rf(opts)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // Save provides a mock function with given fields: m
 func (_m *MaterialStore) Save(m *lms_models.Material) (*lms_models.Material, error) {
 	ret := _m.Called(m)
@@ -123,6 +93,43 @@ func (_m *MaterialStore) Save(m *lms_models.Material) (*lms_models.Material, err
 	return r0, r1
 }
 
+// Search provides a mock function with given fields: opts
+func (_m *MaterialStore) Search(opts modelhelper.MaterialFilterOpts) ([]*lms_models.Material, int64, error) {
+	ret := _m.Called(opts)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Search")
+	}
+
+	var r0 []*lms_models.Material
+	var r1 int64
+	var r2 error
+	if rf, ok := ret.Get(0).(func(modelhelper.MaterialFilterOpts) ([]*lms_models.Material, int64, error)); ok {
+		return rf(opts)
+	}
+	if rf, ok := ret.Get(0).(func(modelhelper.MaterialFilterOpts) []*lms_models.Material); ok {
+		r0 = rf(opts)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*lms_models.Material)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(modelhelper.MaterialFilterOpts) int64); ok {
+		r1 = rf(opts)
+	} else {
+		r1 = ret.Get(1).(int64)
+	}
+
+	if rf, ok := ret.Get(2).(func(modelhelper.MaterialFilterOpts) error); ok {
+		r2 = rf(opts)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
 // Update provides a mock function with given fields: m
 func (_m *MaterialStore) Update(m *lms_models.Material) (*lms_models.Material, error) {
 	ret := _m.Called(m)
@@ -146,34 +153,6 @@ func (_m *MaterialStore) Update(m *lms_models.Material) (*lms_models.Material, e
 
 	if rf, ok := ret.Get(1).(func(*lms_models.Material) error); ok {
 		r1 = rf(m)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// Count provides a mock function with given fields: opts
-func (_m *MaterialStore) Count(opts modelhelper.MaterialFilterOpts) (int64, error) {
-	ret := _m.Called(opts)
-
-	if len(ret) == 0 {
-		panic("no return value specified for Count")
-	}
-
-	var r0 int64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(modelhelper.MaterialFilterOpts) (int64, error)); ok {
-		return rf(opts)
-	}
-	if rf, ok := ret.Get(0).(func(modelhelper.MaterialFilterOpts) int64); ok {
-		r0 = rf(opts)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-
-	if rf, ok := ret.Get(1).(func(modelhelper.MaterialFilterOpts) error); ok {
-		r1 = rf(opts)
 	} else {
 		r1 = ret.Error(1)
 	}

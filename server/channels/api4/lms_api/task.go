@@ -3,19 +3,19 @@ package lmsapi
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
 	"github.com/iamleson98/sitename/server/public/utils"
+	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"github.com/iamleson98/sitename/server/v8/channels/api4"
 	"github.com/iamleson98/sitename/server/v8/channels/web"
 )
 
 func (a *LMSAPI) InitTasks() {
-	a.routes.Method(http.MethodGet, "/tasks", a.api.APISessionRequired(getTasks))
-	a.routes.Method(http.MethodPost, "/tasks", a.api.APISessionRequired(createTask))
+	a.routes.Method(http.MethodPost, "/tasks", a.api.APISessionRequired(getTasks))
+	a.routes.Method(http.MethodPost, "/tasks/create", a.api.APISessionRequired(createTask))
 	a.routes.Method(http.MethodGet, "/tasks/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(getTask))
 	a.routes.Method(http.MethodPut, "/tasks/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(updateTask))
 	a.routes.Method(http.MethodDelete, "/tasks/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(deleteTask))
@@ -27,34 +27,26 @@ func getTasks(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := r.URL.Query()
-	opts := modelhelper.TaskFilterOpts{
-		AssigneeID: q.Get("assignee_id"),
-		Status:     q.Get("status"),
-		Priority:   q.Get("priority"),
-	}
-	if v := q.Get("page"); v != "" {
-		opts.Page, _ = strconv.Atoi(v)
-	}
-	if v := q.Get("per_page"); v != "" {
-		opts.PerPage, _ = strconv.Atoi(v)
-	}
-	if q.Get("count_total") == "true" {
-		opts.CountTotal = true
+	var opts modelhelper.TaskFilterOpts
+	if err := json.NewDecoder(r.Body).Decode(&opts); err != nil {
+		c.Err = model.NewAppError("getTasks", model.PayloadParseError, nil, "", http.StatusBadRequest).Wrap(err)
+		return
 	}
 
-	tasks, err := c.App.LMS().GetTasks(opts)
+	items, totalCount, err := c.App.LMS().GetTasks(opts)
 	if err != nil {
 		c.Err = err
 		return
 	}
-	if tasks == nil {
-		tasks = []*lms_models.Task{}
+
+	res := utils.ResponseList{
+		Items:      items,
+		TotalCount: totalCount,
 	}
 
-	res := utils.ResponseList{Items: tasks}
-	data, _ := json.Marshal(res)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func createTask(c *api4.Context, w http.ResponseWriter, r *http.Request) {

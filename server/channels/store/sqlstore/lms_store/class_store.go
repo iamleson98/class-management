@@ -2,11 +2,13 @@ package lmsstore
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/aarondl/sqlboiler/v4/boil"
 	"github.com/aarondl/sqlboiler/v4/queries/qm"
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
+	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/v8/channels/store"
 	"github.com/pkg/errors"
 )
@@ -30,34 +32,35 @@ func (s *SqlClassStore) Get(id string) (*lms_models.Class, error) {
 	return class, nil
 }
 
-func (s *SqlClassStore) GetAll(opts modelhelper.ClassFilterOpts) ([]*lms_models.Class, error) {
-	var mods []qm.QueryMod
+func (s *SqlClassStore) Search(opts modelhelper.ClassFilterOpts) ([]*lms_models.Class, int64, error) {
+	mods := []qm.QueryMod{}
 
-	if opts.CourseID != "" {
-		mods = append(mods, lms_models.ClassWhere.CourseID.EQ(opts.CourseID))
-	}
-	if opts.Status != "" {
-		mods = append(mods, lms_models.ClassWhere.Status.EQ(opts.Status))
-	}
-	if opts.TeacherID != "" {
-		mods = append(mods, lms_models.ClassWhere.TeacherID.EQ(opts.TeacherID))
+	if opts.Search != "" {
+		mods = append(mods, &utils.WhereOrs[utils.ClassColumn]{
+			{
+				Column:   utils.ClassColumn(lms_models.ClassTableColumns.Name),
+				Operator: utils.OperatorILike,
+				Value:    fmt.Sprintf("%%%s%%", opts.Search),
+			},
+		})
 	}
 
-	mods = append(mods, qm.OrderBy(lms_models.ClassColumns.Createat+" DESC"))
+	modsWithPagination := append(mods, &opts.SearchOpts)
+	classes, err := lms_models.Classes(modsWithPagination...).All(s.sqlStore.GetReplicaExecuter())
+	if err != nil {
+		return nil, 0, errors.Wrap(err, "failed to search classes")
+	}
+	totalCount := int64(len(classes))
 
-	if opts.PerPage > 0 {
-		mods = append(mods, qm.Limit(opts.PerPage))
-		if opts.Page > 0 {
-			mods = append(mods, qm.Offset((opts.Page-1)*opts.PerPage))
+	if opts.CountTotal {
+		modsWithoutPagination := append(mods, opts.SearchOpts.ExludePaginationForCount())
+		totalCount, err = lms_models.Classes(modsWithoutPagination...).Count(s.sqlStore.GetReplicaExecuter())
+		if err != nil {
+			return nil, 0, errors.Wrap(err, "failed to count classes")
 		}
 	}
 
-	classes, err := lms_models.Classes(mods...).All(s.sqlStore.GetReplicaExecuter())
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get classes")
-	}
-
-	return classes, nil
+	return classes, totalCount, nil
 }
 
 func (s *SqlClassStore) Save(class *lms_models.Class) (*lms_models.Class, error) {
@@ -105,24 +108,4 @@ func (s *SqlClassStore) Delete(id string) error {
 		return errors.Wrap(err, "failed to delete class")
 	}
 	return nil
-}
-
-func (s *SqlClassStore) Count(opts modelhelper.ClassFilterOpts) (int64, error) {
-	var mods []qm.QueryMod
-
-	if opts.CourseID != "" {
-		mods = append(mods, lms_models.ClassWhere.CourseID.EQ(opts.CourseID))
-	}
-	if opts.Status != "" {
-		mods = append(mods, lms_models.ClassWhere.Status.EQ(opts.Status))
-	}
-	if opts.TeacherID != "" {
-		mods = append(mods, lms_models.ClassWhere.TeacherID.EQ(opts.TeacherID))
-	}
-
-	count, err := lms_models.Classes(mods...).Count(s.sqlStore.GetReplicaExecuter())
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to count classes")
-	}
-	return count, nil
 }

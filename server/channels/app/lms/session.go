@@ -24,12 +24,12 @@ func (a *LMSApp) GetSession(id string) (*lms_models.LMSSession, *model.AppError)
 	return session, nil
 }
 
-func (a *LMSApp) GetSessions(opts modelhelper.SessionFilterOpts) ([]*lms_models.LMSSession, *model.AppError) {
-	sessions, err := a.store.LMSSession().GetAll(opts)
+func (a *LMSApp) GetSessions(opts modelhelper.SessionFilterOpts) ([]*lms_models.LMSSession, int64, *model.AppError) {
+	sessions, totalCount, err := a.store.LMSSession().Search(opts)
 	if err != nil {
-		return nil, model.NewAppError("GetSessions", "app.lms.session.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		return nil, 0, model.NewAppError("GetSessions", "app.lms.session.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}
-	return sessions, nil
+	return sessions, totalCount, nil
 }
 
 func (a *LMSApp) CreateSession(session *lms_models.LMSSession) (*lms_models.LMSSession, *model.AppError) {

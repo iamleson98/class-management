@@ -62,12 +62,12 @@ func (a *LMSApp) GetTuitionWithDetails(id string) (*TuitionWithDetails, *model.A
 	}, nil
 }
 
-func (a *LMSApp) GetTuitions(opts modelhelper.TuitionFilterOpts) ([]*lms_models.Tuition, *model.AppError) {
-	tuitions, err := a.store.Tuition().GetAll(opts)
+func (a *LMSApp) GetTuitions(opts modelhelper.TuitionFilterOpts) ([]*lms_models.Tuition, int64, *model.AppError) {
+	tuitions, totalCount, err := a.store.Tuition().Search(opts)
 	if err != nil {
-		return nil, model.NewAppError("GetTuitions", "app.lms.tuition.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		return nil, 0, model.NewAppError("GetTuitions", "app.lms.tuition.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}
-	return tuitions, nil
+	return tuitions, totalCount, nil
 }
 
 func (a *LMSApp) CreateTuition(tuition *lms_models.Tuition) (*lms_models.Tuition, *model.AppError) {

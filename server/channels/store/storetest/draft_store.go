@@ -412,7 +412,7 @@ func testGetDraftsForUser(t *testing.T, rctx request.CTX, ss store.Store) {
 		// Draft().Upsert() correctly handles empty types, so we need to
 		// manually set Type to NULL
 		query := "UPDATE Drafts SET Type = NULL WHERE UserId = $1"
-		_, err := ss.GetInternalMasterDB().Exec(query, user.Id)
+		_, err := ss.GetMasterExecuter().Exec(query, user.Id)
 		require.NoError(t, err)
 
 		draftResp, err := ss.Draft().GetDraftsForUser(user.Id, "")
@@ -428,7 +428,7 @@ func testGetDraftsForUser(t *testing.T, rctx request.CTX, ss store.Store) {
 func clearDrafts(t *testing.T, rctx request.CTX, ss store.Store) {
 	t.Helper()
 
-	_, err := ss.GetInternalMasterDB().Exec("DELETE FROM Drafts")
+	_, err := ss.GetMasterExecuter().Exec("DELETE FROM Drafts")
 	require.NoError(t, err)
 }
 
@@ -462,7 +462,7 @@ func countDrafts(t *testing.T, rctx request.CTX, ss store.Store) int {
 	t.Helper()
 
 	var count int
-	err := ss.GetInternalMasterDB().QueryRow("SELECT COUNT(*) FROM Drafts").Scan(&count)
+	err := ss.GetMasterExecuter().QueryRow("SELECT COUNT(*) FROM Drafts").Scan(&count)
 	require.NoError(t, err)
 
 	return count
@@ -501,7 +501,7 @@ func countDraftPages(t *testing.T, rctx request.CTX, ss store.Store) int {
 func clearPosts(t *testing.T, rctx request.CTX, ss store.Store) {
 	t.Helper()
 
-	_, err := ss.GetInternalMasterDB().Exec("DELETE FROM Posts")
+	_, err := ss.GetMasterExecuter().Exec("DELETE FROM Posts")
 	require.NoError(t, err)
 }
 

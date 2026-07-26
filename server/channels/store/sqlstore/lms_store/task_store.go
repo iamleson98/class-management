@@ -5,11 +5,10 @@ import (
 
 	"github.com/aarondl/sqlboiler/v4/boil"
 	"github.com/aarondl/sqlboiler/v4/queries/qm"
-	"github.com/pkg/errors"
-
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
 	"github.com/iamleson98/sitename/server/v8/channels/store"
+	"github.com/pkg/errors"
 )
 
 type SqlTaskStore struct {
@@ -32,27 +31,25 @@ func (s *SqlTaskStore) Get(id string) (*lms_models.Task, error) {
 	return task, nil
 }
 
-func (s *SqlTaskStore) GetAll(opts modelhelper.TaskFilterOpts) ([]*lms_models.Task, error) {
-	var mods []qm.QueryMod
+func (s *SqlTaskStore) Search(opts modelhelper.TaskFilterOpts) ([]*lms_models.Task, int64, error) {
+	mods := []qm.QueryMod{}
 
-	if opts.AssigneeID != "" {
-		mods = append(mods, lms_models.TaskWhere.AssigneeID.EQ(opts.AssigneeID))
-	}
-	if opts.Status != "" {
-		mods = append(mods, lms_models.TaskWhere.Status.EQ(opts.Status))
-	}
-	if opts.Priority != "" {
-		mods = append(mods, lms_models.TaskWhere.Priority.EQ(opts.Priority))
-	}
-
-	mods = append(mods, qm.OrderBy(lms_models.TaskColumns.Createat+" DESC"))
-
-	tasks, err := lms_models.Tasks(mods...).All(s.sqlStore.GetReplicaExecuter())
+	modsWithPagination := append(mods, &opts.SearchOpts)
+	tasks, err := lms_models.Tasks(modsWithPagination...).All(s.sqlStore.GetReplicaExecuter())
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get tasks")
+		return nil, 0, errors.Wrap(err, "failed to search tasks")
+	}
+	totalCount := int64(len(tasks))
+
+	if opts.CountTotal {
+		modsWithoutPagination := append(mods, opts.SearchOpts.ExludePaginationForCount())
+		totalCount, err = lms_models.Tasks(modsWithoutPagination...).Count(s.sqlStore.GetReplicaExecuter())
+		if err != nil {
+			return nil, 0, errors.Wrap(err, "failed to count tasks")
+		}
 	}
 
-	return tasks, nil
+	return tasks, totalCount, nil
 }
 
 func (s *SqlTaskStore) Save(task *lms_models.Task) (*lms_models.Task, error) {
@@ -103,24 +100,4 @@ func (s *SqlTaskStore) Delete(id string) error {
 	}
 
 	return nil
-}
-
-func (s *SqlTaskStore) Count(opts modelhelper.TaskFilterOpts) (int64, error) {
-	var mods []qm.QueryMod
-
-	if opts.AssigneeID != "" {
-		mods = append(mods, lms_models.TaskWhere.AssigneeID.EQ(opts.AssigneeID))
-	}
-	if opts.Status != "" {
-		mods = append(mods, lms_models.TaskWhere.Status.EQ(opts.Status))
-	}
-	if opts.Priority != "" {
-		mods = append(mods, lms_models.TaskWhere.Priority.EQ(opts.Priority))
-	}
-
-	count, err := lms_models.Tasks(mods...).Count(s.sqlStore.GetReplicaExecuter())
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to count tasks")
-	}
-	return count, nil
 }

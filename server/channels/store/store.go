@@ -15,9 +15,9 @@ import (
 	"github.com/friendsofgo/errors"
 	"github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
+	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
 	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"github.com/iamleson98/sitename/server/public/shared/request"
-	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/lib/pq"
 )
 
@@ -549,7 +549,7 @@ type UserStore interface {
 	GetUserCountForReport(filter *model.UserReportOptions) (int64, error)
 	SearchCommonContentFlaggingReviewers(term string) ([]*model.User, error)
 	SearchTeamContentFlaggingReviewers(teamId, term string) ([]*model.User, error)
-	SearchUsers(opts utils.SearchOpts[utils.UserColumn]) (lms_models.UserSlice, int64, error)
+	SearchUsers(opts modelhelper.UserFilterOpts) (lms_models.UserSlice, int64, error)
 }
 
 type BotStore interface {

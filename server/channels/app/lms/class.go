@@ -24,12 +24,12 @@ func (a *LMSApp) GetClass(id string) (*lms_models.Class, *model.AppError) {
 	return class, nil
 }
 
-func (a *LMSApp) GetClasses(opts modelhelper.ClassFilterOpts) ([]*lms_models.Class, *model.AppError) {
-	classes, err := a.store.Class().GetAll(opts)
+func (a *LMSApp) GetClasses(opts modelhelper.ClassFilterOpts) ([]*lms_models.Class, int64, *model.AppError) {
+	classes, totalCount, err := a.store.Class().Search(opts)
 	if err != nil {
-		return nil, model.NewAppError("GetClasses", "app.lms.class.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		return nil, 0, model.NewAppError("GetClasses", "app.lms.class.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}
-	return classes, nil
+	return classes, totalCount, nil
 }
 
 func (a *LMSApp) CreateClass(class *lms_models.Class) (*lms_models.Class, *model.AppError) {

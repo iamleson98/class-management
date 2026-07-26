@@ -35,13 +35,13 @@ func (a *LMSApp) GetBranch(id string) (*lms_models.Branch, *model.AppError) {
 	return branch, nil
 }
 
-func (a *LMSApp) GetBranches(opts modelhelper.BranchFilterOpts) ([]*lms_models.Branch, *model.AppError) {
-	branches, err := a.store.Branch().GetAll(opts)
+func (a *LMSApp) GetBranches(opts modelhelper.BranchFilterOpts) ([]*lms_models.Branch, int64, *model.AppError) {
+	branches, totalCount, err := a.store.Branch().Search(opts)
 	if err != nil {
-		return nil, model.NewAppError("GetBranches", "app.lms.branch.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		return nil, 0, model.NewAppError("GetBranches", "app.lms.branch.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}
 
-	return branches, nil
+	return branches, totalCount, nil
 }
 
 func (a *LMSApp) CreateBranch(branch *lms_models.Branch) (*lms_models.Branch, *model.AppError) {

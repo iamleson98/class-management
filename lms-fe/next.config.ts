@@ -36,8 +36,16 @@ const nextConfig: NextConfig = {
     "preview-chat-9aca490e-52af-473b-8628-030809f44879.space-z.ai",
     "*.space-z.ai",
   ],
-  // Proxy API requests to backend so cookies are same-origin
-  // This avoids SameSite=Lax blocking cross-origin fetch credentials
+  // Proxy API requests to the backend so the auth flow stays same-origin.
+  //
+  // Auth is via the httpOnly MMAUTHTOKEN cookie the backend sets at login. The
+  // proxy makes /api/v4/* on the frontend origin resolve to the backend, which
+  // keeps the cookie FIRST-PARTY — so SameSite=Lax (the backend default) works
+  // and we never need SameSite=None;Secure (which would force HTTPS even in dev).
+  //
+  // This rewrite is load-bearing for auth: removing it breaks the cookie model.
+  // In production, achieve the same effect by serving frontend + backend under
+  // one domain (or a reverse proxy) instead of this Next.js rewrite.
   async rewrites() {
     return [
       {
@@ -45,6 +53,12 @@ const nextConfig: NextConfig = {
         destination: `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8065"}/api/v4/:path*`,
       },
     ];
+  },
+  // Ensure cookies are properly forwarded in development
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '2mb',
+    },
   },
   async headers() {
     return [

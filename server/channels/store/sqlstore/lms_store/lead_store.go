@@ -2,12 +2,13 @@ package lmsstore
 
 import (
 	"database/sql"
+	"fmt"
 
-	"github.com/aarondl/null/v8"
 	"github.com/aarondl/sqlboiler/v4/boil"
 	"github.com/aarondl/sqlboiler/v4/queries/qm"
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
+	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/v8/channels/store"
 	"github.com/pkg/errors"
 )
@@ -31,43 +32,45 @@ func (s *SqlLeadStore) Get(id string) (*lms_models.Lead, error) {
 	return lead, nil
 }
 
-func (s *SqlLeadStore) GetAll(opts modelhelper.LeadFilterOpts) ([]*lms_models.Lead, error) {
-	var mods []qm.QueryMod
+func (s *SqlLeadStore) Search(opts modelhelper.LeadFilterOpts) ([]*lms_models.Lead, int64, error) {
+	mods := []qm.QueryMod{}
 
-	if opts.Status != "" {
-		mods = append(mods, lms_models.LeadWhere.Status.EQ(opts.Status))
-	}
-	if opts.Source != "" {
-		mods = append(mods, lms_models.LeadWhere.Source.EQ(null.StringFrom(opts.Source)))
-	}
-	if opts.CounselorID != "" {
-		mods = append(mods, lms_models.LeadWhere.CounselorID.EQ(null.StringFrom(opts.CounselorID)))
-	}
 	if opts.Search != "" {
-		pattern := "%" + opts.Search + "%"
-		mods = append(mods, qm.Or(
-			"("+lms_models.LeadColumns.Name+" ILIKE ? OR "+lms_models.LeadColumns.Phone+" ILIKE ? OR "+lms_models.LeadColumns.Email+" ILIKE ?)",
-			pattern, pattern, pattern,
-		))
+		mods = append(mods, &utils.WhereOrs[utils.LeadColumn]{
+			{
+				Column:   utils.LeadColumn(lms_models.LeadTableColumns.Name),
+				Operator: utils.OperatorILike,
+				Value:    fmt.Sprintf("%%%s%%", opts.Search),
+			},
+			{
+				Column:   utils.LeadColumn(lms_models.LeadTableColumns.Phone),
+				Operator: utils.OperatorILike,
+				Value:    fmt.Sprintf("%%%s%%", opts.Search),
+			},
+			{
+				Column:   utils.LeadColumn(lms_models.LeadTableColumns.Email),
+				Operator: utils.OperatorILike,
+				Value:    fmt.Sprintf("%%%s%%", opts.Search),
+			},
+		})
 	}
 
-	mods = append(mods, qm.OrderBy(lms_models.LeadColumns.Createat+" DESC"))
+	modsWithPagination := append(mods, &opts.SearchOpts)
+	leads, err := lms_models.Leads(modsWithPagination...).All(s.sqlStore.GetReplicaExecuter())
+	if err != nil {
+		return nil, 0, errors.Wrap(err, "failed to search leads")
+	}
+	totalCount := int64(len(leads))
 
-	if opts.PerPage > 0 {
-		mods = append(mods, qm.Limit(opts.PerPage))
-		if opts.Page > 0 {
-			mods = append(mods, qm.Offset((opts.Page-1)*opts.PerPage))
+	if opts.CountTotal {
+		modsWithoutPagination := append(mods, opts.SearchOpts.ExludePaginationForCount())
+		totalCount, err = lms_models.Leads(modsWithoutPagination...).Count(s.sqlStore.GetReplicaExecuter())
+		if err != nil {
+			return nil, 0, errors.Wrap(err, "failed to count leads")
 		}
 	}
 
-	leads, err := lms_models.Leads(mods...).All(s.sqlStore.GetReplicaExecuter())
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get leads")
-	}
-
-	result := make([]*lms_models.Lead, len(leads))
-	copy(result, leads)
-	return result, nil
+	return leads, totalCount, nil
 }
 
 func (s *SqlLeadStore) Save(lead *lms_models.Lead) (*lms_models.Lead, error) {
@@ -115,33 +118,6 @@ func (s *SqlLeadStore) Delete(id string) error {
 		return errors.Wrap(err, "failed to delete lead")
 	}
 	return nil
-}
-
-func (s *SqlLeadStore) Count(opts modelhelper.LeadFilterOpts) (int64, error) {
-	var mods []qm.QueryMod
-
-	if opts.Status != "" {
-		mods = append(mods, lms_models.LeadWhere.Status.EQ(opts.Status))
-	}
-	if opts.Source != "" {
-		mods = append(mods, lms_models.LeadWhere.Source.EQ(null.StringFrom(opts.Source)))
-	}
-	if opts.CounselorID != "" {
-		mods = append(mods, lms_models.LeadWhere.CounselorID.EQ(null.StringFrom(opts.CounselorID)))
-	}
-	if opts.Search != "" {
-		pattern := "%" + opts.Search + "%"
-		mods = append(mods, qm.Or(
-			"("+lms_models.LeadColumns.Name+" ILIKE ? OR "+lms_models.LeadColumns.Phone+" ILIKE ? OR "+lms_models.LeadColumns.Email+" ILIKE ?)",
-			pattern, pattern, pattern,
-		))
-	}
-
-	count, err := lms_models.Leads(mods...).Count(s.sqlStore.GetReplicaExecuter())
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to count leads")
-	}
-	return count, nil
 }
 
 func (s *SqlLeadStore) CountNewThisMonth() (int64, error) {

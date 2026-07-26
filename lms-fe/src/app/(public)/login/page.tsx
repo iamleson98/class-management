@@ -64,8 +64,8 @@ export default function PublicLoginPage() {
     onSuccess: (user) => {
       // login() persists auth to sessionStorage + sets zustand state
       login(user)
-      // Hard navigate to app root. sessionStorage ensures auth survives.
-      window.location.href = '/'
+      // Navigate to app root using Next.js router
+      router.push('/')
     },
     onError: (err) => {
       setError(err.message || t('auth.loginFailed', 'Đăng nhập thất bại. Vui lòng thử lại.'))

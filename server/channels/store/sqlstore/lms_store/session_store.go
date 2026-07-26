@@ -2,7 +2,6 @@ package lmsstore
 
 import (
 	"database/sql"
-	"time"
 
 	"github.com/aarondl/sqlboiler/v4/boil"
 	"github.com/aarondl/sqlboiler/v4/queries/qm"
@@ -31,37 +30,25 @@ func (s *SqlLMSSessionStore) Get(id string) (*lms_models.LMSSession, error) {
 	return session, nil
 }
 
-func (s *SqlLMSSessionStore) GetAll(opts modelhelper.SessionFilterOpts) ([]*lms_models.LMSSession, error) {
+func (s *SqlLMSSessionStore) Search(opts modelhelper.SessionFilterOpts) ([]*lms_models.LMSSession, int64, error) {
 	var mods []qm.QueryMod
 
-	if opts.ClassID != "" {
-		mods = append(mods, lms_models.LMSSessionWhere.ClassID.EQ(opts.ClassID))
-	}
-	if opts.TeacherID != "" {
-		mods = append(mods, lms_models.LMSSessionWhere.TeacherID.EQ(opts.TeacherID))
-	}
-	if opts.StudentID != "" {
-		mods = append(mods, qm.Where(lms_models.LMSSessionColumns.ClassID+" IN (SELECT class_id FROM student_classes WHERE student_id = ?)", opts.StudentID))
-	}
-	if opts.Date != "" {
-		date, err := time.Parse("2006-01-02", opts.Date)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse date filter")
-		}
-		mods = append(mods, lms_models.LMSSessionWhere.Date.EQ(date))
-	}
-	if opts.Month != "" {
-		mods = append(mods, qm.Where("to_char("+lms_models.LMSSessionColumns.Date+", 'YYYY-MM') = ?", opts.Month))
-	}
-
-	mods = append(mods, qm.OrderBy(lms_models.LMSSessionColumns.Date+" ASC, "+lms_models.LMSSessionColumns.StartTime+" ASC"))
-
-	sessions, err := lms_models.LMSSessions(mods...).All(s.sqlStore.GetReplicaExecuter())
+	modsWithPagination := append(mods, &opts.SearchOpts)
+	sessions, err := lms_models.LMSSessions(modsWithPagination...).All(s.sqlStore.GetReplicaExecuter())
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get lms sessions")
+		return nil, 0, errors.Wrap(err, "failed to search lms sessions")
+	}
+	totalCount := int64(len(sessions))
+
+	if opts.CountTotal {
+		modsWithoutPagination := append(mods, opts.SearchOpts.ExludePaginationForCount())
+		totalCount, err = lms_models.LMSSessions(modsWithoutPagination...).Count(s.sqlStore.GetReplicaExecuter())
+		if err != nil {
+			return nil, 0, errors.Wrap(err, "failed to count lms sessions")
+		}
 	}
 
-	return sessions, nil
+	return sessions, totalCount, nil
 }
 
 func (s *SqlLMSSessionStore) Save(session *lms_models.LMSSession) (*lms_models.LMSSession, error) {
@@ -109,36 +96,6 @@ func (s *SqlLMSSessionStore) Delete(id string) error {
 		return errors.Wrap(err, "failed to delete lms session")
 	}
 	return nil
-}
-
-func (s *SqlLMSSessionStore) Count(opts modelhelper.SessionFilterOpts) (int64, error) {
-	var mods []qm.QueryMod
-
-	if opts.ClassID != "" {
-		mods = append(mods, lms_models.LMSSessionWhere.ClassID.EQ(opts.ClassID))
-	}
-	if opts.TeacherID != "" {
-		mods = append(mods, lms_models.LMSSessionWhere.TeacherID.EQ(opts.TeacherID))
-	}
-	if opts.StudentID != "" {
-		mods = append(mods, qm.Where(lms_models.LMSSessionColumns.ClassID+" IN (SELECT class_id FROM student_classes WHERE student_id = ?)", opts.StudentID))
-	}
-	if opts.Date != "" {
-		date, err := time.Parse("2006-01-02", opts.Date)
-		if err != nil {
-			return 0, errors.Wrap(err, "failed to parse date filter")
-		}
-		mods = append(mods, lms_models.LMSSessionWhere.Date.EQ(date))
-	}
-	if opts.Month != "" {
-		mods = append(mods, qm.Where("to_char("+lms_models.LMSSessionColumns.Date+", 'YYYY-MM') = ?", opts.Month))
-	}
-
-	count, err := lms_models.LMSSessions(mods...).Count(s.sqlStore.GetReplicaExecuter())
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to count lms sessions")
-	}
-	return count, nil
 }
 
 func (s *SqlLMSSessionStore) CountUpcomingByStudent(studentID string) (int64, error) {

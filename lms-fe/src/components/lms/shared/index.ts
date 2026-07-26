@@ -1,5 +1,5 @@
 export { Avatar, StackedAvatars, getInitials } from './avatar'
 export { fadeIn, staggerContainer, staggerItem } from './animations'
-export { PaginationControls, paginate, usePagination } from './pagination'
-export type { PaginationState, PaginatedData } from './pagination'
+export { PaginationControls, paginate, usePagination, derivePageInfo } from './pagination'
+export type { PaginationState, PaginatedData, ServerPageInfo } from './pagination'
 export { FileUpload } from './file-upload'

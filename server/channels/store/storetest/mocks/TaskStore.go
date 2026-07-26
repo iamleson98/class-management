@@ -63,36 +63,6 @@ func (_m *TaskStore) Get(id string) (*lms_models.Task, error) {
 	return r0, r1
 }
 
-// GetAll provides a mock function with given fields: opts
-func (_m *TaskStore) GetAll(opts modelhelper.TaskFilterOpts) ([]*lms_models.Task, error) {
-	ret := _m.Called(opts)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetAll")
-	}
-
-	var r0 []*lms_models.Task
-	var r1 error
-	if rf, ok := ret.Get(0).(func(modelhelper.TaskFilterOpts) ([]*lms_models.Task, error)); ok {
-		return rf(opts)
-	}
-	if rf, ok := ret.Get(0).(func(modelhelper.TaskFilterOpts) []*lms_models.Task); ok {
-		r0 = rf(opts)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*lms_models.Task)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(modelhelper.TaskFilterOpts) error); ok {
-		r1 = rf(opts)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // Save provides a mock function with given fields: task
 func (_m *TaskStore) Save(task *lms_models.Task) (*lms_models.Task, error) {
 	ret := _m.Called(task)
@@ -123,6 +93,43 @@ func (_m *TaskStore) Save(task *lms_models.Task) (*lms_models.Task, error) {
 	return r0, r1
 }
 
+// Search provides a mock function with given fields: opts
+func (_m *TaskStore) Search(opts modelhelper.TaskFilterOpts) ([]*lms_models.Task, int64, error) {
+	ret := _m.Called(opts)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Search")
+	}
+
+	var r0 []*lms_models.Task
+	var r1 int64
+	var r2 error
+	if rf, ok := ret.Get(0).(func(modelhelper.TaskFilterOpts) ([]*lms_models.Task, int64, error)); ok {
+		return rf(opts)
+	}
+	if rf, ok := ret.Get(0).(func(modelhelper.TaskFilterOpts) []*lms_models.Task); ok {
+		r0 = rf(opts)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*lms_models.Task)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(modelhelper.TaskFilterOpts) int64); ok {
+		r1 = rf(opts)
+	} else {
+		r1 = ret.Get(1).(int64)
+	}
+
+	if rf, ok := ret.Get(2).(func(modelhelper.TaskFilterOpts) error); ok {
+		r2 = rf(opts)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
 // Update provides a mock function with given fields: task
 func (_m *TaskStore) Update(task *lms_models.Task) (*lms_models.Task, error) {
 	ret := _m.Called(task)
@@ -146,34 +153,6 @@ func (_m *TaskStore) Update(task *lms_models.Task) (*lms_models.Task, error) {
 
 	if rf, ok := ret.Get(1).(func(*lms_models.Task) error); ok {
 		r1 = rf(task)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// Count provides a mock function with given fields: opts
-func (_m *TaskStore) Count(opts modelhelper.TaskFilterOpts) (int64, error) {
-	ret := _m.Called(opts)
-
-	if len(ret) == 0 {
-		panic("no return value specified for Count")
-	}
-
-	var r0 int64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(modelhelper.TaskFilterOpts) (int64, error)); ok {
-		return rf(opts)
-	}
-	if rf, ok := ret.Get(0).(func(modelhelper.TaskFilterOpts) int64); ok {
-		r0 = rf(opts)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-
-	if rf, ok := ret.Get(1).(func(modelhelper.TaskFilterOpts) error); ok {
-		r1 = rf(opts)
 	} else {
 		r1 = ret.Error(1)
 	}

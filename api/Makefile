@@ -1,6 +1,6 @@
 ROOT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
-.PHONY: build build-v4 clean playbooks generate-booking-openapi
+.PHONY: build build-v4 build-json clean playbooks generate-booking-openapi generate-lms-openapi
 
 V4_YAML = $(ROOT)/v4/html/static/mattermost-openapi-v4.yaml
 
@@ -9,7 +9,7 @@ PLAYBOOKS_SRC = $(ROOT)/playbooks
 
 build: build-v4
 
-build-v4: node_modules playbooks generate-booking-openapi
+build-v4: node_modules playbooks generate-booking-openapi generate-lms-openapi
 	@echo Building mattermost openapi yaml for v4
 
 	@if [ -r $(PLAYBOOKS_SRC)/merged-tags.yaml ]; then cat $(PLAYBOOKS_SRC)/merged-tags.yaml > $(V4_YAML); else cat $(V4_SRC)/introduction.yaml > $(V4_YAML); fi
@@ -66,6 +66,7 @@ build-v4: node_modules playbooks generate-booking-openapi
 	@cat $(V4_SRC)/content_flagging.yaml >> $(V4_YAML)
 	@cat $(V4_SRC)/agents.yaml >> $(V4_YAML)
 	@cat $(V4_SRC)/booking_api.yaml >> $(V4_YAML)
+	@cat $(V4_SRC)/lms_api.yaml >> $(V4_YAML)
 	@if [ -r $(PLAYBOOKS_SRC)/paths.yaml ]; then cat $(PLAYBOOKS_SRC)/paths.yaml >> $(V4_YAML); fi
 	@if [ -r $(PLAYBOOKS_SRC)/merged-definitions.yaml ]; then cat $(PLAYBOOKS_SRC)/merged-definitions.yaml >> $(V4_YAML); else cat $(V4_SRC)/definitions.yaml >> $(V4_YAML); fi
 	@echo Extracting code samples
@@ -81,9 +82,17 @@ node_modules: package.json $(wildcard package-lock.json)
 	npm install
 	touch $@
 
+generate-lms-openapi:
+	@echo Generating LMS OpenAPI source
+	node scripts/generate-lms-openapi.js
+
 generate-booking-openapi:
 	@echo Generating booking OpenAPI source
 	node scripts/generate-booking-openapi.js
+
+build-json: build-v4
+	@echo Converting OpenAPI YAML to JSON
+	node scripts/convert-yaml-to-json.js
 
 run:
 	@echo Starting local server

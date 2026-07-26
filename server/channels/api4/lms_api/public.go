@@ -6,6 +6,7 @@ import (
 
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
+	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/v8/channels/api4"
 )
@@ -62,9 +63,9 @@ func publicRegister(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	data, _ := json.Marshal(created)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(created); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 // Contact form handler

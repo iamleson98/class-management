@@ -9,7 +9,8 @@ import { motion } from 'framer-motion'
 import { Newspaper, Plus, Pencil, Trash2, Eye } from 'lucide-react'
 import { createPostSchema, updatePostSchema, type CreatePostInput, type UpdatePostInput } from '@/lib/schemas'
 import { useLMSStore } from '@/store/lms-store'
-import { getPosts, createPost, updatePost, deletePost, getPostCategories } from '@/lib/api'
+import { getPostsPaginated, createPost, updatePost, deletePost, getPostCategories } from '@/lib/api'
+import { paginate } from '@/lib/query'
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/lms/page-header'
 import { EmptyState } from '@/components/lms/empty-state'
@@ -36,7 +37,7 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { PaginationControls, usePagination, paginate } from '@/components/lms/shared/pagination'
+import { PaginationControls, usePagination, derivePageInfo } from '@/components/lms/shared/pagination'
 import { cn } from '@/lib/utils'
 import { staggerContainer, staggerItem } from '@/components/lms/shared/animations'
 import { useTranslation } from '@/lib/i18n'
@@ -73,10 +74,20 @@ export default function AdminCMS() {
     defaultValues: EMPTY_CREATE,
   })
 
-  const { data: posts = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ['posts'],
-    queryFn: () => getPosts(),
+  // BlogPostFilterOpts has NO top-level `search` field — text search would go
+  // via where_ors + ILIKE once a search UI exists. For now we only wire
+  // server-driven paging.
+  const opts = useMemo(() => ({
+    ...paginate(pagination.pageIndex, pagination.pageSize),
+  }), [pagination.pageIndex, pagination.pageSize])
+
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['posts', opts],
+    queryFn: () => getPostsPaginated(opts),
   })
+
+  const posts = data?.items ?? []
+  const pageInfo = derivePageInfo(data?.totalCount ?? 0, pagination.pageIndex, pagination.pageSize, posts.length)
 
   const { data: categories = [], isLoading: isLoadingCategories, isError: isCategoriesError } = useQuery({
     queryKey: ['post-categories'],
@@ -113,9 +124,6 @@ export default function AdminCMS() {
     },
     onError: () => toast({ title: t('cms.deleteFailed', 'Xóa thất bại'), variant: 'destructive' }),
   })
-
-  const filtered = useMemo(() => posts, [posts])
-  const paginated = paginate(filtered, pagination.pageIndex, pagination.pageSize)
 
   const closeDialog = () => {
     setDialogOpen(false)
@@ -189,12 +197,12 @@ export default function AdminCMS() {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
-          <TabsTrigger value="posts">{t('cms.posts', 'Bài viết')} ({posts.length})</TabsTrigger>
+          <TabsTrigger value="posts">{t('cms.posts', 'Bài viết')} ({pageInfo.totalItems})</TabsTrigger>
           <TabsTrigger value="categories">{t('cms.categories', 'Chuyên mục')} ({categories.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="posts" className="mt-4">
-          {paginated.data.length === 0 ? (
+          {posts.length === 0 ? (
             <EmptyState icon={Newspaper} title={t('cms.noPosts', 'Chưa có bài viết')} description={t('cms.noPostsDesc', 'Viết bài viết đầu tiên.')} actionLabel={t('cms.writePost', 'Viết bài')} onAction={openCreate} />
           ) : (
             <>
@@ -211,7 +219,7 @@ export default function AdminCMS() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginated.data.map((post: any) => {
+                    {posts.map((post: any) => {
                       const status = STATUS_MAP[post.status] || STATUS_MAP.DRAFT
                       const catName = categories.find((c: any) => c.id === post.categoryId)?.name || '-'
                       return (
@@ -244,7 +252,7 @@ export default function AdminCMS() {
                   </TableBody>
                 </Table>
               </motion.div>
-              <PaginationControls {...paginated} onPageIndexChange={pagination.setPageIndex} onPageSizeChange={pagination.setPageSize} />
+              <PaginationControls {...pageInfo} onPageIndexChange={pagination.setPageIndex} onPageSizeChange={pagination.setPageSize} />
             </>
           )}
         </TabsContent>

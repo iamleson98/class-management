@@ -12,7 +12,9 @@ const ROLE_PRIORITY: UserRole[] = [
   'lms_accountant', 'lms_marketing', 'lms_parent', 'lms_student',
 ]
 
-const ALL_LMS_ROLES = new Set<UserRole>(ROLE_PRIORITY)
+export const LMS_STAFF_ROLES = ROLE_PRIORITY.filter(r => !['lms_parent', 'lms_student'].includes(r));
+
+// const ALL_LMS_ROLES = new Set<UserRole>(ROLE_PRIORITY)
 
 /**
  * Parse the space-separated `roles` string from model.User.Roles
@@ -86,7 +88,7 @@ interface LMSState {
 
   login: (user: ApiUser) => void
   logout: () => Promise<void>
-  hydrate: () => Promise<boolean>
+  hydrate: () => Promise<{ authenticated: boolean; user?: ApiUser; role?: UserRole }>
   setCurrentRole: (role: UserRole) => void
   setActiveView: (view: ActiveView) => void
   setSelectedDate: (date: string) => void
@@ -166,7 +168,7 @@ export const useLMSStore = create<LMSState>((set) => ({
   },
 
   logout: async () => {
-    // Clear server-side session cookies
+    // Clear server-side session cookie (apiLogout POSTs /users/logout)
     try {
       await apiLogout()
     } catch {
@@ -188,41 +190,13 @@ export const useLMSStore = create<LMSState>((set) => ({
 
   hydrate: async () => {
     set({ isHydrating: true })
-    // First check sessionStorage for a fresh login (survives hard navigation)
-    try {
-      const stored = sessionStorage.getItem('vmg-auth')
-      if (stored) {
-        const { user, ts } = JSON.parse(stored)
-        // Use cached auth if less than 5 minutes old
-        if (user && ts && (Date.now() - ts) < 5 * 60 * 1000) {
-          const role = parsePrimaryRole(user.roles)
-          set({
-            isAuthenticated: true,
-            authUser: user,
-            currentRole: role,
-            activeView: role ? ROLE_VIEWS[role] : 'dashboard',
-            isHydrating: false,
-          })
-          return true
-        }
-        // Expired — remove it
-        sessionStorage.removeItem('vmg-auth')
-      }
-    } catch { /* ignore */ }
 
-    // Fall back to server-side session check
-    try {
-      const user = await queryClient.fetchQuery({ queryKey: ['me'], queryFn: getMe })
-      const role = parsePrimaryRole(user.roles)
-      set({
-        isAuthenticated: true,
-        authUser: user,
-        currentRole: role,
-        activeView: role ? ROLE_VIEWS[role] : 'dashboard',
-        isHydrating: false,
-      })
-      return true
-    } catch {
+    // Always call getMe to verify session is still valid
+    const user = await getMe()
+
+    if (!user) {
+      // Not authenticated — clear any stale sessionStorage data
+      try { sessionStorage.removeItem('vmg-auth') } catch {}
       set({
         isAuthenticated: false,
         authUser: null,
@@ -230,8 +204,23 @@ export const useLMSStore = create<LMSState>((set) => ({
         activeView: null,
         isHydrating: false,
       })
-      return false
+      return { authenticated: false }
     }
+
+    const role = parsePrimaryRole(user.roles)
+    const result: { authenticated: boolean; user: ApiUser; role?: UserRole } = { authenticated: true, user, role: role ?? undefined }
+    set({
+      isAuthenticated: true,
+      authUser: user,
+      currentRole: role,
+      activeView: role ? ROLE_VIEWS[role] : 'dashboard',
+      isHydrating: false,
+    })
+    // Update sessionStorage with fresh auth data
+    try {
+      sessionStorage.setItem('vmg-auth', JSON.stringify({ user, ts: Date.now() }))
+    } catch {}
+    return result
   },
 
   setActiveView: (view) => set({ activeView: view, selectedItemId: null, showDetail: false }),

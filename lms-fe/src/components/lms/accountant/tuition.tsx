@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { DollarSign, Search, Plus } from 'lucide-react'
@@ -27,9 +27,13 @@ export default function AccountantTuitionPage() {
   const [selectedTuition, setSelectedTuition] = useState<any>(null)
   const [paymentAmount, setPaymentAmount] = useState('')
 
+  // TuitionFilterOpts honors a top-level `search` field — search runs
+  // server-side instead of filtering the full list client-side.
+  const opts = useMemo(() => ({ search: search || undefined }), [search])
+
   const { data: tuitions, isLoading, isError, refetch } = useQuery({
-    queryKey: ['tuitions'],
-    queryFn: () => getTuitions(),
+    queryKey: ['tuitions', opts],
+    queryFn: () => getTuitions(opts),
   })
 
   const handleRecordPayment = (tuition: any) => {
@@ -47,10 +51,7 @@ export default function AccountantTuitionPage() {
     }
   }
 
-  const filteredTuitions = (tuitions || []).filter((t: any) =>
-    t.studentName?.toLowerCase().includes(search.toLowerCase()) ||
-    t.className?.toLowerCase().includes(search.toLowerCase())
-  )
+  const filteredTuitions = tuitions || []
 
   if (isError) {
     return <ErrorState onRetry={() => refetch()} />

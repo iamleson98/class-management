@@ -3,20 +3,20 @@ package lmsapi
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
 	"github.com/iamleson98/sitename/server/public/utils"
+	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"github.com/iamleson98/sitename/server/v8/channels/api4"
 	"github.com/iamleson98/sitename/server/v8/channels/web"
 )
 
 // InitLeads registers lead routes on the LMS router.
 func (a *LMSAPI) InitLeads() {
-	a.routes.Method(http.MethodGet, "/leads", a.api.APISessionRequired(getLeads))
-	a.routes.Method(http.MethodPost, "/leads", a.api.APISessionRequired(createLead))
+	a.routes.Method(http.MethodPost, "/leads", a.api.APISessionRequired(getLeads))
+	a.routes.Method(http.MethodPost, "/leads/create", a.api.APISessionRequired(createLead))
 	a.routes.Method(http.MethodGet, "/leads/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(getLead))
 	a.routes.Method(http.MethodPut, "/leads/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(updateLead))
 	a.routes.Method(http.MethodDelete, "/leads/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(deleteLead))
@@ -31,39 +31,26 @@ func getLeads(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := r.URL.Query()
-	opts := modelhelper.LeadFilterOpts{
-		Status:      q.Get("status"),
-		Source:      q.Get("source"),
-		CounselorID: q.Get("counselor_id"),
-		Search:      q.Get("search"),
-	}
-	if v := q.Get("page"); v != "" {
-		opts.Page, _ = strconv.Atoi(v)
-	}
-	if v := q.Get("per_page"); v != "" {
-		opts.PerPage, _ = strconv.Atoi(v)
-	}
-	if q.Get("count_total") == "true" {
-		opts.CountTotal = true
+	var opts modelhelper.LeadFilterOpts
+	if err := json.NewDecoder(r.Body).Decode(&opts); err != nil {
+		c.Err = model.NewAppError("getLeads", model.PayloadParseError, nil, "", http.StatusBadRequest).Wrap(err)
+		return
 	}
 
-	leads, err := c.App.LMS().GetLeads(opts)
+	items, totalCount, err := c.App.LMS().GetLeads(opts)
 	if err != nil {
 		c.Err = err
 		return
 	}
 
-	if leads == nil {
-		leads = []*lms_models.Lead{}
+	res := utils.ResponseList{
+		Items:      items,
+		TotalCount: totalCount,
 	}
 
-	res := utils.ResponseList{
-		Items:      leads,
-		TotalCount: int64(len(leads)),
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
 	}
-	data, _ := json.Marshal(res)
-	w.Write(data)
 }
 
 func createLead(c *api4.Context, w http.ResponseWriter, r *http.Request) {

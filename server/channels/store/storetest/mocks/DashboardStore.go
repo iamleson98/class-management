@@ -5,7 +5,7 @@
 package mocks
 
 import (
-	"github.com/iamleson98/sitename/server/public/model"
+	model "github.com/iamleson98/sitename/server/public/model"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -14,7 +14,7 @@ type DashboardStore struct {
 	mock.Mock
 }
 
-// CountStudents provides a mock function with given fields:
+// CountStudents provides a mock function with no fields
 func (_m *DashboardStore) CountStudents() (int64, error) {
 	ret := _m.Called()
 

@@ -9,12 +9,12 @@ import (
 	"github.com/iamleson98/sitename/server/public/model_helper"
 )
 
-func (a *LMSApp) GetClassMedia(opts modelhelper.ClassMediaFilterOpts) ([]*lms_models.ClassMedium, *model.AppError) {
-	media, err := a.store.ClassMedia().GetAll(opts)
+func (a *LMSApp) GetClassMedia(opts modelhelper.ClassMediaFilterOpts) ([]*lms_models.ClassMedium, int64, *model.AppError) {
+	media, totalCount, err := a.store.ClassMedia().Search(opts)
 	if err != nil {
-		return nil, model.NewAppError("GetClassMedia", "app.lms.class_media.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		return nil, 0, model.NewAppError("GetClassMedia", "app.lms.class_media.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}
-	return media, nil
+	return media, totalCount, nil
 }
 
 func (a *LMSApp) CreateClassMedia(cm *lms_models.ClassMedium) (*lms_models.ClassMedium, *model.AppError) {

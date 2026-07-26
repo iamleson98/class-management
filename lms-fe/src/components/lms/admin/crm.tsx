@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod/v4'
@@ -8,7 +8,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { Users, Plus, Pencil, Trash2, Search, Eye, UserCheck } from 'lucide-react'
 import { createLeadSchema, updateLeadSchema, leadActivitySchema, type CreateLeadInput, type UpdateLeadInput, type LeadActivityInput } from '@/lib/schemas'
-import { getLeads, createLead, updateLead, deleteLead, getLeadActivities, createLeadActivity, convertLeadToStudent, getUsers } from '@/lib/api'
+import { getLeads, getLeadsPaginated, createLead, updateLead, deleteLead, getLeadActivities, createLeadActivity, convertLeadToStudent, getUsers } from '@/lib/api'
+import { eq, and, paginate } from '@/lib/query'
 import { useToast } from '@/hooks/use-toast'
 import { useLMSStore } from '@/store/lms-store'
 import { PageHeader } from '@/components/lms/page-header'
@@ -36,7 +37,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { PaginationControls, usePagination, paginate } from '@/components/lms/shared/pagination'
+import { PaginationControls, usePagination, derivePageInfo } from '@/components/lms/shared/pagination'
 import { cn } from '@/lib/utils'
 import { staggerContainer, staggerItem } from '@/components/lms/shared/animations'
 import { useTranslation } from '@/lib/i18n'
@@ -98,18 +99,34 @@ export default function AdminCRM() {
     defaultValues: EMPTY_ACTIVITY,
   })
 
-  const { data: leads = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ['leads', statusFilter, sourceFilter, search],
-    queryFn: () => getLeads({
-      status: statusFilter !== 'all' ? statusFilter : undefined,
-      source: sourceFilter !== 'all' ? sourceFilter : undefined,
-      search: search || undefined,
-    }),
+  // Reset to first page whenever filters change so the user doesn't land on
+  // an empty page after narrowing the result set.
+  useEffect(() => { pagination.setPageIndex(0) }, [search, statusFilter, sourceFilter])
+
+  // Build the typed SearchOpts body. LeadFilterOpts honors a top-level
+  // `search` field (see server/public/model_helper/lms.go), so it goes at the
+  // body root; status/source/counselor filters go into where_ands via eq().
+  const opts = useMemo(() => ({
+    search: search || undefined,
+    where_ands: and(
+      eq('leads.status', statusFilter !== 'all' ? statusFilter : undefined),
+      eq('leads.source', sourceFilter !== 'all' ? sourceFilter : undefined),
+      eq('leads.counselor_id', undefined),
+    ),
+    ...paginate(pagination.pageIndex, pagination.pageSize),
+  }), [search, statusFilter, sourceFilter, pagination.pageIndex, pagination.pageSize])
+
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['leads', opts],
+    queryFn: () => getLeadsPaginated(opts),
   })
+
+  const leads = data?.items ?? []
+  const pageInfo = derivePageInfo(data?.totalCount ?? 0, pagination.pageIndex, pagination.pageSize, leads.length)
 
   const { data: counselors = [], isLoading: isLoadingCounselors, isError: isCounselorsError, refetch: refetchCounselors } = useQuery({
     queryKey: ['users-counselors'],
-    queryFn: () => getUsers('COUNSELOR'),
+    queryFn: () => getUsers({ role: 'lms_counselor' }),
   })
 
   const { data: activities = [], isLoading: isLoadingActivities, isError: isActivitiesError, refetch: refetchActivities } = useQuery({
@@ -170,9 +187,6 @@ export default function AdminCRM() {
     },
     onError: () => toast({ title: t('crm.convertFail', 'Chuyển đổi thất bại'), variant: 'destructive' }),
   })
-
-  const filtered = useMemo(() => leads, [leads])
-  const paginated = paginate(filtered, pagination.pageIndex, pagination.pageSize)
 
   const closeDialog = () => {
     setDialogOpen(false)
@@ -298,7 +312,7 @@ export default function AdminCRM() {
       </Card>
 
       {/* Table */}
-      {paginated.data.length === 0 ? (
+      {leads.length === 0 ? (
         <EmptyState
           icon={Users}
           title={t('crm.emptyTitle', 'Chưa có lead')}
@@ -322,7 +336,7 @@ export default function AdminCRM() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginated.data.map((lead: any) => {
+                {leads.map((lead: any) => {
                   const status = STATUS_MAP[lead.status] || STATUS_MAP.NEW
                   return (
                     <motion.tr key={lead.id} variants={staggerItem} className="hover:bg-muted/30">
@@ -357,7 +371,7 @@ export default function AdminCRM() {
               </TableBody>
             </Table>
           </motion.div>
-          <PaginationControls {...paginated} onPageIndexChange={pagination.setPageIndex} onPageSizeChange={pagination.setPageSize} />
+          <PaginationControls {...pageInfo} onPageIndexChange={pagination.setPageIndex} onPageSizeChange={pagination.setPageSize} />
         </>
       )}
 

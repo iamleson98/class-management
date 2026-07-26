@@ -78,7 +78,10 @@ export default function StudentHomework() {
 
   const { data: homework, isLoading, isError, refetch } = useQuery({
     queryKey: ['homework', 'student', authUser?.id],
-    queryFn: () => getHomework({ studentId: authUser!.id }),
+    // NOTE: homeworks has no student_id column (homework↔student is via
+    // submissions/enrollment, a backend join not exposed here). Fetch all
+    // homework; student-scoping is a backend follow-up.
+    queryFn: () => getHomework(),
     enabled: !!authUser?.id,
   })
 

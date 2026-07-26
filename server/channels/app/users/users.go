@@ -8,10 +8,10 @@ import (
 
 	"github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
+	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
 	"github.com/iamleson98/sitename/server/public/shared/i18n"
 	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"github.com/iamleson98/sitename/server/public/shared/request"
-	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/v8/channels/store"
 	"github.com/iamleson98/sitename/server/v8/platform/shared/mfa"
 
@@ -43,11 +43,12 @@ func (us *UserService) CreateUser(rctx request.CTX, user *model.User, opts UserC
 	}
 
 	// Below is a special case where the first user in the entire
-	// system is granted the system_admin role
+	// system is granted the system_admin role. By design the very first
+	// account is designated the LMS Super Admin.
 	if ok, err := us.store.IsEmpty(true); err != nil {
 		return nil, errors.Wrap(UserStoreIsEmptyError, err.Error())
 	} else if ok {
-		user.Roles = model.SystemAdminRoleId + " " + model.SystemUserRoleId + " " + model.RoleLmsAdminRoleId
+		user.Roles = model.SystemAdminRoleId + " " + model.SystemUserRoleId + " " + model.RoleLmsSuperAdminRoleId
 	}
 
 	if _, ok := i18n.GetSupportedLocales()[user.Locale]; !ok {
@@ -98,7 +99,7 @@ func (us *UserService) GetUsers(rctx request.CTX, userIDs []string) ([]*model.Us
 	return us.store.GetMany(rctx, userIDs)
 }
 
-func (us *UserService) SearchUsers(opts utils.SearchOpts[utils.UserColumn]) (lms_models.UserSlice, int64, *model.AppError) {
+func (us *UserService) SearchUsers(opts modelhelper.UserFilterOpts) (lms_models.UserSlice, int64, *model.AppError) {
 	users, count, err := us.store.SearchUsers(opts)
 	if err != nil {
 		return nil, 0, model.NewAppError("SearchUsers", "app.users.search_users.app_error", nil, err.Error(), http.StatusInternalServerError).Wrap(err)

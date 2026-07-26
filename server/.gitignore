@@ -81,7 +81,8 @@ Session.vim
 .netrwhist
 *~
 
-__debug_bin.*
+# Delve debug binaries (e.g. __debug_bin1234567890), generated in any package dir
+__debug_bin*
 
 # VSCode project files
 .vscode
@@ -122,7 +123,6 @@ webapp/coverage
 
 /debug
 /client
-__debug_bin
 report.xml
 *coverage.txt
 go.*.orig

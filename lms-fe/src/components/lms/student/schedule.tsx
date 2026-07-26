@@ -70,8 +70,11 @@ export default function StudentSchedule() {
 
   const { data: sessions = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['student-sessions', monthStr, studentRecord?.id],
-    queryFn: () => getSessions({ studentId: studentRecord!.id, month: monthStr }),
+    // The sessions table has no `student_id` or `month` column, so we fetch all
+    // and filter to the current month client-side.
+    queryFn: () => getSessions(),
     enabled: !!studentRecord?.id,
+    select: (all) => all.filter((s) => (s.date || '').startsWith(monthStr)),
   })
 
   // Calendar grid

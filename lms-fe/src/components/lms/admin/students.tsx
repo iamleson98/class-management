@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod/v4'
@@ -8,7 +8,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { GraduationCap, Plus, Search, Pencil, Trash2, X } from 'lucide-react'
 import { createStudentSchema, updateStudentSchema, type CreateStudentInput, type UpdateStudentInput } from '@/lib/schemas'
-import { getStudents, createStudent, updateStudent, deleteStudent } from '@/lib/api'
+import { getStudentsPaginated, createStudent, updateStudent, deleteStudent } from '@/lib/api'
+import { eq, paginate } from '@/lib/query'
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/lms/page-header'
 import { EmptyState } from '@/components/lms/empty-state'
@@ -31,7 +32,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { PaginationControls, usePagination, paginate } from '@/components/lms/shared/pagination'
+import { DatePicker } from '@/components/ui/date-picker'
+import { PaginationControls, usePagination, derivePageInfo } from '@/components/lms/shared/pagination'
 import { cn } from '@/lib/utils'
 import { staggerContainer, staggerItem } from '@/components/lms/shared/animations'
 import { useTranslation } from '@/lib/i18n'
@@ -106,13 +108,26 @@ export default function AdminStudents() {
     defaultValues: EMPTY_STUDENT,
   })
 
-  const { data: students = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ['students', search, statusFilter],
-    queryFn: () => getStudents({
-      search: search || undefined,
-      status: statusFilter !== 'all' ? statusFilter : undefined,
-    }),
+  // Reset to first page whenever filters change so the user doesn't land on
+  // an empty page after narrowing the result set.
+  useEffect(() => { pagination.setPageIndex(0) }, [search, statusFilter])
+
+  // Build the typed SearchOpts body. StudentFilterOpts honors top-level
+  // `search` and `status` fields (see server/public/model_helper/lms.go), so
+  // those go at the body root rather than into where_ands.
+  const opts = useMemo(() => ({
+    search: search || undefined,
+    status: statusFilter !== 'all' ? statusFilter : undefined,
+    ...paginate(pagination.pageIndex, pagination.pageSize),
+  }), [search, statusFilter, pagination.pageIndex, pagination.pageSize])
+
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['students', opts],
+    queryFn: () => getStudentsPaginated(opts),
   })
+
+  const students = data?.items ?? []
+  const pageInfo = derivePageInfo(data?.totalCount ?? 0, pagination.pageIndex, pagination.pageSize, students.length)
 
   const createMutation = useMutation({
     mutationFn: (data: CreateStudentInput) => createStudent(data),
@@ -148,9 +163,6 @@ export default function AdminStudents() {
     },
     onError: () => toast({ title: t('common.deleteFail', 'Xóa thất bại'), variant: 'destructive' }),
   })
-
-  const filtered = useMemo(() => students, [students])
-  const paginated = paginate(filtered, pagination.pageIndex, pagination.pageSize)
 
   const openCreate = () => {
     setEditingStudent(null)
@@ -246,7 +258,7 @@ export default function AdminStudents() {
       </Card>
 
       {/* Table */}
-      {paginated.data.length === 0 ? (
+      {students.length === 0 ? (
         <EmptyState
           icon={GraduationCap}
           title={t('students.emptyTitle', 'Chưa có học viên')}
@@ -273,7 +285,7 @@ export default function AdminStudents() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginated.data.map((student: any) => {
+                {students.map((student: any) => {
                   const status = STATUS_MAP[student.status]
                   return (
                     <motion.tr
@@ -318,7 +330,7 @@ export default function AdminStudents() {
             </Table>
           </motion.div>
 
-          <PaginationControls {...paginated} onPageIndexChange={pagination.setPageIndex} onPageSizeChange={pagination.setPageSize} />
+          <PaginationControls {...pageInfo} onPageIndexChange={pagination.setPageIndex} onPageSizeChange={pagination.setPageSize} />
         </>
       )}
 
@@ -347,7 +359,7 @@ export default function AdminStudents() {
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t('students.phoneNumber', 'Số điện thoại *')}</FormLabel>
+                      <FormLabel>{t('students.phoneNumber', 'Số điện thoại')}</FormLabel>
                       <FormControl><Input {...field} value={field.value ?? ''} placeholder="0901xxx" /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -464,7 +476,7 @@ export default function AdminStudents() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t('students.school', 'Trường')}</FormLabel>
-                      <FormControl><Input {...field} value={field.value ?? ''} placeholder={t('students.schoolPlaceholder', 'Trường THPT')} /></FormControl>
+                      <FormControl><Input {...field} value={field.value ?? ''} placeholder={t('students.schoolPlaceholder', 'Tiểu học Hải An')} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -483,16 +495,22 @@ export default function AdminStudents() {
               </div>
               <div className="grid grid-cols-2 gap-4 items-start">
                 <FormField
-                  control={form.control}
-                  name="dob"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('students.dob', 'Ngày sinh')}</FormLabel>
-                      <FormControl><Input type="date" {...field} value={field.value ?? ''} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    control={form.control}
+                    name="dob"
+                    render={({ field, fieldState }) => (
+                      <FormItem>
+                        <FormLabel>{t('students.dob', 'Ngày sinh')}</FormLabel>
+                        <FormControl>
+                          <DatePicker
+                            value={field.value ?? ''}
+                            onChange={field.onChange}
+                            invalid={!!fieldState.error}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 <FormField
                   control={form.control}
                   name="notes"

@@ -15,6 +15,34 @@ type LMSSessionStore struct {
 	mock.Mock
 }
 
+// CountUpcomingByStudent provides a mock function with given fields: studentID
+func (_m *LMSSessionStore) CountUpcomingByStudent(studentID string) (int64, error) {
+	ret := _m.Called(studentID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountUpcomingByStudent")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (int64, error)); ok {
+		return rf(studentID)
+	}
+	if rf, ok := ret.Get(0).(func(string) int64); ok {
+		r0 = rf(studentID)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(studentID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // Delete provides a mock function with given fields: id
 func (_m *LMSSessionStore) Delete(id string) error {
 	ret := _m.Called(id)
@@ -63,36 +91,6 @@ func (_m *LMSSessionStore) Get(id string) (*lms_models.LMSSession, error) {
 	return r0, r1
 }
 
-// GetAll provides a mock function with given fields: opts
-func (_m *LMSSessionStore) GetAll(opts modelhelper.SessionFilterOpts) ([]*lms_models.LMSSession, error) {
-	ret := _m.Called(opts)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetAll")
-	}
-
-	var r0 []*lms_models.LMSSession
-	var r1 error
-	if rf, ok := ret.Get(0).(func(modelhelper.SessionFilterOpts) ([]*lms_models.LMSSession, error)); ok {
-		return rf(opts)
-	}
-	if rf, ok := ret.Get(0).(func(modelhelper.SessionFilterOpts) []*lms_models.LMSSession); ok {
-		r0 = rf(opts)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*lms_models.LMSSession)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(modelhelper.SessionFilterOpts) error); ok {
-		r1 = rf(opts)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // Save provides a mock function with given fields: session
 func (_m *LMSSessionStore) Save(session *lms_models.LMSSession) (*lms_models.LMSSession, error) {
 	ret := _m.Called(session)
@@ -123,6 +121,43 @@ func (_m *LMSSessionStore) Save(session *lms_models.LMSSession) (*lms_models.LMS
 	return r0, r1
 }
 
+// Search provides a mock function with given fields: opts
+func (_m *LMSSessionStore) Search(opts modelhelper.SessionFilterOpts) ([]*lms_models.LMSSession, int64, error) {
+	ret := _m.Called(opts)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Search")
+	}
+
+	var r0 []*lms_models.LMSSession
+	var r1 int64
+	var r2 error
+	if rf, ok := ret.Get(0).(func(modelhelper.SessionFilterOpts) ([]*lms_models.LMSSession, int64, error)); ok {
+		return rf(opts)
+	}
+	if rf, ok := ret.Get(0).(func(modelhelper.SessionFilterOpts) []*lms_models.LMSSession); ok {
+		r0 = rf(opts)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*lms_models.LMSSession)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(modelhelper.SessionFilterOpts) int64); ok {
+		r1 = rf(opts)
+	} else {
+		r1 = ret.Get(1).(int64)
+	}
+
+	if rf, ok := ret.Get(2).(func(modelhelper.SessionFilterOpts) error); ok {
+		r2 = rf(opts)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
 // Update provides a mock function with given fields: session
 func (_m *LMSSessionStore) Update(session *lms_models.LMSSession) (*lms_models.LMSSession, error) {
 	ret := _m.Called(session)
@@ -146,62 +181,6 @@ func (_m *LMSSessionStore) Update(session *lms_models.LMSSession) (*lms_models.L
 
 	if rf, ok := ret.Get(1).(func(*lms_models.LMSSession) error); ok {
 		r1 = rf(session)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// Count provides a mock function with given fields: opts
-func (_m *LMSSessionStore) Count(opts modelhelper.SessionFilterOpts) (int64, error) {
-	ret := _m.Called(opts)
-
-	if len(ret) == 0 {
-		panic("no return value specified for Count")
-	}
-
-	var r0 int64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(modelhelper.SessionFilterOpts) (int64, error)); ok {
-		return rf(opts)
-	}
-	if rf, ok := ret.Get(0).(func(modelhelper.SessionFilterOpts) int64); ok {
-		r0 = rf(opts)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-
-	if rf, ok := ret.Get(1).(func(modelhelper.SessionFilterOpts) error); ok {
-		r1 = rf(opts)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// CountUpcomingByStudent provides a mock function with given fields: studentID
-func (_m *LMSSessionStore) CountUpcomingByStudent(studentID string) (int64, error) {
-	ret := _m.Called(studentID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for CountUpcomingByStudent")
-	}
-
-	var r0 int64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(string) (int64, error)); ok {
-		return rf(studentID)
-	}
-	if rf, ok := ret.Get(0).(func(string) int64); ok {
-		r0 = rf(studentID)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(studentID)
 	} else {
 		r1 = ret.Error(1)
 	}

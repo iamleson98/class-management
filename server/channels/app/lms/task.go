@@ -20,12 +20,12 @@ func (a *LMSApp) GetTask(id string) (*lms_models.Task, *model.AppError) {
 	return task, nil
 }
 
-func (a *LMSApp) GetTasks(opts modelhelper.TaskFilterOpts) ([]*lms_models.Task, *model.AppError) {
-	tasks, err := a.store.Task().GetAll(opts)
+func (a *LMSApp) GetTasks(opts modelhelper.TaskFilterOpts) ([]*lms_models.Task, int64, *model.AppError) {
+	tasks, totalCount, err := a.store.Task().Search(opts)
 	if err != nil {
-		return nil, model.NewAppError("GetTasks", "app.lms.task.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		return nil, 0, model.NewAppError("GetTasks", "app.lms.task.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}
-	return tasks, nil
+	return tasks, totalCount, nil
 }
 
 func (a *LMSApp) CreateTask(task *lms_models.Task) (*lms_models.Task, *model.AppError) {

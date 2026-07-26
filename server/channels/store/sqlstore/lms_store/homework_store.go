@@ -5,11 +5,10 @@ import (
 
 	"github.com/aarondl/sqlboiler/v4/boil"
 	"github.com/aarondl/sqlboiler/v4/queries/qm"
+	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
+	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
+	"github.com/iamleson98/sitename/server/v8/channels/store"
 	"github.com/pkg/errors"
-
-		lms_models "github.com/iamleson98/sitename/server/public/lms_models"
-		modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
-		"github.com/iamleson98/sitename/server/v8/channels/store"
 )
 
 type SqlHomeworkStore struct {
@@ -32,27 +31,25 @@ func (s *SqlHomeworkStore) Get(id string) (*lms_models.Homework, error) {
 	return homework, nil
 }
 
-func (s *SqlHomeworkStore) GetAll(opts modelhelper.HomeworkFilterOpts) ([]*lms_models.Homework, error) {
-	var mods []qm.QueryMod
+func (s *SqlHomeworkStore) Search(opts modelhelper.HomeworkFilterOpts) ([]*lms_models.Homework, int64, error) {
+	mods := []qm.QueryMod{}
 
-	if opts.ClassID != "" {
-		mods = append(mods, lms_models.HomeworkWhere.ClassID.EQ(opts.ClassID))
-	}
-	if opts.TeacherID != "" {
-		mods = append(mods, lms_models.HomeworkWhere.TeacherID.EQ(opts.TeacherID))
-	}
-	if opts.CourseID != "" {
-		mods = append(mods, lms_models.HomeworkWhere.CourseID.EQ(opts.CourseID))
-	}
-
-	mods = append(mods, qm.OrderBy(lms_models.HomeworkColumns.Createat+" DESC"))
-
-	homeworks, err := lms_models.Homeworks(mods...).All(s.sqlStore.GetReplicaExecuter())
+	modsWithPagination := append(mods, &opts.SearchOpts)
+	homeworks, err := lms_models.Homeworks(modsWithPagination...).All(s.sqlStore.GetReplicaExecuter())
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get homeworks")
+		return nil, 0, errors.Wrap(err, "failed to search homeworks")
+	}
+	totalCount := int64(len(homeworks))
+
+	if opts.CountTotal {
+		modsWithoutPagination := append(mods, opts.SearchOpts.ExludePaginationForCount())
+		totalCount, err = lms_models.Homeworks(modsWithoutPagination...).Count(s.sqlStore.GetReplicaExecuter())
+		if err != nil {
+			return nil, 0, errors.Wrap(err, "failed to count homeworks")
+		}
 	}
 
-	return homeworks, nil
+	return homeworks, totalCount, nil
 }
 
 func (s *SqlHomeworkStore) Save(hw *lms_models.Homework) (*lms_models.Homework, error) {
@@ -103,24 +100,4 @@ func (s *SqlHomeworkStore) Delete(id string) error {
 	}
 
 	return nil
-}
-
-func (s *SqlHomeworkStore) Count(opts modelhelper.HomeworkFilterOpts) (int64, error) {
-	var mods []qm.QueryMod
-
-	if opts.ClassID != "" {
-		mods = append(mods, lms_models.HomeworkWhere.ClassID.EQ(opts.ClassID))
-	}
-	if opts.TeacherID != "" {
-		mods = append(mods, lms_models.HomeworkWhere.TeacherID.EQ(opts.TeacherID))
-	}
-	if opts.CourseID != "" {
-		mods = append(mods, lms_models.HomeworkWhere.CourseID.EQ(opts.CourseID))
-	}
-
-	count, err := lms_models.Homeworks(mods...).Count(s.sqlStore.GetReplicaExecuter())
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to count homeworks")
-	}
-	return count, nil
 }

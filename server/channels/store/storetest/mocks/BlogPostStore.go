@@ -63,36 +63,6 @@ func (_m *BlogPostStore) Get(id string) (*lms_models.BlogPost, error) {
 	return r0, r1
 }
 
-// GetAll provides a mock function with given fields: opts
-func (_m *BlogPostStore) GetAll(opts modelhelper.BlogPostFilterOpts) ([]*lms_models.BlogPost, error) {
-	ret := _m.Called(opts)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetAll")
-	}
-
-	var r0 []*lms_models.BlogPost
-	var r1 error
-	if rf, ok := ret.Get(0).(func(modelhelper.BlogPostFilterOpts) ([]*lms_models.BlogPost, error)); ok {
-		return rf(opts)
-	}
-	if rf, ok := ret.Get(0).(func(modelhelper.BlogPostFilterOpts) []*lms_models.BlogPost); ok {
-		r0 = rf(opts)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*lms_models.BlogPost)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(modelhelper.BlogPostFilterOpts) error); ok {
-		r1 = rf(opts)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetPublished provides a mock function with no fields
 func (_m *BlogPostStore) GetPublished() ([]*lms_models.BlogPost, error) {
 	ret := _m.Called()
@@ -153,6 +123,43 @@ func (_m *BlogPostStore) Save(post *lms_models.BlogPost) (*lms_models.BlogPost, 
 	return r0, r1
 }
 
+// Search provides a mock function with given fields: opts
+func (_m *BlogPostStore) Search(opts modelhelper.BlogPostFilterOpts) ([]*lms_models.BlogPost, int64, error) {
+	ret := _m.Called(opts)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Search")
+	}
+
+	var r0 []*lms_models.BlogPost
+	var r1 int64
+	var r2 error
+	if rf, ok := ret.Get(0).(func(modelhelper.BlogPostFilterOpts) ([]*lms_models.BlogPost, int64, error)); ok {
+		return rf(opts)
+	}
+	if rf, ok := ret.Get(0).(func(modelhelper.BlogPostFilterOpts) []*lms_models.BlogPost); ok {
+		r0 = rf(opts)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*lms_models.BlogPost)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(modelhelper.BlogPostFilterOpts) int64); ok {
+		r1 = rf(opts)
+	} else {
+		r1 = ret.Get(1).(int64)
+	}
+
+	if rf, ok := ret.Get(2).(func(modelhelper.BlogPostFilterOpts) error); ok {
+		r2 = rf(opts)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
 // Update provides a mock function with given fields: post
 func (_m *BlogPostStore) Update(post *lms_models.BlogPost) (*lms_models.BlogPost, error) {
 	ret := _m.Called(post)
@@ -176,34 +183,6 @@ func (_m *BlogPostStore) Update(post *lms_models.BlogPost) (*lms_models.BlogPost
 
 	if rf, ok := ret.Get(1).(func(*lms_models.BlogPost) error); ok {
 		r1 = rf(post)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// Count provides a mock function with given fields: opts
-func (_m *BlogPostStore) Count(opts modelhelper.BlogPostFilterOpts) (int64, error) {
-	ret := _m.Called(opts)
-
-	if len(ret) == 0 {
-		panic("no return value specified for Count")
-	}
-
-	var r0 int64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(modelhelper.BlogPostFilterOpts) (int64, error)); ok {
-		return rf(opts)
-	}
-	if rf, ok := ret.Get(0).(func(modelhelper.BlogPostFilterOpts) int64); ok {
-		r0 = rf(opts)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-
-	if rf, ok := ret.Get(1).(func(modelhelper.BlogPostFilterOpts) error); ok {
-		r1 = rf(opts)
 	} else {
 		r1 = ret.Error(1)
 	}

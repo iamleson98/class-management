@@ -27,12 +27,12 @@ func (a *LMSApp) GetLead(id string) (*lms_models.Lead, *model.AppError) {
 	return lead, nil
 }
 
-func (a *LMSApp) GetLeads(opts modelhelper.LeadFilterOpts) ([]*lms_models.Lead, *model.AppError) {
-	leads, err := a.store.Lead().GetAll(opts)
+func (a *LMSApp) GetLeads(opts modelhelper.LeadFilterOpts) ([]*lms_models.Lead, int64, *model.AppError) {
+	leads, totalCount, err := a.store.Lead().Search(opts)
 	if err != nil {
-		return nil, model.NewAppError("GetLeads", "app.lms.lead.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		return nil, 0, model.NewAppError("GetLeads", "app.lms.lead.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}
-	return leads, nil
+	return leads, totalCount, nil
 }
 
 func (a *LMSApp) CreateLead(lead *lms_models.Lead) (*lms_models.Lead, *model.AppError) {
@@ -87,12 +87,14 @@ func (a *LMSApp) ConvertLeadToStudent(leadID string) (*model.User, *lms_models.L
 		return nil, nil, model.NewAppError("ConvertLeadToStudent", "app.lms.lead.hash_password.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}
 
-	// Create a user with STUDENT role from the lead information.
+	// Create a user with lms_student role from the lead information. Use the
+	// canonical lowercase role ID so the user matches the store's
+	// `users.roles LIKE '%lms_student%'` filter used by SearchStudentUsers.
 	user := &model.User{
 		Username: lead.Email.String,
 		Password: hashed,
 		Email:    lead.Email.String,
-		Roles:    "STUDENT",
+		Roles:    model.RoleLmsStudentRoleId,
 	}
 		if lead.Phone.Valid {
 			phoneStr := lead.Phone.String
