@@ -28,10 +28,6 @@ func getPublicCourses(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if courses == nil {
-		courses = []*lms_models.Course{}
-	}
-
 	if err := json.NewEncoder(w).Encode(utils.ResponseList{Items: courses}); err != nil {
 		c.Logger.Warn("Error while writing response", mlog.Err(err))
 	}
@@ -42,9 +38,6 @@ func getPublicPosts(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		c.Err = err
 		return
-	}
-	if posts == nil {
-		posts = []*lms_models.BlogPost{}
 	}
 
 	if err := json.NewEncoder(w).Encode(utils.ResponseList{Items: posts}); err != nil {

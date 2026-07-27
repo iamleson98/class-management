@@ -27,7 +27,7 @@ const CLASS_COLORS = [
 ]
 
 function StudentDashboardInner() {
-  const { authUser, setActiveView } = useLMSStore()
+  const { authUser } = useLMSStore()
   const { t } = useTranslation()
 
   const dashboardQuery = useQuery({

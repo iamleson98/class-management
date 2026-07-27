@@ -127,13 +127,13 @@ func updateHomework(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteHomework(c *api4.Context, w http.ResponseWriter, r *http.Request) {
-	id := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
+	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageHomework) {
+		c.SetPermissionError(model.PermissionLmsManageHomework)
 		return
 	}
 
-	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageHomework) {
-		c.SetPermissionError(model.PermissionLmsManageHomework)
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
 		return
 	}
 
@@ -146,13 +146,13 @@ func deleteHomework(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getHomeworkSubmissions(c *api4.Context, w http.ResponseWriter, r *http.Request) {
-	id := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
+	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageHomework) {
+		c.SetPermissionError(model.PermissionLmsManageHomework)
 		return
 	}
 
-	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageHomework) {
-		c.SetPermissionError(model.PermissionLmsManageHomework)
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
 		return
 	}
 
@@ -168,13 +168,12 @@ func getHomeworkSubmissions(c *api4.Context, w http.ResponseWriter, r *http.Requ
 }
 
 func upsertHomeworkSubmission(c *api4.Context, w http.ResponseWriter, r *http.Request) {
-	id := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
-		return
-	}
-
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageHomework) {
 		c.SetPermissionError(model.PermissionLmsManageHomework)
+		return
+	}
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
 		return
 	}
 

@@ -5,9 +5,9 @@ import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   format, startOfMonth, endOfMonth, startOfWeek, addDays,
-  addMonths, subMonths, eachDayOfInterval, isSameDay, isSameMonth, isToday,
+  addMonths, subMonths, eachDayOfInterval, isSameMonth, isToday,
 } from 'date-fns'
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, CheckCircle2, Circle } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin } from 'lucide-react'
 import { getSessions } from '@/lib/api'
 import { eq, and } from '@/lib/query'
 import { PageHeader } from '@/components/lms/page-header'
@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/tooltip'
 
 const DAY_NAMES = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
-const FULL_DAY_NAMES = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật']
+// const FULL_DAY_NAMES = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật']
 
 const COURSE_COLORS = [
   { bg: 'bg-sky-100 dark:bg-sky-900/30', border: 'border-l-sky-500', text: 'text-sky-700 dark:text-sky-400', dot: 'bg-sky-500' },
@@ -71,10 +71,10 @@ export default function TeacherSchedule() {
   // Calendar grid
   const monthStart = startOfMonth(currentDate)
   const monthEnd = endOfMonth(currentDate)
-  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 })
-  const calendarEnd = startOfWeek(addDays(monthEnd, 6), { weekStartsOn: 1 }).getTime() > monthEnd.getTime()
-    ? startOfWeek(addDays(monthEnd, 6), { weekStartsOn: 1 })
-    : addDays(startOfWeek(monthEnd, { weekStartsOn: 1 }), 13)
+  // const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 })
+  // const calendarEnd = startOfWeek(addDays(monthEnd, 6), { weekStartsOn: 1 }).getTime() > monthEnd.getTime()
+  //   ? startOfWeek(addDays(monthEnd, 6), { weekStartsOn: 1 })
+  //   : addDays(startOfWeek(monthEnd, { weekStartsOn: 1 }), 13)
   // Ensure we have full weeks covering the month
   const calStart = startOfWeek(monthStart, { weekStartsOn: 1 })
   const calEnd = addDays(startOfWeek(monthEnd, { weekStartsOn: 1 }), 13)

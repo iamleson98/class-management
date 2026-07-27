@@ -29,7 +29,6 @@ import { format, parseISO } from 'date-fns'
 import { staggerContainer, staggerItem } from '@/components/lms/shared/animations'
 import { useTranslation } from '@/lib/i18n'
 
-// type HomeworkStatus = 'PENDING' | 'SUBMITTED' | 'GRADED'
 
 function getStatusConfig(status: string) {
   switch (status) {

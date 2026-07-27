@@ -78,13 +78,13 @@ func createLead(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getLead(c *api4.Context, w http.ResponseWriter, r *http.Request) {
-	id := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
+	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageLeads) {
+		c.SetPermissionError(model.PermissionLmsManageLeads)
 		return
 	}
 
-	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageLeads) {
-		c.SetPermissionError(model.PermissionLmsManageLeads)
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
 		return
 	}
 
@@ -100,13 +100,13 @@ func getLead(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func updateLead(c *api4.Context, w http.ResponseWriter, r *http.Request) {
-	id := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
+	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageLeads) {
+		c.SetPermissionError(model.PermissionLmsManageLeads)
 		return
 	}
 
-	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageLeads) {
-		c.SetPermissionError(model.PermissionLmsManageLeads)
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
 		return
 	}
 
@@ -128,13 +128,13 @@ func updateLead(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteLead(c *api4.Context, w http.ResponseWriter, r *http.Request) {
-	id := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
+	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageLeads) {
+		c.SetPermissionError(model.PermissionLmsManageLeads)
 		return
 	}
 
-	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageLeads) {
-		c.SetPermissionError(model.PermissionLmsManageLeads)
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
 		return
 	}
 
@@ -147,13 +147,13 @@ func deleteLead(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getLeadActivities(c *api4.Context, w http.ResponseWriter, r *http.Request) {
-	id := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
+	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageLeads) {
+		c.SetPermissionError(model.PermissionLmsManageLeads)
 		return
 	}
 
-	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageLeads) {
-		c.SetPermissionError(model.PermissionLmsManageLeads)
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
 		return
 	}
 
@@ -173,13 +173,13 @@ func getLeadActivities(c *api4.Context, w http.ResponseWriter, r *http.Request) 
 }
 
 func createLeadActivity(c *api4.Context, w http.ResponseWriter, r *http.Request) {
-	id := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
+	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageLeads) {
+		c.SetPermissionError(model.PermissionLmsManageLeads)
 		return
 	}
 
-	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageLeads) {
-		c.SetPermissionError(model.PermissionLmsManageLeads)
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
 		return
 	}
 
@@ -202,13 +202,13 @@ func createLeadActivity(c *api4.Context, w http.ResponseWriter, r *http.Request)
 }
 
 func convertLead(c *api4.Context, w http.ResponseWriter, r *http.Request) {
-	id := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
+	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageLeads) {
+		c.SetPermissionError(model.PermissionLmsManageLeads)
 		return
 	}
 
-	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageLeads) {
-		c.SetPermissionError(model.PermissionLmsManageLeads)
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
 		return
 	}
 

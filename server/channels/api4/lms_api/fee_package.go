@@ -64,7 +64,6 @@ func createFeePackage(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(created); err != nil {
 		c.Logger.Warn("Error while writing response", mlog.Err(err))
 	}

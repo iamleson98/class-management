@@ -66,7 +66,6 @@ func createClass(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(created); err != nil {
 		c.Logger.Warn("Error while writing response", mlog.Err(err))
 	}
@@ -95,13 +94,13 @@ func getClass(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func updateClass(c *api4.Context, w http.ResponseWriter, r *http.Request) {
-	id := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
+	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageClasses) {
+		c.SetPermissionError(model.PermissionLmsManageClasses)
 		return
 	}
 
-	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageClasses) {
-		c.SetPermissionError(model.PermissionLmsManageClasses)
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
 		return
 	}
 
@@ -123,16 +122,16 @@ func updateClass(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteClass(c *api4.Context, w http.ResponseWriter, r *http.Request) {
-	id := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
-		return
-	}
-
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageClasses) {
 		c.SetPermissionError(model.PermissionLmsManageClasses)
 		return
 	}
 
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
+		return
+	}
+	
 	if err := c.App.LMS().DeleteClass(id); err != nil {
 		c.Err = err
 		return
@@ -142,13 +141,13 @@ func deleteClass(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func enrollStudents(c *api4.Context, w http.ResponseWriter, r *http.Request) {
-	id := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
+	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageClasses) {
+		c.SetPermissionError(model.PermissionLmsManageClasses)
 		return
 	}
 
-	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageClasses) {
-		c.SetPermissionError(model.PermissionLmsManageClasses)
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
 		return
 	}
 

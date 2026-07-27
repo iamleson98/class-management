@@ -15,7 +15,7 @@ import { useTranslation } from '@/lib/i18n'
 
 export default function TeacherDashboard() {
   const { t } = useTranslation()
-  const { authUser, setActiveView } = useLMSStore()
+  const { authUser } = useLMSStore()
   const statsQuery = useQuery({
     queryKey: ['dashboard', 'TEACHER', authUser?.id],
     queryFn: () => getDashboard('TEACHER', authUser!.id),

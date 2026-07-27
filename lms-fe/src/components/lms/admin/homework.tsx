@@ -69,13 +69,13 @@ const bulkHomeworkSchema = homeworkSchema.extend({
 
 type BulkHomeworkFormValues = z.input<typeof bulkHomeworkSchema>
 
-const gradeSchema = z.object({
-  studentId: z.string(),
-  grade: z.string().optional().default(''),
-  feedback: z.string().optional().default(''),
-})
+// const gradeSchema = z.object({
+//   studentId: z.string(),
+//   grade: z.string().optional().default(''),
+//   feedback: z.string().optional().default(''),
+// })
 
-type GradeFormValues = z.input<typeof gradeSchema>
+// type GradeFormValues = z.input<typeof gradeSchema>
 
 // ── Status helpers ──────────────────────────────────────────────────
 const STATUS_MAP: Record<string, { label: string; className: string; icon: typeof CheckCircle }> = {

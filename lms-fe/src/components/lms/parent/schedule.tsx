@@ -5,14 +5,13 @@ import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   format, startOfMonth, endOfMonth, startOfWeek, addDays,
-  addMonths, subMonths, eachDayOfInterval, isSameDay, isSameMonth, isToday,
+  addMonths, subMonths, eachDayOfInterval, isSameMonth, isToday,
 } from 'date-fns'
 import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, User, Users } from 'lucide-react'
 import { getSessions, getStudents } from '@/lib/api'
 import { PageHeader } from '@/components/lms/page-header'
 import { EmptyState } from '@/components/lms/empty-state'
 import { ErrorState } from '@/components/lms/error-state'
-import { useLMSStore } from '@/store/lms-store'
 import { cn } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -54,7 +53,6 @@ function statusBadge(status: string) {
 }
 
 export default function ParentSchedule() {
-  const { authUser } = useLMSStore()
   const { t } = useTranslation()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedStudentId, setSelectedStudentId] = useState<string>('')

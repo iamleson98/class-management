@@ -91,14 +91,14 @@ function build(op: Operator, col: ColumnNames, value: unknown): WhereCond | unde
   return { column: col, operator: op, value }
 }
 
-export const eq = (col: ColumnNames, value: Scalar | undefined) => build('=', col, value)
-export const neq = (col: ColumnNames, value: Scalar | undefined) => build('!=', col, value)
-export const gt = (col: ColumnNames, value: Scalar | undefined) => build('>', col, value)
-export const lt = (col: ColumnNames, value: Scalar | undefined) => build('<', col, value)
-export const gte = (col: ColumnNames, value: Scalar | undefined) => build('>=', col, value)
-export const lte = (col: ColumnNames, value: Scalar | undefined) => build('<=', col, value)
-export const like = (col: ColumnNames, value: string | undefined) => build('LIKE', col, value)
-export const ilike = (col: ColumnNames, value: string | undefined) => build('ILIKE', col, value)
+export const eq = (col: ColumnNames, value?: Scalar) => build('=', col, value)
+export const neq = (col: ColumnNames, value?: Scalar) => build('!=', col, value)
+export const gt = (col: ColumnNames, value?: Scalar) => build('>', col, value)
+export const lt = (col: ColumnNames, value?: Scalar) => build('<', col, value)
+export const gte = (col: ColumnNames, value?: Scalar) => build('>=', col, value)
+export const lte = (col: ColumnNames, value?: Scalar) => build('<=', col, value)
+export const like = (col: ColumnNames, value?: string) => build('LIKE', col, value)
+export const ilike = (col: ColumnNames, value?: string) => build('ILIKE', col, value)
 
 /** IN condition — value must be a non-empty array. */
 export const in_ = (col: ColumnNames, value: Scalar[]) =>

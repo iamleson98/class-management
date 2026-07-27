@@ -30,7 +30,7 @@ const staggerItem: Variants = {
 
 function CounselorDashboardInner() {
   const { t } = useTranslation()
-  const { authUser, setActiveView } = useLMSStore()
+  const { authUser } = useLMSStore()
   const { toast } = useToast()
 
   const dashboardQuery = useQuery({

@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { registerSchema, type RegisterInput } from '@/lib/schemas'
 import { useLMSStore } from '@/store/lms-store'
 import { useTranslation } from '@/lib/i18n'
-import { getPublicCourses, submitRegistration } from '@/lib/api'
+import { formatVND, getPublicCourses, submitRegistration } from '@/lib/api'
 import {
   GraduationCap, Users, Award, Globe, BookOpen, Headphones,
   ChevronRight, Star, Phone, Mail, MapPin, Clock, ChevronUp, LogIn,
@@ -21,12 +21,6 @@ import { Badge } from '@/components/ui/badge'
 import { ErrorState } from '@/components/lms/error-state'
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form'
 
-/* ────────────────────────────────────────────────────────────────── */
-/*  Helpers                                                          */
-/* ────────────────────────────────────────────────────────────────── */
-
-const formatVND = (n: number) =>
-  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0)
 
 const cardColors = [
   'bg-sky-500', 'bg-teal-500', 'bg-violet-500',

@@ -2,8 +2,9 @@ package lmsapi
 
 import (
 	"encoding/json"
-	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"net/http"
+
+	"github.com/iamleson98/sitename/server/public/shared/mlog"
 
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
@@ -26,10 +27,6 @@ func getCourses(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		c.Err = err
 		return
-	}
-
-	if courses == nil {
-		courses = []*lms_models.Course{}
 	}
 
 	res := utils.ResponseList{
@@ -59,7 +56,6 @@ func createCourse(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(created); err != nil {
 		c.Logger.Warn("Error while writing response", mlog.Err(err))
 	}

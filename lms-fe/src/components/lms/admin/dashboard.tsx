@@ -8,7 +8,6 @@ import {
   Clock, DollarSign, TrendingUp, UserPlus, Plus, School, Contact,
   ArrowRight, Zap, CreditCard, Target,
 } from 'lucide-react'
-// import { useLMSStore } from '@/store/lms-store'
 import { formatVND, getDashboard, getSessions } from '@/lib/api'
 import { PageHeader } from '@/components/lms/page-header'
 import { EmptyState } from '@/components/lms/empty-state'
@@ -29,7 +28,6 @@ const QUICK_ACTIONS = [
 ]
 
 export default function AdminDashboard() {
-  // const { setActiveView } = useLMSStore()
   const { t } = useTranslation()
 
   const currentMonth = format(new Date(), 'yyyy-MM')

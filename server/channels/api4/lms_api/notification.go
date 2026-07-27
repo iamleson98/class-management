@@ -43,13 +43,13 @@ func getNotifications(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func markNotificationAsRead(c *api4.Context, w http.ResponseWriter, r *http.Request) {
-	id := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
+	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsViewNotifications) {
+		c.SetPermissionError(model.PermissionLmsViewNotifications)
 		return
 	}
 
-	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsViewNotifications) {
-		c.SetPermissionError(model.PermissionLmsViewNotifications)
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
 		return
 	}
 
