@@ -133,11 +133,10 @@ func createChannel(c *Context, w http.ResponseWriter, r *http.Request) {
 
 func updateChannel(c *Context, w http.ResponseWriter, r *http.Request) {
 	// c.RequireChannelId()
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
 
 	var channel *model.Channel
 	err := json.NewDecoder(r.Body).Decode(&channel)
@@ -252,11 +251,10 @@ func updateChannel(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func updateChannelPrivacy(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventUpdateChannelPrivacy, model.AuditStatusFail)
 	model.AddEventParameterToAuditRec(auditRec, "channel_id", channelIdStr)
@@ -323,11 +321,10 @@ func updateChannelPrivacy(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func patchChannel(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
 
 	var patch *model.ChannelPatch
 	err := json.NewDecoder(r.Body).Decode(&patch)
@@ -457,11 +454,10 @@ func patchChannel(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func restoreChannel(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
 
 	channel, err := c.App.GetChannel(c.AppContext, channelIdStr)
 	if err != nil {
@@ -662,11 +658,10 @@ func createGroupChannel(c *Context, w http.ResponseWriter, r *http.Request) {
 
 func getChannel(c *Context, w http.ResponseWriter, r *http.Request) {
 	// c.RequireChannelId()
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
 
 	channel, err := c.App.GetChannel(c.AppContext, channelIdStr)
 	if err != nil {
@@ -733,13 +728,12 @@ func getChannel(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getChannelUnread(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	c.RequireUserId()
 	if c.Err != nil {
 		return
 	}
 	userIdStr := c.Params["user_id"].(string)
-	channelIdStr := channelId.(string)
 
 	if !c.App.SessionHasPermissionToUser(*c.AppContext.Session(), userIdStr) {
 		c.SetPermissionError(model.PermissionEditOtherUsers)
@@ -766,11 +760,10 @@ func getChannelStats(c *Context, w http.ResponseWriter, r *http.Request) {
 	excludeFilesCount := r.URL.Query().Get("exclude_files_count")
 	excludeFilesCountBool, _ := strconv.ParseBool(excludeFilesCount)
 
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
 
 	if ok, _ := c.App.SessionHasPermissionToChannel(c.AppContext, *c.AppContext.Session(), channelIdStr, model.PermissionReadChannel); !ok {
 		c.SetPermissionError(model.PermissionReadChannel)
@@ -852,11 +845,10 @@ func getChannelsMemberCount(c *Context, w http.ResponseWriter, r *http.Request) 
 }
 
 func getPinnedPosts(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
 
 	channel, err := c.App.GetChannel(c.AppContext, channelIdStr)
 	if err != nil {
@@ -910,17 +902,13 @@ func getAllChannels(c *Context, w http.ResponseWriter, r *http.Request) {
 		c.SetPermissionError(permissions...)
 		return
 	}
-	excludePolicyConstrained := c.RequireParam("exclude_policy_constrained", web.RequireBool)
-	excludeAccessControlPolicyEnforced := c.RequireParam("exclude_access_control_policy_enforced", web.RequireBool)
-	page := c.RequireParam("page", web.RequireInt)
-	perPage := c.RequireParam("per_page", web.RequireInt)
+	excludePolicyConstrainedBool := c.RequireParam("exclude_policy_constrained", web.RequireBool)
+	excludeAccessControlPolicyEnforcedBool := c.RequireParam("exclude_access_control_policy_enforced", web.RequireBool)
+	pageInt := c.RequireParam("page", web.RequireInt)
+	perPageInt := c.RequireParam("per_page", web.RequireInt)
 	if c.Err != nil {
 		return
 	}
-	excludePolicyConstrainedBool := excludePolicyConstrained.(bool)
-	excludeAccessControlPolicyEnforcedBool := excludeAccessControlPolicyEnforced.(bool)
-	pageInt := page.(int)
-	perPageInt := perPage.(int)
 
 	// Only system managers may use the ExcludePolicyConstrained parameter
 	if excludePolicyConstrainedBool && !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionSysconsoleReadComplianceDataRetentionPolicy) {
@@ -987,15 +975,12 @@ func sanitizeAllChannelsResponse(c *Context, channels model.ChannelListWithTeamD
 }
 
 func getPublicChannelsForTeam(c *Context, w http.ResponseWriter, r *http.Request) {
-	teamId := c.RequireParam("team_id", web.RequireString)
-	page := c.RequireParam("page", web.RequireInt)
-	perPage := c.RequireParam("per_page", web.RequireInt)
+	teamIdStr := c.RequireParam("team_id", web.RequireString)
+	pageInt := c.RequireParam("page", web.RequireInt)
+	perPageInt := c.RequireParam("per_page", web.RequireInt)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
-	pageInt := page.(int)
-	perPageInt := perPage.(int)
 
 	if !c.App.SessionHasPermissionToTeam(*c.AppContext.Session(), teamIdStr, model.PermissionListTeamChannels) {
 		c.SetPermissionError(model.PermissionListTeamChannels)
@@ -1020,15 +1005,12 @@ func getPublicChannelsForTeam(c *Context, w http.ResponseWriter, r *http.Request
 }
 
 func getDeletedChannelsForTeam(c *Context, w http.ResponseWriter, r *http.Request) {
-	teamId := c.RequireParam("team_id", web.RequireString)
-	page := c.RequireParam("page", web.RequireInt)
-	perPage := c.RequireParam("per_page", web.RequireInt)
+	teamIdStr := c.RequireParam("team_id", web.RequireString)
+	pageInt := c.RequireParam("page", web.RequireInt)
+	perPageInt := c.RequireParam("per_page", web.RequireInt)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
-	pageInt := page.(int)
-	perPageInt := perPage.(int)
 
 	if !c.App.SessionHasPermissionToTeam(*c.AppContext.Session(), teamIdStr, model.PermissionListTeamChannels) {
 		c.SetPermissionError(model.PermissionListTeamChannels)
@@ -1054,15 +1036,12 @@ func getDeletedChannelsForTeam(c *Context, w http.ResponseWriter, r *http.Reques
 }
 
 func getPrivateChannelsForTeam(c *Context, w http.ResponseWriter, r *http.Request) {
-	teamId := c.RequireParam("team_id", web.RequireString)
-	page := c.RequireParam("page", web.RequireInt)
-	perPage := c.RequireParam("per_page", web.RequireInt)
+	teamIdStr := c.RequireParam("team_id", web.RequireString)
+	pageInt := c.RequireParam("page", web.RequireInt)
+	perPageInt := c.RequireParam("per_page", web.RequireInt)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
-	pageInt := page.(int)
-	perPageInt := perPage.(int)
 
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionManageSystem) {
 		c.SetPermissionError(model.PermissionManageSystem)
@@ -1087,11 +1066,10 @@ func getPrivateChannelsForTeam(c *Context, w http.ResponseWriter, r *http.Reques
 }
 
 func getPublicChannelsByIdsForTeam(c *Context, w http.ResponseWriter, r *http.Request) {
-	teamId := c.RequireParam("team_id", web.RequireString)
+	teamIdStr := c.RequireParam("team_id", web.RequireString)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
 
 	channelIds, err := model.SortedArrayFromJSON(r.Body)
 	if err != nil {
@@ -1142,17 +1120,12 @@ func getPublicChannelsByIdsForTeam(c *Context, w http.ResponseWriter, r *http.Re
 
 func getChannelsForTeamForUser(c *Context, w http.ResponseWriter, r *http.Request) {
 	c.RequireUserId()
-	if c.Err != nil {
-		return
-	}
 	userIdStr := c.Params["user_id"].(string)
-	teamId := c.RequireParam("team_id", web.RequireValidId)
-	includeDeleted := c.RequireParam("include_deleted", web.RequireBool)
+	teamIdStr := c.RequireParam("team_id", web.RequireValidId)
+	includeDeletedBool := c.RequireParam("include_deleted", web.RequireBool)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
-	includeDeletedBool := includeDeleted.(bool)
 
 	if !c.App.SessionHasPermissionToUser(*c.AppContext.Session(), userIdStr) {
 		c.SetPermissionError(model.PermissionEditOtherUsers)
@@ -1201,15 +1174,11 @@ func getChannelsForTeamForUser(c *Context, w http.ResponseWriter, r *http.Reques
 
 func getChannelsForUser(c *Context, w http.ResponseWriter, r *http.Request) {
 	c.RequireUserId()
-	if c.Err != nil {
-		return
-	}
-	includeDeleted := c.RequireParam("include_deleted", web.RequireBool)
+	includeDeletedBool := c.RequireParam("include_deleted", web.RequireBool)
 	if c.Err != nil {
 		return
 	}
 	userIdStr := c.Params["user_id"].(string)
-	includeDeletedBool := includeDeleted.(bool)
 
 	if !c.App.SessionHasPermissionToUser(*c.AppContext.Session(), userIdStr) {
 		c.SetPermissionError(model.PermissionEditOtherUsers)
@@ -1287,11 +1256,10 @@ func getChannelsForUser(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func autocompleteChannelsForTeam(c *Context, w http.ResponseWriter, r *http.Request) {
-	teamId := c.RequireParam("team_id", web.RequireValidId)
+	teamIdStr := c.RequireParam("team_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
 
 	if !c.App.SessionHasPermissionToTeam(*c.AppContext.Session(), teamIdStr, model.PermissionListTeamChannels) {
 		c.SetPermissionError(model.PermissionListTeamChannels)
@@ -1314,11 +1282,10 @@ func autocompleteChannelsForTeam(c *Context, w http.ResponseWriter, r *http.Requ
 }
 
 func autocompleteChannelsForTeamForSearch(c *Context, w http.ResponseWriter, r *http.Request) {
-	teamId := c.RequireParam("team_id", web.RequireValidId)
+	teamIdStr := c.RequireParam("team_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
 
 	name := r.URL.Query().Get("name")
 
@@ -1334,11 +1301,10 @@ func autocompleteChannelsForTeamForSearch(c *Context, w http.ResponseWriter, r *
 }
 
 func searchChannelsForTeam(c *Context, w http.ResponseWriter, r *http.Request) {
-	teamId := c.RequireParam("team_id", web.RequireValidId)
+	teamIdStr := c.RequireParam("team_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
 
 	var props *model.ChannelSearch
 	err := json.NewDecoder(r.Body).Decode(&props)
@@ -1469,13 +1435,11 @@ func searchAllChannels(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteChannel(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
-	permanent := c.RequireParam("permanent", web.RequireBool)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
+	permanentBool := c.RequireParam("permanent", web.RequireBool)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
-	permanentBool := permanent.(bool)
 
 	channel, err := c.App.GetChannel(c.AppContext, channelIdStr)
 	if err != nil {
@@ -1534,13 +1498,11 @@ func deleteChannel(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getChannelByName(c *Context, w http.ResponseWriter, r *http.Request) {
-	teamId := c.RequireParam("team_id", web.RequireValidId)
-	channelName := c.RequireParam("channel_name", web.RequireChannelName)
+	teamIdStr := c.RequireParam("team_id", web.RequireValidId)
+	channelNameStr := c.RequireParam("channel_name", web.RequireChannelName)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
-	channelNameStr := channelName.(string)
 
 	includeDeleted, _ := strconv.ParseBool(r.URL.Query().Get("include_deleted"))
 	channel, appErr := c.App.GetChannelByName(c.AppContext, channelNameStr, teamIdStr, includeDeleted)
@@ -1578,13 +1540,11 @@ func getChannelByName(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getChannelByNameForTeamName(c *Context, w http.ResponseWriter, r *http.Request) {
-	teamName := c.RequireParam("team_name", web.RequireTeamName)
-	channelName := c.RequireParam("channel_name", web.RequireChannelName)
+	teamNameStr := c.RequireParam("team_name", web.RequireTeamName)
+	channelNameStr := c.RequireParam("channel_name", web.RequireChannelName)
 	if c.Err != nil {
 		return
 	}
-	teamNameStr := teamName.(string)
-	channelNameStr := channelName.(string)
 
 	includeDeleted, _ := strconv.ParseBool(r.URL.Query().Get("include_deleted"))
 	channel, appErr := c.App.GetChannelByNameForTeamName(c.AppContext, channelNameStr, teamNameStr, includeDeleted)
@@ -1620,15 +1580,12 @@ func getChannelByNameForTeamName(c *Context, w http.ResponseWriter, r *http.Requ
 }
 
 func getChannelMembers(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
-	page := c.RequireParam("page", web.RequireInt)
-	perPage := c.RequireParam("per_page", web.RequireInt)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
+	pageInt := c.RequireParam("page", web.RequireInt)
+	perPageInt := c.RequireParam("per_page", web.RequireInt)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
-	pageInt := page.(int)
-	perPageInt := perPage.(int)
 
 	if ok, _ := c.App.SessionHasPermissionToChannel(c.AppContext, *c.AppContext.Session(), channelIdStr, model.PermissionReadChannel); !ok {
 		c.SetPermissionError(model.PermissionReadChannel)
@@ -1653,11 +1610,10 @@ func getChannelMembers(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getChannelMembersTimezones(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
 
 	if ok, _ := c.App.SessionHasPermissionToChannel(c.AppContext, *c.AppContext.Session(), channelIdStr, model.PermissionReadChannel); !ok {
 		c.SetPermissionError(model.PermissionReadChannel)
@@ -1676,11 +1632,10 @@ func getChannelMembersTimezones(c *Context, w http.ResponseWriter, r *http.Reque
 }
 
 func getChannelMembersByIds(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
 
 	userIds, err := model.SortedArrayFromJSON(r.Body)
 	if err != nil {
@@ -1714,13 +1669,12 @@ func getChannelMembersByIds(c *Context, w http.ResponseWriter, r *http.Request) 
 }
 
 func getChannelMember(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	c.RequireUserId()
 	if c.Err != nil {
 		return
 	}
 	userIdStr := c.Params["user_id"].(string)
-	channelIdStr := channelId.(string)
 
 	if ok, _ := c.App.SessionHasPermissionToChannel(c.AppContext, *c.AppContext.Session(), channelIdStr, model.PermissionReadChannel); !ok {
 		c.SetPermissionError(model.PermissionReadChannel)
@@ -1748,11 +1702,10 @@ func getChannelMembersForTeamForUser(c *Context, w http.ResponseWriter, r *http.
 		return
 	}
 	userIdStr := c.Params["user_id"].(string)
-	teamId := c.RequireParam("team_id", web.RequireValidId)
+	teamIdStr := c.RequireParam("team_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
 
 	if !c.App.SessionHasPermissionToTeam(*c.AppContext.Session(), teamIdStr, model.PermissionViewTeam) {
 		c.SetPermissionError(model.PermissionViewTeam)
@@ -1868,13 +1821,12 @@ func readMultipleChannels(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func updateChannelMemberRoles(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	c.RequireUserId()
 	if c.Err != nil {
 		return
 	}
 	userIdStr := c.Params["user_id"].(string)
-	channelIdStr := channelId.(string)
 
 	props := model.MapFromJSON(r.Body)
 
@@ -1905,13 +1857,12 @@ func updateChannelMemberRoles(c *Context, w http.ResponseWriter, r *http.Request
 }
 
 func updateChannelMemberSchemeRoles(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	c.RequireUserId()
 	if c.Err != nil {
 		return
 	}
 	userIdStr := c.Params["user_id"].(string)
-	channelIdStr := channelId.(string)
 
 	var schemeRoles model.SchemeRoles
 	if jsonErr := json.NewDecoder(r.Body).Decode(&schemeRoles); jsonErr != nil {
@@ -1940,13 +1891,12 @@ func updateChannelMemberSchemeRoles(c *Context, w http.ResponseWriter, r *http.R
 }
 
 func updateChannelMemberNotifyProps(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	c.RequireUserId()
 	if c.Err != nil {
 		return
 	}
 	userIdStr := c.Params["user_id"].(string)
-	channelIdStr := channelId.(string)
 
 	props := model.MapFromJSON(r.Body)
 	if props == nil {
@@ -1984,13 +1934,12 @@ func updateChannelMemberAutotranslation(c *Context, w http.ResponseWriter, r *ht
 		return
 	}
 
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	c.RequireUserId()
 	if c.Err != nil {
 		return
 	}
 	userIdStr := c.Params["user_id"].(string)
-	channelIdStr := channelId.(string)
 
 	props := UpdateChannelMemberAutotranslationProps{}
 	if err := json.NewDecoder(r.Body).Decode(&props); err != nil {
@@ -2037,11 +1986,10 @@ func updateChannelMemberAutotranslation(c *Context, w http.ResponseWriter, r *ht
 }
 
 func addChannelMember(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
 
 	props := model.StringInterfaceFromJSON(r.Body)
 
@@ -2264,13 +2212,12 @@ func addChannelMember(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func removeChannelMember(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	c.RequireUserId()
 	if c.Err != nil {
 		return
 	}
 	userIdStr := c.Params["user_id"].(string)
-	channelIdStr := channelId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventRemoveChannelMember, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
@@ -2326,11 +2273,10 @@ func removeChannelMember(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func updateChannelScheme(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventUpdateChannelScheme, model.AuditStatusFail)
 	model.AddEventParameterToAuditRec(auditRec, "channel_id", channelIdStr)
@@ -2385,17 +2331,13 @@ func updateChannelScheme(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func channelMembersMinusGroupMembers(c *Context, w http.ResponseWriter, r *http.Request) {
-	groupIds := c.RequireParam("group_ids", web.RequireString)
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
-	page := c.RequireParam("page", web.RequireInt)
-	perPage := c.RequireParam("per_page", web.RequireInt)
+	groupIdsStr := c.RequireParam("group_ids", web.RequireString)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
+	pageInt := c.RequireParam("page", web.RequireInt)
+	perPageInt := c.RequireParam("per_page", web.RequireInt)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
-	groupIdsStr := groupIds.(string)
-	pageInt := page.(int)
-	perPageInt := perPage.(int)
 
 	groupIDsParam := groupIDsQueryParamRegex.ReplaceAllString(groupIdsStr, "")
 
@@ -2444,11 +2386,10 @@ func channelMembersMinusGroupMembers(c *Context, w http.ResponseWriter, r *http.
 }
 
 func channelMemberCountsByGroup(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
 
 	if ok, _ := c.App.SessionHasPermissionToChannel(c.AppContext, *c.AppContext.Session(), channelIdStr, model.PermissionReadChannel); !ok {
 		c.SetPermissionError(model.PermissionReadChannel)
@@ -2475,11 +2416,10 @@ func channelMemberCountsByGroup(c *Context, w http.ResponseWriter, r *http.Reque
 }
 
 func getChannelModerations(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
 
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionSysconsoleReadUserManagementChannels) {
 		c.SetPermissionError(model.PermissionSysconsoleReadUserManagementChannels)
@@ -2510,11 +2450,10 @@ func getChannelModerations(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func patchChannelModerations(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventPatchChannelModerations, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
@@ -2558,11 +2497,10 @@ func patchChannelModerations(c *Context, w http.ResponseWriter, r *http.Request)
 }
 
 func moveChannel(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
 
 	channel, err := c.App.GetChannel(c.AppContext, channelIdStr)
 	if err != nil {
@@ -2650,11 +2588,10 @@ func moveChannel(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getDirectOrGroupMessageMembersCommonTeams(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
 
 	user, err := c.App.GetUser(c.AppContext.Session().UserId)
 	if err != nil {
@@ -2684,11 +2621,10 @@ func getDirectOrGroupMessageMembersCommonTeams(c *Context, w http.ResponseWriter
 
 func convertGroupMessageToChannel(c *Context, w http.ResponseWriter, r *http.Request) {
 	// c.RequireChannelId()
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
 
 	var gmConversionRequest *model.GroupMessageConversionRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&gmConversionRequest); err != nil || gmConversionRequest == nil {
@@ -2753,11 +2689,10 @@ func canEditChannelBanner(c *Context, originalChannel *model.Channel) {
 }
 
 func getChannelAccessControlAttributes(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
 
 	if ok, _ := c.App.SessionHasPermissionToChannel(c.AppContext, *c.AppContext.Session(), channelIdStr, model.PermissionReadChannel); !ok {
 		c.SetPermissionError(model.PermissionReadChannel)

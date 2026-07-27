@@ -50,11 +50,10 @@ func saveReaction(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getReactions(c *Context, w http.ResponseWriter, r *http.Request) {
-	postId := c.RequireParam("post_id", web.RequireValidId)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	postIdStr := postId.(string)
 
 	if ok, _ := c.App.SessionHasPermissionToReadPost(c.AppContext, *c.AppContext.Session(), postIdStr); !ok {
 		c.SetPermissionError(model.PermissionReadChannelContent)
@@ -84,13 +83,11 @@ func deleteReaction(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	userIdStr := c.Params["user_id"].(string)
-	postId := c.RequireParam("post_id", web.RequireValidId)
-	emojiName := c.RequireParam("emoji_name", web.RequireEmojiName)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
+	emojiNameStr := c.RequireParam("emoji_name", web.RequireEmojiName)
 	if c.Err != nil {
 		return
 	}
-	postIdStr := postId.(string)
-	emojiNameStr := emojiName.(string)
 
 	if !c.App.SessionHasPermissionToChannelByPost(*c.AppContext.Session(), postIdStr, model.PermissionRemoveReaction) {
 		c.SetPermissionError(model.PermissionRemoveReaction)

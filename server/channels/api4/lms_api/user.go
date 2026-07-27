@@ -48,11 +48,10 @@ func getUser(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	user, err := c.App.GetUser(id)
 	if err != nil {
@@ -71,11 +70,10 @@ func updateUser(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	var user *model.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
@@ -99,8 +97,9 @@ func updateUser(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(LMSResponse{Data: updated})
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(LMSResponse{Data: updated}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func deleteUser(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -109,18 +108,19 @@ func deleteUser(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	if err := c.App.LMS().DeleteUser(id); err != nil {
 		c.Err = err
 		return
 	}
 
-	w.Write([]byte(`{"data":true}`))
+	if err := json.NewEncoder(w).Encode(map[string]bool{"data": true}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func deactivateUser(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -129,11 +129,10 @@ func deactivateUser(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	updated, err := c.App.LMS().DeactivateUser(id)
 	if err != nil {
@@ -141,8 +140,9 @@ func deactivateUser(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(LMSResponse{Data: updated})
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(LMSResponse{Data: updated}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func reactivateUser(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -151,11 +151,10 @@ func reactivateUser(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	updated, err := c.App.LMS().ReactivateUser(id)
 	if err != nil {
@@ -163,6 +162,7 @@ func reactivateUser(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(LMSResponse{Data: updated})
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(LMSResponse{Data: updated}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }

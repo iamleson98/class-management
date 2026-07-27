@@ -194,11 +194,10 @@ func uploadRemoteData(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uploadId := c.RequireParam("upload_id", web.RequireValidId)
+	uploadIdStr := c.RequireParam("upload_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	uploadIdStr := uploadId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventUploadRemoteData, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
@@ -528,11 +527,10 @@ func remoteClusterAcceptInvite(c *Context, w http.ResponseWriter, r *http.Reques
 }
 
 func generateRemoteClusterInvite(c *Context, w http.ResponseWriter, r *http.Request) {
-	remoteId := c.RequireParam("remote_id", web.RequireString)
+	remoteIdStr := c.RequireParam("remote_id", web.RequireString)
 	if c.Err != nil {
 		return
 	}
-	remoteIdStr := remoteId.(string)
 
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionManageSecureConnections) {
 		c.SetPermissionError(model.PermissionManageSecureConnections)
@@ -593,11 +591,10 @@ func getRemoteCluster(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	remoteId := c.RequireParam("remote_id", web.RequireString)
+	remoteIdStr := c.RequireParam("remote_id", web.RequireString)
 	if c.Err != nil {
 		return
 	}
-	remoteIdStr := remoteId.(string)
 
 	// make sure remote cluster service is enabled.
 	if _, appErr := c.App.GetRemoteClusterService(); appErr != nil {
@@ -623,11 +620,10 @@ func patchRemoteCluster(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	remoteId := c.RequireParam("remote_id", web.RequireString)
+	remoteIdStr := c.RequireParam("remote_id", web.RequireString)
 	if c.Err != nil {
 		return
 	}
-	remoteIdStr := remoteId.(string)
 
 	// make sure remote cluster service is enabled.
 	if _, appErr := c.App.GetRemoteClusterService(); appErr != nil {
@@ -670,11 +666,10 @@ func patchRemoteCluster(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteRemoteCluster(c *Context, w http.ResponseWriter, r *http.Request) {
-	remoteId := c.RequireParam("remote_id", web.RequireString)
+	remoteIdStr := c.RequireParam("remote_id", web.RequireString)
 	if c.Err != nil {
 		return
 	}
-	remoteIdStr := remoteId.(string)
 
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionManageSecureConnections) {
 		c.SetPermissionError(model.PermissionManageSecureConnections)

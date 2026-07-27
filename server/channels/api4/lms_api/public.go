@@ -32,8 +32,9 @@ func getPublicCourses(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		courses = []*lms_models.Course{}
 	}
 
-	data, _ := json.Marshal(utils.ResponseList{Items: courses})
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(utils.ResponseList{Items: courses}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func getPublicPosts(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -46,8 +47,9 @@ func getPublicPosts(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		posts = []*lms_models.BlogPost{}
 	}
 
-	data, _ := json.Marshal(utils.ResponseList{Items: posts})
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(utils.ResponseList{Items: posts}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func publicRegister(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -93,8 +95,9 @@ func publicContact(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	data, _ := json.Marshal(created)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(created); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 // Forgot password — sends reset token (in production this would also send an email)
@@ -119,11 +122,12 @@ func forgotPassword(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(map[string]any{
+	if err := json.NewEncoder(w).Encode(map[string]any{
 		"success": true,
 		"message": "Nếu email tồn tại, bạn sẽ nhận được hướng dẫn đặt lại mật khẩu",
-	})
-	w.Write(data)
+	}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 // Reset password — sets new password using reset token
@@ -142,11 +146,12 @@ func resetPassword(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(map[string]any{
+	if err := json.NewEncoder(w).Encode(map[string]any{
 		"success": true,
 		"message": "Đặt lại mật khẩu thành công",
-	})
-	w.Write(data)
+	}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 // Verify reset token — checks if token is valid and not expired
@@ -159,8 +164,9 @@ func verifyResetToken(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(map[string]any{
+	if err := json.NewEncoder(w).Encode(map[string]any{
 		"valid": valid,
-	})
-	w.Write(data)
+	}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }

@@ -48,11 +48,10 @@ func getPreferencesByCategory(c *Context, w http.ResponseWriter, r *http.Request
 		return
 	}
 	userIdStr := c.Params["user_id"].(string)
-	category := c.RequireParam("category", web.RequireValidName)
+	categoryStr := c.RequireParam("category", web.RequireValidName)
 	if c.Err != nil {
 		return
 	}
-	categoryStr := category.(string)
 
 	if !c.App.SessionHasPermissionToUser(*c.AppContext.Session(), userIdStr) {
 		c.SetPermissionError(model.PermissionEditOtherUsers)
@@ -76,13 +75,11 @@ func getPreferenceByCategoryAndName(c *Context, w http.ResponseWriter, r *http.R
 		return
 	}
 	userIdStr := c.Params["user_id"].(string)
-	category := c.RequireParam("category", web.RequireValidName)
-	preferenceName := c.RequireParam("preference_name", web.RequireValidName)
+	categoryStr := c.RequireParam("category", web.RequireValidName)
+	preferenceNameStr := c.RequireParam("preference_name", web.RequireValidName)
 	if c.Err != nil {
 		return
 	}
-	categoryStr := category.(string)
-	preferenceNameStr := preferenceName.(string)
 
 	if !c.App.SessionHasPermissionToUser(*c.AppContext.Session(), userIdStr) {
 		c.SetPermissionError(model.PermissionEditOtherUsers)

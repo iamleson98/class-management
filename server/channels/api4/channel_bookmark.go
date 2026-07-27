@@ -22,11 +22,10 @@ func (api *API) InitChannelBookmarks() {
 func createChannelBookmark(c *Context, w http.ResponseWriter, r *http.Request) {
 	connectionID := r.Header.Get(model.ConnectionId)
 
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
 
 	channel, appErr := c.App.GetChannel(c.AppContext, channelIdStr)
 	if appErr != nil {
@@ -107,13 +106,11 @@ func createChannelBookmark(c *Context, w http.ResponseWriter, r *http.Request) {
 func updateChannelBookmark(c *Context, w http.ResponseWriter, r *http.Request) {
 	connectionID := r.Header.Get(model.ConnectionId)
 
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
-	bookmarkId := c.RequireParam("bookmark_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
+	bookmarkIdStr := c.RequireParam("bookmark_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
-	bookmarkIdStr := bookmarkId.(string)
 
 	var patch *model.ChannelBookmarkPatch
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil || patch == nil {
@@ -216,13 +213,11 @@ func updateChannelBookmark(c *Context, w http.ResponseWriter, r *http.Request) {
 func updateChannelBookmarkSortOrder(c *Context, w http.ResponseWriter, r *http.Request) {
 	connectionID := r.Header.Get(model.ConnectionId)
 
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
-	bookmarkId := c.RequireParam("bookmark_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
+	bookmarkIdStr := c.RequireParam("bookmark_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
-	bookmarkIdStr := bookmarkId.(string)
 
 	var newSortOrder int64
 	if err := json.NewDecoder(r.Body).Decode(&newSortOrder); err != nil {
@@ -317,13 +312,11 @@ func updateChannelBookmarkSortOrder(c *Context, w http.ResponseWriter, r *http.R
 
 func deleteChannelBookmark(c *Context, w http.ResponseWriter, r *http.Request) {
 	connectionID := r.Header.Get(model.ConnectionId)
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
-	bookmarkId := c.RequireParam("bookmark_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
+	bookmarkIdStr := c.RequireParam("bookmark_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
-	bookmarkIdStr := bookmarkId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventDeleteChannelBookmark, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
@@ -413,13 +406,11 @@ func deleteChannelBookmark(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func listChannelBookmarksForChannel(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
-	bookmarkSince := c.RequireParam("bookmarks_since", web.RequireInt)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
+	bookmarkSinceInt := c.RequireParam("bookmarks_since", web.RequireInt)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
-	bookmarkSinceInt := bookmarkSince.(int)
 
 	channel, appErr := c.App.GetChannel(c.AppContext, channelIdStr)
 	if appErr != nil {

@@ -7,8 +7,8 @@ import (
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
-	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/public/shared/mlog"
+	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/v8/channels/api4"
 	"github.com/iamleson98/sitename/server/v8/channels/web"
 )
@@ -38,8 +38,9 @@ func getPostCategories(c *api4.Context, w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	data, _ := json.Marshal(utils.ResponseList{Items: categories})
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(utils.ResponseList{Items: categories}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func createPostCategory(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -61,8 +62,9 @@ func createPostCategory(c *api4.Context, w http.ResponseWriter, r *http.Request)
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	data, _ := json.Marshal(created)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(created); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func updatePostCategory(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -71,11 +73,10 @@ func updatePostCategory(c *api4.Context, w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	var category *lms_models.PostCategory
 	if err := json.NewDecoder(r.Body).Decode(&category); err != nil {
@@ -89,8 +90,9 @@ func updatePostCategory(c *api4.Context, w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	data, _ := json.Marshal(updated)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(updated); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func deletePostCategory(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -99,11 +101,10 @@ func deletePostCategory(c *api4.Context, w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	if err := c.App.LMS().DeletePostCategory(id); err != nil {
 		c.Err = err
@@ -160,8 +161,9 @@ func createPost(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	data, _ := json.Marshal(created)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(created); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func getPost(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -170,11 +172,10 @@ func getPost(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	post, err := c.App.LMS().GetPost(id)
 	if err != nil {
@@ -182,8 +183,9 @@ func getPost(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(post)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(post); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func updatePost(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -192,11 +194,10 @@ func updatePost(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	var post *lms_models.BlogPost
 	if err := json.NewDecoder(r.Body).Decode(&post); err != nil {
@@ -210,8 +211,9 @@ func updatePost(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(updated)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(updated); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func deletePost(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -220,11 +222,10 @@ func deletePost(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	if err := c.App.LMS().DeletePost(id); err != nil {
 		c.Err = err

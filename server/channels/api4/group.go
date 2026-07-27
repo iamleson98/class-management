@@ -84,11 +84,10 @@ func (api *API) InitGroup() {
 }
 
 func getGroup(c *Context, w http.ResponseWriter, r *http.Request) {
-	groupId := c.RequireParam("group_id", web.RequireValidId)
+	groupIdStr := c.RequireParam("group_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	groupIdStr := groupId.(string)
 
 	restrictions, appErr := c.App.GetViewUsersRestrictions(c.AppContext, c.AppContext.Session().UserId)
 	if appErr != nil {
@@ -188,11 +187,10 @@ func createGroup(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func patchGroup(c *Context, w http.ResponseWriter, r *http.Request) {
-	groupId := c.RequireParam("group_id", web.RequireValidId)
+	groupIdStr := c.RequireParam("group_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	groupIdStr := groupId.(string)
 
 	group, appErr := c.App.GetGroup(groupIdStr, nil, nil)
 	if appErr != nil {
@@ -283,19 +281,16 @@ func patchGroup(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func linkGroupSyncable(c *Context, w http.ResponseWriter, r *http.Request) {
-	groupId := c.RequireParam("group_id", web.RequireValidId)
-	syncableId := c.RequireParam("syncable_id", web.RequireValidId)
+	groupIdStr := c.RequireParam("group_id", web.RequireValidId)
+	syncableIdStr := c.RequireParam("syncable_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	groupIdStr := groupId.(string)
-	syncableIdStr := syncableId.(string)
 
-	syncableType := c.RequireParam("syncable_type", web.RequireString)
+	syncableTypeStr := c.RequireParam("syncable_type", web.RequireString)
 	if c.Err != nil {
 		return
 	}
-	syncableTypeStr := syncableType.(string)
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -358,19 +353,16 @@ func linkGroupSyncable(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getGroupSyncable(c *Context, w http.ResponseWriter, r *http.Request) {
-	groupId := c.RequireParam("group_id", web.RequireValidId)
-	syncableId := c.RequireParam("syncable_id", web.RequireValidId)
+	groupIdStr := c.RequireParam("group_id", web.RequireValidId)
+	syncableIdStr := c.RequireParam("syncable_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	groupIdStr := groupId.(string)
-	syncableIdStr := syncableId.(string)
 
-	syncableType := c.RequireParam("syncable_type", web.RequireString)
+	syncableTypeStr := c.RequireParam("syncable_type", web.RequireString)
 	if c.Err != nil {
 		return
 	}
-	syncableTypeStr := syncableType.(string)
 
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionManageSystem) {
 		c.SetPermissionError(model.PermissionManageSystem)
@@ -395,17 +387,15 @@ func getGroupSyncable(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getGroupSyncables(c *Context, w http.ResponseWriter, r *http.Request) {
-	groupId := c.RequireParam("group_id", web.RequireValidId)
+	groupIdStr := c.RequireParam("group_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	groupIdStr := groupId.(string)
 
-	syncableType := c.RequireParam("syncable_type", web.RequireString)
+	syncableTypeStr := c.RequireParam("syncable_type", web.RequireString)
 	if c.Err != nil {
 		return
 	}
-	syncableTypeStr := syncableType.(string)
 
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionSysconsoleReadUserManagementGroups) {
 		c.SetPermissionError(model.PermissionSysconsoleReadUserManagementGroups)
@@ -430,23 +420,20 @@ func getGroupSyncables(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func patchGroupSyncable(c *Context, w http.ResponseWriter, r *http.Request) {
-	groupId := c.RequireParam("group_id", web.RequireValidId)
+	groupIdStr := c.RequireParam("group_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	groupIdStr := groupId.(string)
 
-	syncableId := c.RequireParam("syncable_id", web.RequireValidId)
+	syncableIdStr := c.RequireParam("syncable_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	syncableIdStr := syncableId.(string)
 
-	syncableType := c.RequireParam("syncable_type", web.RequireString)
+	syncableTypeStr := c.RequireParam("syncable_type", web.RequireString)
 	if c.Err != nil {
 		return
 	}
-	syncableTypeStr := syncableType.(string)
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -509,23 +496,20 @@ func patchGroupSyncable(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func unlinkGroupSyncable(c *Context, w http.ResponseWriter, r *http.Request) {
-	groupId := c.RequireParam("group_id", web.RequireValidId)
+	groupIdStr := c.RequireParam("group_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	groupIdStr := groupId.(string)
 
-	syncableId := c.RequireParam("syncable_id", web.RequireValidId)
+	syncableIdStr := c.RequireParam("syncable_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	syncableIdStr := syncableId.(string)
 
-	syncableType := c.RequireParam("syncable_type", web.RequireString)
+	syncableTypeStr := c.RequireParam("syncable_type", web.RequireString)
 	if c.Err != nil {
 		return
 	}
-	syncableTypeStr := syncableType.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventUnlinkGroupSyncable, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
@@ -618,11 +602,10 @@ func verifyLinkUnlinkPermission(c *Context, syncableType model.GroupSyncableType
 }
 
 func getGroupMembers(c *Context, w http.ResponseWriter, r *http.Request) {
-	groupId := c.RequireParam("group_id", web.RequireValidId)
+	groupIdStr := c.RequireParam("group_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	groupIdStr := groupId.(string)
 
 	appErr := hasPermissionToReadGroupMembers(c, groupIdStr)
 	if appErr != nil {
@@ -658,11 +641,10 @@ func getGroupMembers(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getGroupStats(c *Context, w http.ResponseWriter, r *http.Request) {
-	groupId := c.RequireParam("group_id", web.RequireValidId)
+	groupIdStr := c.RequireParam("group_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	groupIdStr := groupId.(string)
 
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionSysconsoleReadUserManagementGroups) {
 		c.SetPermissionError(model.PermissionSysconsoleReadUserManagementGroups)
@@ -872,11 +854,10 @@ func getGroupsByChannelCommon(c *Context, r *http.Request) ([]byte, *model.AppEr
 }
 
 func getGroupsAssociatedToChannelsByTeam(c *Context, w http.ResponseWriter, r *http.Request) {
-	teamId := c.RequireParam("team_id", web.RequireValidId)
+	teamIdStr := c.RequireParam("team_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
 
 	if !c.App.SessionHasPermissionToTeam(*c.AppContext.Session(), teamIdStr, model.PermissionListTeamChannels) {
 		c.Err = model.MakePermissionError(c.AppContext.Session(), []*model.Permission{model.PermissionListTeamChannels})
@@ -1082,11 +1063,10 @@ func getGroups(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteGroup(c *Context, w http.ResponseWriter, r *http.Request) {
-	groupId := c.RequireParam("group_id", web.RequireValidId)
+	groupIdStr := c.RequireParam("group_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	groupIdStr := groupId.(string)
 
 	group, err := c.App.GetGroup(groupIdStr, nil, nil)
 	if err != nil {
@@ -1132,11 +1112,10 @@ func deleteGroup(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func restoreGroup(c *Context, w http.ResponseWriter, r *http.Request) {
-	groupId := c.RequireParam("group_id", web.RequireValidId)
+	groupIdStr := c.RequireParam("group_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	groupIdStr := groupId.(string)
 
 	group, err := c.App.GetGroup(groupIdStr, nil, nil)
 	if err != nil {
@@ -1183,11 +1162,10 @@ func restoreGroup(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func addGroupMembers(c *Context, w http.ResponseWriter, r *http.Request) {
-	groupId := c.RequireParam("group_id", web.RequireValidId)
+	groupIdStr := c.RequireParam("group_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	groupIdStr := groupId.(string)
 
 	group, appErr := c.App.GetGroup(groupIdStr, nil, nil)
 	if appErr != nil {
@@ -1247,11 +1225,10 @@ func addGroupMembers(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteGroupMembers(c *Context, w http.ResponseWriter, r *http.Request) {
-	groupId := c.RequireParam("group_id", web.RequireValidId)
+	groupIdStr := c.RequireParam("group_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	groupIdStr := groupId.(string)
 
 	group, appErr := c.App.GetGroup(groupIdStr, nil, nil)
 	if appErr != nil {

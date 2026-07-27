@@ -956,11 +956,10 @@ func restart(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getProductNotices(c *Context, w http.ResponseWriter, r *http.Request) {
-	teamId := c.RequireParam("team_id", http_web.RequireValidId)
+	teamIdStr := c.RequireParam("team_id", http_web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
 
 	client, parseError := model.NoticeClientTypeFromString(r.URL.Query().Get("client"))
 	if parseError != nil {

@@ -7,10 +7,10 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/mattermost/logr/v2"
 	"github.com/iamleson98/sitename/server/public/model"
 	"github.com/iamleson98/sitename/server/v8/channels/web"
 	"github.com/iamleson98/sitename/server/v8/einterfaces"
+	"github.com/mattermost/logr/v2"
 )
 
 const (
@@ -185,11 +185,10 @@ func getOutgoingOAuthConnection(c *Context, w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	outgoingConnectionId := c.RequireParam("outgoing_oauth_connection_id", web.RequireValidId)
+	outgoingConnectionIdStr := c.RequireParam("outgoing_oauth_connection_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	outgoingConnectionIdStr := outgoingConnectionId.(string)
 
 	connection, err := service.GetConnection(c.AppContext, outgoingConnectionIdStr)
 	if err != nil {
@@ -250,11 +249,10 @@ func createOutgoingOAuthConnection(c *Context, w http.ResponseWriter, r *http.Re
 }
 
 func updateOutgoingOAuthConnection(c *Context, w http.ResponseWriter, r *http.Request) {
-	outgoingConnectionId := c.RequireParam("outgoing_oauth_connection_id", web.RequireValidId)
+	outgoingConnectionIdStr := c.RequireParam("outgoing_oauth_connection_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	outgoingConnectionIdStr := outgoingConnectionId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventUpdateOutgoingOAuthConnection, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
@@ -317,11 +315,10 @@ func updateOutgoingOAuthConnection(c *Context, w http.ResponseWriter, r *http.Re
 }
 
 func deleteOutgoingOAuthConnection(c *Context, w http.ResponseWriter, r *http.Request) {
-	outgoingConnectionId := c.RequireParam("outgoing_oauth_connection_id", web.RequireValidId)
+	outgoingConnectionIdStr := c.RequireParam("outgoing_oauth_connection_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	outgoingConnectionIdStr := outgoingConnectionId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventDeleteOutgoingOAuthConnection, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)

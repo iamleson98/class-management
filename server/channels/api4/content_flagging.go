@@ -102,11 +102,10 @@ func getTeamPostFlaggingFeatureStatus(c *Context, w http.ResponseWriter, r *http
 		return
 	}
 
-	teamId := c.RequireParam("team_id", web.RequireValidId)
+	teamID := c.RequireParam("team_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	teamID := teamId.(string)
 
 	if !c.App.SessionHasPermissionToTeam(*c.AppContext.Session(), teamID, model.PermissionViewTeam) {
 		c.SetPermissionError(model.PermissionViewTeam)
@@ -135,11 +134,10 @@ func flagPost(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	postId := c.RequireParam("post_id", web.RequireValidId)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	postIdStr := postId.(string)
 
 	var flagRequest model.FlagContentRequest
 	if err := json.NewDecoder(r.Body).Decode(&flagRequest); err != nil {
@@ -240,11 +238,10 @@ func getPostPropertyValues(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	postId := c.RequireParam("post_id", web.RequireValidId)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	postIdStr := postId.(string)
 
 	// The requesting user must be a reviewer of the post's team
 	// to be able to fetch the post's Content Flagging property values
@@ -285,11 +282,10 @@ func getFlaggedPost(c *Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// c.RequirePostId()
-	postId := c.RequireParam("post_id", web.RequireValidId)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	postIdStr := postId.(string)
 
 	// A user can obtain a flagged post if-
 	// 1. The post is currently flagged and in any status
@@ -397,11 +393,10 @@ func keepRemoveFlaggedPostChecks(c *Context, r *http.Request) (*model.FlagConten
 		return nil, "", nil
 	}
 
-	postId := c.RequireParam("post_id", web.RequireValidId)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
 	if c.Err != nil {
 		return nil, "", nil
 	}
-	postIdStr := postId.(string)
 
 	var actionRequest model.FlagContentActionRequest
 	if err := json.NewDecoder(r.Body).Decode(&actionRequest); err != nil {
@@ -506,11 +501,10 @@ func searchReviewers(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	teamId := c.RequireParam("team_id", web.RequireValidId)
+	teamIdStr := c.RequireParam("team_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
 
 	userId := c.AppContext.Session().UserId
 	searchTerm := strings.TrimSpace(r.URL.Query().Get("term"))
@@ -538,11 +532,10 @@ func assignFlaggedPostReviewer(c *Context, w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	postId := c.RequireParam("post_id", web.RequireValidId)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	postIdStr := postId.(string)
 
 	c.RequireParam("content_reviewer_id", web.RequireValidId)
 	if c.Err != nil {

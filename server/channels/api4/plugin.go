@@ -211,11 +211,10 @@ func getPluginStatuses(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func removePlugin(c *Context, w http.ResponseWriter, r *http.Request) {
-	pluginId := c.RequireParam("plugin_id", web.RequireString)
+	pluginIdStr := c.RequireParam("plugin_id", web.RequireString)
 	if c.Err != nil {
 		return
 	}
-	pluginIdStr := pluginId.(string)
 
 	if !*c.App.Config().PluginSettings.Enable {
 		c.Err = model.NewAppError("removePlugin", "app.plugin.disabled.app_error", nil, "", http.StatusNotImplemented)
@@ -316,11 +315,10 @@ func getMarketplacePlugins(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func enablePlugin(c *Context, w http.ResponseWriter, r *http.Request) {
-	pluginId := c.RequireParam("plugin_id", web.RequireString)
+	pluginIdStr := c.RequireParam("plugin_id", web.RequireString)
 	if c.Err != nil {
 		return
 	}
-	pluginIdStr := pluginId.(string)
 
 	if !*c.App.Config().PluginSettings.Enable {
 		c.Err = model.NewAppError("activatePlugin", "app.plugin.disabled.app_error", nil, "", http.StatusNotImplemented)
@@ -346,11 +344,10 @@ func enablePlugin(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func disablePlugin(c *Context, w http.ResponseWriter, r *http.Request) {
-	pluginId := c.RequireParam("plugin_id", web.RequireString)
+	pluginIdStr := c.RequireParam("plugin_id", web.RequireString)
 	if c.Err != nil {
 		return
 	}
-	pluginIdStr := pluginId.(string)
 
 	if !*c.App.Config().PluginSettings.Enable {
 		c.Err = model.NewAppError("deactivatePlugin", "app.plugin.disabled.app_error", nil, "", http.StatusNotImplemented)

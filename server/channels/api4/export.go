@@ -42,11 +42,10 @@ func listExports(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteExport(c *Context, w http.ResponseWriter, r *http.Request) {
-	exportName := c.RequireParam("export_name", web.RequireString)
+	exportNameStr := c.RequireParam("export_name", web.RequireString)
 	if c.Err != nil {
 		return
 	}
-	exportNameStr := exportName.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventDeleteExport, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
@@ -72,11 +71,10 @@ func downloadExport(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	exportName := c.RequireParam("export_name", web.RequireString)
+	exportNameStr := c.RequireParam("export_name", web.RequireString)
 	if c.Err != nil {
 		return
 	}
-	exportNameStr := exportName.(string)
 
 	filePath := filepath.Join(*c.App.Config().ExportSettings.Directory, exportNameStr)
 	if ok, err := c.App.ExportFileExists(filePath); err != nil {
@@ -102,11 +100,10 @@ func generatePresignURLExport(c *Context, w http.ResponseWriter, r *http.Request
 	auditRec := c.MakeAuditRecord(model.AuditEventGeneratePresignURLExport, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
 
-	exportName := c.RequireParam("export_name", web.RequireString)
+	exportNameStr := c.RequireParam("export_name", web.RequireString)
 	if c.Err != nil {
 		return
 	}
-	exportNameStr := exportName.(string)
 
 	model.AddEventParameterToAuditRec(auditRec, "export_name", exportNameStr)
 

@@ -27,11 +27,10 @@ func (api *API) InitJob() {
 }
 
 func getJob(c *Context, w http.ResponseWriter, r *http.Request) {
-	jobId := c.RequireParam("job_id", web.RequireValidId)
+	jobIdStr := c.RequireParam("job_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	jobIdStr := jobId.(string)
 
 	job, err := c.App.GetJob(c.AppContext, jobIdStr)
 	if err != nil {
@@ -59,11 +58,10 @@ func downloadJob(c *Context, w http.ResponseWriter, r *http.Request) {
 	const oldFilePath = "export"
 	const FileMime = "application/zip"
 
-	jobId := c.RequireParam("job_id", web.RequireValidId)
+	jobIdStr := c.RequireParam("job_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	jobIdStr := jobId.(string)
 
 	if !*config.MessageExportSettings.DownloadExportResults {
 		c.Err = model.NewAppError("downloadExportResultsNotEnabled", "app.job.download_export_results_not_enabled", nil, "", http.StatusNotImplemented)
@@ -252,11 +250,10 @@ func getJobs(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getJobsByType(c *Context, w http.ResponseWriter, r *http.Request) {
-	jobType := c.RequireParam("job_type", web.RequireString)
+	jobTypeStr := c.RequireParam("job_type", web.RequireString)
 	if c.Err != nil {
 		return
 	}
-	jobTypeStr := jobType.(string)
 
 	hasPermission, permissionRequired := c.App.SessionHasPermissionToReadJob(*c.AppContext.Session(), jobTypeStr)
 	if permissionRequired == nil {
@@ -286,11 +283,10 @@ func getJobsByType(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func cancelJob(c *Context, w http.ResponseWriter, r *http.Request) {
-	jobId := c.RequireParam("job_id", web.RequireValidId)
+	jobIdStr := c.RequireParam("job_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	jobIdStr := jobId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventCancelJob, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
@@ -328,11 +324,10 @@ func cancelJob(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func updateJobStatus(c *Context, w http.ResponseWriter, r *http.Request) {
-	jobId := c.RequireParam("job_id", web.RequireValidId)
+	jobIdStr := c.RequireParam("job_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	jobIdStr := jobId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventUpdateJobStatus, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)

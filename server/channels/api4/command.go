@@ -76,11 +76,10 @@ func createCommand(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func updateCommand(c *Context, w http.ResponseWriter, r *http.Request) {
-	commandId := c.RequireParam("command_id", web.RequireValidId)
+	commandIdStr := c.RequireParam("command_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	commandIdStr := commandId.(string)
 
 	var cmd model.Command
 	if jsonErr := json.NewDecoder(r.Body).Decode(&cmd); jsonErr != nil || cmd.Id != commandIdStr {
@@ -137,11 +136,10 @@ func updateCommand(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func moveCommand(c *Context, w http.ResponseWriter, r *http.Request) {
-	commandId := c.RequireParam("command_id", web.RequireValidId)
+	commandIdStr := c.RequireParam("command_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	commandIdStr := commandId.(string)
 
 	var cmr model.CommandMoveRequest
 	if jsonErr := json.NewDecoder(r.Body).Decode(&cmr); jsonErr != nil {
@@ -210,11 +208,10 @@ func moveCommand(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteCommand(c *Context, w http.ResponseWriter, r *http.Request) {
-	commandId := c.RequireParam("command_id", web.RequireValidId)
+	commandIdStr := c.RequireParam("command_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	commandIdStr := commandId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventDeleteCommand, model.AuditStatusFail)
 	model.AddEventParameterToAuditRec(auditRec, "command_id", commandIdStr)
@@ -256,13 +253,11 @@ func deleteCommand(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func listCommands(c *Context, w http.ResponseWriter, r *http.Request) {
-	customOnly := c.RequireParam("custom_only", web.RequireBool)
-	teamId := c.RequireParam("team_id", web.RequireValidId)
+	customOnlyBool := c.RequireParam("custom_only", web.RequireBool)
+	teamIdStr := c.RequireParam("team_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	customOnlyBool := customOnly.(bool)
-	teamIdStr := teamId.(string)
 
 	if !c.App.SessionHasPermissionToTeam(*c.AppContext.Session(), teamIdStr, model.PermissionViewTeam) {
 		c.SetPermissionError(model.PermissionViewTeam)
@@ -317,11 +312,10 @@ func listCommands(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getCommand(c *Context, w http.ResponseWriter, r *http.Request) {
-	commandId := c.RequireParam("command_id", web.RequireValidId)
+	commandIdStr := c.RequireParam("command_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	commandIdStr := commandId.(string)
 
 	cmd, err := c.App.GetCommand(commandIdStr)
 	if err != nil {
@@ -429,11 +423,10 @@ func executeCommand(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func listAutocompleteCommands(c *Context, w http.ResponseWriter, r *http.Request) {
-	teamId := c.RequireParam("team_id", web.RequireValidId)
+	teamIdStr := c.RequireParam("team_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
 
 	if !c.App.SessionHasPermissionToTeam(*c.AppContext.Session(), teamIdStr, model.PermissionViewTeam) {
 		c.SetPermissionError(model.PermissionViewTeam)
@@ -452,11 +445,10 @@ func listAutocompleteCommands(c *Context, w http.ResponseWriter, r *http.Request
 }
 
 func listCommandAutocompleteSuggestions(c *Context, w http.ResponseWriter, r *http.Request) {
-	teamId := c.RequireParam("team_id", web.RequireValidId)
+	teamIdStr := c.RequireParam("team_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
 
 	if !c.App.SessionHasPermissionToTeam(*c.AppContext.Session(), teamIdStr, model.PermissionViewTeam) {
 		c.SetPermissionError(model.PermissionViewTeam)
@@ -505,11 +497,10 @@ func listCommandAutocompleteSuggestions(c *Context, w http.ResponseWriter, r *ht
 }
 
 func regenCommandToken(c *Context, w http.ResponseWriter, r *http.Request) {
-	commandId := c.RequireParam("command_id", web.RequireValidId)
+	commandIdStr := c.RequireParam("command_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	commandIdStr := commandId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventRegenCommandToken, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)

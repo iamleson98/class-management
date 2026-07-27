@@ -363,9 +363,8 @@ func localGetUserByUsername(c *Context, w http.ResponseWriter, r *http.Request) 
 	if c.Err != nil {
 		return
 	}
-	usernameStr := username.(string)
 
-	user, err := c.App.GetUserByUsername(usernameStr)
+	user, err := c.App.GetUserByUsername(username)
 	if err != nil {
 		c.Err = err
 		return

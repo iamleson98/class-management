@@ -6,6 +6,7 @@ import (
 
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
+	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"github.com/iamleson98/sitename/server/v8/channels/api4"
 	"github.com/iamleson98/sitename/server/v8/channels/web"
 )
@@ -33,24 +34,24 @@ func getNotifications(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		notifications = []*lms_models.Notification{}
 	}
 
-	data, _ := json.Marshal(LMSResponse{Data: map[string]any{
+	if err := json.NewEncoder(w).Encode(LMSResponse{Data: map[string]any{
 		"notifications": notifications,
 		"unread_count":  unreadCount,
-	}})
-	w.Write(data)
+	}}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func markNotificationAsRead(c *api4.Context, w http.ResponseWriter, r *http.Request) {
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
+		return
+	}
+
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsViewNotifications) {
 		c.SetPermissionError(model.PermissionLmsViewNotifications)
 		return
 	}
-
-	idVal := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
-		return
-	}
-	id := idVal.(string)
 
 	if err := c.App.LMS().MarkNotificationAsRead(id); err != nil {
 		c.Err = err

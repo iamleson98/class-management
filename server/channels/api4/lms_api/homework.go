@@ -7,8 +7,8 @@ import (
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
-	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/public/shared/mlog"
+	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/v8/channels/api4"
 	"github.com/iamleson98/sitename/server/v8/channels/web"
 )
@@ -71,8 +71,9 @@ func createHomework(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	data, _ := json.Marshal(created)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(created); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func getHomework(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -81,11 +82,10 @@ func getHomework(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	homework, err := c.App.LMS().GetHomeworkByID(id)
 	if err != nil {
@@ -93,8 +93,9 @@ func getHomework(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(homework)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(homework); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func updateHomework(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -103,11 +104,10 @@ func updateHomework(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	var homework *lms_models.Homework
 	if err := json.NewDecoder(r.Body).Decode(&homework); err != nil {
@@ -121,21 +121,21 @@ func updateHomework(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(updated)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(updated); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func deleteHomework(c *api4.Context, w http.ResponseWriter, r *http.Request) {
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
+		return
+	}
+
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageHomework) {
 		c.SetPermissionError(model.PermissionLmsManageHomework)
 		return
 	}
-
-	idVal := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
-		return
-	}
-	id := idVal.(string)
 
 	if err := c.App.LMS().DeleteHomework(id); err != nil {
 		c.Err = err
@@ -146,16 +146,15 @@ func deleteHomework(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getHomeworkSubmissions(c *api4.Context, w http.ResponseWriter, r *http.Request) {
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
+		return
+	}
+
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageHomework) {
 		c.SetPermissionError(model.PermissionLmsManageHomework)
 		return
 	}
-
-	idVal := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
-		return
-	}
-	id := idVal.(string)
 
 	submissions, err := c.App.LMS().GetHomeworkSubmissions(id)
 	if err != nil {
@@ -163,21 +162,21 @@ func getHomeworkSubmissions(c *api4.Context, w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	data, _ := json.Marshal(submissions)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(submissions); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func upsertHomeworkSubmission(c *api4.Context, w http.ResponseWriter, r *http.Request) {
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
+		return
+	}
+
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageHomework) {
 		c.SetPermissionError(model.PermissionLmsManageHomework)
 		return
 	}
-
-	idVal := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
-		return
-	}
-	id := idVal.(string)
 
 	var submission *lms_models.Submission
 	if err := json.NewDecoder(r.Body).Decode(&submission); err != nil {
@@ -191,8 +190,9 @@ func upsertHomeworkSubmission(c *api4.Context, w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	data, _ := json.Marshal(created)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(created); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func bulkAssignHomework(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -216,6 +216,7 @@ func bulkAssignHomework(c *api4.Context, w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	data, _ := json.Marshal(map[string]any{"count": count})
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(map[string]any{"count": count}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }

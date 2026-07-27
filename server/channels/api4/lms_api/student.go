@@ -75,8 +75,9 @@ func createStudent(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	data, _ := json.Marshal(LMSResponse{Data: created})
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(LMSResponse{Data: created}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func getStudent(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -85,11 +86,10 @@ func getStudent(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	student, err := c.App.LMS().GetStudent(id)
 	if err != nil {
@@ -97,8 +97,9 @@ func getStudent(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(LMSResponse{Data: student})
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(LMSResponse{Data: student}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func updateStudent(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -107,11 +108,10 @@ func updateStudent(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	var body struct {
 		User  *model.User    `json:"user"`
@@ -130,8 +130,9 @@ func updateStudent(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(LMSResponse{Data: updated})
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(LMSResponse{Data: updated}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func deleteStudent(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -140,18 +141,19 @@ func deleteStudent(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	if err := c.App.LMS().DeleteStudent(id); err != nil {
 		c.Err = err
 		return
 	}
 
-	w.Write([]byte(`{"data":true}`))
+	if err := json.NewEncoder(w).Encode(map[string]bool{"data": true}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 // getConvertibleUsers lists non-student, non-deactivated users that a counselor
@@ -172,8 +174,9 @@ func getConvertibleUsers(c *api4.Context, w http.ResponseWriter, r *http.Request
 		users = []*model.User{}
 	}
 
-	data, _ := json.Marshal(LMSResponse{Data: users})
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(LMSResponse{Data: users}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 // convertUserToStudent promotes an existing user to a student.
@@ -183,11 +186,10 @@ func convertUserToStudent(c *api4.Context, w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	updated, err := c.App.LMS().ConvertUserToStudent(id)
 	if err != nil {
@@ -195,8 +197,9 @@ func convertUserToStudent(c *api4.Context, w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	data, _ := json.Marshal(LMSResponse{Data: updated})
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(LMSResponse{Data: updated}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 // revertStudentToUser demotes a student back to a regular user.
@@ -206,11 +209,10 @@ func revertStudentToUser(c *api4.Context, w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	updated, err := c.App.LMS().RevertStudentToUser(id)
 	if err != nil {
@@ -218,6 +220,7 @@ func revertStudentToUser(c *api4.Context, w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	data, _ := json.Marshal(LMSResponse{Data: updated})
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(LMSResponse{Data: updated}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }

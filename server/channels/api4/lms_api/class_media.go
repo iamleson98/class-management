@@ -64,8 +64,9 @@ func createClassMedia(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	data, _ := json.Marshal(created)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(created); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func deleteClassMedia(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -74,11 +75,10 @@ func deleteClassMedia(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	if err := c.App.LMS().DeleteClassMedia(id); err != nil {
 		c.Err = err

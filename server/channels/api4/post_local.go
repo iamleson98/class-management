@@ -15,11 +15,10 @@ func (api *API) InitPostLocal() {
 }
 
 func localDeletePost(c *Context, w http.ResponseWriter, r *http.Request) {
-	postId := c.RequireParam("post_id", web.RequireValidId)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	postIdStr := postId.(string)
 
 	permanent := c.Params["permanent"].(bool)
 

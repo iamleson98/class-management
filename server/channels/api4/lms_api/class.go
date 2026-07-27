@@ -67,21 +67,21 @@ func createClass(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	data, _ := json.Marshal(created)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(created); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func getClass(c *api4.Context, w http.ResponseWriter, r *http.Request) {
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
+		return
+	}
+
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageClasses) {
 		c.SetPermissionError(model.PermissionLmsManageClasses)
 		return
 	}
-
-	idVal := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
-		return
-	}
-	id := idVal.(string)
 
 	class, err := c.App.LMS().GetClass(id)
 	if err != nil {
@@ -89,21 +89,21 @@ func getClass(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(class)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(class); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func updateClass(c *api4.Context, w http.ResponseWriter, r *http.Request) {
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
+		return
+	}
+
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageClasses) {
 		c.SetPermissionError(model.PermissionLmsManageClasses)
 		return
 	}
-
-	idVal := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
-		return
-	}
-	id := idVal.(string)
 
 	var class *lms_models.Class
 	if err := json.NewDecoder(r.Body).Decode(&class); err != nil {
@@ -117,21 +117,21 @@ func updateClass(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(updated)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(updated); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func deleteClass(c *api4.Context, w http.ResponseWriter, r *http.Request) {
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
+		return
+	}
+
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageClasses) {
 		c.SetPermissionError(model.PermissionLmsManageClasses)
 		return
 	}
-
-	idVal := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
-		return
-	}
-	id := idVal.(string)
 
 	if err := c.App.LMS().DeleteClass(id); err != nil {
 		c.Err = err
@@ -142,16 +142,15 @@ func deleteClass(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func enrollStudents(c *api4.Context, w http.ResponseWriter, r *http.Request) {
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
+		return
+	}
+
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageClasses) {
 		c.SetPermissionError(model.PermissionLmsManageClasses)
 		return
 	}
-
-	idVal := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
-		return
-	}
-	id := idVal.(string)
 
 	var req struct {
 		StudentIDs []string `json:"student_ids"`
@@ -167,6 +166,7 @@ func enrollStudents(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(result)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }

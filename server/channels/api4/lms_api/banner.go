@@ -6,6 +6,7 @@ import (
 
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
+	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/v8/channels/api4"
 	"github.com/iamleson98/sitename/server/v8/channels/web"
@@ -41,8 +42,9 @@ func getBanners(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		TotalCount: int64(len(banners)),
 	}
 
-	data, _ := json.Marshal(res)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func createBanner(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -64,8 +66,9 @@ func createBanner(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	data, _ := json.Marshal(created)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(created); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func getBanner(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -74,11 +77,10 @@ func getBanner(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	banner, err := c.App.LMS().GetBanner(id)
 	if err != nil {
@@ -86,8 +88,9 @@ func getBanner(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(banner)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(banner); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func updateBanner(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -96,11 +99,10 @@ func updateBanner(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	var banner *lms_models.Banner
 	if err := json.NewDecoder(r.Body).Decode(&banner); err != nil {
@@ -114,8 +116,9 @@ func updateBanner(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(updated)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(updated); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func deleteBanner(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -124,11 +127,10 @@ func deleteBanner(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	if err := c.App.LMS().DeleteBanner(id); err != nil {
 		c.Err = err

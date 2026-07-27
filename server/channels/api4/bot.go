@@ -72,11 +72,10 @@ func createBot(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func patchBot(c *Context, w http.ResponseWriter, r *http.Request) {
-	botUserId := c.RequireParam("bot_user_id", web.RequireValidId)
+	botUserIdStr := c.RequireParam("bot_user_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	botUserIdStr := botUserId.(string)
 
 	var botPatch *model.BotPatch
 	err := json.NewDecoder(r.Body).Decode(&botPatch)
@@ -111,11 +110,10 @@ func patchBot(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getBot(c *Context, w http.ResponseWriter, r *http.Request) {
-	botUserId := c.RequireParam("bot_user_id", web.RequireValidId)
+	botUserIdStr := c.RequireParam("bot_user_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	botUserIdStr := botUserId.(string)
 
 	includeDeleted, _ := strconv.ParseBool(r.URL.Query().Get("include_deleted"))
 
@@ -174,8 +172,8 @@ func getBots(c *Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	bots, appErr := c.App.GetBots(c.AppContext, &model.BotGetOptions{
-		Page:           page.(int),
-		PerPage:        perPage.(int),
+		Page:           page,
+		PerPage:        perPage,
 		OwnerId:        OwnerId,
 		IncludeDeleted: includeDeleted,
 		OnlyOrphaned:   onlyOrphaned,
@@ -203,11 +201,10 @@ func enableBot(c *Context, w http.ResponseWriter, _ *http.Request) {
 }
 
 func updateBotActive(c *Context, w http.ResponseWriter, active bool) {
-	botUserId := c.RequireParam("bot_user_id", web.RequireValidId)
+	botUserIdStr := c.RequireParam("bot_user_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	botUserIdStr := botUserId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventUpdateBotActive, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
@@ -235,12 +232,11 @@ func updateBotActive(c *Context, w http.ResponseWriter, active bool) {
 }
 
 func assignBot(c *Context, w http.ResponseWriter, _ *http.Request) {
-	botUserId := c.RequireParam("bot_user_id", web.RequireValidId)
+	botUserIdStr := c.RequireParam("bot_user_id", web.RequireValidId)
 	c.RequireUserId()
 	if c.Err != nil {
 		return
 	}
-	botUserIdStr := botUserId.(string)
 	userIdStr := c.Params["user_id"].(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventAssignBot, model.AuditStatusFail)
@@ -276,11 +272,10 @@ func assignBot(c *Context, w http.ResponseWriter, _ *http.Request) {
 }
 
 func convertBotToUser(c *Context, w http.ResponseWriter, r *http.Request) {
-	botUserId := c.RequireParam("bot_user_id", web.RequireValidId)
+	botUserIdStr := c.RequireParam("bot_user_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	botUserIdStr := botUserId.(string)
 
 	bot, err := c.App.GetBot(c.AppContext, botUserIdStr, false)
 	if err != nil {

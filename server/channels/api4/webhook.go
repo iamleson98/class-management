@@ -96,7 +96,6 @@ func updateIncomingHook(c *Context, w http.ResponseWriter, r *http.Request) {
 	if c.Err != nil {
 		return
 	}
-	hookIdStr := hookId.(string)
 
 	var updatedHook model.IncomingWebhook
 	if jsonErr := json.NewDecoder(r.Body).Decode(&updatedHook); jsonErr != nil {
@@ -105,18 +104,18 @@ func updateIncomingHook(c *Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// The hook being updated in the payload must be the same one as indicated in the URL.
-	if updatedHook.Id != hookIdStr {
+	if updatedHook.Id != hookId {
 		c.SetInvalidParam("hook_id")
 		return
 	}
 
 	auditRec := c.MakeAuditRecord(model.AuditEventUpdateIncomingHook, model.AuditStatusFail)
-	model.AddEventParameterToAuditRec(auditRec, "hook_id", hookIdStr)
+	model.AddEventParameterToAuditRec(auditRec, "hook_id", hookId)
 	model.AddEventParameterAuditableToAuditRec(auditRec, "updated_hook", &updatedHook)
 	defer c.LogAuditRec(auditRec)
 	c.LogAudit("attempt")
 
-	oldHook, err := c.App.GetIncomingWebhook(hookIdStr)
+	oldHook, err := c.App.GetIncomingWebhook(hookId)
 	if err != nil {
 		c.Err = err
 		return
@@ -257,13 +256,12 @@ func getIncomingHook(c *Context, w http.ResponseWriter, r *http.Request) {
 	if c.Err != nil {
 		return
 	}
-	hookIdStr := hookId.(string)
 
 	var err *model.AppError
 	var hook *model.IncomingWebhook
 	var channel *model.Channel
 
-	hook, err = c.App.GetIncomingWebhook(hookIdStr)
+	hook, err = c.App.GetIncomingWebhook(hookId)
 	if err != nil {
 		c.Err = err
 		return
@@ -271,7 +269,7 @@ func getIncomingHook(c *Context, w http.ResponseWriter, r *http.Request) {
 
 	auditRec := c.MakeAuditRecord(model.AuditEventGetIncomingHook, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
-	model.AddEventParameterToAuditRec(auditRec, "hook_id", hookIdStr)
+	model.AddEventParameterToAuditRec(auditRec, "hook_id", hookId)
 	auditRec.AddMeta("hook_id", hook.Id)
 	auditRec.AddMeta("hook_display", hook.DisplayName)
 	auditRec.AddMeta("channel_id", hook.ChannelId)
@@ -316,13 +314,12 @@ func deleteIncomingHook(c *Context, w http.ResponseWriter, r *http.Request) {
 	if c.Err != nil {
 		return
 	}
-	hookIdStr := hookId.(string)
 
 	var err *model.AppError
 	var hook *model.IncomingWebhook
 	var channel *model.Channel
 
-	hook, err = c.App.GetIncomingWebhook(hookIdStr)
+	hook, err = c.App.GetIncomingWebhook(hookId)
 	if err != nil {
 		c.Err = err
 		return
@@ -336,7 +333,7 @@ func deleteIncomingHook(c *Context, w http.ResponseWriter, r *http.Request) {
 
 	auditRec := c.MakeAuditRecord(model.AuditEventDeleteIncomingHook, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
-	model.AddEventParameterToAuditRec(auditRec, "hook_id", hookIdStr)
+	model.AddEventParameterToAuditRec(auditRec, "hook_id", hookId)
 	auditRec.AddMeta("hook_id", hook.Id)
 	auditRec.AddMeta("hook_display", hook.DisplayName)
 	auditRec.AddMeta("channel_id", channel.Id)
@@ -362,7 +359,7 @@ func deleteIncomingHook(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = c.App.DeleteIncomingWebhook(hookIdStr); err != nil {
+	if err = c.App.DeleteIncomingWebhook(hookId); err != nil {
 		c.Err = err
 		return
 	}
@@ -378,7 +375,6 @@ func updateOutgoingHook(c *Context, w http.ResponseWriter, r *http.Request) {
 	if c.Err != nil {
 		return
 	}
-	hookIdStr := hookId.(string)
 
 	var updatedHook model.OutgoingWebhook
 	if jsonErr := json.NewDecoder(r.Body).Decode(&updatedHook); jsonErr != nil {
@@ -387,7 +383,7 @@ func updateOutgoingHook(c *Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// The hook being updated in the payload must be the same one as indicated in the URL.
-	if updatedHook.Id != hookIdStr {
+	if updatedHook.Id != hookId {
 		c.SetInvalidParam("hook_id")
 		return
 	}
@@ -397,7 +393,7 @@ func updateOutgoingHook(c *Context, w http.ResponseWriter, r *http.Request) {
 	model.AddEventParameterAuditableToAuditRec(auditRec, "updated_hook", &updatedHook)
 	c.LogAudit("attempt")
 
-	oldHook, err := c.App.GetOutgoingWebhook(hookIdStr)
+	oldHook, err := c.App.GetOutgoingWebhook(hookId)
 	if err != nil {
 		c.Err = err
 		return
@@ -560,9 +556,8 @@ func getOutgoingHook(c *Context, w http.ResponseWriter, r *http.Request) {
 	if c.Err != nil {
 		return
 	}
-	hookIdStr := hookId.(string)
 
-	hook, err := c.App.GetOutgoingWebhook(hookIdStr)
+	hook, err := c.App.GetOutgoingWebhook(hookId)
 	if err != nil {
 		c.Err = err
 		return
@@ -570,7 +565,7 @@ func getOutgoingHook(c *Context, w http.ResponseWriter, r *http.Request) {
 
 	auditRec := c.MakeAuditRecord(model.AuditEventGetOutgoingHook, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
-	model.AddEventParameterToAuditRec(auditRec, "hook_id", hookIdStr)
+	model.AddEventParameterToAuditRec(auditRec, "hook_id", hookId)
 	auditRec.AddMeta("hook_id", hook.Id)
 	auditRec.AddMeta("hook_display", hook.DisplayName)
 	auditRec.AddMeta("channel_id", hook.ChannelId)
@@ -601,9 +596,8 @@ func regenOutgoingHookToken(c *Context, w http.ResponseWriter, r *http.Request) 
 	if c.Err != nil {
 		return
 	}
-	hookIdStr := hookId.(string)
 
-	hook, err := c.App.GetOutgoingWebhook(hookIdStr)
+	hook, err := c.App.GetOutgoingWebhook(hookId)
 	if err != nil {
 		c.Err = err
 		return
@@ -649,9 +643,8 @@ func deleteOutgoingHook(c *Context, w http.ResponseWriter, r *http.Request) {
 	if c.Err != nil {
 		return
 	}
-	hookIdStr := hookId.(string)
 
-	hook, err := c.App.GetOutgoingWebhook(hookIdStr)
+	hook, err := c.App.GetOutgoingWebhook(hookId)
 	if err != nil {
 		c.Err = err
 		return
@@ -659,7 +652,7 @@ func deleteOutgoingHook(c *Context, w http.ResponseWriter, r *http.Request) {
 
 	auditRec := c.MakeAuditRecord(model.AuditEventDeleteOutgoingHook, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
-	model.AddEventParameterToAuditRec(auditRec, "hook_id", hookIdStr)
+	model.AddEventParameterToAuditRec(auditRec, "hook_id", hookId)
 	auditRec.AddMeta("hook_id", hook.Id)
 	auditRec.AddMeta("hook_display", hook.DisplayName)
 	auditRec.AddMeta("channel_id", hook.ChannelId)

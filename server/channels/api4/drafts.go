@@ -62,11 +62,10 @@ func upsertDraft(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getDrafts(c *Context, w http.ResponseWriter, r *http.Request) {
-	teamId := c.RequireParam("team_id", web.RequireValidId)
+	teamIdStr := c.RequireParam("team_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
 
 	if !*c.App.Config().ServiceSettings.AllowSyncedDrafts {
 		c.Err = model.NewAppError("getDrafts", "api.drafts.disabled.app_error", nil, "", http.StatusNotImplemented)
@@ -96,11 +95,10 @@ func getDrafts(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteDraft(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
 	if !*c.App.Config().ServiceSettings.AllowSyncedDrafts {
 		c.Err = model.NewAppError("deleteDraft", "api.drafts.disabled.app_error", nil, "", http.StatusNotImplemented)
 		return

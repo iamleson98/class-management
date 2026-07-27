@@ -7,8 +7,8 @@ import (
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
-	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/public/shared/mlog"
+	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/v8/channels/api4"
 	"github.com/iamleson98/sitename/server/v8/channels/web"
 )
@@ -70,8 +70,9 @@ func createSession(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	data, _ := json.Marshal(LMSResponse{Data: created})
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(LMSResponse{Data: created}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func getSession(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -80,11 +81,10 @@ func getSession(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	session, err := c.App.LMS().GetSession(id)
 	if err != nil {
@@ -92,8 +92,9 @@ func getSession(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(LMSResponse{Data: session})
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(LMSResponse{Data: session}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func updateSession(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -102,11 +103,10 @@ func updateSession(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	var session *lms_models.LMSSession
 	if err := json.NewDecoder(r.Body).Decode(&session); err != nil {
@@ -120,8 +120,9 @@ func updateSession(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(LMSResponse{Data: updated})
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(LMSResponse{Data: updated}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func deleteSession(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -130,18 +131,19 @@ func deleteSession(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	if err := c.App.LMS().DeleteSession(id); err != nil {
 		c.Err = err
 		return
 	}
 
-	w.Write([]byte(`{"data":true}`))
+	if err := json.NewEncoder(w).Encode(map[string]bool{"data": true}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func getAttendance(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -150,11 +152,10 @@ func getAttendance(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	attendance, err := c.App.LMS().GetAttendance(id)
 	if err != nil {
@@ -162,8 +163,9 @@ func getAttendance(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(LMSResponse{Data: attendance})
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(LMSResponse{Data: attendance}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func saveAttendance(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -172,11 +174,10 @@ func saveAttendance(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	var records []*lms_models.Attendance
 	if err := json.NewDecoder(r.Body).Decode(&records); err != nil {
@@ -190,6 +191,7 @@ func saveAttendance(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(LMSResponse{Data: result})
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(LMSResponse{Data: result}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }

@@ -52,11 +52,10 @@ func createScheme(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getScheme(c *Context, w http.ResponseWriter, r *http.Request) {
-	schemeId := c.RequireParam("scheme_id", web.RequireValidId)
+	schemeIdStr := c.RequireParam("scheme_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	schemeIdStr := schemeId.(string)
 
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionSysconsoleReadUserManagementPermissions) {
 		c.SetPermissionError(model.PermissionSysconsoleReadUserManagementPermissions)
@@ -104,11 +103,10 @@ func getSchemes(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getTeamsForScheme(c *Context, w http.ResponseWriter, r *http.Request) {
-	schemeId := c.RequireParam("scheme_id", web.RequireValidId)
+	schemeIdStr := c.RequireParam("scheme_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	schemeIdStr := schemeId.(string)
 
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionSysconsoleReadUserManagementTeams) {
 		c.SetPermissionError(model.PermissionSysconsoleReadUserManagementTeams)
@@ -144,11 +142,10 @@ func getTeamsForScheme(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getChannelsForScheme(c *Context, w http.ResponseWriter, r *http.Request) {
-	schemeId := c.RequireParam("scheme_id", web.RequireValidId)
+	schemeIdStr := c.RequireParam("scheme_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	schemeIdStr := schemeId.(string)
 
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionSysconsoleReadUserManagementChannels) {
 		c.SetPermissionError(model.PermissionSysconsoleReadUserManagementChannels)
@@ -178,11 +175,10 @@ func getChannelsForScheme(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func patchScheme(c *Context, w http.ResponseWriter, r *http.Request) {
-	schemeId := c.RequireParam("scheme_id", web.RequireValidId)
+	schemeIdStr := c.RequireParam("scheme_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	schemeIdStr := schemeId.(string)
 
 	var patch model.SchemePatch
 	if jsonErr := json.NewDecoder(r.Body).Decode(&patch); jsonErr != nil {
@@ -225,11 +221,10 @@ func patchScheme(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteScheme(c *Context, w http.ResponseWriter, r *http.Request) {
-	schemeId := c.RequireParam("scheme_id", web.RequireValidId)
+	schemeIdStr := c.RequireParam("scheme_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	schemeIdStr := schemeId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventDeleteScheme, model.AuditStatusFail)
 	model.AddEventParameterToAuditRec(auditRec, "scheme_id", schemeIdStr)

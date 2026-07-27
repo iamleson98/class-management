@@ -418,11 +418,10 @@ func getSubscriptionInvoicePDF(c *Context, w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	invoiceId := c.RequireParam("invoice_id", http_web.RequireValidId)
+	invoiceIdStr := c.RequireParam("invoice_id", http_web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	invoiceIdStr := invoiceId.(string)
 
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionSysconsoleReadBilling) {
 		c.SetPermissionError(model.PermissionSysconsoleReadBilling)

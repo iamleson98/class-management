@@ -10,13 +10,12 @@ import (
 )
 
 func getCategoriesForTeamForUser(c *Context, w http.ResponseWriter, r *http.Request) {
-	teamId := c.RequireParam("team_id", web.RequireValidId)
+	teamIdStr := c.RequireParam("team_id", web.RequireValidId)
 	c.RequireUserId()
 	if c.Err != nil {
 		return
 	}
 	userIdStr := c.Params["user_id"].(string)
-	teamIdStr := teamId.(string)
 
 	if !c.App.SessionHasPermissionToUser(*c.AppContext.Session(), userIdStr) {
 		c.SetPermissionError(model.PermissionEditOtherUsers)
@@ -47,15 +46,11 @@ func getCategoriesForTeamForUser(c *Context, w http.ResponseWriter, r *http.Requ
 
 func createCategoryForTeamForUser(c *Context, w http.ResponseWriter, r *http.Request) {
 	c.RequireUserId()
-	if c.Err != nil {
-		return
-	}
 	userIdStr := c.Params["user_id"].(string)
-	teamId := c.RequireParam("team_id", web.RequireValidId)
+	teamIdStr := c.RequireParam("team_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
 
 	if !c.App.SessionHasPermissionToUser(*c.AppContext.Session(), userIdStr) {
 		c.SetPermissionError(model.PermissionEditOtherUsers)
@@ -107,11 +102,10 @@ func getCategoryOrderForTeamForUser(c *Context, w http.ResponseWriter, r *http.R
 		return
 	}
 	userIdStr := c.Params["user_id"].(string)
-	teamId := c.RequireParam("team_id", web.RequireValidId)
+	teamIdStr := c.RequireParam("team_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
 
 	if !c.App.SessionHasPermissionToUser(*c.AppContext.Session(), userIdStr) {
 		c.SetPermissionError(model.PermissionEditOtherUsers)
@@ -141,11 +135,10 @@ func updateCategoryOrderForTeamForUser(c *Context, w http.ResponseWriter, r *htt
 		return
 	}
 	userIdStr := c.Params["user_id"].(string)
-	teamId := c.RequireParam("team_id", web.RequireValidId)
+	teamIdStr := c.RequireParam("team_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
 
 	if !c.App.SessionHasPermissionToUser(*c.AppContext.Session(), userIdStr) {
 		c.SetPermissionError(model.PermissionEditOtherUsers)
@@ -192,13 +185,11 @@ func getCategoryForTeamForUser(c *Context, w http.ResponseWriter, r *http.Reques
 		return
 	}
 	userIdStr := c.Params["user_id"].(string)
-	teamId := c.RequireParam("team_id", web.RequireValidId)
-	categoryId := c.RequireParam("category_id", web.RequireValidId)
+	teamIdStr := c.RequireParam("team_id", web.RequireValidId)
+	categoryIdStr := c.RequireParam("category_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
-	categoryIdStr := categoryId.(string)
 
 	if !c.App.SessionHasPermissionToCategory(c.AppContext, *c.AppContext.Session(), userIdStr, teamIdStr, categoryIdStr) {
 		c.SetPermissionError(model.PermissionEditOtherUsers)
@@ -233,11 +224,10 @@ func updateCategoriesForTeamForUser(c *Context, w http.ResponseWriter, r *http.R
 		return
 	}
 	userIdStr := c.Params["user_id"].(string)
-	teamId := c.RequireParam("team_id", web.RequireValidId)
+	teamIdStr := c.RequireParam("team_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
 
 	if !c.App.SessionHasPermissionToUser(*c.AppContext.Session(), userIdStr) {
 		c.SetPermissionError(model.PermissionEditOtherUsers)
@@ -353,14 +343,11 @@ func updateCategoryForTeamForUser(c *Context, w http.ResponseWriter, r *http.Req
 		return
 	}
 	userIdStr := c.Params["user_id"].(string)
-	teamId := c.RequireParam("team_id", web.RequireValidId)
-	categoryId := c.RequireParam("category_id", web.RequireValidId)
+	teamIdStr := c.RequireParam("team_id", web.RequireValidId)
+	categoryIdStr := c.RequireParam("category_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-
-	teamIdStr := teamId.(string)
-	categoryIdStr := categoryId.(string)
 
 	if !c.App.SessionHasPermissionToCategory(c.AppContext, *c.AppContext.Session(), userIdStr, teamIdStr, categoryIdStr) {
 		c.SetPermissionError(model.PermissionEditOtherUsers)
@@ -413,13 +400,11 @@ func deleteCategoryForTeamForUser(c *Context, w http.ResponseWriter, r *http.Req
 		return
 	}
 	userIdStr := c.Params["user_id"].(string)
-	teamId := c.RequireParam("team_id", web.RequireValidId)
-	categoryId := c.RequireParam("category_id", web.RequireValidId)
+	teamIdStr := c.RequireParam("team_id", web.RequireValidId)
+	categoryIdStr := c.RequireParam("category_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
-	categoryIdStr := categoryId.(string)
 
 	if !c.App.SessionHasPermissionToCategory(c.AppContext, *c.AppContext.Session(), userIdStr, teamIdStr, categoryIdStr) {
 		c.SetPermissionError(model.PermissionEditOtherUsers)

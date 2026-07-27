@@ -1,6 +1,6 @@
 module github.com/iamleson98/sitename/server/v8
 
-go 1.26.3
+go 1.27rc2
 
 replace github.com/iamleson98/sitename/server/public => ./public
 

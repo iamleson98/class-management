@@ -1,6 +1,7 @@
 package web
 
 import (
+	"cmp"
 	"net/http"
 	"regexp"
 	"strings"
@@ -298,43 +299,10 @@ func (c *Context) RequireUserId() *Context {
 	return c
 }
 
-// func (c *Context) RequireOtherUserId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if uid, ok := c.Params["other_user_id"].(string); !ok || !model.IsValidId(uid) {
-// 		c.SetInvalidURLParam("other_user_id")
-// 	}
-// 	return c
-// }
-
-// func (c *Context) RequireTeamId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if tid, ok := c.Params["team_id"].(string); !ok || !model.IsValidId(tid) {
-// 		c.SetInvalidURLParam("team_id")
-// 	}
-// 	return c
-// }
-
-// func (c *Context) RequireCategoryId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if cid, ok := c.Params["category_id"].(string); !ok || !model.IsValidCategoryId(cid) {
-// 		c.SetInvalidURLParam("category_id")
-// 	}
-// 	return c
-// }
-
-type RequireFunc func(value any) (any, bool)
+type RequireFunc[T cmp.Ordered | ~bool] func(value any) (T, bool)
 
 // Value must be a non-empty string
-var RequireString RequireFunc = func(value any) (any, bool) {
+var RequireString RequireFunc[string] = func(value any) (string, bool) {
 	str, ok := value.(string)
 	if !ok || str == "" {
 		return "", false
@@ -343,7 +311,7 @@ var RequireString RequireFunc = func(value any) (any, bool) {
 }
 
 // Value must be an int
-var RequireInt RequireFunc = func(value any) (any, bool) {
+var RequireInt RequireFunc[int] = func(value any) (int, bool) {
 	in, ok := value.(int)
 	if !ok {
 		return 0, false
@@ -356,25 +324,25 @@ var RequireInt RequireFunc = func(value any) (any, bool) {
 // 1) a string
 //
 // 2) a valid id
-var RequireValidId RequireFunc = func(value any) (any, bool) {
+var RequireValidId RequireFunc[string] = func(value any) (string, bool) {
 	strValue, ok := RequireString(value)
-	if !ok || !model.IsValidId(strValue.(string)) {
+	if !ok || !model.IsValidId(strValue) {
 		return "", false
 	}
 	return strValue, true
 }
 
 // value must be a string and [model.IsValidUsername]
-var RequireValidUsername RequireFunc = func(value any) (any, bool) {
+var RequireValidUsername RequireFunc[string] = func(value any) (string, bool) {
 	strValue, ok := RequireString(value)
-	if !ok || !model.IsValidUsername(strValue.(string)) {
+	if !ok || !model.IsValidUsername(strValue) {
 		return "", false
 	}
 	return strValue, true
 }
 
 // value must be a boolean
-var RequireBool RequireFunc = func(value any) (any, bool) {
+var RequireBool RequireFunc[bool] = func(value any) (bool, bool) {
 	boolValue, ok := value.(bool)
 	if !ok {
 		return false, false
@@ -383,18 +351,18 @@ var RequireBool RequireFunc = func(value any) (any, bool) {
 }
 
 // value must be a string and a valid channel name [model.IsValidChannelIdentifier]
-var RequireChannelName RequireFunc = func(value any) (any, bool) {
+var RequireChannelName RequireFunc[string] = func(value any) (string, bool) {
 	strValue, ok := RequireString(value)
-	if !ok || !model.IsValidChannelIdentifier(strValue.(string)) {
+	if !ok || !model.IsValidChannelIdentifier(strValue) {
 		return "", false
 	}
 	return strValue, true
 }
 
 // value must be a string and a valid team name [model.IsValidTeamName]
-var RequireTeamName RequireFunc = func(value any) (any, bool) {
+var RequireTeamName RequireFunc[string] = func(value any) (string, bool) {
 	strValue, ok := RequireString(value)
-	if !ok || !model.IsValidTeamName(strValue.(string)) {
+	if !ok || !model.IsValidTeamName(strValue) {
 		return "", false
 	}
 	return strValue, true
@@ -403,251 +371,47 @@ var RequireTeamName RequireFunc = func(value any) (any, bool) {
 var ValidName = regexp.MustCompile(`^[a-zA-Z0-9\-\+_]+$`)
 
 // value must be a string, non-empty, less than [model.EmojiNameMaxLength] and match ValidName regex
-var RequireEmojiName RequireFunc = func(value any) (any, bool) {
+var RequireEmojiName RequireFunc[string] = func(value any) (string, bool) {
 	strValue, ok := RequireString(value)
 	if !ok {
 		return "", false
 	}
-	if strValue == "" || len(strValue.(string)) > model.EmojiNameMaxLength || !ValidName.MatchString(strValue.(string)) {
+	if strValue == "" || len(strValue) > model.EmojiNameMaxLength || !ValidName.MatchString(strValue) {
 		return "", false
 	}
 	return strValue, true
 }
 
 // value must be a string and match [model.IsValidAlphaNumHyphenUnderscore] with case insensitive
-var RequireValidName RequireFunc = func(value any) (any, bool) {
+var RequireValidName RequireFunc[string] = func(value any) (string, bool) {
 	strValue, ok := RequireString(value)
 	if !ok {
 		return "", false
 	}
-	if !model.IsValidAlphaNumHyphenUnderscore(strValue.(string), true) {
+	if !model.IsValidAlphaNumHyphenUnderscore(strValue, true) {
 		return "", false
 	}
 	return strValue, true
 }
 
-func (c *Context) RequireParam(parameter string, require RequireFunc) any {
+func (c *Context) RequireParam[T cmp.Ordered | ~bool](parameter string, require RequireFunc[T]) T {
+	var zeroT T
 	if c.Err != nil {
-		return nil
+		return zeroT
 	}
 	value, ok := c.Params[parameter]
 	if !ok {
 		c.SetInvalidURLParam(parameter)
-		return nil
+		return zeroT
 	}
 	result, ok := require(value)
 	if !ok {
 		c.SetInvalidURLParam(parameter)
-		return nil
+		return zeroT
 	}
 
 	return result
 }
-
-// func (c *Context) RequireInviteId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if inviteId, ok := c.Params["invite_id"].(string); !ok || inviteId == "" {
-// 		c.SetInvalidURLParam("invite_id")
-// 	}
-// 	return c
-// }
-
-// func (c *Context) RequireTokenId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if tokenId, ok := c.Params["token_id"].(string); !ok || !model.IsValidId(tokenId) {
-// 		c.SetInvalidURLParam("token_id")
-// 	}
-// 	return c
-// }
-
-// func (c *Context) RequireThreadId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if threadId, ok := c.Params["thread_id"].(string); !ok || !model.IsValidId(threadId) {
-// 		c.SetInvalidURLParam("thread_id")
-// 	}
-// 	return c
-// }
-
-// func (c *Context) RequireTimestamp() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if timestamp, ok := c.Params["timestamp"].(int64); !ok || timestamp == 0 {
-// 		c.SetInvalidURLParam("timestamp")
-// 	}
-// 	return c
-// }
-
-// func (c *Context) RequireChannelId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if channelId, ok := c.Params["channel_id"].(string); !ok || !model.IsValidId(channelId) {
-// 		c.SetInvalidURLParam("channel_id")
-// 	}
-// 	return c
-// }
-
-// func (c *Context) RequireUsername() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if username, ok := c.Params["username"].(string); !ok || !model.IsValidUsername(username) {
-// 		c.SetInvalidParam("username")
-// 	}
-
-// 	return c
-// }
-
-// func (c *Context) RequirePostId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if postId, ok := c.Params["post_id"].(string); !ok || !model.IsValidId(postId) {
-// 		c.SetInvalidURLParam("post_id")
-// 	}
-// 	return c
-// }
-
-// func (c *Context) RequirePolicyId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if policyId, ok := c.Params["policy_id"].(string); !ok || !model.IsValidId(policyId) {
-// 		c.SetInvalidURLParam("policy_id")
-// 	}
-// 	return c
-// }
-
-// func (c *Context) RequireAppId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if appId, ok := c.Params["app_id"].(string); !ok || !model.IsValidId(appId) {
-// 		c.SetInvalidURLParam("app_id")
-// 	}
-// 	return c
-// }
-
-// func (c *Context) RequireOutgoingOAuthConnectionId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if outgoingOAuthConnectionId, ok := c.Params["outgoing_oauth_connection_id"].(string); !ok || !model.IsValidId(outgoingOAuthConnectionId) {
-// 		c.SetInvalidURLParam("outgoing_oauth_connection_id")
-// 	}
-// 	return c
-// }
-
-// func (c *Context) RequireFileId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if fileId, ok := c.Params["file_id"].(string); !ok || !model.IsValidId(fileId) {
-// 		c.SetInvalidURLParam("file_id")
-// 	}
-
-// 	return c
-// }
-
-// func (c *Context) RequireUploadId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if uploadId, ok := c.Params["upload_id"].(string); !ok || !model.IsValidId(uploadId) {
-// 		c.SetInvalidURLParam("upload_id")
-// 	}
-
-// 	return c
-// }
-
-// func (c *Context) RequireFilename() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if filename, ok := c.Params["filename"].(string); !ok || filename == "" {
-// 		c.SetInvalidURLParam("filename")
-// 	}
-
-// 	return c
-// }
-
-// func (c *Context) RequirePluginId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if pluginId, ok := c.Params["plugin_id"].(string); !ok || pluginId == "" {
-// 		c.SetInvalidURLParam("plugin_id")
-// 	}
-
-// 	return c
-// }
-
-// func (c *Context) RequireReportId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if reportId, ok := c.Params["report_id"].(string); !ok || !model.IsValidId(reportId) {
-// 		c.SetInvalidURLParam("report_id")
-// 	}
-// 	return c
-// }
-
-// func (c *Context) RequireEmojiId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if emojiId, ok := c.Params["emoji_id"].(string); !ok || !model.IsValidId(emojiId) {
-// 		c.SetInvalidURLParam("emoji_id")
-// 	}
-// 	return c
-// }
-
-// func (c *Context) RequireTeamName() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if teamName, ok := c.Params["team_name"].(string); !ok || !model.IsValidTeamName(teamName) {
-// 		c.SetInvalidURLParam("team_name")
-// 	}
-
-// 	return c
-// }
-
-// func (c *Context) RequireChannelName() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if channelName, ok := c.Params["channel_name"].(string); !ok || !model.IsValidChannelIdentifier(channelName) {
-// 		c.SetInvalidURLParam("channel_name")
-// 	}
-
-// 	return c
-// }
 
 func (c *Context) SanitizeEmail() *Context {
 	if c.Err != nil {
@@ -665,18 +429,6 @@ func (c *Context) SanitizeEmail() *Context {
 	return c
 }
 
-// func (c *Context) RequireCategory() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if category, ok := c.Params["category"].(string); !ok || !model.IsValidAlphaNumHyphenUnderscore(category, true) {
-// 		c.SetInvalidURLParam("category")
-// 	}
-
-// 	return c
-// }
-
 func (c *Context) RequireService() *Context {
 	if c.Err != nil {
 		return c
@@ -689,32 +441,6 @@ func (c *Context) RequireService() *Context {
 	return c
 }
 
-// func (c *Context) RequirePreferenceName() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if preferenceName, ok := c.Params["preference_name"].(string); !ok || !model.IsValidAlphaNumHyphenUnderscore(preferenceName, true) {
-// 		c.SetInvalidURLParam("preference_name")
-// 	}
-
-// 	return c
-// }
-
-// func (c *Context) RequireEmojiName() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	validName := regexp.MustCompile(`^[a-zA-Z0-9\-\+_]+$`)
-
-// 	if emojiName, ok := c.Params["emoji_name"].(string); !ok || emojiName == "" || len(emojiName) > model.EmojiNameMaxLength || !validName.MatchString(emojiName) {
-// 		c.SetInvalidURLParam("emoji_name")
-// 	}
-
-// 	return c
-// }
-
 func (c *Context) RequireHookId() *Context {
 	if c.Err != nil {
 		return c
@@ -726,173 +452,6 @@ func (c *Context) RequireHookId() *Context {
 
 	return c
 }
-
-// func (c *Context) RequireCommandId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if commandId, ok := c.Params["command_id"].(string); !ok || !model.IsValidId(commandId) {
-// 		c.SetInvalidURLParam("command_id")
-// 	}
-// 	return c
-// }
-
-// func (c *Context) RequireJobId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if jobId, ok := c.Params["job_id"].(string); !ok || !model.IsValidId(jobId) {
-// 		c.SetInvalidURLParam("job_id")
-// 	}
-// 	return c
-// }
-
-// func (c *Context) RequireJobType() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if jobType, ok := c.Params["job_type"].(string); !ok || jobType == "" || len(jobType) > 32 {
-// 		c.SetInvalidURLParam("job_type")
-// 	}
-// 	return c
-// }
-
-// func (c *Context) RequireRoleId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if roleId, ok := c.Params["role_id"].(string); !ok || !model.IsValidId(roleId) {
-// 		c.SetInvalidURLParam("role_id")
-// 	}
-// 	return c
-// }
-
-// func (c *Context) RequireFieldId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if fieldId, ok := c.Params["field_id"].(string); !ok || !model.IsValidId(fieldId) {
-// 		c.SetInvalidURLParam("field_id")
-// 	}
-// 	return c
-// }
-
-// func (c *Context) RequireSchemeId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if schemeId, ok := c.Params["scheme_id"].(string); !ok || !model.IsValidId(schemeId) {
-// 		c.SetInvalidURLParam("scheme_id")
-// 	}
-// 	return c
-// }
-
-// func (c *Context) RequireRoleName() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if roleName, ok := c.Params["role_name"].(string); !ok || !model.IsValidRoleName(roleName) {
-// 		c.SetInvalidURLParam("role_name")
-// 	}
-
-// 	return c
-// }
-
-// func (c *Context) RequireGroupId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if groupId, ok := c.Params["group_id"].(string); !ok || !model.IsValidId(groupId) {
-// 		c.SetInvalidURLParam("group_id")
-// 	}
-// 	return c
-// }
-
-// func (c *Context) RequireRemoteId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if remoteId, ok := c.Params["remote_id"].(string); !ok || remoteId == "" {
-// 		c.SetInvalidURLParam("remote_id")
-// 	}
-// 	return c
-// }
-
-// func (c *Context) RequireSyncableId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if syncableId, ok := c.Params["syncable_id"].(string); !ok || !model.IsValidId(syncableId) {
-// 		c.SetInvalidURLParam("syncable_id")
-// 	}
-// 	return c
-// }
-
-// func (c *Context) RequireSyncableType() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if syncableType, ok := c.Params["syncable_type"].(string); !ok || (syncableType != string(model.GroupSyncableTypeTeam) && syncableType != string(model.GroupSyncableTypeChannel)) {
-// 		c.SetInvalidURLParam("syncable_type")
-// 	}
-// 	return c
-// }
-
-// func (c *Context) RequireBotUserId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if botUserId, ok := c.Params["bot_user_id"].(string); !ok || !model.IsValidId(botUserId) {
-// 		c.SetInvalidURLParam("bot_user_id")
-// 	}
-// 	return c
-// }
-
-// func (c *Context) RequireInvoiceId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if invoiceId, ok := c.Params["invoice_id"].(string); !ok || (len(invoiceId) != 27 && invoiceId != model.UpcomingInvoice) {
-// 		c.SetInvalidURLParam("invoice_id")
-// 	}
-
-// 	return c
-// }
-
-// func (c *Context) RequireContentReviewerId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if contentReviewerId, ok := c.Params["content_reviewer_id"].(string); !ok || !model.IsValidId(contentReviewerId) {
-// 		c.SetInvalidURLParam("content_reviewer_id")
-// 	}
-// 	return c
-// }
-
-// func (c *Context) RequireRecapId() *Context {
-// 	if c.Err != nil {
-// 		return c
-// 	}
-
-// 	if recapId, ok := c.Params["recap_id"].(string); !ok || !model.IsValidId(recapId) {
-// 		c.SetInvalidURLParam("recap_id")
-// 	}
-// 	return c
-// }
 
 func (c *Context) GetRemoteID(r *http.Request) string {
 	return r.Header.Get(model.HeaderRemoteclusterId)

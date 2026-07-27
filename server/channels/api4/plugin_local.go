@@ -47,11 +47,10 @@ func reattachPlugin(c *Context, w http.ResponseWriter, r *http.Request) {
 //
 // This API is only exposed over a local socket.
 func detachPlugin(c *Context, w http.ResponseWriter, r *http.Request) {
-	pluginId := c.RequireParam("plugin_id", web.RequireString)
+	pluginIdStr := c.RequireParam("plugin_id", web.RequireString)
 	if c.Err != nil {
 		return
 	}
-	pluginIdStr := pluginId.(string)
 
 	err := c.App.DetachPlugin(pluginIdStr)
 	if err != nil {

@@ -335,9 +335,8 @@ func getUserByUsername(c *Context, w http.ResponseWriter, r *http.Request) {
 	if c.Err != nil {
 		return
 	}
-	userNameStr := userName.(string)
 
-	user, err := c.App.GetUserByUsername(userNameStr)
+	user, err := c.App.GetUserByUsername(userName)
 	if err != nil {
 		restrictions, err2 := c.App.GetViewUsersRestrictions(c.AppContext, c.AppContext.Session().UserId)
 		if err2 != nil {
@@ -2922,14 +2921,13 @@ func getUserAccessToken(c *Context, w http.ResponseWriter, r *http.Request) {
 	if c.Err != nil {
 		return
 	}
-	tokenIdStr := tokenId.(string)
 
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionReadUserAccessToken) {
 		c.SetPermissionError(model.PermissionReadUserAccessToken)
 		return
 	}
 
-	accessToken, appErr := c.App.GetUserAccessToken(tokenIdStr, true)
+	accessToken, appErr := c.App.GetUserAccessToken(tokenId, true)
 	if appErr != nil {
 		c.Err = appErr
 		return
@@ -3553,9 +3551,6 @@ func migrateAuthToSaml(c *Context, w http.ResponseWriter, r *http.Request) {
 
 func getThreadForUser(c *Context, w http.ResponseWriter, r *http.Request) {
 	c.RequireUserId()
-	if c.Err != nil {
-		return
-	}
 	userIdStr := c.Params["user_id"].(string)
 	threadId := c.RequireParam("thread_id", web.RequireValidId)
 
@@ -3563,13 +3558,11 @@ func getThreadForUser(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// teamIdStr := teamId.(string)
-	threadIdStr := threadId.(string)
 	if !c.App.SessionHasPermissionToUser(*c.AppContext.Session(), userIdStr) {
 		c.SetPermissionError(model.PermissionEditOtherUsers)
 		return
 	}
-	ok, isMember := c.App.SessionHasPermissionToReadPost(c.AppContext, *c.AppContext.Session(), threadIdStr)
+	ok, isMember := c.App.SessionHasPermissionToReadPost(c.AppContext, *c.AppContext.Session(), threadId)
 	if !ok {
 		c.SetPermissionError(model.PermissionReadChannelContent)
 		return
@@ -3577,7 +3570,7 @@ func getThreadForUser(c *Context, w http.ResponseWriter, r *http.Request) {
 	extendedStr := r.URL.Query().Get("extended")
 	extended, _ := strconv.ParseBool(extendedStr)
 
-	threadMembership, err := c.App.GetThreadMembershipForUser(userIdStr, threadIdStr)
+	threadMembership, err := c.App.GetThreadMembershipForUser(userIdStr, threadId)
 	if err != nil {
 		c.Err = err
 		return
@@ -3595,7 +3588,7 @@ func getThreadForUser(c *Context, w http.ResponseWriter, r *http.Request) {
 
 	auditRec := c.MakeAuditRecord(model.AuditEventGetThreadForUser, model.AuditStatusSuccess)
 	defer c.LogAuditRec(auditRec)
-	model.AddEventParameterToAuditRec(auditRec, "thread_id", threadIdStr)
+	model.AddEventParameterToAuditRec(auditRec, "thread_id", threadId)
 
 	if !isMember {
 		model.AddEventParameterToAuditRec(auditRec, "non_channel_member_access", true)
@@ -3604,9 +3597,6 @@ func getThreadForUser(c *Context, w http.ResponseWriter, r *http.Request) {
 
 func getThreadsForUser(c *Context, w http.ResponseWriter, r *http.Request) {
 	c.RequireUserId()
-	if c.Err != nil {
-		return
-	}
 	userIdStr := c.Params["user_id"].(string)
 	teamId := c.RequireParam("team_id", web.RequireValidId)
 
@@ -3614,13 +3604,11 @@ func getThreadsForUser(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	teamIdStr := teamId.(string)
-
 	if !c.App.SessionHasPermissionToUser(*c.AppContext.Session(), userIdStr) {
 		c.SetPermissionError(model.PermissionEditOtherUsers)
 		return
 	}
-	if !c.App.SessionHasPermissionToTeam(*c.AppContext.Session(), teamIdStr, model.PermissionViewTeam) {
+	if !c.App.SessionHasPermissionToTeam(*c.AppContext.Session(), teamId, model.PermissionViewTeam) {
 		c.SetPermissionError(model.PermissionViewTeam)
 		return
 	}
@@ -3676,7 +3664,7 @@ func getThreadsForUser(c *Context, w http.ResponseWriter, r *http.Request) {
 	options.Unread, _ = strconv.ParseBool(unreadStr)
 	options.Extended, _ = strconv.ParseBool(extendedStr)
 
-	threads, err := c.App.GetThreadsForUser(c.AppContext, userIdStr, teamIdStr, options)
+	threads, err := c.App.GetThreadsForUser(c.AppContext, userIdStr, teamId, options)
 	if err != nil {
 		c.Err = err
 		return
@@ -3689,32 +3677,25 @@ func getThreadsForUser(c *Context, w http.ResponseWriter, r *http.Request) {
 
 func updateReadStateThreadByUser(c *Context, w http.ResponseWriter, r *http.Request) {
 	c.RequireUserId()
-	if c.Err != nil {
-		return
-	}
 	userIdStr := c.Params["user_id"].(string)
 	threadId := c.RequireParam("thread_id", web.RequireValidId)
 	timestamp := c.RequireParam("timestamp", web.RequireInt)
-	teamId := c.RequireParam("team_id", web.RequireInt)
+	teamId := c.RequireParam("team_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-
-	threadIdStr := threadId.(string)
-	timestampInt := timestamp.(int)
-	teamIdStr := teamId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventUpdateReadStateThreadByUser, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
 	model.AddEventParameterToAuditRec(auditRec, "user_id", userIdStr)
-	model.AddEventParameterToAuditRec(auditRec, "thread_id", threadIdStr)
-	model.AddEventParameterToAuditRec(auditRec, "team_id", teamIdStr)
-	model.AddEventParameterToAuditRec(auditRec, "timestamp", int64(timestampInt))
+	model.AddEventParameterToAuditRec(auditRec, "thread_id", threadId)
+	model.AddEventParameterToAuditRec(auditRec, "team_id", teamId)
+	model.AddEventParameterToAuditRec(auditRec, "timestamp", int64(timestamp))
 	if !c.App.SessionHasPermissionToUser(*c.AppContext.Session(), userIdStr) {
 		c.SetPermissionError(model.PermissionEditOtherUsers)
 		return
 	}
-	ok, isMember := c.App.SessionHasPermissionToReadPost(c.AppContext, *c.AppContext.Session(), threadIdStr)
+	ok, isMember := c.App.SessionHasPermissionToReadPost(c.AppContext, *c.AppContext.Session(), threadId)
 	if !ok {
 		c.SetPermissionError(model.PermissionReadChannelContent)
 		return
@@ -3724,7 +3705,7 @@ func updateReadStateThreadByUser(c *Context, w http.ResponseWriter, r *http.Requ
 		model.AddEventParameterToAuditRec(auditRec, "non_channel_member_access", true)
 	}
 
-	thread, err := c.App.UpdateThreadReadForUser(c.AppContext, c.AppContext.Session().Id, userIdStr, teamIdStr, threadIdStr, int64(timestampInt))
+	thread, err := c.App.UpdateThreadReadForUser(c.AppContext, c.AppContext.Session().Id, userIdStr, teamId, threadId, int64(timestamp))
 	if err != nil {
 		c.Err = err
 		return
@@ -3739,9 +3720,6 @@ func updateReadStateThreadByUser(c *Context, w http.ResponseWriter, r *http.Requ
 
 func setUnreadThreadByPostId(c *Context, w http.ResponseWriter, r *http.Request) {
 	c.RequireUserId()
-	if c.Err != nil {
-		return
-	}
 	userIdStr := c.Params["user_id"].(string)
 	threadId := c.RequireParam("thread_id", web.RequireValidId)
 	postId := c.RequireParam("post_id", web.RequireValidId)
@@ -3749,23 +3727,20 @@ func setUnreadThreadByPostId(c *Context, w http.ResponseWriter, r *http.Request)
 	if c.Err != nil {
 		return
 	}
-	threadIdStr := threadId.(string)
-	postIdStr := postId.(string)
-	teamIdStr := teamId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventSetUnreadThreadByPostId, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
 	model.AddEventParameterToAuditRec(auditRec, "user_id", userIdStr)
-	model.AddEventParameterToAuditRec(auditRec, "thread_id", threadIdStr)
-	model.AddEventParameterToAuditRec(auditRec, "team_id", teamIdStr)
-	model.AddEventParameterToAuditRec(auditRec, "post_id", postIdStr)
+	model.AddEventParameterToAuditRec(auditRec, "thread_id", threadId)
+	model.AddEventParameterToAuditRec(auditRec, "team_id", teamId)
+	model.AddEventParameterToAuditRec(auditRec, "post_id", postId)
 
 	if !c.App.SessionHasPermissionToUser(*c.AppContext.Session(), userIdStr) {
 		c.SetPermissionError(model.PermissionEditOtherUsers)
 		return
 	}
 
-	ok, isMember := c.App.SessionHasPermissionToReadPost(c.AppContext, *c.AppContext.Session(), threadIdStr)
+	ok, isMember := c.App.SessionHasPermissionToReadPost(c.AppContext, *c.AppContext.Session(), threadId)
 	if !ok {
 		c.SetPermissionError(model.PermissionReadChannelContent)
 		return
@@ -3776,13 +3751,13 @@ func setUnreadThreadByPostId(c *Context, w http.ResponseWriter, r *http.Request)
 
 	// We want to make sure the thread is followed when marking as unread
 	// https://mattermost.atlassian.net/browse/MM-36430
-	err := c.App.UpdateThreadFollowForUser(userIdStr, teamIdStr, threadIdStr, true)
+	err := c.App.UpdateThreadFollowForUser(userIdStr, teamId, threadId, true)
 	if err != nil {
 		c.Err = err
 		return
 	}
 
-	thread, err := c.App.UpdateThreadReadForUserByPost(c.AppContext, c.AppContext.Session().Id, userIdStr, teamIdStr, threadIdStr, postIdStr)
+	thread, err := c.App.UpdateThreadReadForUserByPost(c.AppContext, c.AppContext.Session().Id, userIdStr, teamId, threadId, postId)
 	if err != nil {
 		c.Err = err
 		return
@@ -3806,25 +3781,23 @@ func unfollowThreadByUser(c *Context, w http.ResponseWriter, r *http.Request) {
 	if c.Err != nil {
 		return
 	}
-	threadIdStr := threadId.(string)
-	teamIdStr := teamId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventUnfollowThreadByUser, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
 	model.AddEventParameterToAuditRec(auditRec, "user_id", userIdStr)
-	model.AddEventParameterToAuditRec(auditRec, "thread_id", threadIdStr)
-	model.AddEventParameterToAuditRec(auditRec, "team_id", teamIdStr)
+	model.AddEventParameterToAuditRec(auditRec, "thread_id", threadId)
+	model.AddEventParameterToAuditRec(auditRec, "team_id", teamId)
 
 	if !c.App.SessionHasPermissionToUser(*c.AppContext.Session(), userIdStr) {
 		c.SetPermissionError(model.PermissionEditOtherUsers)
 		return
 	}
-	if ok, _ := c.App.SessionHasPermissionToReadPost(c.AppContext, *c.AppContext.Session(), threadIdStr); !ok {
+	if ok, _ := c.App.SessionHasPermissionToReadPost(c.AppContext, *c.AppContext.Session(), threadId); !ok {
 		c.SetPermissionError(model.PermissionReadChannelContent)
 		return
 	}
 
-	err := c.App.UpdateThreadFollowForUser(userIdStr, teamIdStr, threadIdStr, false)
+	err := c.App.UpdateThreadFollowForUser(userIdStr, teamId, threadId, false)
 	if err != nil {
 		c.Err = err
 		return
@@ -3846,26 +3819,24 @@ func followThreadByUser(c *Context, w http.ResponseWriter, r *http.Request) {
 	if c.Err != nil {
 		return
 	}
-	threadIdStr := threadId.(string)
-	teamIdStr := teamId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventFollowThreadByUser, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
 	model.AddEventParameterToAuditRec(auditRec, "user_id", userIdStr)
-	model.AddEventParameterToAuditRec(auditRec, "thread_id", threadIdStr)
-	model.AddEventParameterToAuditRec(auditRec, "team_id", teamIdStr)
+	model.AddEventParameterToAuditRec(auditRec, "thread_id", threadId)
+	model.AddEventParameterToAuditRec(auditRec, "team_id", teamId)
 
 	if !c.App.SessionHasPermissionToUser(*c.AppContext.Session(), userIdStr) {
 		c.SetPermissionError(model.PermissionEditOtherUsers)
 		return
 	}
 
-	if ok, _ := c.App.SessionHasPermissionToReadPost(c.AppContext, *c.AppContext.Session(), threadIdStr); !ok {
+	if ok, _ := c.App.SessionHasPermissionToReadPost(c.AppContext, *c.AppContext.Session(), threadId); !ok {
 		c.SetPermissionError(model.PermissionReadChannelContent)
 		return
 	}
 
-	err := c.App.UpdateThreadFollowForUser(userIdStr, teamIdStr, threadIdStr, true)
+	err := c.App.UpdateThreadFollowForUser(userIdStr, teamId, threadId, true)
 	if err != nil {
 		c.Err = err
 		return
@@ -3885,23 +3856,22 @@ func updateReadStateAllThreadsByUser(c *Context, w http.ResponseWriter, r *http.
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventUpdateReadStateAllThreadsByUser, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
 	model.AddEventParameterToAuditRec(auditRec, "user_id", userIdStr)
-	model.AddEventParameterToAuditRec(auditRec, "team_id", teamIdStr)
+	model.AddEventParameterToAuditRec(auditRec, "team_id", teamId)
 
 	if !c.App.SessionHasPermissionToUser(*c.AppContext.Session(), userIdStr) {
 		c.SetPermissionError(model.PermissionEditOtherUsers)
 		return
 	}
-	if !c.App.SessionHasPermissionToTeam(*c.AppContext.Session(), teamIdStr, model.PermissionViewTeam) {
+	if !c.App.SessionHasPermissionToTeam(*c.AppContext.Session(), teamId, model.PermissionViewTeam) {
 		c.SetPermissionError(model.PermissionViewTeam)
 		return
 	}
 
-	err := c.App.UpdateThreadsReadForUser(userIdStr, teamIdStr)
+	err := c.App.UpdateThreadsReadForUser(userIdStr, teamId)
 	if err != nil {
 		c.Err = err
 		return

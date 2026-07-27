@@ -129,13 +129,11 @@ func uploadFileStream(c *Context, w http.ResponseWriter, r *http.Request) {
 // uploadFileSimple uploads a file from a simple POST with the file in the request body
 func uploadFileSimple(c *Context, r *http.Request, timestamp time.Time) *model.FileUploadResponse {
 	// Simple POST with the file in the body and all metadata in the args.
-	channelId := c.RequireParam("channel_id", http_web.RequireValidId)
-	fileName := c.RequireParam("filename", http_web.RequireString)
+	channelIdStr := c.RequireParam("channel_id", http_web.RequireValidId)
+	fileNameStr := c.RequireParam("filename", http_web.RequireString)
 	if c.Err != nil {
 		return nil
 	}
-	channelIdStr := channelId.(string)
-	fileNameStr := fileName.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventUploadFileSimple, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
@@ -313,11 +311,10 @@ NextPart:
 			return uploadFileMultipartLegacy(c, mr, timestamp, isBookmark)
 		}
 
-		channelId := c.RequireParam("channel_id", http_web.RequireValidId)
+		channelIdStr := c.RequireParam("channel_id", http_web.RequireValidId)
 		if c.Err != nil {
 			return nil
 		}
-		channelIdStr := channelId.(string)
 		if ok, _ := c.App.SessionHasPermissionToChannel(c.AppContext, *c.AppContext.Session(), channelIdStr, model.PermissionUploadFile); !ok {
 			c.SetPermissionError(model.PermissionUploadFile)
 			return nil
@@ -504,11 +501,10 @@ func uploadFileMultipartLegacy(c *Context, mr *multipart.Reader,
 }
 
 func getFile(c *Context, w http.ResponseWriter, r *http.Request) {
-	fileId := c.RequireParam("file_id", http_web.RequireValidId)
+	fileIdStr := c.RequireParam("file_id", http_web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	fileIdStr := fileId.(string)
 
 	forceDownload, _ := strconv.ParseBool(r.URL.Query().Get("download"))
 
@@ -604,11 +600,10 @@ func getFile(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getFileThumbnail(c *Context, w http.ResponseWriter, r *http.Request) {
-	fileId := c.RequireParam("file_id", http_web.RequireValidId)
+	fileIdStr := c.RequireParam("file_id", http_web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	fileIdStr := fileId.(string)
 
 	forceDownload, _ := strconv.ParseBool(r.URL.Query().Get("download"))
 	info, err := c.App.GetFileInfo(c.AppContext, fileIdStr)
@@ -658,11 +653,10 @@ func getFileThumbnail(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getFileLink(c *Context, w http.ResponseWriter, r *http.Request) {
-	fileId := c.RequireParam("file_id", http_web.RequireValidId)
+	fileIdStr := c.RequireParam("file_id", http_web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	fileIdStr := fileId.(string)
 
 	if !*c.App.Config().FileSettings.EnablePublicLink {
 		c.Err = model.NewAppError("getPublicLink", "api.file.get_public_link.disabled.app_error", nil, "", http.StatusForbidden)
@@ -717,11 +711,10 @@ func getFileLink(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getFilePreview(c *Context, w http.ResponseWriter, r *http.Request) {
-	fileId := c.RequireParam("file_id", http_web.RequireValidId)
+	fileIdStr := c.RequireParam("file_id", http_web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	fileIdStr := fileId.(string)
 
 	forceDownload, _ := strconv.ParseBool(r.URL.Query().Get("download"))
 	info, err := c.App.GetFileInfo(c.AppContext, fileIdStr)
@@ -771,11 +764,10 @@ func getFilePreview(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getFileInfo(c *Context, w http.ResponseWriter, r *http.Request) {
-	fileId := c.RequireParam("file_id", http_web.RequireValidId)
+	fileIdStr := c.RequireParam("file_id", http_web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	fileIdStr := fileId.(string)
 
 	info, err := c.App.GetFileInfo(c.AppContext, fileIdStr)
 	if err != nil {
@@ -815,11 +807,10 @@ func getFileInfo(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getPublicFile(c *Context, w http.ResponseWriter, r *http.Request) {
-	fileId := c.RequireParam("file_id", http_web.RequireValidId)
+	fileIdStr := c.RequireParam("file_id", http_web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	fileIdStr := fileId.(string)
 
 	if !*c.App.Config().FileSettings.EnablePublicLink {
 		c.Err = model.NewAppError("getPublicFile", "api.file.get_public_link.disabled.app_error", nil, "", http.StatusForbidden)
@@ -859,11 +850,10 @@ func getPublicFile(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func searchFilesInTeam(c *Context, w http.ResponseWriter, r *http.Request) {
-	teamId := c.RequireParam("team_id", http_web.RequireValidId)
+	teamIdStr := c.RequireParam("team_id", http_web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
 
 	if !c.App.SessionHasPermissionToTeam(*c.AppContext.Session(), teamIdStr, model.PermissionViewTeam) {
 		c.SetPermissionError(model.PermissionViewTeam)

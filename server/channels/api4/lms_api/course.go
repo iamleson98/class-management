@@ -2,6 +2,7 @@ package lmsapi
 
 import (
 	"encoding/json"
+	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"net/http"
 
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
@@ -36,8 +37,9 @@ func getCourses(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		TotalCount: int64(len(courses)),
 	}
 
-	data, _ := json.Marshal(res)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func createCourse(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -58,8 +60,9 @@ func createCourse(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	data, _ := json.Marshal(created)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(created); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func getCourse(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -68,11 +71,10 @@ func getCourse(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	course, err := c.App.LMS().GetCourse(id)
 	if err != nil {
@@ -80,8 +82,9 @@ func getCourse(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(course)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(course); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func updateCourse(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -90,11 +93,10 @@ func updateCourse(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	var course *lms_models.Course
 	if err := json.NewDecoder(r.Body).Decode(&course); err != nil {
@@ -108,8 +110,9 @@ func updateCourse(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(updated)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(updated); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func deleteCourse(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -118,11 +121,10 @@ func deleteCourse(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	if err := c.App.LMS().DeleteCourse(id); err != nil {
 		c.Err = err

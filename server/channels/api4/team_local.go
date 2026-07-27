@@ -32,11 +32,10 @@ func (api *API) InitTeamLocal() {
 }
 
 func localDeleteTeam(c *Context, w http.ResponseWriter, r *http.Request) {
-	teamId := c.RequireParam("team_id", web.RequireValidId)
+	teamIdStr := c.RequireParam("team_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventLocalDeleteTeam, model.AuditStatusFail)
 	model.AddEventParameterToAuditRec(auditRec, "team_id", teamIdStr)
@@ -64,11 +63,10 @@ func localDeleteTeam(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func localInviteUsersToTeam(c *Context, w http.ResponseWriter, r *http.Request) {
-	teamId := c.RequireParam("team_id", web.RequireValidId)
+	teamIdStr := c.RequireParam("team_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
 
 	if !*c.App.Config().ServiceSettings.EnableEmailInvitations {
 		c.Err = model.NewAppError("localInviteUsersToTeam", "api.team.invite_members.disabled.app_error", nil, "", http.StatusNotImplemented)

@@ -34,13 +34,11 @@ func getStringValue(val any, fieldName string, logger *mlog.Logger) string {
 }
 
 func doPostAction(c *Context, w http.ResponseWriter, r *http.Request) {
-	postId := c.RequireParam("post_id", web.RequireValidId)
-	actionId := c.RequireParam("action_id", web.RequireValidId)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
+	actionIdStr := c.RequireParam("action_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	postIdStr := postId.(string)
-	actionIdStr := actionId.(string)
 
 	var actionRequest model.DoPostActionRequest
 	err := json.NewDecoder(r.Body).Decode(&actionRequest)

@@ -111,20 +111,18 @@ func getEmojiList(c *Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	sort := c.RequireParam("sort", web.RequireString)
-	page := c.RequireParam("page", web.RequireInt)
-	perPage := c.RequireParam("per_page", web.RequireInt)
+	pageInt := c.RequireParam("page", web.RequireInt)
+	perPageInt := c.RequireParam("per_page", web.RequireInt)
 	if c.Err != nil {
 		return
 	}
-	pageInt := page.(int)
-	perPageInt := perPage.(int)
 
 	if sort != "" && sort != model.EmojiSortByName {
 		c.SetInvalidURLParam("sort")
 		return
 	}
 
-	listEmoji, err := c.App.GetEmojiList(c.AppContext, pageInt, perPageInt, sort.(string))
+	listEmoji, err := c.App.GetEmojiList(c.AppContext, pageInt, perPageInt, sort)
 	if err != nil {
 		c.Err = err
 		return
@@ -136,11 +134,10 @@ func getEmojiList(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteEmoji(c *Context, w http.ResponseWriter, r *http.Request) {
-	emojiId := c.RequireParam("emoji_id", web.RequireValidId)
+	emojiIdStr := c.RequireParam("emoji_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	emojiIdStr := emojiId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventDeleteEmoji, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
@@ -205,11 +202,10 @@ func deleteEmoji(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getEmoji(c *Context, w http.ResponseWriter, r *http.Request) {
-	emojiId := c.RequireParam("emoji_id", web.RequireValidId)
+	emojiIdStr := c.RequireParam("emoji_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	emojiIdStr := emojiId.(string)
 
 	if !*c.App.Config().ServiceSettings.EnableCustomEmoji {
 		c.Err = model.NewAppError("getEmoji", "api.emoji.disabled.app_error", nil, "", http.StatusNotImplemented)
@@ -228,11 +224,10 @@ func getEmoji(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getEmojiByName(c *Context, w http.ResponseWriter, r *http.Request) {
-	emojiName := c.RequireParam("emoji_name", web.RequireEmojiName)
+	emojiNameStr := c.RequireParam("emoji_name", web.RequireEmojiName)
 	if c.Err != nil {
 		return
 	}
-	emojiNameStr := emojiName.(string)
 
 	if !*c.App.Config().ServiceSettings.EnableCustomEmoji {
 		c.Err = model.NewAppError("getEmojiByName", "api.emoji.disabled.app_error", nil, "", http.StatusNotImplemented)
@@ -284,11 +279,10 @@ func getEmojisByNames(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getEmojiImage(c *Context, w http.ResponseWriter, r *http.Request) {
-	emojiId := c.RequireParam("emoji_id", web.RequireValidId)
+	emojiIdStr := c.RequireParam("emoji_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	emojiIdStr := emojiId.(string)
 
 	if !*c.App.Config().ServiceSettings.EnableCustomEmoji {
 		c.Err = model.NewAppError("getEmojiImage", "api.emoji.disabled.app_error", nil, "", http.StatusNotImplemented)

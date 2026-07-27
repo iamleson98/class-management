@@ -94,11 +94,10 @@ func getRecap(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	recapId := c.RequireParam("recap_id", web.RequireValidId)
+	recapIdStr := c.RequireParam("recap_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	recapIdStr := recapId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventGetRecap, model.AuditStatusFail)
 	defer c.LogAuditRecWithLevel(auditRec, app.LevelContent)
@@ -160,11 +159,10 @@ func markRecapAsRead(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	recapId := c.RequireParam("recap_id", web.RequireValidId)
+	recapIdStr := c.RequireParam("recap_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	recapIdStr := recapId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventMarkRecapAsRead, model.AuditStatusFail)
 	defer c.LogAuditRecWithLevel(auditRec, app.LevelContent)
@@ -205,11 +203,10 @@ func regenerateRecap(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	recapId := c.RequireParam("recap_id", web.RequireValidId)
+	recapIdStr := c.RequireParam("recap_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	recapIdStr := recapId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventRegenerateRecap, model.AuditStatusFail)
 	defer c.LogAuditRecWithLevel(auditRec, app.LevelContent)
@@ -253,11 +250,10 @@ func deleteRecap(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	recapId := c.RequireParam("recap_id", web.RequireValidId)
+	recapIdStr := c.RequireParam("recap_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	recapIdStr := recapId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventDeleteRecap, model.AuditStatusFail)
 	defer c.LogAuditRecWithLevel(auditRec, app.LevelContent)

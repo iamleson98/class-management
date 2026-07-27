@@ -86,9 +86,8 @@ func getUpload(c *Context, w http.ResponseWriter, r *http.Request) {
 	if c.Err != nil {
 		return
 	}
-	uploadIdStr := uploadId.(string)
 
-	us, err := c.App.GetUploadSession(c.AppContext, uploadIdStr)
+	us, err := c.App.GetUploadSession(c.AppContext, uploadId)
 	if err != nil {
 		c.Err = err
 		return
@@ -115,14 +114,13 @@ func uploadData(c *Context, w http.ResponseWriter, r *http.Request) {
 	if c.Err != nil {
 		return
 	}
-	uploadIdStr := uploadId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventUploadData, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
-	model.AddEventParameterToAuditRec(auditRec, "upload_id", uploadIdStr)
+	model.AddEventParameterToAuditRec(auditRec, "upload_id", uploadId)
 
 	c.AppContext = c.AppContext.With(app.RequestContextWithMaster)
-	us, err := c.App.GetUploadSession(c.AppContext, uploadIdStr)
+	us, err := c.App.GetUploadSession(c.AppContext, uploadId)
 	if err != nil {
 		c.Err = err
 		return

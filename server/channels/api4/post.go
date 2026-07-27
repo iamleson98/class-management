@@ -222,15 +222,12 @@ func createEphemeralPost(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getPostsForChannel(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
-	page := c.RequireParam("page", web.RequireInt)
-	perPage := c.RequireParam("per_page", web.RequireInt)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
+	pageInt := c.RequireParam("page", web.RequireInt)
+	perPageInt := c.RequireParam("per_page", web.RequireInt)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
-	pageInt := page.(int)
-	perPageInt := perPage.(int)
 
 	afterPost := r.URL.Query().Get("after")
 	if afterPost != "" && !model.IsValidId(afterPost) {
@@ -348,15 +345,12 @@ func getPostsForChannelAroundLastUnread(c *Context, w http.ResponseWriter, r *ht
 		return
 	}
 	userIdStr := c.Params["user_id"].(string)
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
-	limitAfter := c.RequireParam("limit_after", web.RequireInt)
-	limitBefore := c.RequireParam("limit_before", web.RequireInt)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
+	limitAfterInt := c.RequireParam("limit_after", web.RequireInt)
+	limitBeforeInt := c.RequireParam("limit_before", web.RequireInt)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
-	limitAfterInt := limitAfter.(int)
-	limitBeforeInt := limitBefore.(int)
 
 	if !c.App.SessionHasPermissionToUser(*c.AppContext.Session(), userIdStr) {
 		c.SetPermissionError(model.PermissionEditOtherUsers)
@@ -532,11 +526,10 @@ func getFlaggedPostsForUser(c *Context, w http.ResponseWriter, r *http.Request) 
 
 // getPost also sets a header to indicate, if post is inaccessible due to the cloud plan's limit.
 func getPost(c *Context, w http.ResponseWriter, r *http.Request) {
-	postId := c.RequireParam("post_id", web.RequireValidId)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	postIdStr := postId.(string)
 
 	includeDeleted, _ := strconv.ParseBool(r.URL.Query().Get("include_deleted"))
 	if includeDeleted && !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionManageSystem) {
@@ -659,11 +652,10 @@ func getPostsByIds(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getEditHistoryForPost(c *Context, w http.ResponseWriter, r *http.Request) {
-	postId := c.RequireParam("post_id", web.RequireValidId)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	postIdStr := postId.(string)
 
 	originalPost, err := c.App.GetSinglePost(c.AppContext, postIdStr, false)
 	if err != nil {
@@ -702,13 +694,11 @@ func getEditHistoryForPost(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func deletePost(c *Context, w http.ResponseWriter, _ *http.Request) {
-	postId := c.RequireParam("post_id", web.RequireValidId)
-	permanent := c.RequireParam("permanent", web.RequireBool)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
+	permanentBool := c.RequireParam("permanent", web.RequireBool)
 	if c.Err != nil {
 		return
 	}
-	postIdStr := postId.(string)
-	permanentBool := permanent.(bool)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventDeletePost, model.AuditStatusFail)
 	defer c.LogAuditRecWithLevel(auditRec, app.LevelContent)
@@ -761,13 +751,11 @@ func deletePost(c *Context, w http.ResponseWriter, _ *http.Request) {
 }
 
 func getPostThread(c *Context, w http.ResponseWriter, r *http.Request) {
-	postId := c.RequireParam("post_id", web.RequireValidId)
-	perPage := c.RequireParam("per_page", web.RequireInt)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
+	perPageInt := c.RequireParam("per_page", web.RequireInt)
 	if c.Err != nil {
 		return
 	}
-	postIdStr := postId.(string)
-	perPageInt := perPage.(int)
 
 	var fromCreateAt int64
 	if fromCreateAtStr := r.URL.Query().Get("fromCreateAt"); fromCreateAtStr != "" {
@@ -891,11 +879,10 @@ func getPostThread(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func searchPostsInTeam(c *Context, w http.ResponseWriter, r *http.Request) {
-	teamId := c.RequireParam("team_id", web.RequireValidId)
+	teamIdStr := c.RequireParam("team_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
 
 	if !c.App.SessionHasPermissionToTeam(*c.AppContext.Session(), teamIdStr, model.PermissionViewTeam) {
 		c.SetPermissionError(model.PermissionViewTeam)
@@ -992,11 +979,10 @@ func searchPosts(c *Context, w http.ResponseWriter, r *http.Request, teamId stri
 }
 
 func updatePost(c *Context, w http.ResponseWriter, r *http.Request) {
-	postId := c.RequireParam("post_id", web.RequireValidId)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	postIdStr := postId.(string)
 
 	var post model.Post
 	if jsonErr := json.NewDecoder(r.Body).Decode(&post); jsonErr != nil {
@@ -1090,11 +1076,10 @@ func updatePost(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func patchPost(c *Context, w http.ResponseWriter, r *http.Request) {
-	postId := c.RequireParam("post_id", web.RequireValidId)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	postIdStr := postId.(string)
 
 	var post model.PostPatch
 	if jsonErr := json.NewDecoder(r.Body).Decode(&post); jsonErr != nil {
@@ -1182,13 +1167,12 @@ func postPatchChecks(c *Context, auditRec *model.AuditRecord, message *string) b
 }
 
 func setPostUnread(c *Context, w http.ResponseWriter, r *http.Request) {
-	postId := c.RequireParam("post_id", web.RequireValidId)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
 	c.RequireUserId()
 	if c.Err != nil {
 		return
 	}
 	userIdStr := c.Params["user_id"].(string)
-	postIdStr := postId.(string)
 
 	props := model.MapBoolFromJSON(r.Body)
 	collapsedThreadsSupported := props["collapsed_threads_supported"]
@@ -1213,13 +1197,12 @@ func setPostUnread(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func setPostReminder(c *Context, w http.ResponseWriter, r *http.Request) {
-	postId := c.RequireParam("post_id", web.RequireValidId)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
 	c.RequireUserId()
 	if c.Err != nil {
 		return
 	}
 	userIdStr := c.Params["user_id"].(string)
-	postIdStr := postId.(string)
 
 	if c.AppContext.Session().UserId != userIdStr && !c.App.SessionHasPermissionToUser(*c.AppContext.Session(), userIdStr) {
 		c.SetPermissionError(model.PermissionEditOtherUsers)
@@ -1246,11 +1229,10 @@ func setPostReminder(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func saveIsPinnedPost(c *Context, w http.ResponseWriter, isPinned bool) {
-	postId := c.RequireParam("post_id", web.RequireValidId)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	postIdStr := postId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventSaveIsPinnedPost, model.AuditStatusFail)
 	model.AddEventParameterToAuditRec(auditRec, "post_id", postIdStr)
@@ -1309,13 +1291,12 @@ func unpinPost(c *Context, w http.ResponseWriter, _ *http.Request) {
 }
 
 func acknowledgePost(c *Context, w http.ResponseWriter, r *http.Request) {
-	postId := c.RequireParam("post_id", web.RequireValidId)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
 	c.RequireUserId()
 	if c.Err != nil {
 		return
 	}
 	userIdStr := c.Params["user_id"].(string)
-	postIdStr := postId.(string)
 
 	if !c.App.SessionHasPermissionToUser(*c.AppContext.Session(), userIdStr) {
 		c.SetPermissionError(model.PermissionEditOtherUsers)
@@ -1345,13 +1326,12 @@ func acknowledgePost(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func unacknowledgePost(c *Context, w http.ResponseWriter, r *http.Request) {
-	postId := c.RequireParam("post_id", web.RequireValidId)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
 	c.RequireUserId()
 	if c.Err != nil {
 		return
 	}
 	userIdStr := c.Params["user_id"].(string)
-	postIdStr := postId.(string)
 
 	if !c.App.SessionHasPermissionToUser(*c.AppContext.Session(), userIdStr) {
 		c.SetPermissionError(model.PermissionEditOtherUsers)
@@ -1379,11 +1359,10 @@ func unacknowledgePost(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func moveThread(c *Context, w http.ResponseWriter, r *http.Request) {
-	postId := c.RequireParam("post_id", web.RequireValidId)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	postIdStr := postId.(string)
 
 	var moveThreadParams model.MoveThreadParams
 	if jsonErr := json.NewDecoder(r.Body).Decode(&moveThreadParams); jsonErr != nil {
@@ -1455,11 +1434,10 @@ func moveThread(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getFileInfosForPost(c *Context, w http.ResponseWriter, r *http.Request) {
-	postId := c.RequireParam("post_id", web.RequireValidId)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	postIdStr := postId.(string)
 
 	ok, isMember := c.App.SessionHasPermissionToReadPost(c.AppContext, *c.AppContext.Session(), postIdStr)
 	if !ok {
@@ -1505,11 +1483,10 @@ func getFileInfosForPost(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getPostInfo(c *Context, w http.ResponseWriter, r *http.Request) {
-	postId := c.RequireParam("post_id", web.RequireValidId)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	postIdStr := postId.(string)
 
 	userID := c.AppContext.Session().UserId
 	post, appErr := c.App.GetSinglePost(c.AppContext, postIdStr, false)
@@ -1608,13 +1585,11 @@ func getPostInfo(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func restorePostVersion(c *Context, w http.ResponseWriter, r *http.Request) {
-	postId := c.RequireParam("post_id", web.RequireValidId)
-	restoreVersionIdParam := c.RequireParam("restore_version_id", web.RequireValidId)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
+	restoreVersionId := c.RequireParam("restore_version_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	postIdStr := postId.(string)
-	restoreVersionId := restoreVersionIdParam.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventRestorePostVersion, model.AuditStatusFail)
 	model.AddEventParameterToAuditRec(auditRec, "id", postIdStr)
@@ -1720,11 +1695,10 @@ func rewriteMessage(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func revealPost(c *Context, w http.ResponseWriter, r *http.Request) {
-	postId := c.RequireParam("post_id", web.RequireValidId)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	postIdStr := postId.(string)
 
 	connectionID := r.Header.Get(model.ConnectionId)
 
@@ -1786,11 +1760,10 @@ func revealPost(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func burnPost(c *Context, w http.ResponseWriter, r *http.Request) {
-	postId := c.RequireParam("post_id", web.RequireValidId)
+	postIdStr := c.RequireParam("post_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	postIdStr := postId.(string)
 
 	connectionID := r.Header.Get(model.ConnectionId)
 

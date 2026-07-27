@@ -20,15 +20,12 @@ func (api *API) InitSharedChannels() {
 }
 
 func getSharedChannels(c *Context, w http.ResponseWriter, r *http.Request) {
-	teamId := c.RequireParam("team_id", web.RequireValidId)
-	page := c.RequireParam("page", web.RequireInt)
-	perPage := c.RequireParam("per_page", web.RequireInt)
+	teamIdStr := c.RequireParam("team_id", web.RequireValidId)
+	pageInt := c.RequireParam("page", web.RequireInt)
+	perPageInt := c.RequireParam("per_page", web.RequireInt)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
-	pageInt := page.(int)
-	perPageInt := perPage.(int)
 
 	// make sure remote cluster service is enabled.
 	if _, appErr := c.App.GetRemoteClusterService(); appErr != nil {
@@ -69,11 +66,10 @@ func getSharedChannels(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getRemoteClusterInfo(c *Context, w http.ResponseWriter, r *http.Request) {
-	remoteId := c.RequireParam("remote_id", web.RequireValidId)
+	remoteIdStr := c.RequireParam("remote_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	remoteIdStr := remoteId.(string)
 
 	// make sure remote cluster service is enabled.
 	if _, appErr := c.App.GetRemoteClusterService(); appErr != nil {
@@ -102,11 +98,10 @@ func getRemoteClusterInfo(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getSharedChannelRemotesByRemoteCluster(c *Context, w http.ResponseWriter, r *http.Request) {
-	remoteId := c.RequireParam("remote_id", web.RequireValidId)
+	remoteIdStr := c.RequireParam("remote_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	remoteIdStr := remoteId.(string)
 
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionManageSecureConnections) {
 		c.SetPermissionError(model.PermissionManageSecureConnections)
@@ -144,13 +139,11 @@ func getSharedChannelRemotesByRemoteCluster(c *Context, w http.ResponseWriter, r
 }
 
 func inviteRemoteClusterToChannel(c *Context, w http.ResponseWriter, r *http.Request) {
-	remoteId := c.RequireParam("remote_id", web.RequireValidId)
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	remoteIdStr := c.RequireParam("remote_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	remoteIdStr := remoteId.(string)
-	channelIdStr := channelId.(string)
 
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionManageSecureConnections) {
 		c.SetPermissionError(model.PermissionManageSharedChannels)
@@ -193,13 +186,11 @@ func inviteRemoteClusterToChannel(c *Context, w http.ResponseWriter, r *http.Req
 }
 
 func uninviteRemoteClusterToChannel(c *Context, w http.ResponseWriter, r *http.Request) {
-	remoteId := c.RequireParam("remote_id", web.RequireValidId)
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	remoteIdStr := c.RequireParam("remote_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	remoteIdStr := remoteId.(string)
-	channelIdStr := channelId.(string)
 
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionManageSecureConnections) {
 		c.SetPermissionError(model.PermissionManageSharedChannels)
@@ -251,11 +242,10 @@ func uninviteRemoteClusterToChannel(c *Context, w http.ResponseWriter, r *http.R
 
 // getSharedChannelRemotes returns info about remote clusters for a shared channel
 func getSharedChannelRemotes(c *Context, w http.ResponseWriter, r *http.Request) {
-	channelId := c.RequireParam("channel_id", web.RequireValidId)
+	channelIdStr := c.RequireParam("channel_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	channelIdStr := channelId.(string)
 
 	// make sure remote cluster service is enabled.
 	if _, appErr := c.App.GetRemoteClusterService(); appErr != nil {
@@ -304,11 +294,10 @@ func canUserDirectMessage(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	userIdStr := c.Params["user_id"].(string)
-	otherUserId := c.RequireParam("other_user_id", web.RequireValidId)
+	otherUserIdStr := c.RequireParam("other_user_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	otherUserIdStr := otherUserId.(string)
 
 	// Check if the user can see the other user at all
 	canSee, err := c.App.UserCanSeeOtherUser(c.AppContext, userIdStr, otherUserIdStr)

@@ -174,11 +174,10 @@ func getLdapGroups(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func linkLdapGroup(c *Context, w http.ResponseWriter, r *http.Request) {
-	remoteId := c.RequireParam("remote_id", web.RequireString)
+	remoteIdStr := c.RequireParam("remote_id", web.RequireString)
 	if c.Err != nil {
 		return
 	}
-	remoteIdStr := remoteId.(string)
 
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionSysconsoleWriteUserManagementGroups) {
 		c.SetPermissionError(model.PermissionSysconsoleWriteUserManagementGroups)
@@ -272,11 +271,10 @@ func linkLdapGroup(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func unlinkLdapGroup(c *Context, w http.ResponseWriter, r *http.Request) {
-	remoteId := c.RequireParam("remote_id", web.RequireString)
+	remoteIdStr := c.RequireParam("remote_id", web.RequireString)
 	if c.Err != nil {
 		return
 	}
-	remoteIdStr := remoteId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventUnlinkLdapGroup, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)

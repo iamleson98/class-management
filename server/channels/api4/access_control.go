@@ -112,13 +112,13 @@ func getAccessControlPolicy(c *Context, w http.ResponseWriter, r *http.Request) 
 	hasManageSystemPermission := c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionManageSystem)
 	if !hasManageSystemPermission {
 		// For non-system admins, validate policy access permission (read-only access for GET requests)
-		if appErr := c.App.ValidateAccessControlPolicyPermissionWithChannelContext(c.AppContext, c.AppContext.Session().UserId, policyID.(string), true, channelID); appErr != nil {
+		if appErr := c.App.ValidateAccessControlPolicyPermissionWithChannelContext(c.AppContext, c.AppContext.Session().UserId, policyID, true, channelID); appErr != nil {
 			c.SetPermissionError(model.PermissionManageSystem)
 			return
 		}
 	}
 
-	policy, appErr := c.App.GetAccessControlPolicy(c.AppContext, policyID.(string))
+	policy, appErr := c.App.GetAccessControlPolicy(c.AppContext, policyID)
 	if appErr != nil {
 		c.Err = appErr
 		return
@@ -136,11 +136,10 @@ func getAccessControlPolicy(c *Context, w http.ResponseWriter, r *http.Request) 
 }
 
 func deleteAccessControlPolicy(c *Context, w http.ResponseWriter, r *http.Request) {
-	policyID := c.RequireParam("policy_id", web.RequireValidId)
+	policyIDStr := c.RequireParam("policy_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	policyIDStr := policyID.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventDeleteAccessControlPolicy, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
@@ -383,11 +382,10 @@ func searchAccessControlPolicies(c *Context, w http.ResponseWriter, r *http.Requ
 // Deprecated: This endpoint is deprecated and will be removed in a future release.
 // Use PUT /api/v4/access_control/policies/activate instead, which supports batch updates.
 func updateActiveStatus(c *Context, w http.ResponseWriter, r *http.Request) {
-	policyID := c.RequireParam("policy_id", web.RequireValidId)
+	pollicyIdStr := c.RequireParam("policy_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	pollicyIdStr := policyID.(string)
 
 	// CSRF barrier: only allow header-based auth (reject cookie sessions)
 	token, tokenLocation := app.ParseAuthTokenFromRequest(r)
@@ -492,11 +490,10 @@ func assignAccessPolicy(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	policyID := c.RequireParam("policy_id", web.RequireValidId)
+	policyIDStr := c.RequireParam("policy_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	policyIDStr := policyID.(string)
 
 	var assignments struct {
 		ChannelIds []string `json:"channel_ids"`
@@ -530,11 +527,10 @@ func unassignAccessPolicy(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	policyID := c.RequireParam("policy_id", web.RequireValidId)
+	pollicyIdStr := c.RequireParam("policy_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	pollicyIdStr := policyID.(string)
 
 	var assignments struct {
 		ChannelIds []string `json:"channel_ids"`
@@ -568,11 +564,10 @@ func getChannelsForAccessControlPolicy(c *Context, w http.ResponseWriter, r *htt
 		return
 	}
 
-	policyID := c.RequireParam("policy_id", web.RequireValidId)
+	policyIDStr := c.RequireParam("policy_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	policyIDStr := policyID.(string)
 
 	afterID := r.URL.Query().Get("after")
 	if afterID != "" && !model.IsValidId(afterID) {
@@ -614,11 +609,10 @@ func searchChannelsForAccessControlPolicy(c *Context, w http.ResponseWriter, r *
 		return
 	}
 
-	policyID := c.RequireParam("policy_id", web.RequireValidId)
+	policyIDStr := c.RequireParam("policy_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	policyIDStr := policyID.(string)
 
 	var props *model.ChannelSearch
 	err := json.NewDecoder(r.Body).Decode(&props)

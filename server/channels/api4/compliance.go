@@ -62,13 +62,11 @@ func getComplianceReports(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	page := c.RequireParam("page", web.RequireInt)
-	perPage := c.RequireParam("per_page", web.RequireInt)
+	pageInt := c.RequireParam("page", web.RequireInt)
+	perPageInt := c.RequireParam("per_page", web.RequireInt)
 	if c.Err != nil {
 		return
 	}
-	pageInt := page.(int)
-	perPageInt := perPage.(int)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventGetComplianceReports, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
@@ -86,11 +84,10 @@ func getComplianceReports(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getComplianceReport(c *Context, w http.ResponseWriter, r *http.Request) {
-	reportId := c.RequireParam("report_id", web.RequireValidId)
+	reportIdStr := c.RequireParam("report_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	reportIdStr := reportId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventGetComplianceReport, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
@@ -117,11 +114,10 @@ func getComplianceReport(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func downloadComplianceReport(c *Context, w http.ResponseWriter, r *http.Request) {
-	reportId := c.RequireParam("report_id", web.RequireValidId)
+	reportIdStr := c.RequireParam("report_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	reportIdStr := reportId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventDownloadComplianceReport, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)

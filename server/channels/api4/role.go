@@ -51,11 +51,10 @@ func getAllRoles(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getRole(c *Context, w http.ResponseWriter, r *http.Request) {
-	roleId := c.RequireParam("role_id", web.RequireValidId)
+	roleIdStr := c.RequireParam("role_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	roleIdStr := roleId.(string)
 
 	role, err := c.App.GetRole(roleIdStr)
 	if err != nil {
@@ -69,11 +68,10 @@ func getRole(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getRoleByName(c *Context, w http.ResponseWriter, r *http.Request) {
-	roleName := c.RequireParam("role_name", web.RequireString)
+	roleNameStr := c.RequireParam("role_name", web.RequireString)
 	if c.Err != nil {
 		return
 	}
-	roleNameStr := roleName.(string)
 
 	role, err := c.App.GetRoleByName(c.AppContext, roleNameStr)
 	if err != nil {
@@ -128,11 +126,10 @@ func getRolesByNames(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func patchRole(c *Context, w http.ResponseWriter, r *http.Request) {
-	roleId := c.RequireParam("role_id", web.RequireValidId)
+	roleIdStr := c.RequireParam("role_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	roleIdStr := roleId.(string)
 
 	var patch model.RolePatch
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {

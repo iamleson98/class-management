@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/iamleson98/sitename/server/public/model"
+	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"github.com/iamleson98/sitename/server/v8/channels/api4"
 )
 
@@ -26,6 +27,7 @@ func getReport(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, _ := json.Marshal(data)
-	w.Write(res)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }

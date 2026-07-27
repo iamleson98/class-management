@@ -7,8 +7,8 @@ import (
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
-	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/public/shared/mlog"
+	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/v8/channels/api4"
 	"github.com/iamleson98/sitename/server/v8/channels/web"
 )
@@ -68,8 +68,9 @@ func createWeeklyReview(c *api4.Context, w http.ResponseWriter, r *http.Request)
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	data, _ := json.Marshal(LMSResponse{Data: created})
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(LMSResponse{Data: created}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func getWeeklyReview(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -78,11 +79,10 @@ func getWeeklyReview(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	review, err := c.App.LMS().GetWeeklyReview(id)
 	if err != nil {
@@ -90,8 +90,9 @@ func getWeeklyReview(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(LMSResponse{Data: review})
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(LMSResponse{Data: review}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func updateWeeklyReview(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -100,11 +101,10 @@ func updateWeeklyReview(c *api4.Context, w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	var review *lms_models.WeeklyReview
 	if err := json.NewDecoder(r.Body).Decode(&review); err != nil {
@@ -118,8 +118,9 @@ func updateWeeklyReview(c *api4.Context, w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	data, _ := json.Marshal(LMSResponse{Data: updated})
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(LMSResponse{Data: updated}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func deleteWeeklyReview(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -128,16 +129,17 @@ func deleteWeeklyReview(c *api4.Context, w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	if err := c.App.LMS().DeleteWeeklyReview(id); err != nil {
 		c.Err = err
 		return
 	}
 
-	w.Write([]byte(`{"data":true}`))
+	if err := json.NewEncoder(w).Encode(map[string]bool{"data": true}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }

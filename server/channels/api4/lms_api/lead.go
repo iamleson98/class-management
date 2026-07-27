@@ -7,8 +7,8 @@ import (
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
-	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/public/shared/mlog"
+	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/v8/channels/api4"
 	"github.com/iamleson98/sitename/server/v8/channels/web"
 )
@@ -72,21 +72,21 @@ func createLead(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	data, _ := json.Marshal(created)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(created); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func getLead(c *api4.Context, w http.ResponseWriter, r *http.Request) {
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
+		return
+	}
+
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageLeads) {
 		c.SetPermissionError(model.PermissionLmsManageLeads)
 		return
 	}
-
-	idVal := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
-		return
-	}
-	id := idVal.(string)
 
 	lead, err := c.App.LMS().GetLead(id)
 	if err != nil {
@@ -94,21 +94,21 @@ func getLead(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(lead)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(lead); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func updateLead(c *api4.Context, w http.ResponseWriter, r *http.Request) {
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
+		return
+	}
+
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageLeads) {
 		c.SetPermissionError(model.PermissionLmsManageLeads)
 		return
 	}
-
-	idVal := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
-		return
-	}
-	id := idVal.(string)
 
 	var lead *lms_models.Lead
 	if err := json.NewDecoder(r.Body).Decode(&lead); err != nil {
@@ -122,21 +122,21 @@ func updateLead(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(updated)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(updated); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func deleteLead(c *api4.Context, w http.ResponseWriter, r *http.Request) {
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
+		return
+	}
+
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageLeads) {
 		c.SetPermissionError(model.PermissionLmsManageLeads)
 		return
 	}
-
-	idVal := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
-		return
-	}
-	id := idVal.(string)
 
 	if err := c.App.LMS().DeleteLead(id); err != nil {
 		c.Err = err
@@ -147,16 +147,15 @@ func deleteLead(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getLeadActivities(c *api4.Context, w http.ResponseWriter, r *http.Request) {
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
+		return
+	}
+
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageLeads) {
 		c.SetPermissionError(model.PermissionLmsManageLeads)
 		return
 	}
-
-	idVal := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
-		return
-	}
-	id := idVal.(string)
 
 	activities, err := c.App.LMS().GetLeadActivities(id)
 	if err != nil {
@@ -168,21 +167,21 @@ func getLeadActivities(c *api4.Context, w http.ResponseWriter, r *http.Request) 
 		activities = []*lms_models.LeadActivity{}
 	}
 
-	data, _ := json.Marshal(activities)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(activities); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func createLeadActivity(c *api4.Context, w http.ResponseWriter, r *http.Request) {
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
+		return
+	}
+
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageLeads) {
 		c.SetPermissionError(model.PermissionLmsManageLeads)
 		return
 	}
-
-	idVal := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
-		return
-	}
-	id := idVal.(string)
 
 	var activity *lms_models.LeadActivity
 	if err := json.NewDecoder(r.Body).Decode(&activity); err != nil {
@@ -197,21 +196,21 @@ func createLeadActivity(c *api4.Context, w http.ResponseWriter, r *http.Request)
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	data, _ := json.Marshal(created)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(created); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func convertLead(c *api4.Context, w http.ResponseWriter, r *http.Request) {
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
+		return
+	}
+
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageLeads) {
 		c.SetPermissionError(model.PermissionLmsManageLeads)
 		return
 	}
-
-	idVal := c.RequireParam("id", web.RequireValidId)
-	if c.Err != nil {
-		return
-	}
-	id := idVal.(string)
 
 	user, lead, err := c.App.LMS().ConvertLeadToStudent(id)
 	if err != nil {
@@ -219,9 +218,10 @@ func convertLead(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(LMSResponse{Data: map[string]any{
+	if err := json.NewEncoder(w).Encode(LMSResponse{Data: map[string]any{
 		"user": user,
 		"lead": lead,
-	}})
-	w.Write(data)
+	}}); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }

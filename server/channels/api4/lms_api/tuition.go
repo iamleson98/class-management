@@ -7,8 +7,8 @@ import (
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
-	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/public/shared/mlog"
+	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/v8/channels/api4"
 	"github.com/iamleson98/sitename/server/v8/channels/web"
 )
@@ -71,8 +71,9 @@ func createTuition(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	data, _ := json.Marshal(created)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(created); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func getTuition(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -81,11 +82,10 @@ func getTuition(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	tuition, err := c.App.LMS().GetTuition(id)
 	if err != nil {
@@ -93,8 +93,9 @@ func getTuition(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(tuition)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(tuition); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func updateTuition(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -103,11 +104,10 @@ func updateTuition(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	var tuition *lms_models.Tuition
 	if err := json.NewDecoder(r.Body).Decode(&tuition); err != nil {
@@ -121,8 +121,9 @@ func updateTuition(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, _ := json.Marshal(updated)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(updated); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func deleteTuition(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -131,11 +132,10 @@ func deleteTuition(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	if err := c.App.LMS().DeleteTuition(id); err != nil {
 		c.Err = err
@@ -151,11 +151,10 @@ func getTuitionPayments(c *api4.Context, w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	payments, err := c.App.LMS().GetTuitionPayments(id)
 	if err != nil {
@@ -163,8 +162,9 @@ func getTuitionPayments(c *api4.Context, w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	data, _ := json.Marshal(payments)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(payments); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 func createTuitionPayment(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -173,11 +173,10 @@ func createTuitionPayment(c *api4.Context, w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	idVal := c.RequireParam("id", web.RequireValidId)
+	id := c.RequireParam("id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	id := idVal.(string)
 
 	var payment *lms_models.Payment
 	if err := json.NewDecoder(r.Body).Decode(&payment); err != nil {
@@ -194,6 +193,7 @@ func createTuitionPayment(c *api4.Context, w http.ResponseWriter, r *http.Reques
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	data, _ := json.Marshal(created)
-	w.Write(data)
+	if err := json.NewEncoder(w).Encode(created); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }

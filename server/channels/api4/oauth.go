@@ -80,11 +80,10 @@ func createOAuthApp(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func updateOAuthApp(c *Context, w http.ResponseWriter, r *http.Request) {
-	appId := c.RequireParam("app_id", web.RequireValidId)
+	appIdStr := c.RequireParam("app_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	appIdStr := appId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventUpdateOAuthApp, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
@@ -175,11 +174,10 @@ func getOAuthApps(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getOAuthApp(c *Context, w http.ResponseWriter, r *http.Request) {
-	appId := c.RequireParam("app_id", web.RequireValidId)
+	appIdStr := c.RequireParam("app_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	appIdStr := appId.(string)
 
 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionManageOAuth) {
 		c.SetPermissionError(model.PermissionManageOAuth)
@@ -203,11 +201,10 @@ func getOAuthApp(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getOAuthAppInfo(c *Context, w http.ResponseWriter, r *http.Request) {
-	appId := c.RequireParam("app_id", web.RequireValidId)
+	appIdStr := c.RequireParam("app_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	appIdStr := appId.(string)
 
 	oauthApp, err := c.App.GetOAuthApp(appIdStr)
 	if err != nil {
@@ -222,11 +219,10 @@ func getOAuthAppInfo(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteOAuthApp(c *Context, w http.ResponseWriter, r *http.Request) {
-	appId := c.RequireParam("app_id", web.RequireValidId)
+	appIdStr := c.RequireParam("app_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	appIdStr := appId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventDeleteOAuthApp, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
@@ -264,11 +260,10 @@ func deleteOAuthApp(c *Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func regenerateOAuthAppSecret(c *Context, w http.ResponseWriter, r *http.Request) {
-	appId := c.RequireParam("app_id", web.RequireValidId)
+	appIdStr := c.RequireParam("app_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	appIdStr := appId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventRegenerateOAuthAppSecret, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)

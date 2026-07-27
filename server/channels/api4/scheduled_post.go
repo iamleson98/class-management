@@ -100,11 +100,10 @@ func getTeamScheduledPosts(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	teamId := c.RequireParam("team_id", web.RequireValidId)
+	teamIdStr := c.RequireParam("team_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	teamIdStr := teamId.(string)
 
 	if !c.App.SessionHasPermissionToTeam(*c.AppContext.Session(), teamIdStr, model.PermissionViewTeam) {
 		c.SetPermissionError(model.PermissionViewTeam)
@@ -146,11 +145,10 @@ func updateScheduledPost(c *Context, w http.ResponseWriter, r *http.Request) {
 
 	connectionID := r.Header.Get(model.ConnectionId)
 
-	scheduledPostId := c.RequireParam("scheduled_post_id", web.RequireValidId)
+	scheduledPostIdStr := c.RequireParam("scheduled_post_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	scheduledPostIdStr := scheduledPostId.(string)
 
 	var scheduledPost model.ScheduledPost
 	if err := json.NewDecoder(r.Body).Decode(&scheduledPost); err != nil {
@@ -222,11 +220,10 @@ func deleteScheduledPost(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	scheduledPostId := c.RequireParam("scheduled_post_id", web.RequireValidId)
+	scheduledPostIdStr := c.RequireParam("scheduled_post_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	scheduledPostIdStr := scheduledPostId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventDeleteScheduledPost, model.AuditStatusFail)
 	defer c.LogAuditRecWithLevel(auditRec, app.LevelContent)

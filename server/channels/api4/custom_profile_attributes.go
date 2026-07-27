@@ -79,11 +79,10 @@ func patchCPAField(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fieldId := c.RequireParam("field_id", web.RequireValidId)
+	fieldIdStr := c.RequireParam("field_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	fieldIdStr := fieldId.(string)
 
 	var patch *model.PropertyFieldPatch
 	err := json.NewDecoder(r.Body).Decode(&patch)
@@ -138,11 +137,10 @@ func deleteCPAField(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fieldId := c.RequireParam("field_id", web.RequireValidId)
+	fieldIdStr := c.RequireParam("field_id", web.RequireValidId)
 	if c.Err != nil {
 		return
 	}
-	fieldIdStr := fieldId.(string)
 
 	auditRec := c.MakeAuditRecord(model.AuditEventDeleteCPAField, model.AuditStatusFail)
 	defer c.LogAuditRec(auditRec)
