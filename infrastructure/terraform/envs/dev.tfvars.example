@@ -5,7 +5,7 @@ kamatera_zone = "EU-WEST-1"
 
 # OS image — verify the exact string in Kamatera Console if this fails.
 server_image = "ubuntu-22.04-server_64bit"
-billing      = "hourly"
+billing      = "monthly"
 
 # Private inter-node network CIDR
 private_network_cidr = "10.30.0.0/16"

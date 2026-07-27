@@ -145,7 +145,7 @@ services:
 
   # One-shot: create the upload bucket.
   minio-init:
-    image: minio/mc:RELEASE.2024-06-24T19-17-25Z
+    image: minio/mc:latest
     depends_on: [minio]
     entrypoint: >
       /bin/sh -c "

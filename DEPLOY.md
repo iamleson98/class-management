@@ -84,25 +84,6 @@ This guide provides comprehensive instructions for deploying the LMS (Learning M
 - Rolling updates with zero-downtime deployments
 - Centralized secrets management
 - Built-in observability stack
-
-### Option B: Single-Host Docker Compose (Development/Staging)
-
-**Use when:** You need a simple deployment for development, testing, or a single small server.
-
-**Infrastructure:** All services on a single machine
-
-- No clustering or high availability
-- No built-in TLS (add your own reverse proxy if needed)
-- Simplified operations
-- Quick startup and teardown
-
-**Features:**
-
-- Quick setup with minimal configuration
-- Ideal for development and testing
-- Easy to run on local hardware or single VM
-- Full observability stack included
-
 ---
 
 ## Prerequisites

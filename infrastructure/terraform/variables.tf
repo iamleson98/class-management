@@ -3,9 +3,9 @@
 
 # ── Provider / location ──────────────────────────────────────────────
 variable "kamatera_zone" {
-  description = "Kamatera datacenter zone (e.g. EU-WEST-1, US-EAST-1, ASIA-EAST-1)."
+  description = "Kamatera datacenter zone (e.g. ASIA-SOUTHEAST-1, US-EAST-1, ASIA-EAST-1)."
   type        = string
-  default     = "EU-WEST-1"
+  default     = "ASIA-SOUTHEAST-1"
 }
 
 variable "server_image" {
@@ -17,7 +17,7 @@ variable "server_image" {
 variable "billing" {
   description = "Billing model: 'hourly' or 'monthly'."
   type        = string
-  default     = "hourly"
+  default     = "monthly"
 }
 
 # ── Networking ────────────────────────────────────────────────────────
@@ -41,18 +41,62 @@ variable "ssh_public_key_content" {
 }
 
 # ── Server sizes (Kamatera CPU format: '<cores><type>', e.g. '2B' = 2 Type-B cores) ──
-variable "manager_cpu" { type = string, default = "2B" }
-variable "manager_ram" { type = string, default = "8192" }   # MB
-variable "manager_disk" { type = string, default = "50" }    # GB
+variable "manager_cpu" {
+  type    = string
+  default = "2B"
+}
 
-variable "backend_cpu" { type = string, default = "2B" }
-variable "backend_ram" { type = string, default = "4096" }
-variable "backend_disk" { type = string, default = "50" }
+variable "manager_ram" {
+  type    = string
+  default = "8192"
+} # MB
 
-variable "db_cpu" { type = string, default = "2B" }
-variable "db_ram" { type = string, default = "8192" }
-variable "db_disk" { type = string, default = "80" }
+variable "manager_disk" {
+  type    = string
+  default = "50"
+} # GB
 
-variable "video_cpu" { type = string, default = "4B" }
-variable "video_ram" { type = string, default = "8192" }
-variable "video_disk" { type = string, default = "50" }
+variable "backend_cpu" {
+  type    = string
+  default = "2B"
+}
+
+variable "backend_ram" {
+  type    = string
+  default = "4096"
+}
+
+variable "backend_disk" {
+  type    = string
+  default = "50"
+}
+
+variable "db_cpu" {
+  type    = string
+  default = "2B"
+}
+
+variable "db_ram" {
+  type    = string
+  default = "8192"
+}
+
+variable "db_disk" {
+  type    = string
+  default = "80"
+}
+
+variable "video_cpu" {
+  type    = string
+  default = "4B"
+}
+
+variable "video_ram" {
+  type    = string
+  default = "8192"
+}
+
+variable "video_disk" {
+  type    = string
+  default = "50"
+}

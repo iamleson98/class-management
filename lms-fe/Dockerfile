@@ -4,28 +4,22 @@
 # ----------------------------------------------------------------------------
 # Stage 1: install dependencies
 # ----------------------------------------------------------------------------
-FROM node:20-alpine AS deps
+FROM oven/bun:canary-alpine AS deps
 
 RUN apk add --no-cache libc6-compat
 
-# bun is used to install (the project ships a bun.lock). Enable corepack-managed
-# bun so the lockfile is honoured exactly.
-ENV BUN_VERSION=1.2.0
-RUN npm install -g bun
+# bun is used to install (the project ships a bun.lock).
 
 WORKDIR /app
 
 COPY package.json bun.lock* ./
-COPY .npmrc ./.npmrc 2>/dev/null || true
 
-RUN bun install --frozen-lockfile
+RUN bun install --frozen-lockfile || bun install
 
 # ----------------------------------------------------------------------------
 # Stage 2: build the Next.js standalone output
 # ----------------------------------------------------------------------------
-FROM node:20-alpine AS builder
-
-RUN npm install -g bun
+FROM oven/bun:canary-alpine AS builder
 
 WORKDIR /app
 
@@ -44,7 +38,7 @@ RUN bun run build
 # ----------------------------------------------------------------------------
 # Stage 3: minimal runtime
 # ----------------------------------------------------------------------------
-FROM node:20-alpine AS runner
+FROM oven/bun:canary-alpine AS runner
 
 WORKDIR /app
 
@@ -66,6 +60,6 @@ USER nextjs
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
-    CMD node -e "fetch('http://localhost:3000/api/v4/system/ping').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+    CMD bun -e "fetch('http://localhost:3000/api/v4/system/ping').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-CMD ["node", "server.js"]
+CMD ["bun", "server.js"]

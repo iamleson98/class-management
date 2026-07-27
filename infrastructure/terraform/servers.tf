@@ -70,7 +70,10 @@ resource "kamatera_server" "manager" {
   wait_for_resources = true
   power_on           = true
 
-  disk { name = "main", size = var.manager_disk }
+  disk {
+    name = "main"
+    size = var.manager_disk
+  }
   network { name = "wan" }
   network { name = kamatera_network.swarm_net.name }
 
@@ -94,7 +97,10 @@ resource "kamatera_server" "backend" {
   wait_for_resources = true
   power_on           = true
 
-  disk { name = "main", size = var.backend_disk }
+  disk {
+    name = "main"
+    size = var.backend_disk
+  }
   network { name = "wan" }
   network { name = kamatera_network.swarm_net.name }
 }
@@ -111,7 +117,10 @@ resource "kamatera_server" "db" {
   wait_for_resources = true
   power_on           = true
 
-  disk { name = "main", size = var.db_disk }
+  disk {
+    name = "main"
+    size = var.db_disk
+  }
   network { name = "wan" }
   network { name = kamatera_network.swarm_net.name }
 }
@@ -128,7 +137,10 @@ resource "kamatera_server" "video" {
   wait_for_resources = true
   power_on           = true
 
-  disk { name = "main", size = var.video_disk }
+  disk {
+    name = "main"
+    size = var.video_disk
+  }
   network { name = "wan" }
   network { name = kamatera_network.swarm_net.name }
 }

@@ -1,11 +1,11 @@
 # Multi-stage production Dockerfile for the LMS backend (Go server).
-# Builds the mattermost server binary from source and ships a minimal
+# Builds the sitename server binary from source and ships a minimal
 # Alpine runtime image.
 
 # ----------------------------------------------------------------------------
 # Stage 1: build the Go server and mmctl
 # ----------------------------------------------------------------------------
-FROM golang:1.26-alpine AS builder
+FROM golang:1.27rc2-alpine AS builder
 
 # Required for git-based ldflags and module fetching
 RUN apk add --no-cache git gcc musl-dev
@@ -30,9 +30,9 @@ RUN go mod download
 # Copy the rest of the server source (respect .dockerignore)
 COPY . .
 
-# Build the mattermost server binary.
+# Build the sitename server binary.
 # -trimpath strips local paths; -tags enterprise registers LMS API endpoints
-# (see cmd/mattermost/main.go which imports the enterprise package).
+# (see cmd/sitename/main.go which imports the enterprise package).
 RUN BUILD_NUMBER="${BUILD_NUMBER}" \
     BUILD_DATE="${BUILD_DATE:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}" \
     BUILD_HASH="${BUILD_HASH}" \
@@ -45,8 +45,8 @@ RUN BUILD_NUMBER="${BUILD_NUMBER}" \
           -X 'github.com/iamleson98/sitename/server/public/model.BuildEnterpriseReady=true' \
           -X 'github.com/iamleson98/sitename/server/public/model.BuildHashEnterprise=none'" \
         -tags 'enterprise' \
-        -o /out/mattermost \
-        ./cmd/mattermost
+        -o /out/sitename \
+        ./cmd/sitename
 
 # Build mmctl (Mattermost command-line tool)
 RUN go build -trimpath -o /out/mmctl ./cmd/mmctl
@@ -60,48 +60,48 @@ FROM alpine:3.20
 # tzdata: correct timestamps in logs
 # curl: healthcheck
 RUN apk add --no-cache ca-certificates tzdata curl \
-    && addgroup -S -g 2000 mattermost \
-    && adduser -S -D -H -u 2000 -G mattermost mattermost
+    && addgroup -S -g 2000 sitename \
+    && adduser -S -D -H -u 2000 -G sitename sitename
 
 # Runtime directory layout
-RUN mkdir -p /mattermost/bin \
-    /mattermost/config \
-    /mattermost/data \
-    /mattermost/logs \
-    /mattermost/plugins \
-    /mattermost/client/plugins \
-    /mattermost/prepackaged_plugins
+RUN mkdir -p /sitename/bin \
+    /sitename/config \
+    /sitename/data \
+    /sitename/logs \
+    /sitename/plugins \
+    /sitename/client/plugins \
+    /sitename/prepackaged_plugins
 
 # Binaries
-COPY --from=builder /out/mattermost /mattermost/bin/mattermost
-COPY --from=builder /out/mmctl     /mattermost/bin/mmctl
+COPY --from=builder /out/sitename /sitename/bin/sitename
+COPY --from=builder /out/mmctl     /sitename/bin/mmctl
 
 # Entrypoint shim that maps Docker secret files -> MM_* env vars (Mattermost
 # does not support the *_FILE convention natively).
-COPY build/docker-entrypoint.sh /mattermost/bin/docker-entrypoint.sh
+COPY build/docker-entrypoint.sh /sitename/bin/docker-entrypoint.sh
 
 # Runtime assets (i18n strings, fonts for image rendering, email/page templates)
-COPY --from=builder /build/i18n      /mattermost/i18n
-COPY --from=builder /build/fonts     /mattermost/fonts
-COPY --from=builder /build/templates /mattermost/templates
+COPY --from=builder /build/i18n      /sitename/i18n
+COPY --from=builder /build/fonts     /sitename/fonts
+COPY --from=builder /build/templates /sitename/templates
 
-RUN chown -R mattermost:mattermost /mattermost
+RUN chown -R sitename:sitename /sitename
 
-ENV PATH="/mattermost/bin:${PATH}" \
+ENV PATH="/sitename/bin:${PATH}" \
     MM_SERVICESETTINGS_ENABLELOCALMODE=true \
     MM_INSTALL_TYPE=docker
 
-USER mattermost
-WORKDIR /mattermost
+USER sitename
+WORKDIR /sitename
 
 # 8065 = HTTP API, 8067 = Prometheus metrics, 8074 = local-mode socket,
 # 8075 = performance/ profiling (optional)
 EXPOSE 8065 8067 8074 8075
 
-VOLUME ["/mattermost/data", "/mattermost/logs", "/mattermost/config", "/mattermost/plugins"]
+VOLUME ["/sitename/data", "/sitename/logs", "/sitename/config", "/sitename/plugins"]
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -fsS http://localhost:8065/api/v4/system/ping || exit 1
 
-ENTRYPOINT ["/mattermost/bin/docker-entrypoint.sh"]
-CMD ["mattermost"]
+ENTRYPOINT ["/sitename/bin/docker-entrypoint.sh"]
+CMD ["sitename"]
