@@ -2004,7 +2004,7 @@ func TestConfigServiceSettingsIsValid(t *testing.T) {
 
 		// now we can check if the file exist or not
 		*cfg.ServiceSettings.EnableLocalMode = true
-		*cfg.ServiceSettings.LocalModeSocketLocation = "/invalid_directory/mattermost_local.socket"
+		*cfg.ServiceSettings.LocalModeSocketLocation = "/invalid_directory/sitename_local.socket"
 		appErr = cfg.ServiceSettings.isValid()
 		require.NotNil(t, appErr)
 		require.Equal(t, "model.config.is_valid.local_mode_socket.app_error", appErr.Id)

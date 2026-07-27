@@ -28,7 +28,11 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mmuser} -d ${POSTGRES_DB:-mattermost}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-mmuser} -d ${POSTGRES_DB:-mattermost}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -115,7 +119,7 @@ services:
     ports:
       - "${BACKEND_PORT:-8065}:8065"
     expose:
-      - "8067"   # metrics (scraped by prometheus on the internal network)
+      - "8067" # metrics (scraped by prometheus on the internal network)
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8065/api/v4/system/ping"]
       interval: 30s

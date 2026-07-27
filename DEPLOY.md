@@ -50,16 +50,16 @@ This guide provides comprehensive instructions for deploying the LMS (Learning M
 
 ### Component Details
 
-| Component | Technology | Purpose | Ports |
-|-----------|-----------|---------|-------|
-| **Frontend** | Next.js | User interface, API proxy | 3000 |
-| **Backend** | Go (Mattermost) | REST API, business logic | 8065 (API), 8067 (metrics) |
-| **Database** | PostgreSQL 14 | Persistent data storage | 5432 |
-| **Object Storage** | MinIO | File uploads, S3-compatible | 9000 (API), 9001 (console) |
-| **Monitoring** | Prometheus | Metrics collection | 9090 |
-| **Visualization** | Grafana | Metrics dashboards | 3001 |
-| **Reverse Proxy** | Traefik (Swarm only) | TLS termination, routing | 80, 443 |
-| **Registry** | Docker Registry (Swarm only) | Private image registry | 5000 |
+| Component          | Technology                   | Purpose                     | Ports                      |
+| ------------------ | ---------------------------- | --------------------------- | -------------------------- |
+| **Frontend**       | Next.js                      | User interface, API proxy   | 3000                       |
+| **Backend**        | Go (Mattermost)              | REST API, business logic    | 8065 (API), 8067 (metrics) |
+| **Database**       | PostgreSQL 14                | Persistent data storage     | 5432                       |
+| **Object Storage** | MinIO                        | File uploads, S3-compatible | 9000 (API), 9001 (console) |
+| **Monitoring**     | Prometheus                   | Metrics collection          | 9090                       |
+| **Visualization**  | Grafana                      | Metrics dashboards          | 3001                       |
+| **Reverse Proxy**  | Traefik (Swarm only)         | TLS termination, routing    | 80, 443                    |
+| **Registry**       | Docker Registry (Swarm only) | Private image registry      | 5000                       |
 
 ---
 
@@ -70,12 +70,14 @@ This guide provides comprehensive instructions for deploying the LMS (Learning M
 **Use when:** You need a production-grade, scalable, multi-server deployment with automatic TLS, high availability, and proper separation of concerns.
 
 **Infrastructure:** 4 Kamatera VMs orchestrated by Docker Swarm
+
 - **Manager node**: Traefik (TLS), private registry, frontend, observability
 - **Backend node**: Go API (lms-server) + MinIO (uploads)
 - **Database node**: PostgreSQL
 - **Video node**: Reserved for future video-call service
 
 **Features:**
+
 - Automatic HTTPS via Let's Encrypt
 - Private Docker registry for image distribution
 - Node-based service placement
@@ -88,12 +90,14 @@ This guide provides comprehensive instructions for deploying the LMS (Learning M
 **Use when:** You need a simple deployment for development, testing, or a single small server.
 
 **Infrastructure:** All services on a single machine
+
 - No clustering or high availability
 - No built-in TLS (add your own reverse proxy if needed)
 - Simplified operations
 - Quick startup and teardown
 
 **Features:**
+
 - Quick setup with minimal configuration
 - Ideal for development and testing
 - Easy to run on local hardware or single VM
@@ -119,12 +123,12 @@ This guide provides comprehensive instructions for deploying the LMS (Learning M
 
 ### System Requirements
 
-| Component | Minimum | Recommended |
-|-----------|---------|-------------|
-| **CPU** | 2 cores | 4+ cores |
-| **RAM** | 4 GB | 8+ GB |
-| **Storage** | 20 GB | 50+ GB SSD |
-| **Network** | 100 Mbps | 1 Gbps |
+| Component   | Minimum  | Recommended |
+| ----------- | -------- | ----------- |
+| **CPU**     | 2 cores  | 4+ cores    |
+| **RAM**     | 4 GB     | 8+ GB       |
+| **Storage** | 20 GB    | 50+ GB SSD  |
+| **Network** | 100 Mbps | 1 Gbps      |
 
 ---
 
@@ -177,6 +181,7 @@ terraform apply -var-file=envs/dev.tfvars
 ```
 
 This process:
+
 - Creates 4 Kamatera VMs in a private network
 - Installs Docker on each server
 - Forms a Docker Swarm cluster
@@ -199,13 +204,13 @@ ssh -i ~/.ssh/lms_swarm root@<manager-ip> "docker node ls"
 
 Create A records pointing to your manager's public IP:
 
-| Subdomain | Purpose |
-|-----------|---------|
-| `app.example.com` | Frontend application |
-| `api.example.com` | Backend API |
-| `minio.example.com` | MinIO console |
-| `grafana.example.com` | Grafana dashboards |
-| `traefik.example.com` | Traefik dashboard |
+| Subdomain             | Purpose              |
+| --------------------- | -------------------- |
+| `app.example.com`     | Frontend application |
+| `api.example.com`     | Backend API          |
+| `minio.example.com`   | MinIO console        |
+| `grafana.example.com` | Grafana dashboards   |
+| `traefik.example.com` | Traefik dashboard    |
 
 ### A.4 Deploy Application Stack
 
@@ -251,13 +256,14 @@ htpasswd -nb admin 'yourpassword' | sed 's/\$/\$\$/g'
 ```
 
 This script:
+
 - Retrieves generated passwords from Terraform outputs
 - Creates Docker Swarm secrets for:
-  - Database password
-  - MinIO root password
-  - Grafana admin password
-  - Registry credentials
-  - Database connection string (DSN)
+    - Database password
+    - MinIO root password
+    - Grafana admin password
+    - Registry credentials
+    - Database connection string (DSN)
 
 #### 3. Configure Registry Authentication
 
@@ -274,11 +280,13 @@ This distributes registry credentials to all Swarm nodes.
 ```
 
 This script:
+
 - Builds the backend and frontend images
 - Tags them for the private registry
 - Pushes them to the in-cluster registry
 
 **Note:** Run this where Docker can reach `127.0.0.1:5000`, either:
+
 - On the manager node directly
 - Via SSH tunnel: `ssh -L 5000:127.0.0.1:5000 root@<manager-ip>`
 
@@ -316,16 +324,16 @@ After DNS propagation, access your applications:
 
 ### A.7 Service Placement
 
-| Service | Node Label | Replicas | Purpose |
-|---------|------------|----------|---------|
-| traefik | manager | 1 | TLS termination, routing |
-| registry | manager | 1 | Private image registry |
-| postgres | db | 1 | Database |
-| minio | backend | 1 | Object storage |
-| lms-server | backend | 1 | Backend API |
-| lms-fe | manager | 1 | Frontend |
-| prometheus | manager | 1 | Metrics collection |
-| grafana | manager | 1 | Metrics visualization |
+| Service    | Node Label | Replicas | Purpose                  |
+| ---------- | ---------- | -------- | ------------------------ |
+| traefik    | manager    | 1        | TLS termination, routing |
+| registry   | manager    | 1        | Private image registry   |
+| postgres   | db         | 1        | Database                 |
+| minio      | backend    | 1        | Object storage           |
+| lms-server | backend    | 1        | Backend API              |
+| lms-fe     | manager    | 1        | Frontend                 |
+| prometheus | manager    | 1        | Metrics collection       |
+| grafana    | manager    | 1        | Metrics visualization    |
 
 ---
 
@@ -424,6 +432,7 @@ docker compose up -d --build lms-server
 Multi-stage build producing a minimal Alpine runtime:
 
 **Build Stage:**
+
 - Base: `golang:1.26-alpine`
 - Installs: git, gcc, musl-dev
 - Builds: Mattermost server binary + mmctl CLI
@@ -431,6 +440,7 @@ Multi-stage build producing a minimal Alpine runtime:
 - Output: Optimized Go binaries
 
 **Runtime Stage:**
+
 - Base: `alpine:3.20`
 - Installs: ca-certificates, tzdata, curl
 - Creates: mattermost user (UID 2000)
@@ -451,17 +461,20 @@ SECRETS_MAP="MM_SQLSETTINGS_DATASOURCE=db_dsn MM_FILESETTINGS_AMAZONS3SECRETACCE
 Multi-stage build producing a standalone Next.js runtime:
 
 **Dependencies Stage:**
+
 - Base: `node:20-alpine`
 - Package manager: bun 1.2.0
 - Installs: Dependencies from bun.lock
 
 **Build Stage:**
+
 - Base: `node:20-alpine`
 - Builds: Next.js standalone output
 - Environment variables: `NEXT_PUBLIC_API_URL` baked in
 - Output: Optimized `.next/standalone` directory
 
 **Runtime Stage:**
+
 - Base: `node:20-alpine`
 - User: nextjs (UID 1001)
 - Copies: Standalone output, static files, public assets
@@ -470,6 +483,7 @@ Multi-stage build producing a standalone Next.js runtime:
 - Command: `node server.js`
 
 **Build Arguments:**
+
 - `NEXT_PUBLIC_API_URL`: Backend API URL (default: `http://lms-server:8065`)
 
 ---
@@ -480,56 +494,56 @@ Multi-stage build producing a standalone Next.js runtime:
 
 #### Backend Configuration
 
-| Variable | Purpose | Default | Required |
-|----------|---------|---------|----------|
-| `MM_SQLSETTINGS_DRIVERNAME` | Database driver | postgres | Yes |
-| `MM_SQLSETTINGS_DATASOURCE` | Database connection string | - | Yes |
-| `MM_FILESETTINGS_DRIVERNAME` | File storage driver | amazons3 | Yes |
-| `MM_FILESETTINGS_AMAZONS3ACCESSKEYID` | S3 access key | minioadmin | Yes |
-| `MM_FILESETTINGS_AMAZONS3SECRETACCESSKEY` | S3 secret key | - | Yes |
-| `MM_FILESETTINGS_AMAZONS3BUCKET` | S3 bucket name | lms-uploads | Yes |
-| `MM_FILESETTINGS_AMAZONS3ENDPOINT` | S3 endpoint | http://minio:9000 | Yes |
-| `MM_FILESETTINGS_AMAZONS3SSL` | Use SSL for S3 | false | Yes |
-| `MM_FILESETTINGS_AMAZONS3REGION` | S3 region | us-east-1 | Yes |
-| `MM_METRICSSETTINGS_ENABLE` | Enable metrics | true | Yes |
-| `MM_METRICSSETTINGS_LISTENADDRESS` | Metrics port | :8067 | Yes |
-| `MM_SERVICESETTINGS_SITEURL` | Public URL | http://localhost:8065 | Yes |
-| `MM_SERVICESETTINGS_ENABLELOCALMODE` | Enable local mode | true | Yes |
-| `MM_SERVICESETTINGS_ALLOWEDUNTRUSTEDINTERNALCONNECTIONS` | Allowed internal connections | minio,postgres | Yes |
-| `MM_NO_DOCKER` | Disable Docker detection | true | Yes |
-| `MM_INSTALL_TYPE` | Installation type | docker | Yes |
-| `TZ` | Timezone | UTC | No |
+| Variable                                                 | Purpose                      | Default               | Required |
+| -------------------------------------------------------- | ---------------------------- | --------------------- | -------- |
+| `MM_SQLSETTINGS_DRIVERNAME`                              | Database driver              | postgres              | Yes      |
+| `MM_SQLSETTINGS_DATASOURCE`                              | Database connection string   | -                     | Yes      |
+| `MM_FILESETTINGS_DRIVERNAME`                             | File storage driver          | amazons3              | Yes      |
+| `MM_FILESETTINGS_AMAZONS3ACCESSKEYID`                    | S3 access key                | minioadmin            | Yes      |
+| `MM_FILESETTINGS_AMAZONS3SECRETACCESSKEY`                | S3 secret key                | -                     | Yes      |
+| `MM_FILESETTINGS_AMAZONS3BUCKET`                         | S3 bucket name               | lms-uploads           | Yes      |
+| `MM_FILESETTINGS_AMAZONS3ENDPOINT`                       | S3 endpoint                  | http://minio:9000     | Yes      |
+| `MM_FILESETTINGS_AMAZONS3SSL`                            | Use SSL for S3               | false                 | Yes      |
+| `MM_FILESETTINGS_AMAZONS3REGION`                         | S3 region                    | us-east-1             | Yes      |
+| `MM_METRICSSETTINGS_ENABLE`                              | Enable metrics               | true                  | Yes      |
+| `MM_METRICSSETTINGS_LISTENADDRESS`                       | Metrics port                 | :8067                 | Yes      |
+| `MM_SERVICESETTINGS_SITEURL`                             | Public URL                   | http://localhost:8065 | Yes      |
+| `MM_SERVICESETTINGS_ENABLELOCALMODE`                     | Enable local mode            | true                  | Yes      |
+| `MM_SERVICESETTINGS_ALLOWEDUNTRUSTEDINTERNALCONNECTIONS` | Allowed internal connections | minio,postgres        | Yes      |
+| `MM_NO_DOCKER`                                           | Disable Docker detection     | true                  | Yes      |
+| `MM_INSTALL_TYPE`                                        | Installation type            | docker                | Yes      |
+| `TZ`                                                     | Timezone                     | UTC                   | No       |
 
 #### Frontend Configuration
 
-| Variable | Purpose | Default | Required |
-|----------|---------|---------|----------|
-| `NEXT_PUBLIC_API_URL` | Backend API URL | http://lms-server:8065 | Yes |
-| `NODE_ENV` | Node environment | production | Yes |
-| `TZ` | Timezone | UTC | No |
+| Variable              | Purpose          | Default                | Required |
+| --------------------- | ---------------- | ---------------------- | -------- |
+| `NEXT_PUBLIC_API_URL` | Backend API URL  | http://lms-server:8065 | Yes      |
+| `NODE_ENV`            | Node environment | production             | Yes      |
+| `TZ`                  | Timezone         | UTC                    | No       |
 
 #### Database Configuration
 
-| Variable | Purpose | Default | Required |
-|----------|---------|---------|----------|
-| `POSTGRES_USER` | Database user | mmuser | Yes |
-| `POSTGRES_PASSWORD` | Database password | - | Yes |
-| `POSTGRES_DB` | Database name | mattermost | Yes |
+| Variable            | Purpose           | Default    | Required |
+| ------------------- | ----------------- | ---------- | -------- |
+| `POSTGRES_USER`     | Database user     | mmuser     | Yes      |
+| `POSTGRES_PASSWORD` | Database password | -          | Yes      |
+| `POSTGRES_DB`       | Database name     | mattermost | Yes      |
 
 #### MinIO Configuration
 
-| Variable | Purpose | Default | Required |
-|----------|---------|---------|----------|
-| `MINIO_ROOT_USER` | MinIO admin user | minioadmin | Yes |
-| `MINIO_ROOT_PASSWORD` | MinIO admin password | - | Yes |
+| Variable              | Purpose              | Default    | Required |
+| --------------------- | -------------------- | ---------- | -------- |
+| `MINIO_ROOT_USER`     | MinIO admin user     | minioadmin | Yes      |
+| `MINIO_ROOT_PASSWORD` | MinIO admin password | -          | Yes      |
 
 #### Grafana Configuration
 
-| Variable | Purpose | Default | Required |
-|----------|---------|---------|----------|
-| `GF_SECURITY_ADMIN_USER` | Grafana admin user | admin | Yes |
-| `GF_SECURITY_ADMIN_PASSWORD` | Grafana admin password | - | Yes |
-| `GF_USERS_ALLOW_SIGN_UP` | Allow user sign-up | false | Yes |
+| Variable                     | Purpose                | Default | Required |
+| ---------------------------- | ---------------------- | ------- | -------- |
+| `GF_SECURITY_ADMIN_USER`     | Grafana admin user     | admin   | Yes      |
+| `GF_SECURITY_ADMIN_PASSWORD` | Grafana admin password | -       | Yes      |
+| `GF_USERS_ALLOW_SIGN_UP`     | Allow user sign-up     | false   | Yes      |
 
 ### Configuration Files
 
@@ -537,25 +551,26 @@ Multi-stage build producing a standalone Next.js runtime:
 
 ```yaml
 global:
-  scrape_interval: 15s
-  evaluation_interval: 60s
+    scrape_interval: 15s
+    evaluation_interval: 60s
 
 scrape_configs:
-  - job_name: "lms-server"
-    metrics_path: "/metrics"
-    static_configs:
-      - targets: ["lms-server:8067"]
-        labels:
-          service: "lms-server"
+    - job_name: "lms-server"
+      metrics_path: "/metrics"
+      static_configs:
+          - targets: ["lms-server:8067"]
+            labels:
+                service: "lms-server"
 
-  - job_name: "prometheus"
-    static_configs:
-      - targets: ["localhost:9090"]
+    - job_name: "prometheus"
+      static_configs:
+          - targets: ["localhost:9090"]
 ```
 
 #### Grafana Provisioning
 
 Grafana is auto-provisioned with:
+
 - Prometheus datasource
 - Dashboard provider for loading dashboards
 
@@ -588,13 +603,13 @@ For production, secrets are managed via Docker Swarm's encrypted raft store:
 
 This creates the following secrets:
 
-| Secret Name | Purpose | Source |
-|-------------|---------|--------|
-| `db_password` | PostgreSQL password | Terraform output |
-| `db_dsn` | Database connection string | Generated from db_password |
-| `minio_root_password` | MinIO admin password | Terraform output |
-| `grafana_admin_password` | Grafana admin password | Terraform output |
-| `registry_htpasswd` | Registry authentication | Terraform output |
+| Secret Name              | Purpose                    | Source                     |
+| ------------------------ | -------------------------- | -------------------------- |
+| `db_password`            | PostgreSQL password        | Terraform output           |
+| `db_dsn`                 | Database connection string | Generated from db_password |
+| `minio_root_password`    | MinIO admin password       | Terraform output           |
+| `grafana_admin_password` | Grafana admin password     | Terraform output           |
+| `registry_htpasswd`      | Registry authentication    | Terraform output           |
 
 #### Secret Usage
 
@@ -602,11 +617,11 @@ Services reference secrets in `stack.yml`:
 
 ```yaml
 postgres:
-  secrets:
-    - source: db_password
-      target: /run/secrets/db_password
-  environment:
-    POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+        - source: db_password
+          target: /run/secrets/db_password
+    environment:
+        POSTGRES_PASSWORD_FILE: /run/secrets/db_password
 ```
 
 #### Secret Mapping for Backend
@@ -615,11 +630,11 @@ Since Mattermost doesn't support `*_FILE` environment variables, the backend ent
 
 ```yaml
 lms-server:
-  environment:
-    SECRETS_MAP: "MM_SQLSETTINGS_DATASOURCE=db_dsn MM_FILESETTINGS_AMAZONS3SECRETACCESSKEY=minio_root_password"
-  secrets:
-    - db_dsn
-    - minio_root_password
+    environment:
+        SECRETS_MAP: "MM_SQLSETTINGS_DATASOURCE=db_dsn MM_FILESETTINGS_AMAZONS3SECRETACCESSKEY=minio_root_password"
+    secrets:
+        - db_dsn
+        - minio_root_password
 ```
 
 #### Secret Management Commands
@@ -657,6 +672,7 @@ The backend exposes Prometheus metrics on port 8067:
 **Access:** http://localhost:9090 (compose) or https://grafana.example.com (swarm)
 
 **Features:**
+
 - 15-second scrape interval
 - 15-day data retention
 - Auto-discovery of services
@@ -671,6 +687,7 @@ The backend exposes Prometheus metrics on port 8067:
 **Default credentials:** admin/generated-password
 
 **Features:**
+
 - Pre-configured Prometheus datasource
 - Dashboard auto-provisioning
 - Custom dashboard support
@@ -686,13 +703,13 @@ The backend exposes Prometheus metrics on port 8067:
 
 All services include health checks:
 
-| Service | Check | Interval | Timeout |
-|---------|-------|----------|---------|
-| postgres | `pg_isready` | 10s | 5s |
-| minio | HTTP `/minio/health/live` | 15s | 5s |
-| lms-server | HTTP `/api/v4/system/ping` | 30s | 10s |
-| lms-fe | HTTP `/api/v4/system/ping` | 30s | 10s |
-| traefik | `traefik healthcheck` | 30s | 5s |
+| Service    | Check                      | Interval | Timeout |
+| ---------- | -------------------------- | -------- | ------- |
+| postgres   | `pg_isready`               | 10s      | 5s      |
+| minio      | HTTP `/minio/health/live`  | 15s      | 5s      |
+| lms-server | HTTP `/api/v4/system/ping` | 30s      | 10s     |
+| lms-fe     | HTTP `/api/v4/system/ping` | 30s      | 10s     |
+| traefik    | `traefik healthcheck`      | 30s      | 5s      |
 
 ### Monitoring Commands
 
@@ -721,6 +738,7 @@ docker stats
 **Symptoms:** Services show as "starting" or fail health checks
 
 **Solutions:**
+
 ```bash
 # Check service logs
 docker compose logs -f [service-name]
@@ -740,6 +758,7 @@ docker stats
 **Symptoms:** Backend can't connect to PostgreSQL
 
 **Solutions:**
+
 ```bash
 # Verify database is healthy
 docker compose exec postgres pg_isready -U mmuser
@@ -757,6 +776,7 @@ docker compose exec lms-server ping postgres
 **Symptoms:** File uploads fail, can't access MinIO console
 
 **Solutions:**
+
 ```bash
 # Check MinIO health
 docker compose exec minio curl -f http://localhost:9000/minio/health/live
@@ -774,6 +794,7 @@ echo $MINIO_ROOT_PASSWORD
 **Symptoms:** HTTPS not working, certificate errors
 
 **Solutions:**
+
 ```bash
 # Check Traefik logs
 docker service logs lms_traefik -f
@@ -794,6 +815,7 @@ docker service update --force lms_traefik
 **Symptoms:** Can't build Docker images
 
 **Solutions:**
+
 ```bash
 # Clean build cache
 docker builder prune
@@ -812,6 +834,7 @@ go mod verify
 **Symptoms:** Can't push/pull images from private registry
 
 **Solutions:**
+
 ```bash
 # Re-run registry authentication
 ./registry-auth.sh
@@ -979,12 +1002,12 @@ The `video` node is already provisioned and labeled. To add the video service:
 
 ```yaml
 video-service:
-  image: your-video-image:latest
-  deploy:
-    replicas: 1
-    placement:
-      constraints: ["node.labels.role == video"]
-  networks: [lms_overlay]
+    image: your-video-image:latest
+    deploy:
+        replicas: 1
+        placement:
+            constraints: ["node.labels.role == video"]
+    networks: [lms_overlay]
 ```
 
 2. Deploy the updated stack:
@@ -1114,13 +1137,13 @@ Add to service configuration:
 
 ```yaml
 deploy:
-  resources:
-    limits:
-      cpus: '2.0'
-      memory: 4G
-    reservations:
-      cpus: '1.0'
-      memory: 2G
+    resources:
+        limits:
+            cpus: "2.0"
+            memory: 4G
+        reservations:
+            cpus: "1.0"
+            memory: 2G
 ```
 
 ---
@@ -1216,9 +1239,9 @@ trip-booking/
 
 ### Version History
 
-| Version | Date | Changes |
-|---------|------|---------|
-| 1.0 | 2026-07-26 | Initial comprehensive deployment guide |
+| Version | Date       | Changes                                |
+| ------- | ---------- | -------------------------------------- |
+| 1.0     | 2026-07-26 | Initial comprehensive deployment guide |
 
 ---
 

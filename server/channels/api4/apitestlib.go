@@ -95,7 +95,7 @@ func setupTestHelper(tb testing.TB, dbStore store.Store, sqlSettings *model.SqlS
 	*memoryConfig.PluginSettings.ClientDirectory = filepath.Join(tempWorkspace, "webapp")
 	*memoryConfig.FileSettings.Directory = filepath.Join(tempWorkspace, "data")
 	*memoryConfig.ServiceSettings.EnableLocalMode = true
-	*memoryConfig.ServiceSettings.LocalModeSocketLocation = filepath.Join(tempWorkspace, "mattermost_local.sock")
+	*memoryConfig.ServiceSettings.LocalModeSocketLocation = filepath.Join(tempWorkspace, "sitename_local.sock")
 	*memoryConfig.LogSettings.EnableSentry = false // disable error reporting during tests
 
 	// Check for environment variable override for console log level (useful for debugging tests)

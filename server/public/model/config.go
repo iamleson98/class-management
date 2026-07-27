@@ -276,7 +276,7 @@ const (
 
 	OpenidSettingsDefaultScope = "profile openid email"
 
-	LocalModeSocketPath = "/var/tmp/mattermost_local.socket"
+	LocalModeSocketPath = "/var/tmp/sitename_local.socket"
 
 	ConnectedWorkspacesSettingsDefaultMaxPostsPerSync     = 50 // a bit more than 4 typical screenfulls of posts
 	ConnectedWorkspacesSettingsDefaultMemberSyncBatchSize = 20 // optimal batch size for syncing channel members
