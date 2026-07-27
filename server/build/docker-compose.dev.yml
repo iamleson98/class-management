@@ -1,0 +1,38 @@
+# Local development dependencies for `make run-server`.
+#
+# This brings up ONLY the services the dev server needs to boot:
+#   - postgres  (matches config/config.json SqlSettings: mmuser:mostest@mattermost_test)
+#
+# File storage in dev is local (FileSettings.DriverName = local, ./data/), so
+# MinIO is not required. Start it with:
+#
+#   make start-docker
+#
+# or directly:
+#   docker compose -f build/docker-compose.dev.yml up -d
+#
+# The credentials here are the dev defaults the Mattermost config expects; they
+# are NOT production secrets.
+name: lms-dev
+
+services:
+  postgres:
+    image: postgres:14-alpine
+    container_name: lms-dev-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mmuser
+      POSTGRES_PASSWORD: mostest
+      POSTGRES_DB: mattermost_test
+    ports:
+      - "5432:5432"
+    volumes:
+      - lms-dev-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mmuser -d mattermost_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  lms-dev-pgdata:

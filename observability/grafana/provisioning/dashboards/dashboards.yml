@@ -1,0 +1,16 @@
+# Tell Grafana where to look for auto-provisioned dashboards.
+# Drop JSON dashboard files into /var/lib/grafana/dashboards/ (mounted volume)
+# and they will be picked up automatically.
+apiVersion: 1
+
+providers:
+  - name: "LMS dashboards"
+    orgId: 1
+    folder: ""
+    type: file
+    disableDeletion: false
+    editable: true
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: true

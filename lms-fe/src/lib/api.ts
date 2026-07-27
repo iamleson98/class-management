@@ -37,10 +37,6 @@ export class ValidationError extends Error {
   }
 }
 
-// Absolute URL to the backend — used only for generating public URLs (e.g. image src)
-// All API fetch calls use relative paths that are proxied by Next.js rewrites.
-// const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8065'
-
 // Relative base — proxied by Next.js rewrites to the backend
 const BASE = '/api/v4'
 
@@ -116,10 +112,7 @@ function transformKeys<T>(value: unknown, mapper: (k: string) => string): T {
 export function toCamel<T>(data: unknown): T {
   // Apply the lowercase-alias rewrite first (handles `createat` → `createdAt`),
   // then the standard snake→camel transform for the rest.
-  return transformKeys<T>(data, (k) => {
-    if (LOWERCASE_ALIAS_MAP[k]) return LOWERCASE_ALIAS_MAP[k]
-    return snakeToCamel(k)
-  })
+  return transformKeys<T>(data, (k) => LOWERCASE_ALIAS_MAP[k] ?? snakeToCamel(k))
 }
 
 /** Convert all camelCase keys in an object to snake_case. */
@@ -127,134 +120,100 @@ function toSnake<T>(data: unknown): T {
   return transformKeys<T>(data, camelToSnake)
 }
 
-// ─── Core fetch with Mattermost session auth ────────────────────────
-// The Go server handles auth via MMAUTHTOKEN cookie set during login.
-// Cookies are sent cross-origin via credentials: 'include'.
-
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  // Auth is via the cookie (credentials:'include'); X-Requested-With satisfies
-  // the backend CSRF check on non-GET requests. See the auth-model note above.
-  const res = await fetch(`${BASE}${path}`, {
-    credentials: 'include',
-    headers: authHeaders(options?.headers),
-    ...options,
-  })
-
-  if (res.status === 401) {
-    // Session expired — dispatch event for the store to handle (logout + redirect)
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('auth:expired'))
-    }
-    throw new Error('Phiên đăng nhập đã hết hạn')
-  }
-
-  if (!res.ok) {
-    // The Go backend serializes errors as Mattermost AppError:
-    //   { id, message, detailed_error, request_id, status_code }
-    // (`message` is the human-readable, locale-translated string). Some older
-    // paths may emit `{ error }`. Read `message` first, fall back to `error`.
-    const err = await res.json().catch(() => ({ message: res.statusText }))
-    if (res.status === 403) {
-      throw new Error(err.message || err.error || 'Bạn không có quyền thực hiện thao tác này')
-    }
-    // 422 — validation errors from server-side parsing
-    if (res.status === 422 && Array.isArray(err.errors)) {
-      throw new ValidationError(err.errors, err.message || err.error || 'Dữ liệu không hợp lệ')
-    }
-    throw new Error(err.message || err.error || 'Lỗi hệ thống')
-  }
-  const json = await res.json()
-  // Backend wraps some responses in { data: ... }, some in { items, total_count }, some raw.
-  // Unwrap { data: ... } envelope when present (but not when { items } is also present).
-  const raw = json.data !== undefined && json.items === undefined ? json.data : json
-  // Convert snake_case keys to camelCase for frontend consumption.
-  return toCamel<T>(raw)
-}
-
-// ─── Fetch a list endpoint and extract .items (unwraps ResponseList) ─
-// Supports both GET (no body) and POST with JSON body for search/filter endpoints.
-async function apiFetchList<T>(path: string, options?: RequestInit): Promise<T[]> {
-  // See apiFetch: auth via cookie + X-Requested-With for CSRF.
-  const res = await fetch(`${BASE}${path}`, {
-    credentials: 'include',
-    headers: authHeaders(options?.headers),
-    ...options,
-  })
-
-  if (res.status === 401) {
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('auth:expired'))
-    }
-    throw new Error('Phiên đăng nhập đã hết hạn')
-  }
-
-  if (!res.ok) {
-    // See apiFetch for the Mattermost AppError shape ({ id, message, ... }).
-    const err = await res.json().catch(() => ({ message: res.statusText }))
-    if (res.status === 403) throw new Error(err.message || err.error || 'Bạn không có quyền thực hiện thao tác này')
-    if (res.status === 422 && Array.isArray(err.errors)) {
-      throw new ValidationError(err.errors, err.message || err.error || 'Dữ liệu không hợp lệ')
-    }
-    throw new Error(err.message || err.error || 'Lỗi hệ thống')
-  }
-  const json = await res.json()
-  // List endpoints return { items: [...], total_count: N }
-  const items = Array.isArray(json.items) ? json.items
-    // Some endpoints return raw arrays or { data: [...] }
-    : Array.isArray(json.data) ? json.data
-      : Array.isArray(json) ? json
-        : []
-  return toCamel<T[]>(items)
-}
-
-/**
- * Fetch a list and return both items and total_count. Use this for paginated
- * listings so the UI can render server-driven page controls.
- */
-async function apiSearchPaginated<T>(path: string, body: unknown): Promise<PaginatedList<T>> {
-  const snakeBody = toSnake(body)
-  const res = await fetch(`${BASE}${path}`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: authHeaders(),
-    body: JSON.stringify(snakeBody),
-  })
-
-  if (res.status === 401) {
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('auth:expired'))
-    }
-    throw new Error('Phiên đăng nhập đã hết hạn')
-  }
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: res.statusText }))
-    if (res.status === 403) throw new Error(err.message || err.error || 'Bạn không có quyền thực hiện thao tác này')
-    if (res.status === 422 && Array.isArray(err.errors)) {
-      throw new ValidationError(err.errors, err.message || err.error || 'Dữ liệu không hợp lệ')
-    }
-    throw new Error(err.message || err.error || 'Lỗi hệ thống')
-  }
-
-  const json = await res.json()
-  const items = Array.isArray(json.items) ? json.items
-    : Array.isArray(json.data) ? json.data
-      : Array.isArray(json) ? json
-        : []
-  const totalCount = typeof json.total_count === 'number' ? json.total_count : items.length
-  return { items: toCamel<T[]>(items), totalCount }
-}
-
-// ─── POST a search/filter body to a list endpoint ──────────────────
-// List endpoints accept a POST JSON body (a FilterOpts struct embedding
-// utils.SearchOpts) and return { items: [...], total_count: N }. The body is
-// built with the typed helpers in src/lib/query.ts (operators EQ/LIKE/etc,
-// typed ColumnNames). See backend server/public/utils/query.go for the contract.
-
 /** Result of a paginated search — items plus the server-reported total count. */
 export interface PaginatedList<T> {
   items: T[]
   totalCount: number
+}
+
+// ─── Shared response handling ──────────────────────────────────────
+// The Go backend serializes errors as a Mattermost AppError:
+//   { id, message, detailed_error, request_id, status_code }
+// (`message` is the human-readable, locale-translated string). Some older paths
+// emit `{ error }`. We read `message` first, fall back to `error`.
+
+/** Normalize a parsed JSON error body into a thrown Error (or ValidationError). */
+function throwApiError(status: number, err: { message?: string; error?: string; errors?: unknown }) {
+  if (status === 403) {
+    throw new Error(err.message || err.error || 'Bạn không có quyền thực hiện thao tác này')
+  }
+  // 422 — structured validation errors from server-side parsing
+  if (status === 422 && Array.isArray(err.errors)) {
+    throw new ValidationError(err.errors, err.message || err.error || 'Dữ liệu không hợp lệ')
+  }
+  throw new Error(err.message || err.error || 'Lỗi hệ thống')
+}
+
+/**
+ * Parse a fetch Response from an authenticated API call.
+ * - 401 → dispatch `auth:expired` (handled by the store) and throw.
+ * - !ok → throw a localized Error / ValidationError from the AppError body.
+ * - ok → return the parsed JSON (still snake_case; callers run toCamel).
+ */
+async function readJson(res: Response): Promise<any> {
+  if (res.status === 401) {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('auth:expired'))
+    }
+    throw new Error('Phiên đăng nhập đã hết hạn')
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }))
+    throwApiError(res.status, err)
+  }
+  return res.json()
+}
+
+/** Pull an array of items out of a response that may be `{items}`, `{data}`, or a raw array. */
+function extractItems(json: any): any[] {
+  return Array.isArray(json?.items) ? json.items
+    : Array.isArray(json?.data) ? json.data
+      : Array.isArray(json) ? json
+        : []
+}
+
+// ─── Core fetchers ─────────────────────────────────────────────────
+// All use cookie auth (credentials:'include') + X-Requested-With for CSRF.
+
+/** Single-object endpoint. Unwraps `{ data }` and camelCases the result. */
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    credentials: 'include',
+    headers: authHeaders(options?.headers),
+    ...options,
+  })
+  const json = await readJson(res)
+  // Unwrap { data: ... } envelope when present (but not when { items } is also present).
+  const raw = json.data !== undefined && json.items === undefined ? json.data : json
+  return toCamel<T>(raw)
+}
+
+/** List endpoint (GET or POST with body). Returns only the items, camelCased. */
+async function apiFetchList<T>(path: string, options?: RequestInit): Promise<T[]> {
+  const res = await fetch(`${BASE}${path}`, {
+    credentials: 'include',
+    headers: authHeaders(options?.headers),
+    ...options,
+  })
+  const json = await readJson(res)
+  return toCamel<T[]>(extractItems(json))
+}
+
+/**
+ * POST a search/filter body to a paginated list endpoint. Returns items plus
+ * the server-reported total_count, so the UI can render server-driven paging.
+ */
+async function apiSearchPaginated<T>(path: string, body: unknown): Promise<PaginatedList<T>> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: authHeaders(),
+    body: JSON.stringify(toSnake(body)),
+  })
+  const json = await readJson(res)
+  const items = extractItems(json)
+  const totalCount = typeof json.total_count === 'number' ? json.total_count : items.length
+  return { items: toCamel<T[]>(items), totalCount }
 }
 
 /** Fetch a list, returning only the items (drops total_count). */
@@ -264,21 +223,12 @@ async function apiSearchList<T>(path: string, body: unknown): Promise<T[]> {
 }
 
 // ─── Convenience helpers ─────────────────────────────────────────
-function apiGet<T>(path: string): Promise<T> {
-  return apiFetch<T>(path)
-}
-function apiPost<T>(path: string, data: unknown): Promise<T> {
-  // Convert camelCase keys to snake_case before sending to backend
-  const snakeData = toSnake(data)
-  return apiFetch<T>(path, { method: 'POST', body: JSON.stringify(snakeData) })
-}
-function apiPut<T>(path: string, data: unknown): Promise<T> {
-  const snakeData = toSnake(data)
-  return apiFetch<T>(path, { method: 'PUT', body: JSON.stringify(snakeData) })
-}
-function apiDelete<T>(path: string): Promise<T> {
-  return apiFetch<T>(path, { method: 'DELETE' })
-}
+const apiGet = <T>(path: string): Promise<T> => apiFetch<T>(path)
+const apiPost = <T>(path: string, data: unknown): Promise<T> =>
+  apiFetch<T>(path, { method: 'POST', body: JSON.stringify(toSnake(data)) })
+const apiPut = <T>(path: string, data: unknown): Promise<T> =>
+  apiFetch<T>(path, { method: 'PUT', body: JSON.stringify(toSnake(data)) })
+const apiDelete = <T>(path: string): Promise<T> => apiFetch<T>(path, { method: 'DELETE' })
 
 // ─── Auth ───────────────────────────────────────────────────────────
 
@@ -385,72 +335,50 @@ export const logout = () => {
 // ─── Public — no auth required ─────────────────────────────────────
 const PUBLIC_BASE = '/api/v4/lms/public'
 
+/**
+ * Fetch a public endpoint and throw a localized error on failure. Public
+ * endpoints are unauthenticated, so they don't dispatch `auth:expired` or use
+ * the CSRF header. Returns the parsed JSON (still snake_case).
+ * @param defaultError message shown if the backend didn't provide one.
+ */
+async function publicJson(path: string, init: RequestInit, defaultError: string): Promise<any> {
+  const res = await fetch(`${PUBLIC_BASE}${path}`, init)
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || defaultError)
+  }
+  return res.json()
+}
+
+const jsonBody = (data: unknown): string => JSON.stringify(toSnake(data))
+
 export const getPublicCourses = (): Promise<Course[]> =>
-  fetch(`${PUBLIC_BASE}/courses`, { credentials: 'include' }).then(async (r) => {
-    const json = await r.json()
-    const items = Array.isArray(json.items) ? json.items
-      : Array.isArray(json.data) ? json.data
-        : Array.isArray(json) ? json
-          : []
-    return toCamel<Course[]>(items)
-  })
+  fetch(`${PUBLIC_BASE}/courses`, { credentials: 'include' })
+    .then((r) => r.json())
+    .then((json) => toCamel<Course[]>(extractItems(json)))
 
 export const getPublicPosts = (): Promise<PostListItem[]> =>
-  fetch(`${PUBLIC_BASE}/posts`, { credentials: 'include' }).then(async (r) => {
-    const json = await r.json()
-    const raw = json.data ?? json
-    return toCamel<PostListItem[]>(raw)
-  })
+  fetch(`${PUBLIC_BASE}/posts`, { credentials: 'include' })
+    .then((r) => r.json())
+    .then((json) => toCamel<PostListItem[]>(json.data ?? json))
 
 export const submitRegistration = (data: Record<string, unknown>) =>
-  fetch(`${PUBLIC_BASE}/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(toSnake(data)),
-  }).then(async (r) => {
-    if (!r.ok) { const err = await r.json().catch(() => ({})); throw new Error(err.error || 'Đăng ký thất bại') }
-    const json = await r.json()
-    return json.data ?? json
-  })
+  publicJson('/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: jsonBody(data) }, 'Đăng ký thất bại')
+    .then((json) => json.data ?? json)
 
 export const submitContact = (data: { name: string; email: string; phone: string; message: string }) =>
-  fetch(`${PUBLIC_BASE}/contact`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(toSnake(data)),
-  }).then(async (r) => {
-    if (!r.ok) { const err = await r.json().catch(() => ({})); throw new Error(err.error || 'Gửi tin nhắn thất bại') }
-    const json = await r.json()
-    return json.data ?? json
-  })
+  publicJson('/contact', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: jsonBody(data) }, 'Gửi tin nhắn thất bại')
+    .then((json) => json.data ?? json)
 
 export const sendPasswordReset = (email: string) =>
-  fetch(`${PUBLIC_BASE}/forgot-password`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email }),
-  }).then(async (r) => {
-    if (!r.ok) { const err = await r.json().catch(() => ({})); throw new Error(err.error || 'Gửi yêu cầu thất bại') }
-    const json = await r.json()
-    return json as { success: boolean; message: string }
-  })
+  publicJson('/forgot-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) }, 'Gửi yêu cầu thất bại') as Promise<{ success: boolean; message: string }>
 
 export const verifyResetToken = (token: string) =>
-  fetch(`${PUBLIC_BASE}/verify-token?token=${encodeURIComponent(token)}`).then(async (r) => {
-    const json = await r.json()
-    return json as { valid: boolean }
-  })
+  fetch(`${PUBLIC_BASE}/verify-token?token=${encodeURIComponent(token)}`)
+    .then((r) => r.json()) as Promise<{ valid: boolean }>
 
 export const resetPassword = (token: string, password: string) =>
-  fetch(`${PUBLIC_BASE}/reset-password`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token, password }),
-  }).then(async (r) => {
-    if (!r.ok) { const err = await r.json().catch(() => ({})); throw new Error(err.error || 'Đặt lại mật khẩu thất bại') }
-    const json = await r.json()
-    return json as { success: boolean; message: string }
-  })
+  publicJson('/reset-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, password }) }, 'Đặt lại mật khẩu thất bại') as Promise<{ success: boolean; message: string }>
 
 // ─── Users ─────────────────────────────────────────────────────────
 
@@ -510,7 +438,7 @@ export const getStudentsPaginated = (opts: SearchOpts = {}): Promise<PaginatedLi
   apiSearchPaginated<Student>('/lms/students', opts)
 export const createStudent = (data: CreateStudentInput): Promise<Student> => apiPost<Student>('/lms/students/create', data)
 export const updateStudent = (id: string, data: UpdateStudentInput): Promise<Student> => apiPut<Student>(`/lms/students/${id}`, data)
-export const deleteStudent = (id: string): Promise<void> => apiFetch<void>(`/lms/students/${id}`, { method: 'DELETE' })
+export const deleteStudent = (id: string): Promise<void> => apiDelete<void>(`/lms/students/${id}`)
 
 // ─── Counselor: user ↔ student conversions ─────────────────────────
 // All gated by PermissionLmsManageStudents on the backend.
@@ -540,7 +468,7 @@ export const getCoursesPaginated = (opts: SearchOpts = {}): Promise<PaginatedLis
   })
 export const createCourse = (data: CreateCourseInput): Promise<Course> => apiPost<Course>('/lms/courses', data)
 export const updateCourse = (id: string, data: UpdateCourseInput): Promise<Course> => apiPut<Course>(`/lms/courses/${id}`, data)
-export const deleteCourse = (id: string): Promise<void> => apiFetch<void>(`/lms/courses/${id}`, { method: 'DELETE' })
+export const deleteCourse = (id: string): Promise<void> => apiDelete<void>(`/lms/courses/${id}`)
 
 // ─── Classes ─────────────────────────────────────────────────────────
 
@@ -550,7 +478,7 @@ export const getClassesPaginated = (opts: SearchOpts = {}): Promise<PaginatedLis
   apiSearchPaginated<Class>('/lms/classes', opts)
 export const createClass = (data: CreateClassInput): Promise<Class> => apiPost<Class>('/lms/classes/create', data)
 export const updateClass = (id: string, data: UpdateClassInput): Promise<Class> => apiPut<Class>(`/lms/classes/${id}`, data)
-export const deleteClass = (id: string): Promise<void> => apiFetch<void>(`/lms/classes/${id}`, { method: 'DELETE' })
+export const deleteClass = (id: string): Promise<void> => apiDelete<void>(`/lms/classes/${id}`)
 export const getClassDetail = (id: string): Promise<any> => apiGet(`/lms/classes/${id}`)
 export const enrollStudents = (classId: string, studentIds: string[]): Promise<Class> =>
   apiPost<Class>(`/lms/classes/${classId}/enroll`, { studentIds })
@@ -633,6 +561,8 @@ export const createPost = (data: CreatePostInput): Promise<Post> => apiPost<Post
 export const updatePost = (id: string, data: UpdatePostInput): Promise<Post> => apiPut<Post>(`/lms/posts/${id}`, data)
 export const deletePost = (id: string): Promise<void> => apiDelete<void>(`/lms/posts/${id}`)
 export const createPostCategory = (data: PostCategoryInput): Promise<PostCategory> => apiPost<PostCategory>('/lms/posts/categories', data)
+export const updatePostCategory = (id: string, data: PostCategoryInput): Promise<PostCategory> => apiPut<PostCategory>(`/lms/posts/categories/${id}`, data)
+export const deletePostCategory = (id: string): Promise<void> => apiDelete<void>(`/lms/posts/categories/${id}`)
 export const getBanners = (): Promise<Banner[]> => apiFetchList<Banner>('/lms/banners')
 
 // ─── Branches ────────────────────────────────────────────────────────

@@ -253,68 +253,41 @@ ifneq ($(DOCKER_SERVICES_OVERRIDE),true)
   ENABLED_DOCKER_SERVICES:=$(ENABLED_DOCKER_SERVICES) $(TEMP_DOCKER_SERVICES)
 endif
 
+# Dev dependencies live in build/docker-compose.dev.yml (a single Postgres on
+# the dev credentials config/config.json expects: mmuser:mostest@mattermost_test).
+# Set MM_NO_DOCKER=true to skip if you run your own database.
+DEV_COMPOSE := build/docker-compose.dev.yml
+
 start-docker: setup-go-work ## Starts the docker containers for local development.
-ifneq ($(IS_CI),false)
-	@echo CI Build: skipping docker start
-else ifeq ($(MM_NO_DOCKER),true)
+ifeq ($(MM_NO_DOCKER),true)
 	@echo No Docker Enabled: skipping docker start
 else
-	@echo Starting docker containers
-ifeq ($(MM_USE_PGVECTOR),true)
-	@echo Using pgvector PostgreSQL image
+	@echo "Starting dev dependencies: postgres  [$(DEV_COMPOSE)]"
+	docker compose -f $(DEV_COMPOSE) up -d --wait
 endif
 
-ifeq ($(OS),Windows_NT)
-	@if not exist logs mkdir logs
-	docker compose rm start_dependencies
-	$(GO) run ./build/docker-compose-generator/main.go $(ENABLED_DOCKER_SERVICES) | docker compose -f docker-compose.makefile.yml -f - $(DOCKER_COMPOSE_OVERRIDE) run -T --rm start_dependencies
-else
-	mkdir -p logs
-	docker compose rm start_dependencies
-	$(GO) run ./build/docker-compose-generator/main.go $(ENABLED_DOCKER_SERVICES) | docker compose -f docker-compose.makefile.yml -f /dev/stdin $(DOCKER_COMPOSE_OVERRIDE) run -T --rm start_dependencies
-  ifneq (,$(findstring openldap,$(ENABLED_DOCKER_SERVICES)))
-	cat tests/custom-schema-objectID.ldif | docker compose -f docker-compose.makefile.yml $(DOCKER_COMPOSE_OVERRIDE) exec -T openldap bash -c 'ldapadd -Y EXTERNAL -H ldapi:/// -w mostest || true';
-	cat tests/custom-schema-cpa.ldif | docker compose -f docker-compose.makefile.yml ${DOCKER_COMPOSE_OVERRIDE} exec -T openldap bash -c 'ldapadd -Y EXTERNAL -H ldapi:/// -w mostest || true';
-	cat tests/${LDAP_DATA}-data.ldif | docker compose -f docker-compose.makefile.yml ${DOCKER_COMPOSE_OVERRIDE} exec -T openldap bash -c 'ldapadd -x -D "cn=admin,dc=mm,dc=test,dc=com" -w mostest || true';
-  endif
-endif
-endif
-
-update-docker: setup-go-work stop-docker ## Updates the docker containers for local development.
-	@echo Updating docker containers
-
-	$(GO) run ./build/docker-compose-generator/main.go $(ENABLED_DOCKER_SERVICES) | docker compose -f docker-compose.makefile.yml -f /dev/stdin $(DOCKER_COMPOSE_OVERRIDE) up --no-start
+update-docker: setup-go-work stop-docker start-docker ## Recreates the dev dependency containers.
 
 run-haserver:
-ifeq ($(BUILD_ENTERPRISE_READY),true)
-	@echo Starting mattermost in an HA topology '(3 node cluster)'
-
-	docker compose -f docker-compose.yaml $(DOCKER_COMPOSE_OVERRIDE) up --remove-orphans haproxy
-endif
+	@echo "The HA-cluster docker topology (haproxy + leader/follower) has been removed."
 
 stop-haserver:
-	@echo Stopping docker containers for HA topology
-	docker compose stop
+	@echo "The HA-cluster docker topology (haproxy + leader/follower) has been removed."
 
 stop-docker: ## Stops the docker containers for local development.
 ifeq ($(MM_NO_DOCKER),true)
 	@echo No Docker Enabled: skipping docker stop
 else
-	@echo Stopping docker containers
-
-	docker compose stop
+	@echo Stopping dev dependencies
+	docker compose -f $(DEV_COMPOSE) stop
 endif
 
 clean-docker: ## Deletes the docker containers for local development.
 ifeq ($(MM_NO_DOCKER),true)
 	@echo No Docker Enabled: skipping docker clean
 else
-	@echo Removing docker containers
-
-	docker compose down -v
-	docker compose rm -v
-
-	docker volume rm mattermost-server_postgres-14-data || true
+	@echo Removing dev dependencies (and their volumes)
+	docker compose -f $(DEV_COMPOSE) down -v
 endif
 
 plugin-checker: setup-go-work
@@ -798,41 +771,13 @@ run-job-server: setup-go-work ## Runs the background job server.
 	$(GO) run $(GOFLAGS) -ldflags '$(LDFLAGS)' -tags '$(BUILD_TAGS)' $(PLATFORM_FILES) jobserver &
 
 config-ldap: ## Configures LDAP.
-	@echo Setting up configuration for local LDAP
-
-	# Check if jq is installed
-	@jq --version > /dev/null 2>&1 || (echo "jq is not installed. Please install jq to continue." && exit 1)
-
-	$(eval TMPDIR := $(shell mktemp -d))
-	jq --slurp '.[0] * .[1]' ${CONFIG_FILE_PATH} build/docker/keycloak/ldap.mmsettings.json > ${TMPDIR}/config.json
-	cp ${TMPDIR}/config.json ${CONFIG_FILE_PATH}
-	rm ${TMPDIR}/config.json
+	@echo "The local LDAP/Keycloak dev tooling has been removed from this project."
 
 config-saml: ## Configures SAML.
-	@echo Setting up configuration for local SAML with keycloak, please ensure your keycloak is running on http://localhost:8484
-
-	# Check if jq is installed
-	@jq --version > /dev/null 2>&1 || (echo "jq is not installed. Please install jq to continue." && exit 1)
-
-	@cp build/docker/keycloak/keycloak.crt ./config/saml-idp.crt
-
-	$(eval TMPDIR := $(shell mktemp -d))
-	jq --slurp '.[0] * .[1]' ${CONFIG_FILE_PATH} build/docker/keycloak/saml.mmsettings.json > ${TMPDIR}/config.json
-	cp ${TMPDIR}/config.json ${CONFIG_FILE_PATH}
-	rm ${TMPDIR}/config.json
+	@echo "The local SAML/Keycloak dev tooling has been removed from this project."
 
 config-openid: ## Configures OpenID.
-	@echo Setting up configuration for local OpenID with keycloak, please ensure your keycloak is running on http://localhost:8484
-
-	# Check if jq is installed
-	@jq --version > /dev/null 2>&1 || (echo "jq is not installed. Please install jq to continue." && exit 1)
-
-	$(eval TMPDIR := $(shell mktemp -d))
-	jq --slurp '.[0] * .[1]' ${CONFIG_FILE_PATH} build/docker/keycloak/openid.mmsettings.json > ${TMPDIR}/config.json
-	cp ${TMPDIR}/config.json ${CONFIG_FILE_PATH}
-	rm ${TMPDIR}/config.json
-
-	@echo Finished setting up configuration for local OpenID with keycloak
+	@echo "The local OpenID/Keycloak dev tooling has been removed from this project."
 
 config-reset: setup-go-work ## Resets the config/config.json file to the default production values.
 	@echo Resetting configuration to production default

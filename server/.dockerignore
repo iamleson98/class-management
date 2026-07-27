@@ -1,0 +1,39 @@
+# Build artifacts & caches
+bin/
+data/
+logs/
+client/
+plugins/
+prepackaged_plugins/
+
+# Local dev / IDE
+.git
+.gitignore
+.vscode/
+.idea/
+.DS_Store
+
+# Delve debug binaries
+**/__debug_bin*
+
+# Node / webapp (not part of the Go build)
+node_modules/
+.next/
+
+# Existing docker tooling (avoid sending it to the builder context)
+build/docker/
+build/docker-preview/
+build/dotenv/
+build/docker-compose*.yml
+docker-compose*.yml
+docker-compose*.yaml
+
+# Tests & docs not needed at runtime
+tests/
+study/
+*.md
+
+# Misc
+mattermost.log
+sqlboiler.toml
+config.mk

@@ -1,0 +1,36 @@
+# Copy to dev.tfvars and adjust. cp dev.tfvars.example dev.tfvars
+
+# Kamatera datacenter. Common: EU-WEST-1, US-EAST-1, ASIA-EAST-1
+kamatera_zone = "EU-WEST-1"
+
+# OS image — verify the exact string in Kamatera Console if this fails.
+server_image = "ubuntu-22.04-server_64bit"
+billing      = "hourly"
+
+# Private inter-node network CIDR
+private_network_cidr = "10.30.0.0/16"
+
+# Your SSH public key for VM access. The matching private key must exist
+# (e.g. ssh-keygen -t ed25519 -f ~/.ssh/lms_swarm).
+ssh_public_key = "~/.ssh/lms_swarm.pub"
+
+# ── Sizes (Kamatera CPU format: <cores><type>, e.g. "2B" = 2 Type-B cores) ──
+# Manager: runs Traefik (TLS), the private registry, and observability.
+manager_cpu = "2B"
+manager_ram = "8192"
+manager_disk = "50"
+
+# Backend: the Go API.
+backend_cpu = "2B"
+backend_ram = "4096"
+backend_disk = "50"
+
+# Database: PostgreSQL.
+db_cpu = "2B"
+db_ram = "8192"
+db_disk = "80"
+
+# Video: reserved for the future video-call service.
+video_cpu = "4B"
+video_ram = "8192"
+video_disk = "50"

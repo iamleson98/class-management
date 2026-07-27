@@ -55,6 +55,28 @@ func (s *SqlPostCategoryStore) Save(pc *lms_models.PostCategory) (*lms_models.Po
 	return pc, nil
 }
 
+func (s *SqlPostCategoryStore) Update(pc *lms_models.PostCategory) (*lms_models.PostCategory, error) {
+	modelhelper.PostCategoryPreUpdate(pc)
+	if err := modelhelper.PostCategoryIsValid(pc); err != nil {
+		return nil, err
+	}
+
+	rowsAffected, err := pc.Update(s.sqlStore.GetMasterExecuter(), boil.Infer())
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to update post category")
+	}
+
+	if rowsAffected == 0 {
+		return nil, store.NewErrNotFound("PostCategory", pc.ID)
+	}
+
+	if err := pc.Reload(s.sqlStore.GetMasterExecuter()); err != nil {
+		return nil, errors.Wrap(err, "failed to reload post category after update")
+	}
+
+	return pc, nil
+}
+
 func (s *SqlPostCategoryStore) Delete(id string) error {
 	category, err := lms_models.FindPostCategory(s.sqlStore.GetMasterExecuter(), id)
 	if err != nil {

@@ -122,6 +122,36 @@ func (_m *PostCategoryStore) Save(pc *lms_models.PostCategory) (*lms_models.Post
 	return r0, r1
 }
 
+// Update provides a mock function with given fields: pc
+func (_m *PostCategoryStore) Update(pc *lms_models.PostCategory) (*lms_models.PostCategory, error) {
+	ret := _m.Called(pc)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Update")
+	}
+
+	var r0 *lms_models.PostCategory
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*lms_models.PostCategory) (*lms_models.PostCategory, error)); ok {
+		return rf(pc)
+	}
+	if rf, ok := ret.Get(0).(func(*lms_models.PostCategory) *lms_models.PostCategory); ok {
+		r0 = rf(pc)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*lms_models.PostCategory)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*lms_models.PostCategory) error); ok {
+		r1 = rf(pc)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // NewPostCategoryStore creates a new instance of PostCategoryStore. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewPostCategoryStore(t interface {

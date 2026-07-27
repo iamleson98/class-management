@@ -590,7 +590,9 @@ func TestHandleJobPanic(t *testing.T) {
 		mockStore.JobStore.On("UpdateOptimistically", job, model.JobStatusInProgress).Return(true, nil)
 		metrics.On("DecrementJobActive", model.JobTypeImportProcess)
 
-		require.Panics(t, f)
+		// HandleJobPanic recovers the panic (logs + marks job failed) instead of
+		// re-panicking, so a single bad job cannot crash the whole server.
+		require.NotPanics(t, f)
 		require.Equal(t, model.JobStatusError, job.Status)
 	})
 
@@ -611,7 +613,7 @@ func TestHandleJobPanic(t *testing.T) {
 		mockStore.JobStore.On("UpdateOptimistically", job, model.JobStatusInProgress).Return(true, nil)
 		metrics.On("DecrementJobActive", model.JobTypeImportProcess)
 
-		require.Panics(t, f)
+		require.NotPanics(t, f)
 		require.Equal(t, model.JobStatusError, job.Status)
 	})
 }

@@ -17,6 +17,8 @@ import (
 func (a *LMSAPI) InitPosts() {
 	a.routes.Method(http.MethodGet, "/posts/categories", a.api.APISessionRequired(getPostCategories))
 	a.routes.Method(http.MethodPost, "/posts/categories", a.api.APISessionRequired(createPostCategory))
+	a.routes.Method(http.MethodPut, "/posts/categories/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(updatePostCategory))
+	a.routes.Method(http.MethodDelete, "/posts/categories/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(deletePostCategory))
 	a.routes.Method(http.MethodPost, "/posts", a.api.APISessionRequired(getPosts))
 	a.routes.Method(http.MethodPost, "/posts/create", a.api.APISessionRequired(createPost))
 	a.routes.Method(http.MethodGet, "/posts/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(getPost))
@@ -61,6 +63,54 @@ func createPostCategory(c *api4.Context, w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusCreated)
 	data, _ := json.Marshal(created)
 	w.Write(data)
+}
+
+func updatePostCategory(c *api4.Context, w http.ResponseWriter, r *http.Request) {
+	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManagePosts) {
+		c.SetPermissionError(model.PermissionLmsManagePosts)
+		return
+	}
+
+	idVal := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
+		return
+	}
+	id := idVal.(string)
+
+	var category *lms_models.PostCategory
+	if err := json.NewDecoder(r.Body).Decode(&category); err != nil {
+		c.Err = model.NewAppError("updatePostCategory", "api.lms.post.category_body.app_error", nil, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	updated, err := c.App.LMS().UpdatePostCategory(id, category)
+	if err != nil {
+		c.Err = err
+		return
+	}
+
+	data, _ := json.Marshal(updated)
+	w.Write(data)
+}
+
+func deletePostCategory(c *api4.Context, w http.ResponseWriter, r *http.Request) {
+	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManagePosts) {
+		c.SetPermissionError(model.PermissionLmsManagePosts)
+		return
+	}
+
+	idVal := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
+		return
+	}
+	id := idVal.(string)
+
+	if err := c.App.LMS().DeletePostCategory(id); err != nil {
+		c.Err = err
+		return
+	}
+
+	api4.ReturnStatusOK(w)
 }
 
 func getPosts(c *api4.Context, w http.ResponseWriter, r *http.Request) {

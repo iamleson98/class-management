@@ -1,0 +1,304 @@
+# Docker Swarm stack for the LMS system.
+#
+# Services are pinned to nodes by label (set by Terraform):
+#   node.labels.role == manager | backend | db | video
+#
+# TLS is terminated by Traefik (Let's Encrypt) on the manager node, which routes
+# to the backend/frontend/MinIO by Host rule. Inter-service traffic (backend→db,
+# backend→minio) flows over the encrypted Swarm overlay network by service name.
+#
+# Secrets are created once via secrets-bootstrap.sh and read by each service from
+# /run/secrets/<name>. Non-secret config comes from the .env file.
+#
+# Deploy:
+#   docker stack deploy -c stack.yml --with-registry-auth lms
+
+x-registry: &registry-auth
+  # Every service that pulls from the private registry needs registry auth
+  # distributed to its node. Run registry-auth.sh once after bootstrap, then
+  # always deploy with --with-registry-auth.
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "3" }
+
+services:
+  # ───────────────────────── Edge / TLS ──────────────────────────────
+  traefik:
+    image: traefik:v3.1
+    # Only the manager exposes 80/443 to the internet (see deploy.placement).
+    ports:
+      - target: 80
+        published: 80
+        mode: ingress
+      - target: 443
+        published: 443
+        mode: ingress
+    command:
+      - --providers.docker=true
+      - --providers.docker.swarmmode=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=lms_overlay
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      # Redirect all HTTP → HTTPS
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      # Let's Encrypt
+      - --certificatesresolvers.le.acme.email=${ACME_EMAIL:?set ACME_EMAIL in .env}
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.le.acme.tlschallenge=true
+      # Dashboard (optional; protected by the traefik-auth middleware below)
+      - --api.dashboard=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_certs:/letsencrypt
+    networks: [lms_overlay]
+    deploy:
+      replicas: 1
+      placement:
+        constraints: ["node.labels.role == manager"]
+      labels:
+        # Dashboard at https://traefik.<domain> behind basic auth.
+        - traefik.enable=true
+        - traefik.http.routers.traefik.rule=Host(`traefik.${DOMAIN:?set DOMAIN in .env}`)
+        - traefik.http.routers.traefik.entrypoints=websecure
+        - traefik.http.routers.traefik.tls.certresolver=le
+        - traefik.http.routers.traefik.service=api@internal
+        - traefik.http.routers.traefik.middlewares=traefik-auth
+        - traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_AUTH:?set TRAEFIK_AUTH in .env}
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ───────────────────── Private registry ────────────────────────────
+  # Runs on the manager. All nodes pull from it over the overlay network via
+  # the manager's overlay IP. Auth via htpasswd (secret: registry_htpasswd).
+  registry:
+    image: registry:2
+    environment:
+      REGISTRY_HTTP_ADDR: ":5000"
+      REGISTRY_AUTH: htpasswd
+      REGISTRY_AUTH_HTPASSWD_REALM: lms-registry
+      REGISTRY_AUTH_HTPASSWD_PATH: /auth/htpasswd
+    volumes:
+      - registry_data:/var/lib/registry
+    secrets:
+      - source: registry_htpasswd
+        target: /auth/htpasswd
+    networks: [lms_overlay]
+    deploy:
+      replicas: 1
+      placement:
+        constraints: ["node.labels.role == manager"]
+
+  # ─────────────────────────── Database ──────────────────────────────
+  postgres:
+    image: postgres:14-alpine
+    # Pinned to the db node; data volume stays put (see deploy.placement).
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mmuser}
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_DB: ${POSTGRES_DB:-mattermost}
+    secrets: [db_password]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [lms_overlay]
+    deploy:
+      replicas: 1
+      placement:
+        constraints: ["node.labels.role == db"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mmuser}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────── Object storage (S3) ───────────────────────
+  minio:
+    image: minio/minio:RELEASE.2024-06-22T05-26-45Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
+    secrets: [minio_root_password]
+    volumes:
+      - miniodata:/data
+    networks: [lms_overlay]
+    deploy:
+      replicas: 1
+      placement:
+        constraints: ["node.labels.role == backend"]
+      labels:
+        # MinIO console at https://minio.<domain>
+        - traefik.enable=true
+        - traefik.http.services.minio.loadbalancer.server.port=9000
+        - traefik.http.routers.minio.rule=Host(`minio.${DOMAIN}`)
+        - traefik.http.routers.minio.entrypoints=websecure
+        - traefik.http.routers.minio.tls.certresolver=le
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # One-shot: create the upload bucket.
+  minio-init:
+    image: minio/mc:RELEASE.2024-06-24T19-17-25Z
+    depends_on: [minio]
+    entrypoint: >
+      /bin/sh -c "
+      MC_SECRET=$$(cat /run/secrets/minio_root_password);
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} $$MC_SECRET;
+      mc mb --ignore-existing local/${MM_FILESETTINGS_AMAZONS3_BUCKET:-lms-uploads};
+      mc anonymous set download local/${MM_FILESETTINGS_AMAZONS3_BUCKET:-lms-uploads} || true;
+      exit 0;
+      "
+    secrets: [minio_root_password]
+    networks: [lms_overlay]
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: none
+
+  # ──────────────────────────── Backend ──────────────────────────────
+  lms-server:
+    image: ${REGISTRY:-127.0.0.1:5000}/lms-server:${TAG:-latest}
+    depends_on: [postgres, minio]
+    environment:
+      MM_SQLSETTINGS_DRIVERNAME: postgres
+      # DSN is assembled from the db_password secret by secrets-bootstrap.sh and
+      # stored as the db_dsn secret. The entrypoint shim reads /run/secrets/db_dsn
+      # into MM_SQLSETTINGS_DATASOURCE (Mattermost has no *_FILE convention).
+      MM_FILESETTINGS_DRIVERNAME: amazons3
+      MM_FILESETTINGS_AMAZONS3ACCESSKEYID: ${MINIO_ROOT_USER:-minioadmin}
+      # S3 secret key is read from /run/secrets/minio_root_password by the
+      # entrypoint shim into MM_FILESETTINGS_AMAZONS3SECRETACCESSKEY.
+      MM_FILESETTINGS_AMAZONS3BUCKET: ${MM_FILESETTINGS_AMAZONS3_BUCKET:-lms-uploads}
+      MM_FILESETTINGS_AMAZONS3ENDPOINT: http://minio:9000
+      MM_FILESETTINGS_AMAZONS3SSL: "false"
+      MM_FILESETTINGS_AMAZONS3REGION: us-east-1
+      MM_METRICSSETTINGS_ENABLE: "true"
+      MM_METRICSSETTINGS_LISTENADDRESS: ":8067"
+      MM_SERVICESETTINGS_SITEURL: https://${DOMAIN}
+      MM_SERVICESETTINGS_ENABLELOCALMODE: "true"
+      MM_SERVICESETTINGS_ALLOWEDUNTRUSTEDINTERNALCONNECTIONS: "minio,postgres"
+      MM_NO_DOCKER: "true"
+      TZ: ${TZ:-UTC}
+      # Tell the entrypoint shim which secret maps to which env var.
+      SECRETS_MAP: "MM_SQLSETTINGS_DATASOURCE=db_dsn MM_FILESETTINGS_AMAZONS3SECRETACCESSKEY=minio_root_password"
+    secrets: [db_dsn, minio_root_password]
+    networks: [lms_overlay]
+    deploy:
+      replicas: 1
+      placement:
+        constraints: ["node.labels.role == backend"]
+      update_config:
+        parallelism: 1
+        order: start-first
+        failure_action: rollback
+      labels:
+        # API at https://api.<domain>
+        - traefik.enable=true
+        - traefik.http.services.lms-server.loadbalancer.server.port=8065
+        - traefik.http.routers.lms-server.rule=Host(`api.${DOMAIN}`)
+        - traefik.http.routers.lms-server.entrypoints=websecure
+        - traefik.http.routers.lms-server.tls.certresolver=le
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8065/api/v4/system/ping"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+
+  # ──────────────────────────── Frontend ─────────────────────────────
+  lms-fe:
+    image: ${REGISTRY:-127.0.0.1:5000}/lms-fe:${TAG:-latest}
+    depends_on: [lms-server]
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: https://api.${DOMAIN}
+      TZ: ${TZ:-UTC}
+    networks: [lms_overlay]
+    deploy:
+      replicas: 1
+      placement:
+        constraints: ["node.labels.role == manager"]
+      labels:
+        # App at https://app.<domain>
+        - traefik.enable=true
+        - traefik.http.services.lms-fe.loadbalancer.server.port=3000
+        - traefik.http.routers.lms-fe.rule=Host(`app.${DOMAIN}`)
+        - traefik.http.routers.lms-fe.entrypoints=websecure
+        - traefik.http.routers.lms-fe.tls.certresolver=le
+    # Healthcheck inherited from the image (Node fetch-based, no wget/curl needed)
+
+  # ──────────────────────── Observability ────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    volumes:
+      - ../../observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - promdata:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+    networks: [lms_overlay]
+    deploy:
+      replicas: 1
+      placement:
+        constraints: ["node.labels.role == manager"]
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD_FILE: /run/secrets/grafana_admin_password
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    secrets: [grafana_admin_password]
+    volumes:
+      - ../../observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-dashboards:/var/lib/grafana/dashboards
+      - grafana-data:/var/lib/grafana
+    networks: [lms_overlay]
+    deploy:
+      replicas: 1
+      placement:
+        constraints: ["node.labels.role == manager"]
+      labels:
+        # Grafana at https://grafana.<domain>
+        - traefik.enable=true
+        - traefik.http.services.grafana.loadbalancer.server.port=3000
+        - traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN}`)
+        - traefik.http.routers.grafana.entrypoints=websecure
+        - traefik.http.routers.grafana.tls.certresolver=le
+
+networks:
+  lms_overlay:
+    driver: overlay
+    attachable: true
+
+volumes:
+  traefik_certs:
+  registry_data:
+  pgdata:
+  miniodata:
+  promdata:
+  grafana-data:
+  grafana-dashboards:
+
+# ──────────────────────────── Secrets ────────────────────────────────
+# Created by secrets-bootstrap.sh (docker secret create). Each materialises at
+# /run/secrets/<name>.
+secrets:
+  db_password:
+    external: true
+  db_dsn:
+    external: true
+  minio_root_password:
+    external: true
+  grafana_admin_password:
+    external: true
+  registry_htpasswd:
+    external: true

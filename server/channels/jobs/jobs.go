@@ -214,8 +214,14 @@ func (srv *JobServer) UpdateInProgressJobData(job *model.Job) *model.AppError {
 	return nil
 }
 
-// HandleJobPanic is used to handle panics during the execution of a job. It logs the panic and sets the status for the job.
-// After handling, the method repanics! This method is supposed to be `defer`'d at the start of the job.
+// HandleJobPanic handles panics during the execution of a job: it logs the
+// panic (with a goroutine dump) and marks the job as failed. It is meant to be
+// `defer`'d at the start of a job.
+//
+// It does NOT re-panic. Re-panicking would propagate up through the worker
+// goroutine (which has no recover of its own) and crash the whole server —
+// unacceptable for a long-running service where a single bad job should only
+// fail that job, not take the process down.
 func (srv *JobServer) HandleJobPanic(logger mlog.LoggerIFace, job *model.Job) {
 	r := recover()
 	if r == nil {
@@ -239,8 +245,6 @@ func (srv *JobServer) HandleJobPanic(logger mlog.LoggerIFace, job *model.Job) {
 		appErr = appErr.Wrap(rerr)
 		logger.Error("Failed to set the job status to 'failed'", mlog.Err(appErr), mlog.Any("job", job))
 	}
-
-	panic(r)
 }
 
 func (srv *JobServer) RequestCancellation(rctx request.CTX, jobId string) *model.AppError {

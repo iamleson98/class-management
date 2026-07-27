@@ -705,6 +705,10 @@ func PostCategoryPreCreate(pc *lms_models.PostCategory) {
 	pc.Updateat = now
 }
 
+func PostCategoryPreUpdate(pc *lms_models.PostCategory) {
+	pc.Updateat = time.Now().UnixMilli()
+}
+
 // ============================================================================
 // BlogPost — title VARCHAR(200), slug VARCHAR(220), excerpt VARCHAR(500),
 //           status VARCHAR(50), seo_title VARCHAR(200), seo_description VARCHAR(500),

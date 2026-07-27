@@ -1,0 +1,32 @@
+# Build output & caches
+.next/
+out/
+dist/
+
+# Dependencies (installed inside the image)
+node_modules/
+
+# VCS & editor
+.git
+.gitignore
+.vscode/
+.idea/
+.DS_Store
+
+# Docs & specs not needed at build time
+*.docx
+*.xlsx
+*.md
+DEPLOY_CLOUDFLARE.md
+
+# Local env files (config supplied at runtime via env)
+.env
+.env.local
+.env.*.local
+
+# Cloudflare / wrangler artifacts (not used by the container build)
+.wrangler/
+cloudflare-env.d.ts
+
+# Bundled chat dependency tree (huge, not part of the app build)
+src/chat/node_modules/

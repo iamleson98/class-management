@@ -28,6 +28,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Emit a self-contained server bundle for the Docker runtime image
+  // (see lms-fe/Dockerfile stage 3).
+  output: "standalone",
   typescript: {
     ignoreBuildErrors: true,
   },

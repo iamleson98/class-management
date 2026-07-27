@@ -46,9 +46,25 @@ func (worker *SimpleWorker) Run() {
 			worker.logger.Debug("Worker received stop signal")
 			return
 		case job := <-worker.jobs:
-			worker.DoJob(&job)
+			// Guard against an unhandled panic in DoJob taking down the whole
+			// server. Individual workers also defer HandleJobPanic, but this
+			// catches anything that escapes (e.g. a panic in ClaimJob, or a
+			// worker that forgot the defer). The worker keeps running.
+			worker.runJobRecovering(&job)
 		}
 	}
+}
+
+// runJobRecovering runs DoJob and converts any panic into a logged error so the
+// worker goroutine never crashes the process.
+func (worker *SimpleWorker) runJobRecovering(job *model.Job) {
+	defer func() {
+		if r := recover(); r != nil {
+			worker.logger.Critical("Worker recovered from panic; job will not be retried this cycle",
+				mlog.Any("panic", r), mlog.String("job_id", job.Id), mlog.String("job_type", job.Type))
+		}
+	}()
+	worker.DoJob(job)
 }
 
 func (worker *SimpleWorker) Stop() {

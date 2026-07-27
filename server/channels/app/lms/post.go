@@ -28,6 +28,35 @@ func (a *LMSApp) CreatePostCategory(pc *lms_models.PostCategory) (*lms_models.Po
 	return saved, nil
 }
 
+func (a *LMSApp) UpdatePostCategory(id string, pc *lms_models.PostCategory) (*lms_models.PostCategory, *model.AppError) {
+	pc.ID = id
+	updated, err := a.store.PostCategory().Update(pc)
+	if err != nil {
+		var nfErr *store.ErrNotFound
+		switch {
+		case errors.As(err, &nfErr):
+			return nil, model.NewAppError("UpdatePostCategory", "app.lms.post_category.not_found", nil, "", http.StatusNotFound).Wrap(err)
+		default:
+			return nil, model.NewAppError("UpdatePostCategory", "app.lms.post_category.update.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		}
+	}
+	return updated, nil
+}
+
+func (a *LMSApp) DeletePostCategory(id string) *model.AppError {
+	err := a.store.PostCategory().Delete(id)
+	if err != nil {
+		var nfErr *store.ErrNotFound
+		switch {
+		case errors.As(err, &nfErr):
+			return model.NewAppError("DeletePostCategory", "app.lms.post_category.not_found", nil, "", http.StatusNotFound).Wrap(err)
+		default:
+			return model.NewAppError("DeletePostCategory", "app.lms.post_category.delete.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		}
+	}
+	return nil
+}
+
 func (a *LMSApp) GetPost(id string) (*lms_models.BlogPost, *model.AppError) {
 	post, err := a.store.BlogPost().Get(id)
 	if err != nil {

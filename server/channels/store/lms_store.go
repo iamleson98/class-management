@@ -194,6 +194,7 @@ type PostCategoryStore interface {
 	Get(id string) (*lms_models.PostCategory, error)
 	GetAll() ([]*lms_models.PostCategory, error)
 	Save(pc *lms_models.PostCategory) (*lms_models.PostCategory, error)
+	Update(pc *lms_models.PostCategory) (*lms_models.PostCategory, error)
 	Delete(id string) error
 }
 

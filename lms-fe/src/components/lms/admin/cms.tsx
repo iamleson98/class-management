@@ -7,9 +7,9 @@ import { z } from 'zod/v4'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { Newspaper, Plus, Pencil, Trash2, Eye } from 'lucide-react'
-import { createPostSchema, updatePostSchema, type CreatePostInput, type UpdatePostInput } from '@/lib/schemas'
+import { createPostSchema, updatePostSchema, postCategorySchema, type CreatePostInput, type UpdatePostInput, type PostCategoryInput } from '@/lib/schemas'
 import { useLMSStore } from '@/store/lms-store'
-import { getPostsPaginated, createPost, updatePost, deletePost, getPostCategories } from '@/lib/api'
+import { getPostsPaginated, createPost, updatePost, deletePost, getPostCategories, createPostCategory, updatePostCategory, deletePostCategory } from '@/lib/api'
 import { paginate } from '@/lib/query'
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/lms/page-header'
@@ -69,6 +69,12 @@ export default function AdminCMS() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const pagination = usePagination(10)
 
+  // Category dialog state
+  const [catDialogOpen, setCatDialogOpen] = useState(false)
+  const [editingCategory, setEditingCategory] = useState<any>(null)
+  const [catDeleteOpen, setCatDeleteOpen] = useState(false)
+  const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null)
+
   const form = useForm<PostFormValues>({
     resolver: zodResolver(createPostSchema),
     defaultValues: EMPTY_CREATE,
@@ -124,6 +130,71 @@ export default function AdminCMS() {
     },
     onError: () => toast({ title: t('cms.deleteFailed', 'Xóa thất bại'), variant: 'destructive' }),
   })
+
+  /* ---------- Category create/edit/delete ---------- */
+  const EMPTY_CATEGORY: PostCategoryInput = { name: '', slug: '' }
+
+  const categoryForm = useForm<PostCategoryInput>({
+    resolver: zodResolver(postCategorySchema),
+    defaultValues: EMPTY_CATEGORY,
+  })
+
+  const createCategoryMutation = useMutation({
+    mutationFn: (data: PostCategoryInput) => createPostCategory(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['post-categories'] })
+      toast({ title: t('cms.createCategorySuccess', 'Tạo chuyên mục thành công') })
+      closeCategoryDialog()
+    },
+    onError: () => toast({ title: t('cms.createCategoryFailed', 'Tạo chuyên mục thất bại'), variant: 'destructive' }),
+  })
+
+  const updateCategoryMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: PostCategoryInput }) => updatePostCategory(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['post-categories'] })
+      toast({ title: t('cms.updateCategorySuccess', 'Cập nhật chuyên mục thành công') })
+      closeCategoryDialog()
+    },
+    onError: () => toast({ title: t('cms.updateCategoryFailed', 'Cập nhật chuyên mục thất bại'), variant: 'destructive' }),
+  })
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: (id: string) => deletePostCategory(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['post-categories'] })
+      toast({ title: t('cms.deleteCategorySuccess', 'Xóa chuyên mục thành công') })
+      setCatDeleteOpen(false)
+      setDeletingCategoryId(null)
+    },
+    onError: () => toast({ title: t('cms.deleteCategoryFailed', 'Xóa chuyên mục thất bại'), variant: 'destructive' }),
+  })
+
+  const onCategorySubmit = (values: PostCategoryInput) => {
+    if (editingCategory) {
+      updateCategoryMutation.mutate({ id: editingCategory.id, data: values })
+    } else {
+      createCategoryMutation.mutate(values)
+    }
+  }
+
+  const closeCategoryDialog = () => {
+    setCatDialogOpen(false)
+    setEditingCategory(null)
+    categoryForm.reset(EMPTY_CATEGORY)
+  }
+
+  const openCreateCategory = () => {
+    setEditingCategory(null)
+    categoryForm.reset(EMPTY_CATEGORY)
+    setCatDialogOpen(true)
+  }
+
+  const openEditCategory = (cat: any) => {
+    setEditingCategory(cat)
+    categoryForm.reset({ name: cat.name || '', slug: cat.slug || '' })
+    setCatDialogOpen(true)
+  }
 
   const closeDialog = () => {
     setDialogOpen(false)
@@ -258,6 +329,12 @@ export default function AdminCMS() {
         </TabsContent>
 
         <TabsContent value="categories" className="mt-4">
+          <div className="flex items-center justify-end mb-3">
+            <Button onClick={openCreateCategory} className="bg-sky-600 hover:bg-sky-700 text-white rounded-lg">
+              <Plus className="h-4 w-4 mr-2" />
+              {t('cms.addCategory', 'Thêm chuyên mục')}
+            </Button>
+          </div>
           {isLoadingCategories ? (
             <div className="flex items-center justify-center py-10">
               <div className="animate-spin h-6 w-6 border-2 border-sky-500 border-t-transparent rounded-full" />
@@ -267,16 +344,28 @@ export default function AdminCMS() {
               <p className="text-sm text-destructive">{t('common.loadFailed', 'Tải thất bại')}</p>
             </div>
           ) : categories.length === 0 ? (
-            <EmptyState icon={Newspaper} title={t('cms.noCategories', 'Chưa có chuyên mục')} description={t('cms.noCategoriesDesc', 'Tạo chuyên mục đầu tiên.')} />
+            <EmptyState icon={Newspaper} title={t('cms.noCategories', 'Chưa có chuyên mục')} description={t('cms.noCategoriesDesc', 'Tạo chuyên mục đầu tiên.')} actionLabel={t('cms.addCategory', 'Thêm chuyên mục')} onAction={openCreateCategory} />
           ) : (
             <div className="space-y-2">
               {categories.map((cat: any) => (
                 <Card key={cat.id} className="rounded-xl border p-4 flex items-center justify-between">
-                  <div>
-                    <span className="font-medium text-sm">{cat.name}</span>
-                    <span className="text-xs text-muted-foreground ml-3">/{cat.slug}</span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm">{cat.name}</span>
+                      {(cat.postCount ?? 0) > 0 && (
+                        <Badge variant="secondary" className="text-[10px]">{cat.postCount} {t('cms.posts', 'Bài viết')}</Badge>
+                      )}
+                    </div>
+                    <span className="text-xs text-muted-foreground">/{cat.slug}</span>
                   </div>
-                  <Badge variant="outline" className="text-[10px]">{cat.slug}</Badge>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditCategory(cat)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => { setDeletingCategoryId(cat.id); setCatDeleteOpen(true) }}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </Card>
               ))}
             </div>
@@ -466,6 +555,62 @@ export default function AdminCMS() {
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel', 'Hủy')}</AlertDialogCancel>
             <AlertDialogAction onClick={() => deletingId && deleteMutation.mutate(deletingId)} className="bg-red-600 hover:bg-red-700 text-white">{t('common.delete', 'Xóa')}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Add/Edit Category Dialog */}
+      <Dialog open={catDialogOpen} onOpenChange={(open) => { if (!open) closeCategoryDialog() }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingCategory ? t('cms.editCategory', 'Chỉnh sửa chuyên mục') : t('cms.newCategory', 'Thêm chuyên mục')}</DialogTitle>
+            <DialogDescription />
+          </DialogHeader>
+          <Form {...categoryForm} schema={postCategorySchema}>
+            <form onSubmit={categoryForm.handleSubmit(onCategorySubmit)} className="space-y-4">
+              <FormField
+                control={categoryForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('cms.categoryName', 'Tên chuyên mục')}</FormLabel>
+                    <FormControl><Input {...field} value={field.value ?? ''} placeholder={t('cms.categoryNamePlaceholder', 'VD: Tin tức')} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={categoryForm.control}
+                name="slug"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Slug</FormLabel>
+                    <FormControl><Input {...field} value={field.value ?? ''} placeholder="tu-dong-tao" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button variant="outline" type="button" onClick={closeCategoryDialog}>{t('common.cancel', 'Hủy')}</Button>
+                <Button type="submit" disabled={createCategoryMutation.isPending || updateCategoryMutation.isPending} className="bg-sky-600 hover:bg-sky-700 text-white">
+                  {createCategoryMutation.isPending || updateCategoryMutation.isPending ? t('common.saving', 'Đang lưu...') : editingCategory ? t('common.update', 'Cập nhật') : t('common.addNew', 'Thêm mới')}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Category Confirmation */}
+      <AlertDialog open={catDeleteOpen} onOpenChange={setCatDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('cms.confirmDeleteCategory', 'Xác nhận xóa chuyên mục')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('cms.confirmDeleteCategoryDesc', 'Bạn có chắc muốn xóa chuyên mục này? Hành động này không thể hoàn tác.')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel', 'Hủy')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deletingCategoryId && deleteCategoryMutation.mutate(deletingCategoryId)} className="bg-red-600 hover:bg-red-700 text-white">{t('common.delete', 'Xóa')}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
