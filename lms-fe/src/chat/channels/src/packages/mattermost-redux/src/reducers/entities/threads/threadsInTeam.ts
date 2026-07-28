@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {AnyAction} from 'redux';
+﻿import type {AnyAction} from 'redux';
 
 import type {Team} from '@mattermost/types/teams';
 import type {ThreadsState, UserThread, UserThreadWithPost} from '@mattermost/types/threads';

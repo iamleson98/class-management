@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {GlobalState} from '@mattermost/types/store';
+﻿import type {GlobalState} from '@mattermost/types/store';
 import type {Team, TeamMembership, TeamStats} from '@mattermost/types/teams';
 import type {UserProfile} from '@mattermost/types/users';
 import type {RelationOneToOne} from '@mattermost/types/utilities';

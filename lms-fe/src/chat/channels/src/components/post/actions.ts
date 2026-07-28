@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {removePost} from 'mattermost-redux/actions/posts';
+﻿import {removePost} from 'mattermost-redux/actions/posts';
 import type {ExtendedPost} from 'mattermost-redux/actions/posts';
 import {getCurrentChannel} from 'mattermost-redux/selectors/entities/channels';
 import {getCurrentTeam} from 'mattermost-redux/selectors/entities/teams';

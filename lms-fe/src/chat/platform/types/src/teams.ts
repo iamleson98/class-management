@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {ServerError} from './errors';
+﻿import type {ServerError} from './errors';
 import type {UserProfile} from './users';
 import type {RelationOneToOne} from './utilities';
 

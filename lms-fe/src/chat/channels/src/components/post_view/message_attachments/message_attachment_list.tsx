@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {memo} from 'react';
+﻿import React, {memo} from 'react';
 
 import type {MessageAttachment as MessageAttachmentType} from '@mattermost/types/message_attachments';
 import type {PostImage} from '@mattermost/types/posts';

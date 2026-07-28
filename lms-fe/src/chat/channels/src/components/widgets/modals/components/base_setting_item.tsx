@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import classNames from 'classnames';
+﻿import classNames from 'classnames';
 import type {PrimitiveType, FormatXMLElementFn} from 'intl-messageformat';
 import React from 'react';
 import type {MessageDescriptor} from 'react-intl';

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {ClientLicense, ClientConfig} from '@mattermost/types/config';
+﻿import type {ClientLicense, ClientConfig} from '@mattermost/types/config';
 import type {ScheduledPost, ScheduledPostsState} from '@mattermost/types/schedule_post';
 import type {GlobalState} from '@mattermost/types/store';
 

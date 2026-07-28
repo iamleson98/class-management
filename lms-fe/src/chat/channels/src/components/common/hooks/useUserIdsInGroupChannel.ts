@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {UserProfile} from '@mattermost/types/users';
+﻿import type {UserProfile} from '@mattermost/types/users';
 
 import {batchGetProfilesInGroupChannel} from 'mattermost-redux/actions/users';
 import {getUserIdsInChannels} from 'mattermost-redux/selectors/entities/users';

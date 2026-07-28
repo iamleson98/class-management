@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {MMReduxAction} from 'mattermost-redux/action_types';
+﻿import type {MMReduxAction} from 'mattermost-redux/action_types';
 import {GeneralTypes, UserTypes} from 'mattermost-redux/action_types';
 
 function getInitialState() {

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {PreferenceType} from '@mattermost/types/preferences';
+﻿import type {PreferenceType} from '@mattermost/types/preferences';
 
 import {PreferenceTypes} from 'mattermost-redux/action_types';
 import {Client4} from 'mattermost-redux/client';

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {getHistory} from 'utils/browser_history';
+﻿import {getHistory} from 'utils/browser_history';
 import {ErrorPageTypes, StoragePrefixes, LandingPreferenceTypes} from 'utils/constants';
 import * as Utils from 'utils/utils';
 

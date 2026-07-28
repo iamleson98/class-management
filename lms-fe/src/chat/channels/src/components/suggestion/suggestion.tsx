@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import classNames from 'classnames';
+﻿import classNames from 'classnames';
 import React, {useCallback} from 'react';
 
 export interface SuggestionProps<Item> extends Omit<React.HTMLAttributes<HTMLLIElement>, 'id' | 'onClick' | 'onMouseMove' | 'role'> {

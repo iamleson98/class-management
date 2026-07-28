@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {useCallback, useEffect, useMemo, useRef} from 'react';
+﻿import React, {useCallback, useEffect, useMemo, useRef} from 'react';
 import {useDispatch, useSelector} from 'react-redux';
 
 import {savePreferences} from 'mattermost-redux/actions/preferences';

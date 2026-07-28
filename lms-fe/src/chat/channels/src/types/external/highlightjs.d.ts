@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-declare module 'highlight.js/lib/languages/1c';
+﻿declare module 'highlight.js/lib/languages/1c';
 declare module 'highlight.js/lib/languages/actionscript';
 declare module 'highlight.js/lib/languages/applescript';
 declare module 'highlight.js/lib/languages/bash';

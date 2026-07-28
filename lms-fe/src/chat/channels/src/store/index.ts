@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import baseLocalForage from 'localforage';
+﻿import baseLocalForage from 'localforage';
 import {extendPrototype} from 'localforage-observable';
 import type {Store} from 'redux';
 import type {Persistor} from 'redux-persist';

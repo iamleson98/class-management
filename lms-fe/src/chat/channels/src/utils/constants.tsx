@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-/* eslint-disable max-lines */
+﻿/* eslint-disable max-lines */
 
 import solarizedDarkCSS from 'highlight.js/styles/base16/solarized-dark.css';
 import solarizedLightCSS from 'highlight.js/styles/base16/solarized-light.css';

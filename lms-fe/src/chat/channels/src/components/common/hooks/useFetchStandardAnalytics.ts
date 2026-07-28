@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {useState, useEffect} from 'react';
+﻿import {useState, useEffect} from 'react';
 import {useDispatch, useSelector} from 'react-redux';
 
 import {getStandardAnalytics} from 'mattermost-redux/actions/admin';

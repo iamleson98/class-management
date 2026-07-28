@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {getHistory} from 'utils/browser_history';
+﻿import {getHistory} from 'utils/browser_history';
 
 const POPOUT_WIDTH = 800;
 const POPOUT_HEIGHT_OFFSET = 100;

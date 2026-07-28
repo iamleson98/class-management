@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React from 'react';
+﻿import React from 'react';
 
 import {GenericModal} from '@mattermost/components';
 import type {Limits} from '@mattermost/types/cloud';

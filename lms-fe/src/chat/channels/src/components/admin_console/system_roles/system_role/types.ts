@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-export type ReadAccess = 'read';
+﻿export type ReadAccess = 'read';
 export const readAccess: ReadAccess = 'read';
 export type WriteAccess = 'write';
 export const writeAccess: WriteAccess = 'write';

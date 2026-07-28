@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {IGif} from '@giphy/js-types';
+﻿import type {IGif} from '@giphy/js-types';
 import type {SyntheticEvent} from 'react';
 import React, {useCallback, useMemo} from 'react';
 

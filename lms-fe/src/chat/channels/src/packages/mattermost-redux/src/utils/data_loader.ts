@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-export type Comparator = (a: any, b: any) => boolean;
+﻿export type Comparator = (a: any, b: any) => boolean;
 
 /**
  * A DataLoader is an object that can be used to batch requests for fetching objects from the server for performance

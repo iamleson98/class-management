@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {connect} from 'react-redux';
+﻿import {connect} from 'react-redux';
 import {bindActionCreators, type Dispatch} from 'redux';
 
 import {addMessageIntoHistory} from 'mattermost-redux/actions/posts';

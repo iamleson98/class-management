@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {formatWithRenderer} from './markdown';
+﻿import {formatWithRenderer} from './markdown';
 import PlainRenderer from './markdown/plain_renderer';
 
 export const emoticonPatterns: {[key: string]: RegExp} = {

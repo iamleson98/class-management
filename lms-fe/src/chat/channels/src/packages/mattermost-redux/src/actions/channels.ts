@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {AnyAction} from 'redux';
+﻿import type {AnyAction} from 'redux';
 import {batchActions} from 'redux-batched-actions';
 
 import type {AccessControlAttributes} from '@mattermost/types/access_control';

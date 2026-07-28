@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-/* eslint-disable @typescript-eslint/no-require-imports */
+﻿/* eslint-disable @typescript-eslint/no-require-imports */
 
 import {favoriteChannel, unfavoriteChannel} from 'mattermost-redux/actions/channels';
 import {isFavoriteChannel} from 'mattermost-redux/selectors/entities/channels';

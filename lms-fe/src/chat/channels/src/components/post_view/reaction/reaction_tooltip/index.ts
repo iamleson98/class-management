@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {connect} from 'react-redux';
+﻿import {connect} from 'react-redux';
 
 import type {Reaction as ReactionType} from '@mattermost/types/reactions';
 import type {GlobalState} from '@mattermost/types/store';

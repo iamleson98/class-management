@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import debounce from 'lodash/debounce';
+﻿import debounce from 'lodash/debounce';
 import type {ChangeEvent} from 'react';
 import React, {useEffect, useMemo, useState, useRef} from 'react';
 import {FormattedMessage, useIntl} from 'react-intl';

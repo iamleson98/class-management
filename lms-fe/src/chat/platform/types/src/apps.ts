@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {isProductScope, type ProductScope} from './products';
+﻿import {isProductScope, type ProductScope} from './products';
 import {isArrayOf, isStringArray} from './utilities';
 
 export enum Permission {

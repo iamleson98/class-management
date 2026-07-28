@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import truncate from 'lodash/truncate';
+﻿import truncate from 'lodash/truncate';
 import React from 'react';
 import type {KeyboardEvent, MouseEvent, CSSProperties} from 'react';
 import {FormattedMessage} from 'react-intl';

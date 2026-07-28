@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import Provider from './provider';
+﻿import Provider from './provider';
 import type {ResultsCallback} from './provider';
 import SearchDateSuggestion from './search_date_suggestion';
 

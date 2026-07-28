@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {serializeError} from 'serialize-error';
+﻿import {serializeError} from 'serialize-error';
 import type {ErrorObject} from 'serialize-error';
 
 import {LogLevel} from '@mattermost/types/client4';

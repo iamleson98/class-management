@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {batchActions} from 'redux-batched-actions';
+﻿import {batchActions} from 'redux-batched-actions';
 
 import {LogLevel} from '@mattermost/types/client4';
 import type {ClientConfig} from '@mattermost/types/config';

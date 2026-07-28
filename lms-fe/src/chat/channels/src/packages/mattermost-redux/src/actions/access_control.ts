@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {batchActions} from 'redux-batched-actions';
+﻿import {batchActions} from 'redux-batched-actions';
 
 import type {AccessControlPoliciesResult, AccessControlPolicy, AccessControlPolicyActiveUpdate, AccessControlTestResult, PolicySimulationResponse, PolicySimulationByUsersParams} from '@mattermost/types/access_control';
 import type {ChannelSearchOpts, ChannelsWithTotalCount} from '@mattermost/types/channels';

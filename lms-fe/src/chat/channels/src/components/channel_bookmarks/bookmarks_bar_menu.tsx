@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {dropTargetForElements} from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
+﻿import {dropTargetForElements} from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import React, {memo, useCallback, useEffect, useRef} from 'react';
 import {useIntl} from 'react-intl';
 import styled from 'styled-components';

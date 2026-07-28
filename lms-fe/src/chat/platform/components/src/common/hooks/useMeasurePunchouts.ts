@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import throttle from 'lodash/throttle';
+﻿import throttle from 'lodash/throttle';
 import {useLayoutEffect, useMemo, useState} from 'react';
 
 import {useElementAvailable} from './useElementAvailable';

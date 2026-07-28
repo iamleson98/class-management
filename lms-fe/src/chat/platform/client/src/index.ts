@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type * as WebSocketMessages from './websocket_messages';
+﻿import type * as WebSocketMessages from './websocket_messages';
 
 export {
     default as Client4,

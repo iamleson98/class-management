@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {useRef, useCallback, useState} from 'react';
+﻿import {useRef, useCallback, useState} from 'react';
 import {defineMessages} from 'react-intl';
 
 type CopyOptions = {

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-/**
+﻿/**
  * Custom formatjs formatter matching mmjstool's behavior
  *
  * Based on formatjs simple formatter with case-insensitive sorting

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-/* eslint-disable max-lines */
+﻿/* eslint-disable max-lines */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export type Selector<S, R> = (state: S) => R;

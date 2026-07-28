@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {PureComponent} from 'react';
+﻿import React, {PureComponent} from 'react';
 import type {ChangeEvent} from 'react';
 import {defineMessage, FormattedMessage} from 'react-intl';
 

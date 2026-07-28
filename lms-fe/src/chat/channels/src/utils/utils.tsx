@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {getName} from 'country-list';
+﻿import {getName} from 'country-list';
 import crypto from 'crypto';
 import cssVars from 'css-vars-ponyfill';
 import type {Locale} from 'date-fns';

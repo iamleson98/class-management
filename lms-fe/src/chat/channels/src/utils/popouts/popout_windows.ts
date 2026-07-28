@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {PopoutViewProps} from '@mattermost/desktop-api';
+﻿import type {PopoutViewProps} from '@mattermost/desktop-api';
 import {isDesktopApp} from '@mattermost/shared/utils/user_agent';
 
 import {Client4} from 'mattermost-redux/client';

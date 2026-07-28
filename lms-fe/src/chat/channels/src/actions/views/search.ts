@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {SearchTypes} from 'utils/constants';
+﻿import {SearchTypes} from 'utils/constants';
 
 import type {ChannelListSearchFilters, ModalFilters, UserGridSearchFilters} from 'types/store/views';
 

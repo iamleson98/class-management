@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {batchActions} from 'redux-batched-actions';
+﻿import {batchActions} from 'redux-batched-actions';
 
 import type {FileSearchResults, FileSearchResultItem} from '@mattermost/types/files';
 import type {PostList, PostSearchResults} from '@mattermost/types/posts';

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {AccessControlPolicy} from './access_control';
+﻿import type {AccessControlPolicy} from './access_control';
 import type {Audit} from './audits';
 import type {Compliance} from './compliance';
 import type {AdminConfig, ClientLicense, EnvironmentConfig} from './config';

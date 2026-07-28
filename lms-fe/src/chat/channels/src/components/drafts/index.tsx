@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {memo, useEffect, useMemo} from 'react';
+﻿import React, {memo, useEffect, useMemo} from 'react';
 import {useDispatch, useSelector} from 'react-redux';
 
 import {getCurrentUser} from 'mattermost-redux/selectors/entities/common';

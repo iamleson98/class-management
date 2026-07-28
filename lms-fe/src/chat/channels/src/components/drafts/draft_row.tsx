@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import noop from 'lodash/noop';
+﻿import noop from 'lodash/noop';
 import React, {memo, useCallback, useMemo, useEffect, useState, useRef} from 'react';
 import {useIntl} from 'react-intl';
 import {useDispatch, useSelector} from 'react-redux';

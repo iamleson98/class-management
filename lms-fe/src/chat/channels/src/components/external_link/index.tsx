@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-/* eslint-disable @mattermost/use-external-link */
+﻿/* eslint-disable @mattermost/use-external-link */
 
 import React, {forwardRef} from 'react';
 

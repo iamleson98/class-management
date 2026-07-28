@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {Channel, ChannelType, ChannelMembership, ChannelNotifyProps, ChannelMessageCount} from '@mattermost/types/channels';
+﻿import type {Channel, ChannelType, ChannelMembership, ChannelNotifyProps, ChannelMessageCount} from '@mattermost/types/channels';
 import type {Post} from '@mattermost/types/posts';
 import type {GlobalState} from '@mattermost/types/store';
 import type {UsersState, UserProfile, UserNotifyProps} from '@mattermost/types/users';

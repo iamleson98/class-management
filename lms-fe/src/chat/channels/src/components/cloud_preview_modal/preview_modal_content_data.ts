@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {defineMessage} from 'react-intl';
+﻿import {defineMessage} from 'react-intl';
 
 import type {PreviewModalContentData} from '@mattermost/types/cloud';
 

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {useEffect, useState} from 'react';
+﻿import React, {useEffect, useState} from 'react';
 import {FormattedMessage, useIntl} from 'react-intl';
 
 import {CheckIcon, ContentCopyIcon} from '@mattermost/compass-icons/components';

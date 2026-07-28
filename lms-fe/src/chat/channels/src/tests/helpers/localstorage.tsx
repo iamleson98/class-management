@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-// Based on https://stackoverflow.com/a/41434763
+﻿// Based on https://stackoverflow.com/a/41434763
 class LocalStorageMock {
     store: {[key: string]: string};
 

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {WindowSizes} from 'utils/constants';
+﻿import {WindowSizes} from 'utils/constants';
 
 import type {GlobalState} from 'types/store';
 

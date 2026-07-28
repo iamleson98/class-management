@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {AnyAction} from 'redux';
+﻿import type {AnyAction} from 'redux';
 import {batchActions} from 'redux-batched-actions';
 
 import type {GroupPatch, SyncablePatch, GroupCreateWithUserIds, CustomGroupPatch, GroupSearchParams, GetGroupsParams, GetGroupsForUserParams, Group, GroupMember} from '@mattermost/types/groups';

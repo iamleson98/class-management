@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {memo, useMemo, useEffect} from 'react';
+﻿import React, {memo, useMemo, useEffect} from 'react';
 import type {ComponentProps, CSSProperties} from 'react';
 import {useIntl} from 'react-intl';
 import {useSelector, useDispatch} from 'react-redux';

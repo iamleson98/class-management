@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {createPluginErrorLog} from 'utils/plugin_error_log';
+﻿import {createPluginErrorLog} from 'utils/plugin_error_log';
 
 import type {GlobalState} from 'types/store';
 import type {ChannelIntroRegistration} from 'types/store/plugins';

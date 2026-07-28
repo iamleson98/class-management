@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {useEffect} from 'react';
+﻿import {useEffect} from 'react';
 
 import {expirationScheduler} from 'utils/burn_on_read_expiration_scheduler';
 

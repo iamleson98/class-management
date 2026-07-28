@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {StylesConfig} from 'react-select';
+﻿import type {StylesConfig} from 'react-select';
 
 import type {ChannelOption} from './forward_post_channel_select';
 

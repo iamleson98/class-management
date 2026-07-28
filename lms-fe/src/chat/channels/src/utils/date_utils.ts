@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {parseISO, isValid, format} from 'date-fns';
+﻿import {parseISO, isValid, format} from 'date-fns';
 import type {Moment} from 'moment-timezone';
 
 import {getCurrentMomentForTimezone, parseDateInTimezone} from './timezone';

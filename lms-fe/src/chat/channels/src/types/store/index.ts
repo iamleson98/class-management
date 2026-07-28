@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {GlobalState as BaseGlobalState} from '@mattermost/types/store';
+﻿import type {GlobalState as BaseGlobalState} from '@mattermost/types/store';
 
 import type {MMReduxAction} from 'mattermost-redux/action_types';
 // eslint-disable-next-line @typescript-eslint/no-restricted-imports

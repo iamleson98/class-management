@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {getAccessControlSettings} from 'mattermost-redux/selectors/entities/access_control';
+﻿import {getAccessControlSettings} from 'mattermost-redux/selectors/entities/access_control';
 import {getConfig} from 'mattermost-redux/selectors/entities/general';
 
 import type {GlobalState} from 'types/store';

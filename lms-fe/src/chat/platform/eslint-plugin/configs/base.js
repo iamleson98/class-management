@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import path from 'path';
+﻿import path from 'path';
 import {fileURLToPath} from 'url';
 
 import {FlatCompat} from '@eslint/eslintrc';

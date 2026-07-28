@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {type ComponentType, type MouseEvent, type ReactNode} from 'react';
+﻿import React, {type ComponentType, type MouseEvent, type ReactNode} from 'react';
 import {useDispatch} from 'react-redux';
 
 import {openModal} from 'actions/views/modals';

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {SidebarSize, SIDEBAR_SNAP_SIZE, SIDEBAR_SNAP_SPEED_LIMIT} from './constants';
+﻿import {SidebarSize, SIDEBAR_SNAP_SIZE, SIDEBAR_SNAP_SPEED_LIMIT} from './constants';
 
 export const isSizeLessThanSnapSize = (size: number) => {
     return Math.abs(size) <= SIDEBAR_SNAP_SIZE;

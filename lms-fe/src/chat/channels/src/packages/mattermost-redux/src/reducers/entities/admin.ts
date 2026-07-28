@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {combineReducers} from 'redux';
+﻿import {combineReducers} from 'redux';
 
 import type {AccessControlPolicy} from '@mattermost/types/access_control';
 import type {ClusterInfo, AnalyticsRow, AnalyticsState, AdminState} from '@mattermost/types/admin';

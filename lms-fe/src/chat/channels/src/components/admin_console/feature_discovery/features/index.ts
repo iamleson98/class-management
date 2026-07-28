@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import AnnouncementBannerFeatureDiscovery from './announcement_banner';
+﻿import AnnouncementBannerFeatureDiscovery from './announcement_banner';
 import ClassificationMarkingsFeatureDiscovery from './classification_markings';
 import ComplianceExportFeatureDiscovery from './compliance_export';
 import CustomTermsOfServiceFeatureDiscovery from './custom_terms_of_service';

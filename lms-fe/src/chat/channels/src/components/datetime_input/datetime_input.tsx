@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {Moment} from 'moment-timezone';
+﻿import type {Moment} from 'moment-timezone';
 import moment from 'moment-timezone';
 import React, {useEffect, useMemo, useState, useCallback, useRef} from 'react';
 import type {DayModifiers, DayPickerProps} from 'react-day-picker';

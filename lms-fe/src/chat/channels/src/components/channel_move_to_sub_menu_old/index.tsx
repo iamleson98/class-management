@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-// Purpose of this file to exists is only required until channel header dropdown is migrated to new menus
+﻿// Purpose of this file to exists is only required until channel header dropdown is migrated to new menus
 import React, {memo} from 'react';
 import {useIntl} from 'react-intl';
 import {useDispatch, useSelector} from 'react-redux';

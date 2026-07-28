@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {memo, useContext} from 'react';
+﻿import React, {memo, useContext} from 'react';
 import {areEqual} from 'react-window';
 import type {ListChildComponentProps} from 'react-window';
 

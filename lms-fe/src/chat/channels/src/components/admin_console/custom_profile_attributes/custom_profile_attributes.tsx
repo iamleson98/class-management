@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-// This component implements the "User Attributes" admin UI, formerly known as
+﻿// This component implements the "User Attributes" admin UI, formerly known as
 // "Custom Profile Attributes" (CPA). Internal identifiers retain the old
 // naming for backward compatibility. See MM-68235.
 

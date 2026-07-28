@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type React from 'react';
+﻿import type React from 'react';
 
 import glyphMap from '@mattermost/compass-icons/components';
 import type IconProps from '@mattermost/compass-icons/components/props';

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-export const ID_PATH_PATTERN = '[a-z0-9]{26}';
+﻿export const ID_PATH_PATTERN = '[a-z0-9]{26}';
 
 // This should cover:
 // - Team name (lowercase english characters, numbers or -)

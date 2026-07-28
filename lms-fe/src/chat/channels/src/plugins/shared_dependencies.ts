@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-type Loader = () => unknown;
+﻿type Loader = () => unknown;
 
 // Every module exported from the @mattermost/shared package must be added to this map
 const sharedDependencies = new Map<string, Loader>([

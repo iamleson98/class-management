@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-// Some of these constants duplicate ones in utils/constants.tsx in the web app.
+﻿// Some of these constants duplicate ones in utils/constants.tsx in the web app.
 
 export const RootHtmlPortalId = 'root-portal';
 

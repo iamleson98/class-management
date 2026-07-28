@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-/* eslint-disable no-alert */
+﻿/* eslint-disable no-alert */
 
 import classNames from 'classnames';
 import React, {useCallback, useMemo, useState} from 'react';

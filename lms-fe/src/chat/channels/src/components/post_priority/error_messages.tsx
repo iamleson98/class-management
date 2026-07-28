@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {useMemo} from 'react';
+﻿import React, {useMemo} from 'react';
 import {FormattedMessage, FormattedList} from 'react-intl';
 
 export function HasSpecialMentions({specialMentions}: {specialMentions: {[key: string]: boolean}}) {

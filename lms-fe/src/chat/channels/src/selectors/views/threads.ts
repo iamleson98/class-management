@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import moment from 'moment';
+﻿import moment from 'moment';
 
 import type {Post} from '@mattermost/types/posts';
 import type {Team} from '@mattermost/types/teams';

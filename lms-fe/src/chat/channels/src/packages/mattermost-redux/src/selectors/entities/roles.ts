@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {GroupMembership, GroupPermissions} from '@mattermost/types/groups';
+﻿import type {GroupMembership, GroupPermissions} from '@mattermost/types/groups';
 import type {Role} from '@mattermost/types/roles';
 import type {GlobalState} from '@mattermost/types/store';
 

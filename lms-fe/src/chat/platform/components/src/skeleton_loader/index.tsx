@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import styled, {keyframes} from 'styled-components';
+﻿import styled, {keyframes} from 'styled-components';
 
 const skeletonFade = keyframes`
     0% {

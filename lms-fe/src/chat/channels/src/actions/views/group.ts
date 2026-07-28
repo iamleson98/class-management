@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {GroupSearchParams} from '@mattermost/types/groups';
+﻿import type {GroupSearchParams} from '@mattermost/types/groups';
 
 import {searchGroups} from 'mattermost-redux/actions/groups';
 import Permissions from 'mattermost-redux/constants/permissions';

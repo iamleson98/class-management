@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {Store} from 'redux';
+﻿import type {Store} from 'redux';
 import {onCLS, onFCP, onINP, onLCP} from 'web-vitals/attribution';
 import type {INPMetricWithAttribution, LCPMetricWithAttribution, Metric} from 'web-vitals/attribution';
 

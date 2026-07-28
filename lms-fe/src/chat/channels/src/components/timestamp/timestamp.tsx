@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import caps from 'lodash/capitalize';
+﻿import caps from 'lodash/capitalize';
 import isArray from 'lodash/isArray';
 import type {Moment} from 'moment-timezone';
 import moment from 'moment-timezone';

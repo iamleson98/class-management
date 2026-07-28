@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {memo} from 'react';
+﻿import React, {memo} from 'react';
 import {FormattedMessage, useIntl} from 'react-intl';
 
 import type {UserProfile} from '@mattermost/types/users';

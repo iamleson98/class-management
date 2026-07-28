@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {Group} from '@mattermost/types/groups';
+﻿import type {Group} from '@mattermost/types/groups';
 import {GroupSource, PluginGroupSourcePrefix} from '@mattermost/types/groups';
 
 import {getSuggestionsSplitBy, getSuggestionsSplitByMultiple} from './user_utils';

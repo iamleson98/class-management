@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {ServerError} from '@mattermost/types/errors';
+﻿import type {ServerError} from '@mattermost/types/errors';
 import type {GetGroupsForUserParams, GetGroupsParams} from '@mattermost/types/groups';
 import type {Team} from '@mattermost/types/teams';
 

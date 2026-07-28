@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {Edge} from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
+﻿import type {Edge} from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
 import {DropIndicator} from '@atlaskit/pragmatic-drag-and-drop-react-drop-indicator/box';
 import React, {useCallback, useState} from 'react';
 import styled, {css} from 'styled-components';

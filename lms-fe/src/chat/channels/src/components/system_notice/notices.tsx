@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {Notice} from 'components/system_notice/types';
+﻿import type {Notice} from 'components/system_notice/types';
 
 // Notices are objects with the following fields:
 //  - name - string identifier

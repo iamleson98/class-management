@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {DateTime, Interval} from 'luxon';
+﻿import {DateTime, Interval} from 'luxon';
 
 const SITE_URL_PENDING_PREFIX = 'pending_';
 const CONNECTED_PING_THRESHOLD_MINUTES = 5;

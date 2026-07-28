@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {useState, useCallback, useEffect} from 'react';
+﻿import React, {useState, useCallback, useEffect} from 'react';
 import {FormattedMessage} from 'react-intl';
 
 import ConfirmModal from 'components/confirm_modal';

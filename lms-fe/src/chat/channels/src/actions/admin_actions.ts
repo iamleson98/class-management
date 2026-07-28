@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {ClusterInfo} from '@mattermost/types/admin';
+﻿import type {ClusterInfo} from '@mattermost/types/admin';
 import type {StatusOK} from '@mattermost/types/client4';
 import type {AdminConfig, AllowedIPRange, FetchIPResponse, RequestLicenseBody} from '@mattermost/types/config';
 import type {Job, JobTypeBase} from '@mattermost/types/jobs';

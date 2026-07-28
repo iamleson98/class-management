@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import marked from 'marked';
+﻿import marked from 'marked';
 import type {MarkedOptions} from 'marked';
 
 import EmojiMap from 'utils/emoji_map';

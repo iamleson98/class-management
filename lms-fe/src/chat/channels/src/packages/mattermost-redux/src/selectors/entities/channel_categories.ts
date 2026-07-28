@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import shallowEquals from 'shallow-equals';
+﻿import shallowEquals from 'shallow-equals';
 
 import type {ChannelCategory, ChannelCategoryType} from '@mattermost/types/channel_categories';
 import {CategorySorting} from '@mattermost/types/channel_categories';

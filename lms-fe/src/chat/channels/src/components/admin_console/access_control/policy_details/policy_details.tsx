@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import cloneDeep from 'lodash/cloneDeep';
+﻿import cloneDeep from 'lodash/cloneDeep';
 import React, {useState, useEffect, useMemo} from 'react';
 import {FormattedMessage, useIntl} from 'react-intl';
 

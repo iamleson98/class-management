@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {PopoutListeners} from './popout_windows';
+﻿import type {PopoutListeners} from './popout_windows';
 
 export const POPOUT_FOCUSED = '_popout_focused';
 export const POPOUT_BLURRED = '_popout_blurred';

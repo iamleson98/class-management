@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import styled from 'styled-components';
+﻿import styled from 'styled-components';
 
 /**
  * This is a styled div that should be used as a container for popovers.

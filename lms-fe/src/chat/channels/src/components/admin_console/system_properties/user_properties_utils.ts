@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import groupBy from 'lodash/groupBy';
+﻿import groupBy from 'lodash/groupBy';
 import isEmpty from 'lodash/isEmpty';
 import {useMemo} from 'react';
 

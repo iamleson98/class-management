@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {Team} from '@mattermost/types/teams';
+﻿import type {Team} from '@mattermost/types/teams';
 
 import {getTeam as getTeamAction, getTeamByName as getTeamByNameAction} from 'mattermost-redux/actions/teams';
 import {getTeam as getTeamSelector, getTeamByName as getTeamByNameSelector} from 'mattermost-redux/selectors/entities/teams';

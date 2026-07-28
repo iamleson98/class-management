@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {connect} from 'react-redux';
+﻿import {connect} from 'react-redux';
 
 import {getBotAccounts} from 'mattermost-redux/selectors/entities/bots';
 import {getCommands, getOAuthApps, getIncomingHooks, getOutgoingHooks, getOutgoingOAuthConnections} from 'mattermost-redux/selectors/entities/integrations';

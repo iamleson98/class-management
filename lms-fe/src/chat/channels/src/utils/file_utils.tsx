@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import exif2css from 'exif2css';
+﻿import exif2css from 'exif2css';
 
 import * as UserAgent from '@mattermost/shared/utils/user_agent';
 import type {ClientConfig} from '@mattermost/types/config';

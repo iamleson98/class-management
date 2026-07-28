@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {useMergeRefs} from '@floating-ui/react';
+﻿import {useMergeRefs} from '@floating-ui/react';
 import React, {useCallback, useRef} from 'react';
 import SimpleBar from 'simplebar-react';
 

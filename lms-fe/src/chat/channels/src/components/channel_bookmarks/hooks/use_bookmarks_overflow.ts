@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {MutableRefObject} from 'react';
+﻿import type {MutableRefObject} from 'react';
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 
 import {useDebounce} from 'hooks/useDebounce';

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {Audit} from './audits';
+﻿import type {Audit} from './audits';
 import type {Channel} from './channels';
 import type {Group} from './groups';
 import type {Session} from './sessions';

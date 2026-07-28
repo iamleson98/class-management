@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-export const FINISHED = 999;
+﻿export const FINISHED = 999;
 export const SKIPPED = 999;
 
 export const ChannelsTourTelemetryPrefix = 'channels-tour';

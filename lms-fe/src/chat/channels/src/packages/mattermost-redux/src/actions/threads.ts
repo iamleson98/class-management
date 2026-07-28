@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import uniq from 'lodash/uniq';
+﻿import uniq from 'lodash/uniq';
 import {batchActions} from 'redux-batched-actions';
 
 import type {Post} from '@mattermost/types/posts';

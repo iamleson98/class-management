@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {getCurrentUser, getCurrentUserId} from 'mattermost-redux/selectors/entities/common';
+﻿import {getCurrentUser, getCurrentUserId} from 'mattermost-redux/selectors/entities/common';
 import {getCurrentTeamId, getTeam} from 'mattermost-redux/selectors/entities/teams';
 
 import {getTeamRedirectChannelIfIsAccesible} from 'actions/global_actions';

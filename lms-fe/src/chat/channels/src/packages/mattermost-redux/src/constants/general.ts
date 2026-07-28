@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-export default {
+﻿export default {
     CONFIG_CHANGED: 'config_changed',
     SERVER_VERSION_CHANGED: 'server_version_changed',
     PAGE_SIZE_DEFAULT: 60,

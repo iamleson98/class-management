@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import debounce from 'lodash/debounce';
+﻿import debounce from 'lodash/debounce';
 import type {PDFDocumentProxy, PDFPageProxy} from 'pdfjs-dist';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import 'pdfjs-dist/build/pdf.worker.min.mjs';

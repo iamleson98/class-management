@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {combineReducers} from 'redux';
+﻿import {combineReducers} from 'redux';
 
 import type {Command, IncomingWebhook, OutgoingWebhook, OAuthApp, OutgoingOAuthConnection, DialogArgs} from '@mattermost/types/integrations';
 import type {IDMappedObjects} from '@mattermost/types/utilities';

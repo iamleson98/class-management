@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {useEffect} from 'react';
+﻿import React, {useEffect} from 'react';
 import {shallowEqual, useDispatch, useSelector} from 'react-redux';
 
 import {fetchChannelRemotes} from 'mattermost-redux/actions/shared_channels';

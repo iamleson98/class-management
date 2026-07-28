@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {getCurrentTeamId, getTeamByName} from 'mattermost-redux/selectors/entities/teams';
+﻿import {getCurrentTeamId, getTeamByName} from 'mattermost-redux/selectors/entities/teams';
 import {getCurrentUserId} from 'mattermost-redux/selectors/entities/users';
 
 import localStorageStore from 'stores/local_storage_store';

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {ELEMENT_ID_FOR_MENU_BACKDROP} from './menu';
+﻿import {ELEMENT_ID_FOR_MENU_BACKDROP} from './menu';
 
 /**
  * Since the menu component requires actual interaction with the button

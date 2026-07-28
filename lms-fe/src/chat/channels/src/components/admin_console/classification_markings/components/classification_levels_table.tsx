@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {createColumnHelper, getCoreRowModel, useReactTable} from '@tanstack/react-table';
+﻿import {createColumnHelper, getCoreRowModel, useReactTable} from '@tanstack/react-table';
 import type {ColumnDef} from '@tanstack/react-table';
 import React, {useMemo} from 'react';
 import {FormattedMessage, useIntl} from 'react-intl';

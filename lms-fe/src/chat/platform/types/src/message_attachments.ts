@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {isPostAction, type PostAction} from './integration_actions';
+﻿import {isPostAction, type PostAction} from './integration_actions';
 import {isArrayOf} from './utilities';
 
 export type MessageAttachment = {

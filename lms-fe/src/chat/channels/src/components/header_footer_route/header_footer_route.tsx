@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {useState, useCallback} from 'react';
+﻿import React, {useState, useCallback} from 'react';
 import {Route} from 'react-router-dom';
 
 import AnnouncementBar from 'components/announcement_bar';

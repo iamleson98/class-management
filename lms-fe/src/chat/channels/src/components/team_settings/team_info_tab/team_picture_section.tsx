@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {type ChangeEvent, useRef, useState, useEffect, useCallback} from 'react';
+﻿import React, {type ChangeEvent, useRef, useState, useEffect, useCallback} from 'react';
 import {useIntl} from 'react-intl';
 
 import {TrashCanOutlineIcon} from '@mattermost/compass-icons/components';

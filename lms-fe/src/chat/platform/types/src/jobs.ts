@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {IDMappedObjects} from './utilities';
+﻿import type {IDMappedObjects} from './utilities';
 
 export type JobType = 'data_retention' | 'elasticsearch_post_indexing' | 'bleve_post_indexing' | 'ldap_sync' | 'message_export' | 'access_control_sync';
 export type JobStatus = 'pending' | 'in_progress' | 'success' | 'error' | 'cancel_requested' | 'canceled' | 'warning';

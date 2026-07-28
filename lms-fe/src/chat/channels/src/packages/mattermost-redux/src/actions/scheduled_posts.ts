@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {ScheduledPost} from '@mattermost/types/schedule_post';
+﻿import type {ScheduledPost} from '@mattermost/types/schedule_post';
 
 import {ScheduledPostTypes} from 'mattermost-redux/action_types';
 import {logError} from 'mattermost-redux/actions/errors';

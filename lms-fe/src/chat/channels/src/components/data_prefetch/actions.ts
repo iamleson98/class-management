@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {Channel, ChannelMembership} from '@mattermost/types/channels';
+﻿import type {Channel, ChannelMembership} from '@mattermost/types/channels';
 import type {RelationOneToOne} from '@mattermost/types/utilities';
 
 import {isChannelMuted} from 'mattermost-redux/utils/channel_utils';

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {Location} from 'history';
+﻿import type {Location} from 'history';
 import type {RefCallback} from 'react';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Route, Switch, Redirect} from 'react-router-dom';

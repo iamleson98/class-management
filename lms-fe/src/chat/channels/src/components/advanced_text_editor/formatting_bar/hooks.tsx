@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {Instance} from '@popperjs/core';
+﻿import type {Instance} from '@popperjs/core';
 import debounce from 'lodash/debounce';
 import {useEffect, useLayoutEffect, useMemo, useState} from 'react';
 

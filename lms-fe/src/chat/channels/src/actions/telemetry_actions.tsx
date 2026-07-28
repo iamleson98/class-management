@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {Client4} from 'mattermost-redux/client';
+﻿import {Client4} from 'mattermost-redux/client';
 
 const HEADER_X_PAGE_LOAD_CONTEXT = 'X-Page-Load-Context';
 

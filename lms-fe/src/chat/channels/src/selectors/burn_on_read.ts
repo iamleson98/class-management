@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {ClientLicense} from '@mattermost/types/config';
+﻿import type {ClientLicense} from '@mattermost/types/config';
 
 import {createSelector} from 'mattermost-redux/selectors/create_selector';
 import {getCurrentUserId} from 'mattermost-redux/selectors/entities/common';

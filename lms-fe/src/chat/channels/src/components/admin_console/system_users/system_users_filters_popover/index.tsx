@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {autoUpdate, useClick, useDismiss, useFloating, useInteractions, useRole, FloatingFocusManager, useTransitionStyles, autoPlacement, offset} from '@floating-ui/react';
+﻿import {autoUpdate, useClick, useDismiss, useFloating, useInteractions, useRole, FloatingFocusManager, useTransitionStyles, autoPlacement, offset} from '@floating-ui/react';
 import React, {useState} from 'react';
 import {useIntl} from 'react-intl';
 import {useDispatch} from 'react-redux';

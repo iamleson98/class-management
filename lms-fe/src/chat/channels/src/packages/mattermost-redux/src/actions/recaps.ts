@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {Recap} from '@mattermost/types/recaps';
+﻿import type {Recap} from '@mattermost/types/recaps';
 
 import {RecapTypes} from 'mattermost-redux/action_types';
 import {logError} from 'mattermost-redux/actions/errors';

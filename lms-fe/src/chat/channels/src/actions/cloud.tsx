@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {ServerError} from '@mattermost/types/errors';
+﻿import type {ServerError} from '@mattermost/types/errors';
 
 import {CloudTypes} from 'mattermost-redux/action_types';
 import {getCloudCustomer, getCloudProducts, getCloudSubscription, getInvoices} from 'mattermost-redux/actions/cloud';

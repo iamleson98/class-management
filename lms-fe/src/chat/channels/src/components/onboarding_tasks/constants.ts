@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-const FINISHED = 999;
+﻿const FINISHED = 999;
 
 export const OnboardingTaskCategory = 'onboarding_task_list';
 

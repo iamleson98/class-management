@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-/* eslint-disable formatjs/enforce-placeholders -- link placeholders provided by admin panel components */
+﻿/* eslint-disable formatjs/enforce-placeholders -- link placeholders provided by admin panel components */
 
 import React from 'react';
 import {type MessageDescriptor} from 'react-intl';

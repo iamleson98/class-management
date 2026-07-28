@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {useMemo} from 'react';
+﻿import {useMemo} from 'react';
 
 import type {CloudUsage} from '@mattermost/types/cloud';
 

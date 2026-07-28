@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {useState, useEffect, useCallback} from 'react';
+﻿import {useState, useEffect, useCallback} from 'react';
 import {useDispatch} from 'react-redux';
 
 import type {AccessControlAttribute} from '@mattermost/types/access_control';

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {Locale} from 'date-fns';
+﻿import type {Locale} from 'date-fns';
 import React, {useCallback, useEffect, useState} from 'react';
 import {DayPicker} from 'react-day-picker';
 

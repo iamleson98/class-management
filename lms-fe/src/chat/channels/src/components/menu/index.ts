@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import './menu.scss';
+﻿import './menu.scss';
 
 export {Menu as Container} from './menu';
 export {SubMenu} from './sub_menu';

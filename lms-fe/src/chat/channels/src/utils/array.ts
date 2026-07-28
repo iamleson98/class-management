@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-/**
+﻿/**
  * Splits an array into two at the given index.
  * Returns a tuple of [before, after].
  */

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {ChartOptions} from 'chart.js';
+﻿import type {ChartOptions} from 'chart.js';
 import Chart from 'chart.js/auto';
 import deepEqual from 'fast-deep-equal';
 import React from 'react';

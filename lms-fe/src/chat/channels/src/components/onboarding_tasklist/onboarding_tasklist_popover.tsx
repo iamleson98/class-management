@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {FloatingPortal} from '@floating-ui/react';
+﻿import {FloatingPortal} from '@floating-ui/react';
 import type {Placement} from '@floating-ui/react-dom';
 import {useFloating, offset as floatingOffset, autoUpdate} from '@floating-ui/react-dom';
 import React, {useLayoutEffect} from 'react';

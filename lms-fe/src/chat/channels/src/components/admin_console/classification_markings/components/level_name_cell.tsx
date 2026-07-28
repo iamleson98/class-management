@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {useEffect, useState} from 'react';
+﻿import React, {useEffect, useState} from 'react';
 
 import {BorderlessInput} from '../../system_properties/controls';
 import type {ClassificationLevel} from '../utils/presets';

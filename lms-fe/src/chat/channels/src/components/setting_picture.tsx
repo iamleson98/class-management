@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {Component, createRef} from 'react';
+﻿import React, {Component, createRef} from 'react';
 import type {ChangeEvent, CSSProperties, MouseEvent, ReactNode, RefObject} from 'react';
 import {defineMessage, FormattedMessage} from 'react-intl';
 

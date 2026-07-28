@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+﻿import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Modal} from 'react-bootstrap';
 import {defineMessages, useIntl} from 'react-intl';
 import {useSelector} from 'react-redux';

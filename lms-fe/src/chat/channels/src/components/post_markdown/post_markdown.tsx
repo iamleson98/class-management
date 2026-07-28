@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import memoize from 'memoize-one';
+﻿import memoize from 'memoize-one';
 import React from 'react';
 
 import type {Post} from '@mattermost/types/posts';

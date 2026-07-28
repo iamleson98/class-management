@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React from 'react';
+﻿import React from 'react';
 import {FormattedMessage, defineMessage} from 'react-intl';
 
 import GroupProfile from 'components/admin_console/group_settings/group_details/group_profile';

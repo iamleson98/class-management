@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {combine} from '@atlaskit/pragmatic-drag-and-drop/combine';
+﻿import {combine} from '@atlaskit/pragmatic-drag-and-drop/combine';
 import {draggable, dropTargetForElements} from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import {setCustomNativeDragPreview} from '@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview';
 import {preventUnhandled} from '@atlaskit/pragmatic-drag-and-drop/prevent-unhandled';

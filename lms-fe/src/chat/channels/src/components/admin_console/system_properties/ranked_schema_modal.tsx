@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {KeyboardEvent} from 'react';
+﻿import type {KeyboardEvent} from 'react';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import type {DropResult} from 'react-beautiful-dnd';
 import {DragDropContext, Draggable, Droppable} from 'react-beautiful-dnd';

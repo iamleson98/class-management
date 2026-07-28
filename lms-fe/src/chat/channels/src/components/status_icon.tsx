@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {memo} from 'react';
+﻿import React, {memo} from 'react';
 
 import StatusAwayIcon from 'components/widgets/icons/status_away_icon';
 import StatusDndIcon from 'components/widgets/icons/status_dnd_icon';

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import semver from 'semver';
+﻿import semver from 'semver';
 
 import type {DesktopAPI, PopoutViewProps, Theme} from '@mattermost/desktop-api';
 import {isDesktopApp} from '@mattermost/shared/utils/user_agent';

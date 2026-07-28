@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React from 'react';
+﻿import React from 'react';
 
 import CheckboxCheckedIcon from 'components/widgets/icons/checkbox_checked_icon';
 import CheckboxPartialIcon from 'components/widgets/icons/checkbox_partial_icon';

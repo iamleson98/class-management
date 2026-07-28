@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {useContext, useEffect} from 'react';
+﻿import React, {useContext, useEffect} from 'react';
 import {useLocation} from 'react-router-dom';
 
 import {TEAM_NAME_PATH_PATTERN} from 'utils/path';

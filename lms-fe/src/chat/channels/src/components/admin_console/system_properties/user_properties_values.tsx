@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {FocusEventHandler, KeyboardEventHandler} from 'react';
+﻿import type {FocusEventHandler, KeyboardEventHandler} from 'react';
 import React, {useMemo} from 'react';
 import {FormattedList, FormattedMessage, useIntl} from 'react-intl';
 import {useSelector} from 'react-redux';

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {useEffect} from 'react';
+﻿import {useEffect} from 'react';
 
 import {POPOUT_FOCUSED, POPOUT_BLURRED} from './focus';
 import {sendToParent} from './popout_windows';

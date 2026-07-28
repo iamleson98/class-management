@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {useCallback, useMemo} from 'react';
+﻿import React, {useCallback, useMemo} from 'react';
 import {FormattedMessage, defineMessages, useIntl} from 'react-intl';
 
 import BooleanSetting from 'components/admin_console/boolean_setting';

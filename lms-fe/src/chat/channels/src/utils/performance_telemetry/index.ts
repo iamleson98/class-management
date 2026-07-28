@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-export const enum Mark {
+﻿export const enum Mark {
     ChannelLinkClicked = 'SidebarChannelLink#click',
     GlobalThreadsLinkClicked = 'GlobalThreadsLink#click',
     PostListLoaded = 'PostList#component',

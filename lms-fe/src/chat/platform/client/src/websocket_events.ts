@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-export const enum WebSocketEvents {
+﻿export const enum WebSocketEvents {
     Typing = 'typing',
     Posted = 'posted',
     PostEdited = 'post_edited',

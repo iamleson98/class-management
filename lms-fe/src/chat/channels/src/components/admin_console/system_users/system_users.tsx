@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {PaginationState, SortingState, VisibilityState, ColumnDef, CellContext, OnChangeFn} from '@tanstack/react-table';
+﻿import type {PaginationState, SortingState, VisibilityState, ColumnDef, CellContext, OnChangeFn} from '@tanstack/react-table';
 import {useReactTable, getCoreRowModel, getSortedRowModel} from '@tanstack/react-table';
 import React, {useEffect, useMemo, useState} from 'react';
 import {useIntl, FormattedMessage, defineMessages} from 'react-intl';

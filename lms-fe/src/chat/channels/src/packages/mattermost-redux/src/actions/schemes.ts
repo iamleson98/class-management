@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {Scheme, SchemeScope, SchemePatch} from '@mattermost/types/schemes';
+﻿import type {Scheme, SchemeScope, SchemePatch} from '@mattermost/types/schemes';
 
 import {SchemeTypes} from 'mattermost-redux/action_types';
 import {Client4} from 'mattermost-redux/client';

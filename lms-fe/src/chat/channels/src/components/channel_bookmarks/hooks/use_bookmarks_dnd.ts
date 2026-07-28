@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {monitorForElements} from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
+﻿import {monitorForElements} from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import type {Edge} from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
 import {extractClosestEdge} from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
 import {useEffect, useState} from 'react';

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {useRef} from 'react';
+﻿import React, {useRef} from 'react';
 import type {ComponentType} from 'react';
 import {Route, Switch} from 'react-router-dom';
 import type {match} from 'react-router-dom';

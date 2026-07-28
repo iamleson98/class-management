@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {Channel} from './channels';
+﻿import type {Channel} from './channels';
 import type {Team} from './teams';
 import type {UserProfile} from './users';
 import type {IDMappedObjects, RelationOneToOne} from './utilities';

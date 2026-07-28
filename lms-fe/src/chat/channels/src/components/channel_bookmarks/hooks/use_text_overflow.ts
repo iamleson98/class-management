@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {useCallback, useEffect, useState} from 'react';
+﻿import {useCallback, useEffect, useState} from 'react';
 
 /**
  * Detects whether a text element is overflowing its container (e.g. truncated

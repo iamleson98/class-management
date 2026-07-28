@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {detectOverflow} from '@floating-ui/react';
+﻿import {detectOverflow} from '@floating-ui/react';
 import type {Boundary, MiddlewareState} from '@floating-ui/react-dom';
 
 export type HorizontallyWithinOptions = {

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-// Given a URL from an API request, return a URL that has any parts removed that are either sensitive or that would
+﻿// Given a URL from an API request, return a URL that has any parts removed that are either sensitive or that would
 // prevent properly grouping the messages in Sentry.
 export function cleanUrlForLogging(baseUrl: string, apiUrl: string): string {
     let url = apiUrl;

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-const values = {
+﻿const values = {
     INVITE_USER: 'invite_user',
     ADD_USER_TO_TEAM: 'add_user_to_team',
     MANAGE_SLASH_COMMANDS: 'manage_slash_commands',

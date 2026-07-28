@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {useState} from 'react';
+﻿import {useState} from 'react';
 
 export function usePagingMeta(groupType: string): [number, (page: number) => void] {
     const [page, setPage] = useState(0);

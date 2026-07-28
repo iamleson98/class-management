@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {Channel} from '@mattermost/types/channels';
+﻿import type {Channel} from '@mattermost/types/channels';
 import type {MarketplaceApp, MarketplacePlugin} from '@mattermost/types/marketplace';
 import type {CursorPaginationDirection, ReportDuration} from '@mattermost/types/reports';
 import type {Team} from '@mattermost/types/teams';

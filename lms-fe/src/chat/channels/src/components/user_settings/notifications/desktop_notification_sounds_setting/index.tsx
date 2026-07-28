@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {ChangeEvent} from 'react';
+﻿import type {ChangeEvent} from 'react';
 import React, {memo, useEffect, useRef, Fragment, useMemo, useCallback} from 'react';
 import {FormattedMessage, useIntl} from 'react-intl';
 import type {OnChangeValue} from 'react-select';

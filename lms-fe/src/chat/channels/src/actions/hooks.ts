@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {Channel} from '@mattermost/types/channels';
+﻿import type {Channel} from '@mattermost/types/channels';
 import type {CommandArgs} from '@mattermost/types/integrations';
 import type {Post} from '@mattermost/types/posts';
 

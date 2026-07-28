@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {Fragment, useCallback, useEffect, useMemo, useRef, memo} from 'react';
+﻿import React, {Fragment, useCallback, useEffect, useMemo, useRef, memo} from 'react';
 import type {ChangeEvent, ReactNode} from 'react';
 import {FormattedMessage, useIntl, defineMessage} from 'react-intl';
 import ReactSelect from 'react-select';

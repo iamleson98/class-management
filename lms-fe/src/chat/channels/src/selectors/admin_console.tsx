@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import cloneDeep from 'lodash/cloneDeep';
+﻿import cloneDeep from 'lodash/cloneDeep';
 
 import Permissions from 'mattermost-redux/constants/permissions';
 import {ResourceToSysConsolePermissionsTable, RESOURCE_KEYS} from 'mattermost-redux/constants/permissions_sysconsole';

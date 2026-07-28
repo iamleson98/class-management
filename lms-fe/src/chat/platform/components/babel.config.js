@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-const config = {
+﻿const config = {
     presets: [
         ['@babel/preset-env', {
             targets: {

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-// parseImageDimensions takes an href returned by marked and separates out any image dimensions if those are specified.
+﻿// parseImageDimensions takes an href returned by marked and separates out any image dimensions if those are specified.
 // If the input contains dimensions, the returned href will have them removed and they will be returned as strings,
 // otherwise, the returned dimensions will both be the empty string. If only one dimension is provided, the other will
 // be the string "auto".

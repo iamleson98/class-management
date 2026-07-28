@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-// Import loading screen CSS first to ensure it's in the main CSS bundle (with content hash)
+﻿// Import loading screen CSS first to ensure it's in the main CSS bundle (with content hash)
 // and loads before the body renders. This must be before any dynamic imports.
 import './components/initial_loading_screen/initial_loading_screen.css';
 

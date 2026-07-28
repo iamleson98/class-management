@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-export function getBrowserInfo() {
+﻿export function getBrowserInfo() {
     const userAgent = window.navigator.userAgent.toLowerCase();
 
     let browser = 'Unknown';

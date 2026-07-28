@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {LicenseSkus} from 'utils/constants';
+﻿import {LicenseSkus} from 'utils/constants';
 
 export const getSkuDisplayName = (skuShortName: string, isGovSku: boolean): string => {
     let skuName = '';

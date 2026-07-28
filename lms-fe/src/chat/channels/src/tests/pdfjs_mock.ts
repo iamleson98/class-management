@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-// pdfjs-dist 4.x ships ESM-only builds that use import.meta.url, which Jest's
+﻿// pdfjs-dist 4.x ships ESM-only builds that use import.meta.url, which Jest's
 // CommonJS runtime cannot parse. This mock replaces all pdfjs-dist imports in
 // tests so that components which transitively depend on pdf_preview.tsx compile
 // without requiring the native pdfjs binary pipeline.

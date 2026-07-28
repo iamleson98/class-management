@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {useCallback, memo} from 'react';
+﻿import React, {useCallback, memo} from 'react';
 import {defineMessage} from 'react-intl';
 
 import Filter from 'components/admin_console/filter/filter';

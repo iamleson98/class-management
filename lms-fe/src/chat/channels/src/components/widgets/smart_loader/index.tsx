@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {type ReactNode, useEffect, useState} from 'react';
+﻿import React, {type ReactNode, useEffect, useState} from 'react';
 
 const DEFAULT_MIN_LOADER_DURATION = 1000;
 

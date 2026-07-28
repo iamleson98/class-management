@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-/* eslint-disable @stylistic/jsx-max-props-per-line */
+﻿/* eslint-disable @stylistic/jsx-max-props-per-line */
 
 import React from 'react';
 

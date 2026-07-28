@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import classNames from 'classnames';
+﻿import classNames from 'classnames';
 import type {ComponentType} from 'react';
 import React, {useMemo, useState} from 'react';
 import type {MessageDescriptor} from 'react-intl';

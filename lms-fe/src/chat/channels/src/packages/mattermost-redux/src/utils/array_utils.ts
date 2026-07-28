@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-// insertWithoutDuplicates inserts an item into an array and returns the result. The provided array is not modified.
+﻿// insertWithoutDuplicates inserts an item into an array and returns the result. The provided array is not modified.
 // If the array already contains the given item, that item is moved to the new location instead of adding a duplicate.
 // If the array already had the given item at the given index, the origianl array is returned.
 export function insertWithoutDuplicates<T>(array: T[], item: T, newIndex: number) {

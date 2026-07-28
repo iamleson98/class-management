@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {createColumnHelper, getCoreRowModel, getSortedRowModel, useReactTable, type ColumnDef} from '@tanstack/react-table';
+﻿import {createColumnHelper, getCoreRowModel, getSortedRowModel, useReactTable, type ColumnDef} from '@tanstack/react-table';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import type {SelectCallback} from 'react-bootstrap';
 import {Tabs, Tab} from 'react-bootstrap';

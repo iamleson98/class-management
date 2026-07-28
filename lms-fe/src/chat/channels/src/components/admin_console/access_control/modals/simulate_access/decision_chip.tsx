@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React from 'react';
+﻿import React from 'react';
 import {defineMessages, FormattedMessage, useIntl} from 'react-intl';
 
 import {CheckCircleIcon, CloseCircleIcon, MinusCircleIcon, MinusCircleOutlineIcon} from '@mattermost/compass-icons/components';

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {useCallback, useEffect, useMemo} from 'react';
+﻿import React, {useCallback, useEffect, useMemo} from 'react';
 import {defineMessage} from 'react-intl';
 import {useDispatch, useSelector} from 'react-redux';
 import {useLocation, useParams} from 'react-router-dom';

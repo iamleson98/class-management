@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {createBrowserHistory} from 'history';
+﻿import {createBrowserHistory} from 'history';
 import type {History} from 'history';
 
 import {isDesktopApp, getDesktopVersion} from '@mattermost/shared/utils/user_agent';

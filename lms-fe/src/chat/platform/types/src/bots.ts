@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-export type Bot = {
+﻿export type Bot = {
     user_id: string;
     username: string;
     display_name?: string;

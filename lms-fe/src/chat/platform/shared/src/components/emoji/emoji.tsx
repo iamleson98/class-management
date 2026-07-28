@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {KeyboardEvent, MouseEvent} from 'react';
+﻿import type {KeyboardEvent, MouseEvent} from 'react';
 import React from 'react';
 
 import {useEmojiByName} from '../../context/useEmojiByName';

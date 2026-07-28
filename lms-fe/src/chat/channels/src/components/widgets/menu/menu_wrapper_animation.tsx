@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React from 'react';
+﻿import React from 'react';
 import {CSSTransition} from 'react-transition-group';
 
 import {isMobile} from './is_mobile_view_hack';

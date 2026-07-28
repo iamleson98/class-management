@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import isEqual from 'lodash/isEqual';
+﻿import isEqual from 'lodash/isEqual';
 import type {AnyAction} from 'redux';
 import {combineReducers} from 'redux';
 

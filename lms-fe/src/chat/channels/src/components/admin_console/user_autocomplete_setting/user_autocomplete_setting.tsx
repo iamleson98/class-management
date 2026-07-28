@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {useCallback, useRef} from 'react';
+﻿import React, {useCallback, useRef} from 'react';
 
 import type {UserAutocomplete} from '@mattermost/types/autocomplete';
 import type {UserProfile} from '@mattermost/types/users';

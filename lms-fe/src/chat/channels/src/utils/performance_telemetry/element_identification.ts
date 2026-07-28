@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-/**
+﻿/**
  * A list mapping IDs or CSS classes to regions of the app. In case of nested regions, these are sorted deepest-first.
  *
  * The region names map to values of model.AcceptedLCPRegions on the server.

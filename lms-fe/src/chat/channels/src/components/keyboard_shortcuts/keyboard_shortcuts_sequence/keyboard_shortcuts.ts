@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {defineMessage, defineMessages, type MessageDescriptor} from 'react-intl';
+﻿import {defineMessage, defineMessages, type MessageDescriptor} from 'react-intl';
 
 export type KeyboardShortcutDescriptor =
 	MessageDescriptor |

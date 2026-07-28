@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+﻿import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {ChromePicker} from 'react-color';
 import type {ColorResult} from 'react-color';
 import tinycolor from 'tinycolor2';

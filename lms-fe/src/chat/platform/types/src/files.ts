@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-/**
+﻿/**
  * FileDownloadType represents the type of file download or access being performed.
  */
 export type FileDownloadType = 'file' | 'thumbnail' | 'preview' | 'public';

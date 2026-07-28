@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {useEffect, useState, useCallback} from 'react';
+﻿import {useEffect, useState, useCallback} from 'react';
 import {useDispatch, useSelector} from 'react-redux';
 
 import {getLicense} from 'mattermost-redux/selectors/entities/general';

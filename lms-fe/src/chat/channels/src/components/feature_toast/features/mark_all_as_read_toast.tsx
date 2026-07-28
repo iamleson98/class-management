@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {useState} from 'react';
+﻿import React, {useState} from 'react';
 import {FormattedMessage, useIntl} from 'react-intl';
 
 import {ShortcutKeys} from '@mattermost/shared/components/shortcut_key';

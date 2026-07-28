@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {useCallback, useEffect, useMemo, useRef} from 'react';
+﻿import {useCallback, useEffect, useMemo, useRef} from 'react';
 
 import {useLatest} from './useLatest';
 

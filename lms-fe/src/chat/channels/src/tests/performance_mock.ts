@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {PerformanceObserver as NodePerformanceObserver, performance as nodePerformance} from 'node:perf_hooks';
+﻿import {PerformanceObserver as NodePerformanceObserver, performance as nodePerformance} from 'node:perf_hooks';
 
 // These aren't a perfect match for window.performance and PerformanceObserver, but they're close enough. They don't
 // work with `jest.useFakeTimers` because that overwrites window.performance in a way that breaks the Node.js version.

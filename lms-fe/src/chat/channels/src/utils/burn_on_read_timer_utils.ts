@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-/**
+﻿/**
  * Formats milliseconds into HH:MM:SS or MM:SS format for countdown timer display
  * @param ms - Milliseconds remaining
  * @returns Formatted string like "10:00", "05:30", "1:30:00"

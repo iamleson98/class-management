@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {JobType, JobTypeBase} from '@mattermost/types/jobs';
+﻿import type {JobType, JobTypeBase} from '@mattermost/types/jobs';
 
 import {JobTypes} from 'mattermost-redux/action_types';
 import {Client4} from 'mattermost-redux/client';

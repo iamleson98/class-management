@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {useMemo, useState} from 'react';
+﻿import React, {useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
 import type {GroupBase} from 'react-select';
 

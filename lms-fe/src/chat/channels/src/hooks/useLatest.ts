@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {useLayoutEffect, useRef} from 'react';
+﻿import {useLayoutEffect, useRef} from 'react';
 
 /**
  * Returns a ref that always holds the latest value.

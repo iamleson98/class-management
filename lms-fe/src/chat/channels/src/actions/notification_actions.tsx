@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {isDesktopApp, isMobile} from '@mattermost/shared/utils/user_agent';
+﻿import {isDesktopApp, isMobile} from '@mattermost/shared/utils/user_agent';
 import type {Channel, ChannelMembership} from '@mattermost/types/channels';
 import type {ServerError} from '@mattermost/types/errors';
 import {isMessageAttachmentArray} from '@mattermost/types/message_attachments';

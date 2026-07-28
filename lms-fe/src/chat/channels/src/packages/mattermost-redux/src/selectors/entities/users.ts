@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {Channel, ChannelMembership} from '@mattermost/types/channels';
+﻿import type {Channel, ChannelMembership} from '@mattermost/types/channels';
 import type {Group} from '@mattermost/types/groups';
 import type {Reaction} from '@mattermost/types/reactions';
 import type {GlobalState} from '@mattermost/types/store';

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import moment from 'moment-timezone';
+﻿import moment from 'moment-timezone';
 
 import type {UserCustomStatus} from '@mattermost/types/users';
 import {CustomStatusDuration} from '@mattermost/types/users';

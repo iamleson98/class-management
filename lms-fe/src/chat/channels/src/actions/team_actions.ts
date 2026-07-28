@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {ServerError} from '@mattermost/types/errors';
+﻿import type {ServerError} from '@mattermost/types/errors';
 import type {Team, TeamMemberWithError} from '@mattermost/types/teams';
 import type {UserProfile} from '@mattermost/types/users';
 

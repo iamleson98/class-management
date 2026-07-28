@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {UserTypes} from 'mattermost-redux/action_types';
+﻿import {UserTypes} from 'mattermost-redux/action_types';
 
 import {ActionTypes} from 'utils/constants';
 

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React from 'react';
+﻿import React from 'react';
 
 import {isMessageAttachmentArray} from '@mattermost/types/message_attachments';
 import type {Post} from '@mattermost/types/posts';

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import * as monaco from 'monaco-editor';
+﻿import * as monaco from 'monaco-editor';
 import {useEffect} from 'react';
 
 const POLICY_LANGUAGE_NAME = 'expressionLanguage';

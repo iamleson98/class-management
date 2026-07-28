@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-/**
+﻿/**
  * Global timer ticker for burn-on-read countdown displays.
  * Uses a single self-correcting timer to broadcast tick events to all subscribers.
  * This prevents O(n) intervals when displaying many burn-on-read posts.

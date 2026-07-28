@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {useMemo} from 'react';
+﻿import React, {useMemo} from 'react';
 import type {MouseEvent, KeyboardEvent} from 'react';
 import {defineMessages, useIntl} from 'react-intl';
 

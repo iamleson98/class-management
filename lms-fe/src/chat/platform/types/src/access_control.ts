@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {ChannelWithTeamData} from './channels';
+﻿import type {ChannelWithTeamData} from './channels';
 import type {UserProfile} from './users';
 export type AccessControlPolicy = {
     id: string;

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import remove from 'lodash/remove';
+﻿import remove from 'lodash/remove';
 import type {AnyAction} from 'redux';
 import {combineReducers} from 'redux';
 

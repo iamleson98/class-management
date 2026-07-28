@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import styled, {css} from 'styled-components';
+﻿import styled, {css} from 'styled-components';
 
 // Shared row style for product-switcher menu entries. Both the link-based ProductMenuItem and the
 // button-based ProductSwitcherMenuItem use this so the shared dimensions, hover, and text styles

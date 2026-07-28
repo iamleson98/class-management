@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {Invoice, Subscription} from '@mattermost/types/cloud';
+﻿import type {Invoice, Subscription} from '@mattermost/types/cloud';
 
 import {createSelector} from 'mattermost-redux/selectors/create_selector';
 import {getConfig} from 'mattermost-redux/selectors/entities/general';

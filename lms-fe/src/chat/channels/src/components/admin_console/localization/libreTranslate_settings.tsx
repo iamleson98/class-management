@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import React, {useCallback, useState} from 'react';
+﻿import React, {useCallback, useState} from 'react';
 import {defineMessage, FormattedMessage} from 'react-intl';
 
 import type {AutoTranslationSettings} from '@mattermost/types/config';

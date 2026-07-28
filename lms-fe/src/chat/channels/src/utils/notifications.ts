@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import icon50 from 'images/icon50x50.png';
+﻿import icon50 from 'images/icon50x50.png';
 
 import type {ThunkActionFunc} from 'types/store';
 

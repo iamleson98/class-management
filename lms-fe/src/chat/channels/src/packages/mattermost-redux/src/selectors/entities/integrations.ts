@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {IncomingWebhook, OutgoingWebhook, Command} from '@mattermost/types/integrations';
+﻿import type {IncomingWebhook, OutgoingWebhook, Command} from '@mattermost/types/integrations';
 import type {GlobalState} from '@mattermost/types/store';
 import type {IDMappedObjects} from '@mattermost/types/utilities';
 

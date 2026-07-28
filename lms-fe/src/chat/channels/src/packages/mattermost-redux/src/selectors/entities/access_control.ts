@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {Channel, ChannelWithTeamData, ChannelSearchOpts} from '@mattermost/types/channels';
+﻿import type {Channel, ChannelWithTeamData, ChannelSearchOpts} from '@mattermost/types/channels';
 import type {AccessControlSettings} from '@mattermost/types/config';
 import type {GlobalState} from '@mattermost/types/store';
 

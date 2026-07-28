@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {Address, CloudCustomerPatch} from '@mattermost/types/cloud';
+﻿import type {Address, CloudCustomerPatch} from '@mattermost/types/cloud';
 
 import {CloudTypes} from 'mattermost-redux/action_types';
 import {Client4} from 'mattermost-redux/client';

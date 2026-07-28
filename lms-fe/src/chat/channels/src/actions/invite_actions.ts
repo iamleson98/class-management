@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {defineMessage} from 'react-intl';
+﻿import {defineMessage} from 'react-intl';
 
 import type {Channel, ChannelMembership} from '@mattermost/types/channels';
 import type {TeamMemberWithError, TeamInviteWithError} from '@mattermost/types/teams';

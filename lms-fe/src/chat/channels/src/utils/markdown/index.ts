@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import marked from 'marked';
+﻿import marked from 'marked';
 
 import {createSelector} from 'mattermost-redux/selectors/create_selector';
 import {getAutolinkedUrlSchemes, getConfig} from 'mattermost-redux/selectors/entities/general';

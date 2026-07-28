@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-/* eslint-disable no-console, no-process-env */
+﻿/* eslint-disable no-console, no-process-env */
 
 const path = require('path');
 const url = require('url');

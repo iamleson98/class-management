@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-/* eslint-disable no-underscore-dangle */
+﻿/* eslint-disable no-underscore-dangle */
 /* eslint-disable react/prop-types */
 
 import memoizeOne from 'memoize-one';

@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-export type RelationOneToOne<E extends {id: string}, T> = {
+﻿export type RelationOneToOne<E extends {id: string}, T> = {
     [x in E['id']]: T;
 };
 export type RelationOneToMany<E1 extends {id: string}, E2 extends {id: string}> = {

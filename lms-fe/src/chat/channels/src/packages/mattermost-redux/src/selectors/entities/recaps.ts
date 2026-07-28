@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {Recap} from '@mattermost/types/recaps';
+﻿import type {Recap} from '@mattermost/types/recaps';
 import {RecapStatus} from '@mattermost/types/recaps';
 import type {GlobalState} from '@mattermost/types/store';
 

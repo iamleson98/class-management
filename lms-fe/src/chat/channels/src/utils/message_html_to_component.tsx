@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {Parser, ProcessNodeDefinitions} from 'html-to-react';
+﻿import {Parser, ProcessNodeDefinitions} from 'html-to-react';
 import type {AllHTMLAttributes} from 'react';
 import React from 'react';
 

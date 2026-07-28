@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {isSystemEmoji, type Emoji} from '@mattermost/types/emojis';
+﻿import {isSystemEmoji, type Emoji} from '@mattermost/types/emojis';
 
 import {Client4} from 'mattermost-redux/client';
 

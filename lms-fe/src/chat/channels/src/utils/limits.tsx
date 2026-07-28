@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {FormatNumberOptions} from 'react-intl';
+﻿import type {FormatNumberOptions} from 'react-intl';
 
 import type {CloudUsage, Limits} from '@mattermost/types/cloud';
 

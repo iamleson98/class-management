@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {ClientConfig, FeatureFlags, ClientLicense} from '@mattermost/types/config';
+﻿import type {ClientConfig, FeatureFlags, ClientLicense} from '@mattermost/types/config';
 import type {UserPropertyField} from '@mattermost/types/properties';
 import type {GlobalState} from '@mattermost/types/store';
 

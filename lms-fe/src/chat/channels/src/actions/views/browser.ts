@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {Constants, ActionTypes, WindowSizes} from 'utils/constants';
+﻿import {Constants, ActionTypes, WindowSizes} from 'utils/constants';
 
 export function emitBrowserWindowResized(windowSize?: string) {
     let newWindowSize = windowSize;

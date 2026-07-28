@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import Emoji from './emoji';
+﻿import Emoji from './emoji';
 import Files from './files';
 import General from './general';
 import Permissions from './permissions';

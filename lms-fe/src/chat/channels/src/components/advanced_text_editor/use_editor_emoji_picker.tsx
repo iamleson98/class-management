@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {flip, offset, shift} from '@floating-ui/react';
+﻿import {flip, offset, shift} from '@floating-ui/react';
 import classNames from 'classnames';
 import React, {useCallback, useState} from 'react';
 import {useIntl} from 'react-intl';

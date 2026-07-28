@@ -1,6 +1,3 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import RenewalLink from './renewal_link';
+﻿import RenewalLink from './renewal_link';
 
 export default RenewalLink;

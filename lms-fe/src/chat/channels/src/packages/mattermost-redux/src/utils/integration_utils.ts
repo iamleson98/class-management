@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {parseISO, isValid, addDays, addWeeks, addMonths, addHours, addMinutes, addSeconds, startOfDay} from 'date-fns';
+﻿import {parseISO, isValid, addDays, addWeeks, addMonths, addHours, addMinutes, addSeconds, startOfDay} from 'date-fns';
 import {defineMessage} from 'react-intl';
 
 import type {DialogElement} from '@mattermost/types/integrations';

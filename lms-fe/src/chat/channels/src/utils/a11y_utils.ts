@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import a11y from './a11y_controller_instance';
+﻿import a11y from './a11y_controller_instance';
 import type {A11yFocusEventDetail} from './constants';
 import {A11yCustomEventTypes} from './constants';
 

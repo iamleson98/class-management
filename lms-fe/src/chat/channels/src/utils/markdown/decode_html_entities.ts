@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-// Allowlist of HTML entities to decode. Intentionally a subset of Go's html.UnescapeString —
+﻿// Allowlist of HTML entities to decode. Intentionally a subset of Go's html.UnescapeString —
 // only the 5 standard named entities and common ASCII decimal numeric entities are supported.
 // Hex entities (&#xNN;) and the full HTML5 named set are excluded to keep the surface area
 // minimal for React JSX rendering contexts (attachment titles, author names, footers).

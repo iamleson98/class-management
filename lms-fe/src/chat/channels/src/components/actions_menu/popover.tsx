@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {PopoverOrigin} from '@mui/material/Popover';
+﻿import type {PopoverOrigin} from '@mui/material/Popover';
 import MuiPopover from '@mui/material/Popover';
 import classNames from 'classnames';
 import React, {useCallback} from 'react';

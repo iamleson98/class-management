@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import classNames from 'classnames';
+﻿import classNames from 'classnames';
 import type {Moment} from 'moment-timezone';
 import moment from 'moment-timezone';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';

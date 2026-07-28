@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import classNames from 'classnames';
+﻿import classNames from 'classnames';
 import React from 'react';
 import {defineMessage, FormattedMessage, useIntl} from 'react-intl';
 import {shallowEqual, useSelector} from 'react-redux';

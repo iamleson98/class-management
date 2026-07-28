@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {History} from 'history';
+﻿import type {History} from 'history';
 
 import {LogLevel} from '@mattermost/types/client4';
 import type {ServerError} from '@mattermost/types/errors';

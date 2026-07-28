@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {DateTime} from 'luxon';
+﻿import {DateTime} from 'luxon';
 import moment, {type Moment} from 'moment-timezone';
 import type {useIntl} from 'react-intl';
 

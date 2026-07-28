@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import ColorContrastChecker from 'color-contrast-checker';
+﻿import ColorContrastChecker from 'color-contrast-checker';
 import ColorHash from 'color-hash';
 
 const REQUIRED_COLOR_RATIO = 4.5;

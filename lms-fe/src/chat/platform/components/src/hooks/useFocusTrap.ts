@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import {useEffect, useRef} from 'react';
+﻿import {useEffect, useRef} from 'react';
 
 // A global stack to hold active focus trap containers.
 // This ensures that only the topmost trap processes Tab events.

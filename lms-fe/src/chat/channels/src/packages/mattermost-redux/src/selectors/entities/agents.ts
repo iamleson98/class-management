@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import type {Agent, LLMService} from '@mattermost/types/agents';
+﻿import type {Agent, LLMService} from '@mattermost/types/agents';
 import type {GlobalState} from '@mattermost/types/store';
 
 export function getAgents(state: GlobalState): Agent[] {

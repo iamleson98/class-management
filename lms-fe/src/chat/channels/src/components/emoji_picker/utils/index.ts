@@ -1,7 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
-// See LICENSE.txt for license information.
-
-import isEmpty from 'lodash/isEmpty';
+﻿import isEmpty from 'lodash/isEmpty';
 
 import type {Emoji, EmojiCategory, SystemEmoji} from '@mattermost/types/emojis';
 
