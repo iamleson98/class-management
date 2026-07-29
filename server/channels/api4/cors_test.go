@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/iamleson98/sitename/server/public/model"
-	"github.com/iamleson98/sitename/server/v8/channels/store/storetest/mocks"
 )
 
 const (
@@ -124,9 +123,6 @@ func TestCORSRequestHandling(t *testing.T) {
 				*cfg.ServiceSettings.CorsExposedHeaders = testcase.CorsExposedHeaders
 				*cfg.ServiceSettings.CorsAllowCredentials = testcase.CorsAllowCredentials
 			})
-			licenseStore := mocks.LicenseStore{}
-			licenseStore.On("Get", "").Return(&model.LicenseRecord{}, nil)
-			th.App.Srv().Store().(*mocks.Store).On("License").Return(&licenseStore)
 
 			port := th.App.Srv().ListenAddr.Port
 			host := fmt.Sprintf("http://localhost:%v", port)

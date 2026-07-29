@@ -15,7 +15,6 @@ type UserService struct {
 	metrics      einterfaces.MetricsInterface
 	cluster      einterfaces.ClusterInterface
 	config       func() *model.Config
-	license      func() *model.License
 }
 
 // ServiceConfig is used to initialize the UserService.

@@ -611,10 +611,6 @@ func TestGetMarketplacePlugins(t *testing.T) {
 			*cfg.PluginSettings.MarketplaceURL = testServer.URL
 		})
 
-		l := model.NewTestLicense()
-		// model.NewTestLicense generates a E20 license
-		*l.Features.EnterprisePlugins = false
-
 		plugins, _, err := client.GetMarketplacePlugins(context.Background(), &model.MarketplacePluginFilter{})
 		require.NoError(t, err)
 		require.Empty(t, plugins)
@@ -1606,10 +1602,6 @@ func TestInstallMarketplacePlugin(t *testing.T) {
 			*cfg.PluginSettings.EnableRemoteMarketplace = true
 			*cfg.PluginSettings.MarketplaceURL = testServer.URL
 		})
-
-		l := model.NewTestLicense()
-		// model.NewTestLicense generates a E20 license
-		*l.Features.EnterprisePlugins = false
 
 		pRequest := &model.InstallMarketplacePluginRequest{Id: "testplugin"}
 		manifest, resp, err := client.InstallMarketplacePlugin(context.Background(), pRequest)

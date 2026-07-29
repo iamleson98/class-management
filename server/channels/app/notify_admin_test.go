@@ -33,14 +33,14 @@ func Test_SendNotifyAdminPosts(t *testing.T) {
 		// some notifications
 		_, appErr := th.App.SaveAdminNotifyData(&model.NotifyAdminData{
 			UserId:          th.BasicUser.Id,
-			RequiredPlan:    model.LicenseShortSkuProfessional,
+			RequiredPlan:    "professional",
 			RequiredFeature: model.PaidFeatureGuestAccounts,
 		})
 		require.Nil(t, appErr)
 
 		_, appErr = th.App.SaveAdminNotifyData(&model.NotifyAdminData{
 			UserId:          th.BasicUser2.Id,
-			RequiredPlan:    model.LicenseShortSkuProfessional,
+			RequiredPlan:    "professional",
 			RequiredFeature: model.PaidFeatureGuestAccounts,
 		})
 		require.Nil(t, appErr)
@@ -83,7 +83,7 @@ func Test_SendNotifyAdminPosts(t *testing.T) {
 		// some notifications
 		_, appErr := th.App.SaveAdminNotifyData(&model.NotifyAdminData{
 			UserId:          th.BasicUser.Id,
-			RequiredPlan:    model.LicenseShortSkuProfessional,
+			RequiredPlan:    "professional",
 			RequiredFeature: model.PaidFeatureAllProfessionalfeatures,
 			Trial:           true,
 		})
@@ -127,7 +127,7 @@ func Test_SendNotifyAdminPosts(t *testing.T) {
 		// some notifications
 		_, appErr := th.App.SaveAdminNotifyData(&model.NotifyAdminData{
 			UserId:          th.BasicUser.Id,
-			RequiredPlan:    model.LicenseShortSkuProfessional,
+			RequiredPlan:    "professional",
 			RequiredFeature: model.PaidFeatureAllProfessionalfeatures,
 		})
 		require.Nil(t, appErr)
@@ -138,7 +138,7 @@ func Test_SendNotifyAdminPosts(t *testing.T) {
 		// add some more notifications while in cool off
 		_, appErr = th.App.SaveAdminNotifyData(&model.NotifyAdminData{
 			UserId:          th.BasicUser.Id,
-			RequiredPlan:    model.LicenseShortSkuProfessional,
+			RequiredPlan:    "professional",
 			RequiredFeature: model.PaidFeatureCustomUsergroups,
 		})
 		require.Nil(t, appErr)
@@ -158,7 +158,7 @@ func Test_SendNotifyAdminPosts(t *testing.T) {
 		// some notifications
 		_, appErr := th.App.SaveAdminNotifyData(&model.NotifyAdminData{
 			UserId:          th.BasicUser.Id,
-			RequiredPlan:    model.LicenseShortSkuProfessional,
+			RequiredPlan:    "professional",
 			RequiredFeature: model.PaidFeatureAllProfessionalfeatures,
 		})
 		require.Nil(t, appErr)
@@ -169,7 +169,7 @@ func Test_SendNotifyAdminPosts(t *testing.T) {
 		// add some more notifications while in cool off
 		_, appErr = th.App.SaveAdminNotifyData(&model.NotifyAdminData{
 			UserId:          th.BasicUser.Id,
-			RequiredPlan:    model.LicenseShortSkuProfessional,
+			RequiredPlan:    "professional",
 			RequiredFeature: model.PaidFeatureCustomUsergroups,
 		})
 		require.Nil(t, appErr)
@@ -187,7 +187,7 @@ func Test_SendNotifyAdminPosts(t *testing.T) {
 		// some notifications
 		_, appErr := th.App.SaveAdminNotifyData(&model.NotifyAdminData{
 			UserId:          th.BasicUser.Id,
-			RequiredPlan:    model.LicenseShortSkuProfessional,
+			RequiredPlan:    "professional",
 			RequiredFeature: model.PaidFeatureAllProfessionalfeatures,
 			Trial:           false,
 		})
@@ -195,13 +195,13 @@ func Test_SendNotifyAdminPosts(t *testing.T) {
 
 		_, appErr = th.App.SaveAdminNotifyData(&model.NotifyAdminData{
 			UserId:          th.BasicUser2.Id,
-			RequiredPlan:    model.LicenseShortSkuEnterprise,
+			RequiredPlan:    "enterprise",
 			RequiredFeature: model.PaidFeatureAllEnterprisefeatures,
 			Trial:           false,
 		})
 		require.Nil(t, appErr)
 
-		appErr = th.App.SendNotifyAdminPosts(th.Context, "test", model.LicenseShortSkuProfessional, false) // try and send notification but workspace currentSKU has since changed to cloud-professional
+		appErr = th.App.SendNotifyAdminPosts(th.Context, "test", "professional", false) // try and send notification but workspace currentSKU has since changed to cloud-professional
 		require.Nil(t, appErr)
 
 		bot, appErr := th.App.GetSystemBot(th.Context)

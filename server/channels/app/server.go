@@ -418,7 +418,7 @@ func NewServer(options ...Option) (*Server, error) {
 		}
 	}
 
-	s.platform.RemoveUnlicensedLogTargets(nil)
+	s.platform.RemoveUnlicensedLogTargets()
 	s.platform.EnableLoggingMetrics()
 
 	// if enabled - perform initial product notices fetch

@@ -34,9 +34,9 @@ func MakeUpgradeNotifyWorker(jobServer *jobs.JobServer, app AppIface) *jobs.Simp
 	return worker
 }
 
-func MakeTrialNotifyWorker(jobServer *jobs.JobServer, license *model.License, app AppIface) *jobs.SimpleWorker {
+func MakeTrialNotifyWorker(jobServer *jobs.JobServer, app AppIface) *jobs.SimpleWorker {
 	isEnabled := func(_ *model.Config) bool {
-		return license != nil && license.Features != nil && *license.Features.Cloud
+		return true
 	}
 	execute := func(logger mlog.LoggerIFace, job *model.Job) error {
 		defer jobServer.HandleJobPanic(logger, job)

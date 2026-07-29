@@ -26,9 +26,6 @@ type Permission struct {
 var PermissionInviteUser *Permission
 var PermissionAddUserToTeam *Permission
 
-// Deprecated: PermissionUseSlashCommands is not longer used. It's only kept for backwards compatibility.
-// See https://mattermost.atlassian.net/browse/MM-52574 for more details.
-var PermissionUseSlashCommands *Permission
 var PermissionManageSlashCommands *Permission
 var PermissionManageOthersSlashCommands *Permission
 var PermissionCreatePublicChannel *Permission
@@ -410,26 +407,26 @@ var PermissionRestoreCustomGroup *Permission
 // ============================================================================
 
 var (
-	PermissionLmsManageBranches     *Permission
-	PermissionLmsManageCourses      *Permission
-	PermissionLmsManageClasses      *Permission
-	PermissionLmsManageSessions     *Permission
-	PermissionLmsManageAttendance   *Permission
-	PermissionLmsManageLeads        *Permission
-	PermissionLmsManageTuition      *Permission
-	PermissionLmsManagePosts        *Permission
-	PermissionLmsManageHomework     *Permission
+	PermissionLmsManageBranches      *Permission
+	PermissionLmsManageCourses       *Permission
+	PermissionLmsManageClasses       *Permission
+	PermissionLmsManageSessions      *Permission
+	PermissionLmsManageAttendance    *Permission
+	PermissionLmsManageLeads         *Permission
+	PermissionLmsManageTuition       *Permission
+	PermissionLmsManagePosts         *Permission
+	PermissionLmsManageHomework      *Permission
 	PermissionLmsManageWeeklyReviews *Permission
-	PermissionLmsManageMaterials    *Permission
-	PermissionLmsManageTasks        *Permission
-	PermissionLmsManageBanners      *Permission
-	PermissionLmsViewNotifications *Permission
-	PermissionLmsManageClassMedia   *Permission
-	PermissionLmsManageDashboard    *Permission
-	PermissionLmsViewReports        *Permission
-	PermissionLmsManageStudents     *Permission
-	PermissionLmsManageUsers        *Permission
-	PermissionLmsManageFeePackages  *Permission
+	PermissionLmsManageMaterials     *Permission
+	PermissionLmsManageTasks         *Permission
+	PermissionLmsManageBanners       *Permission
+	PermissionLmsViewNotifications   *Permission
+	PermissionLmsManageClassMedia    *Permission
+	PermissionLmsManageDashboard     *Permission
+	PermissionLmsViewReports         *Permission
+	PermissionLmsManageStudents      *Permission
+	PermissionLmsManageUsers         *Permission
+	PermissionLmsManageFeePackages   *Permission
 )
 
 var AllPermissions []*Permission
@@ -456,12 +453,6 @@ func initializePermissions() {
 		"authentication.permissions.add_user_to_team.name",
 		"authentication.permissions.add_user_to_team.description",
 		PermissionScopeTeam,
-	}
-	PermissionUseSlashCommands = &Permission{
-		"use_slash_commands",
-		"authentication.permissions.team_use_slash_commands.name",
-		"authentication.permissions.team_use_slash_commands.description",
-		PermissionScopeChannel,
 	}
 	// DEPRECATED - use PermissionManageOwnSlashCommands instead
 	PermissionManageSlashCommands = &Permission{
@@ -2703,7 +2694,6 @@ func initializePermissions() {
 	}
 
 	ChannelScopedPermissions := []*Permission{
-		PermissionUseSlashCommands,
 		PermissionManagePublicChannelMembers,
 		PermissionManagePrivateChannelMembers,
 		PermissionManageChannelRoles,

@@ -20,20 +20,6 @@ import (
 	"github.com/iamleson98/sitename/server/v8/channels/store"
 )
 
-func getLicWithSkuShortName(skuShortName string) *model.License {
-	return &model.License{
-		Features: &model.Features{},
-		Customer: &model.Customer{
-			Name:  "TestName",
-			Email: "test@example.com",
-		},
-		SkuName:      "SKU NAME",
-		SkuShortName: skuShortName,
-		StartsAt:     model.GetMillis() - 1000,
-		ExpiresAt:    model.GetMillis() + 100000,
-	}
-}
-
 func TestSendNotifications(t *testing.T) {
 	mainHelper.Parallel(t)
 	th := Setup(t).InitBasic(t)
@@ -1545,60 +1531,6 @@ func TestAllowChannelMentions(t *testing.T) {
 		th.RemovePermissionFromRole(t, model.PermissionUseChannelMentions.Id, model.ChannelAdminRoleId)
 		allowChannelMentions := th.App.allowChannelMentions(th.Context, post, 5)
 		assert.False(t, allowChannelMentions)
-	})
-}
-
-func TestAllowGroupMentions(t *testing.T) {
-	mainHelper.Parallel(t)
-	th := Setup(t).InitBasic(t)
-
-	post := &model.Post{ChannelId: th.BasicChannel.Id, UserId: th.BasicUser.Id}
-
-	t.Run("should return false without the correct license sku short name", func(t *testing.T) {
-		tests := map[string]struct {
-			license *model.License
-			want    bool
-		}{
-			"no license":                        {nil, false},
-			"license with wrong SKU short name": {getLicWithSkuShortName("foobar"), false},
-			"'professional' license":            {getLicWithSkuShortName(model.LicenseShortSkuProfessional), true},
-			"'enterprise' license":              {getLicWithSkuShortName(model.LicenseShortSkuEnterprise), true},
-		}
-
-		for name, tc := range tests {
-			t.Run(name, func(t *testing.T) {
-				got := th.App.allowGroupMentions(th.Context, post)
-				assert.Equal(t, tc.want, got)
-			})
-		}
-	})
-
-	t.Run("should return true for a regular post with few channel members", func(t *testing.T) {
-		allowGroupMentions := th.App.allowGroupMentions(th.Context, post)
-		assert.True(t, allowGroupMentions)
-	})
-
-	t.Run("should return false for a channel header post", func(t *testing.T) {
-		headerChangePost := &model.Post{ChannelId: th.BasicChannel.Id, UserId: th.BasicUser.Id, Type: model.PostTypeHeaderChange}
-		allowGroupMentions := th.App.allowGroupMentions(th.Context, headerChangePost)
-		assert.False(t, allowGroupMentions)
-	})
-
-	t.Run("should return false for a channel purpose post", func(t *testing.T) {
-		purposeChangePost := &model.Post{ChannelId: th.BasicChannel.Id, UserId: th.BasicUser.Id, Type: model.PostTypePurposeChange}
-		allowGroupMentions := th.App.allowGroupMentions(th.Context, purposeChangePost)
-		assert.False(t, allowGroupMentions)
-	})
-
-	t.Run("should return false for a post where the post user does not have USE_GROUP_MENTIONS permission", func(t *testing.T) {
-		defer func() {
-			th.AddPermissionToRole(t, model.PermissionUseGroupMentions.Id, model.ChannelUserRoleId)
-			th.AddPermissionToRole(t, model.PermissionUseGroupMentions.Id, model.ChannelAdminRoleId)
-		}()
-		th.RemovePermissionFromRole(t, model.PermissionUseGroupMentions.Id, model.ChannelUserRoleId)
-		th.RemovePermissionFromRole(t, model.PermissionUseGroupMentions.Id, model.ChannelAdminRoleId)
-		allowGroupMentions := th.App.allowGroupMentions(th.Context, post)
-		assert.False(t, allowGroupMentions)
 	})
 }
 

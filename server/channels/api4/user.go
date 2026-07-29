@@ -473,7 +473,7 @@ func getDefaultProfileImage(c *Context, w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%v, private", model.DayInSeconds)) // 24 hrs
+	w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%v, private", 24*60*60)) // 24 hrs
 	w.Header().Set("Content-Type", "image/png")
 	if _, err := w.Write(img); err != nil {
 		c.Logger.Warn("Error while writing response", mlog.Err(err))
@@ -518,7 +518,7 @@ func getProfileImage(c *Context, w http.ResponseWriter, r *http.Request) {
 	if readFailed {
 		w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%v, private", 5*60)) // 5 mins
 	} else {
-		w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%v, private", model.DayInSeconds)) // 24 hrs
+		w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%v, private", 24*60*60)) // 24 hrs
 		w.Header().Set(model.HeaderEtagServer, etag)
 	}
 

@@ -12,20 +12,6 @@ import (
 )
 
 func Test_getIPFilters(t *testing.T) {
-	lic := &model.License{
-		Features: &model.Features{
-			CustomPermissionsSchemes: model.NewPointer(false),
-			Cloud:                    model.NewPointer(true),
-		},
-		Customer: &model.Customer{
-			Name:  "TestName",
-			Email: "test@example.com",
-		},
-		SkuName:      "SKU NAME",
-		SkuShortName: model.LicenseShortSkuEnterprise,
-		StartsAt:     model.GetMillis() - 1000,
-		ExpiresAt:    model.GetMillis() + 100000,
-	}
 
 	t.Run("No license returns 501", func(t *testing.T) {
 		t.Setenv("MM_FEATUREFLAGS_CLOUDIPFILTERING", "true")
@@ -111,8 +97,6 @@ func Test_getIPFilters(t *testing.T) {
 		}, nil)
 		th.App.Srv().IPFiltering = ipFiltering
 
-		lic.Features.Cloud = model.NewPointer(false)
-
 		_, _, err := th.Client.Login(context.Background(), th.SystemAdminUser.Email, th.SystemAdminUser.Password)
 		require.NoError(t, err)
 
@@ -130,9 +114,6 @@ func Test_applyIPFilters(t *testing.T) {
 			Description: "test",
 		},
 	}
-
-	lic := model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise, "cloud")
-	lic.Id = "testlicenseid"
 
 	// Initialize the allowedRanges variable
 	t.Run("No license returns 501", func(t *testing.T) {

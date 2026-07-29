@@ -2832,12 +2832,6 @@ func TestCountMentionsFromPost(t *testing.T) {
 		mainHelper.Parallel(t)
 		th := Setup(t).InitBasic(t)
 
-		// Create an Entry license with post history limits
-		license := model.NewTestLicenseSKU(model.LicenseShortSkuMattermostEntry)
-		license.Limits = &model.LicenseLimits{
-			PostHistory: 10000, // Set some post history limit to enable filtering
-		}
-
 		user1 := th.BasicUser
 		user2 := th.BasicUser2
 
@@ -3890,23 +3884,13 @@ func TestGetLastAccessiblePostTime(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, int64(0), r)
 
-	// Test with Entry license but no limits configured - should return 0
-	entryLicenseNoLimits := model.NewTestLicenseSKU(model.LicenseShortSkuMattermostEntry)
-	entryLicenseNoLimits.Limits = nil // No limits configured
 	r, err = th.App.GetLastAccessiblePostTime()
 	assert.Nil(t, err)
 	assert.Equal(t, int64(0), r, "Entry license with no limits should return 0")
 
-	// Test with Entry license with zero post history limit - should return 0
-	entryLicenseZeroLimit := model.NewTestLicenseSKU(model.LicenseShortSkuMattermostEntry)
-	entryLicenseZeroLimit.Limits = &model.LicenseLimits{PostHistory: 0} // Zero limit
 	r, err = th.App.GetLastAccessiblePostTime()
 	assert.Nil(t, err)
 	assert.Equal(t, int64(0), r, "Entry license with zero post history limit should return 0")
-
-	// Test with Entry license that has post history limits
-	entryLicenseWithLimits := model.NewTestLicenseSKU(model.LicenseShortSkuMattermostEntry)
-	entryLicenseWithLimits.Limits = &model.LicenseLimits{PostHistory: 1000} // Actual limit
 
 	// Test case 1: No system value found (ErrNotFound) - should return 0
 	mockSystemStore := storemocks.SystemStore{}
@@ -3937,10 +3921,6 @@ func TestComputeLastAccessiblePostTime(t *testing.T) {
 	t.Run("Updates the time, if Entry license limit is applicable", func(t *testing.T) {
 		th := SetupWithStoreMock(t)
 
-		// Set Entry license with post history limit of 100 messages
-		entryLicensePostsLimit := model.NewTestLicenseSKU(model.LicenseShortSkuMattermostEntry)
-		entryLicensePostsLimit.Limits = &model.LicenseLimits{PostHistory: 100}
-
 		mockStore := th.App.Srv().Store().(*storemocks.Store)
 		mockPostStore := storemocks.PostStore{}
 		mockPostStore.On("GetNthRecentPostTime", int64(100)).Return(int64(1234567890), nil)
@@ -3961,10 +3941,6 @@ func TestComputeLastAccessiblePostTime(t *testing.T) {
 
 	t.Run("Remove the time if license limit is NOT applicable", func(t *testing.T) {
 		th := SetupWithStoreMock(t)
-
-		// Set license without post history limits (using test license without limits)
-		license := model.NewTestLicense()
-		license.Limits = nil // No limits
 
 		mockStore := th.App.Srv().Store().(*storemocks.Store)
 		mockSystemStore := storemocks.SystemStore{}

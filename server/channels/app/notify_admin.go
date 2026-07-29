@@ -124,7 +124,7 @@ func (a *App) SendNotifyAdminPosts(rctx request.CTX, workspaceName string, curre
 	return nil
 }
 
-func (a *App) upgradePlanAdminNotifyPost(rctx request.CTX, workspaceName string, userBasedData map[string][]*model.NotifyAdminData, featureBasedData map[model.MattermostFeature][]*model.NotifyAdminData, systemBot *model.Bot, admin *model.User, trial bool) {
+func (a *App) upgradePlanAdminNotifyPost(rctx request.CTX, workspaceName string, userBasedData map[string][]*model.NotifyAdminData, featureBasedData map[model.SitenameFeature][]*model.NotifyAdminData, systemBot *model.Bot, admin *model.User, trial bool) {
 	props := make(model.StringInterface)
 	T := i18n.GetUserTranslations(admin.Locale)
 
@@ -164,7 +164,7 @@ func (a *App) upgradePlanAdminNotifyPost(rctx request.CTX, workspaceName string,
 	}
 }
 
-func (a *App) UserAlreadyNotifiedOnRequiredFeature(user string, feature model.MattermostFeature) bool {
+func (a *App) UserAlreadyNotifiedOnRequiredFeature(user string, feature model.SitenameFeature) bool {
 	data, err := a.Srv().Store().NotifyAdmin().GetDataByUserIdAndFeature(user, feature)
 	if err != nil {
 		return false
@@ -248,8 +248,8 @@ func (a *App) groupNotifyAdminByUser(data []*model.NotifyAdminData) map[string][
 	return userBasedPaidFeatureData
 }
 
-func (a *App) groupNotifyAdminByPaidFeature(data []*model.NotifyAdminData) map[model.MattermostFeature][]*model.NotifyAdminData {
-	myMap := make(map[model.MattermostFeature][]*model.NotifyAdminData)
+func (a *App) groupNotifyAdminByPaidFeature(data []*model.NotifyAdminData) map[model.SitenameFeature][]*model.NotifyAdminData {
+	myMap := make(map[model.SitenameFeature][]*model.NotifyAdminData)
 	for _, d := range data {
 		if strings.HasPrefix(string(d.RequiredFeature), string(model.PluginFeature)) {
 			continue

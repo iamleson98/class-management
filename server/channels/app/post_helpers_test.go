@@ -194,10 +194,6 @@ func TestFilterInaccessiblePosts(t *testing.T) {
 	mainHelper.Parallel(t)
 	th := Setup(t)
 
-	// Set up license with PostHistory limits to enable post filtering
-	cloudLicenseWithLimits := model.NewTestLicense("cloud")
-	cloudLicenseWithLimits.Limits = &model.LicenseLimits{PostHistory: 100}
-
 	err := th.App.Srv().Store().System().Save(&model.System{
 		Name:  model.SystemLastAccessiblePostTime,
 		Value: "2",
@@ -326,9 +322,6 @@ func TestGetFilteredAccessiblePosts(t *testing.T) {
 	mainHelper.Parallel(t)
 	th := Setup(t)
 
-	entryLicenseWithLimits := model.NewTestLicenseSKU(model.LicenseShortSkuMattermostEntry)
-	entryLicenseWithLimits.Limits = &model.LicenseLimits{PostHistory: 100}
-
 	err := th.App.Srv().Store().System().Save(&model.System{
 		Name:  model.SystemLastAccessiblePostTime,
 		Value: "2",
@@ -369,10 +362,6 @@ func TestGetFilteredAccessiblePosts(t *testing.T) {
 func TestIsInaccessiblePost(t *testing.T) {
 	mainHelper.Parallel(t)
 	th := Setup(t)
-
-	// Set up license with PostHistory limits to enable post filtering
-	entryLicenseWithLimits := model.NewTestLicenseSKU(model.LicenseShortSkuMattermostEntry)
-	entryLicenseWithLimits.Limits = &model.LicenseLimits{PostHistory: 100}
 
 	err := th.App.Srv().Store().System().Save(&model.System{
 		Name:  model.SystemLastAccessiblePostTime,

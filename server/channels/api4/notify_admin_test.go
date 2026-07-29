@@ -56,7 +56,7 @@ func TestNotifyAdmin(t *testing.T) {
 		th := Setup(t).InitBasic(t)
 
 		statusCode, err := th.Client.NotifyAdmin(context.Background(), &model.NotifyAdminToUpgradeRequest{
-			RequiredPlan:    model.LicenseShortSkuProfessional,
+			RequiredPlan:    "professional",
 			RequiredFeature: "Unknown feature",
 		})
 
@@ -70,7 +70,7 @@ func TestNotifyAdmin(t *testing.T) {
 		th := Setup(t).InitBasic(t)
 
 		statusCode, err := th.Client.NotifyAdmin(context.Background(), &model.NotifyAdminToUpgradeRequest{
-			RequiredPlan:      model.LicenseShortSkuProfessional,
+			RequiredPlan:      "professional",
 			RequiredFeature:   "Unknown feature",
 			TrialNotification: true,
 		})
@@ -85,7 +85,7 @@ func TestNotifyAdmin(t *testing.T) {
 		th := Setup(t).InitBasic(t)
 
 		statusCode, err := th.Client.NotifyAdmin(context.Background(), &model.NotifyAdminToUpgradeRequest{
-			RequiredPlan:    model.LicenseShortSkuProfessional,
+			RequiredPlan:    "professional",
 			RequiredFeature: model.PaidFeatureAllProfessionalfeatures,
 		})
 		require.NoError(t, err)
@@ -93,7 +93,7 @@ func TestNotifyAdmin(t *testing.T) {
 
 		// second attempt to notify for all professional features
 		statusCode, err = th.Client.NotifyAdmin(context.Background(), &model.NotifyAdminToUpgradeRequest{
-			RequiredPlan:    model.LicenseShortSkuProfessional,
+			RequiredPlan:    "professional",
 			RequiredFeature: model.PaidFeatureAllProfessionalfeatures,
 		})
 		require.Error(t, err)
@@ -107,7 +107,7 @@ func TestNotifyAdmin(t *testing.T) {
 		th := Setup(t).InitBasic(t)
 
 		statusCode, err := th.Client.NotifyAdmin(context.Background(), &model.NotifyAdminToUpgradeRequest{
-			RequiredPlan:    model.LicenseShortSkuProfessional,
+			RequiredPlan:    "professional",
 			RequiredFeature: model.PaidFeatureAllProfessionalfeatures,
 		})
 
@@ -151,7 +151,7 @@ func TestTriggerNotifyAdmin(t *testing.T) {
 		th.App.UpdateConfig(func(cfg *model.Config) { *cfg.ServiceSettings.EnableAPITriggerAdminNotifications = true })
 
 		statusCode, err := th.Client.NotifyAdmin(context.Background(), &model.NotifyAdminToUpgradeRequest{
-			RequiredPlan:    model.LicenseShortSkuProfessional,
+			RequiredPlan:    "professional",
 			RequiredFeature: model.PaidFeatureAllProfessionalfeatures,
 		})
 		require.NoError(t, err)

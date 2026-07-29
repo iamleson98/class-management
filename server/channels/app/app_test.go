@@ -13,19 +13,6 @@ import (
 	"github.com/iamleson98/sitename/server/v8/channels/store/storetest/mocks"
 )
 
-/* TODO: Temporarily comment out until MM-11108
-func TestAppRace(t *testing.T) {
-	for i := 0; i < 10; i++ {
-		a, err := New()
-		require.NoError(t, err)
-		a.UpdateConfig(func(cfg *model.Config) { *cfg.ServiceSettings.ListenAddress = "localhost:0" })
-		serverErr := a.StartServer()
-		require.NoError(t, serverErr)
-		a.Srv().Shutdown()
-	}
-}
-*/
-
 var allPermissionIDs []string
 
 func init() {
@@ -48,7 +35,6 @@ func TestUnitUpdateConfig(t *testing.T) {
 	mockSystemStore.On("GetByName", "InstallationDate").Return(&model.System{Name: "InstallationDate", Value: "10"}, nil)
 	mockSystemStore.On("GetByName", "FirstServerRunTimestamp").Return(&model.System{Name: "FirstServerRunTimestamp", Value: "10"}, nil)
 	mockLicenseStore := mocks.LicenseStore{}
-	mockLicenseStore.On("Get", "").Return(&model.LicenseRecord{}, nil)
 	mockStore.On("User").Return(&mockUserStore)
 	mockStore.On("Post").Return(&mockPostStore)
 	mockStore.On("System").Return(&mockSystemStore)

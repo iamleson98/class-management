@@ -1726,7 +1726,7 @@ func getTeamIcon(c *Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "image/png")
-	w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%v, private", model.DayInSeconds)) // 24 hrs
+	w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%v, private", 26*60*60)) // 24 hrs
 	w.Header().Set(model.HeaderEtagServer, etag)
 	if _, err := w.Write(img); err != nil {
 		c.Logger.Warn("Error while writing response", mlog.Err(err))

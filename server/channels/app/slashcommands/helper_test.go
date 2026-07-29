@@ -164,16 +164,6 @@ func (th *TestHelper) ShutdownApp() {
 	}
 }
 
-func getLicense(enterprise bool, cfg *model.Config) *model.License {
-	if *cfg.ConnectedWorkspacesSettings.EnableRemoteClusterService || *cfg.ConnectedWorkspacesSettings.EnableSharedChannels {
-		return model.NewTestLicenseSKU(model.LicenseShortSkuProfessional)
-	}
-	if enterprise {
-		return model.NewTestLicense()
-	}
-	return nil
-}
-
 func setup(tb testing.TB) *TestHelper {
 	if testing.Short() {
 		tb.SkipNow()
