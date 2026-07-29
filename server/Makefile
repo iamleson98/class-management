@@ -24,7 +24,7 @@ BUILD_TAGS =
 
 
 # Docker
-export COMPOSE_PROJECT_NAME=mattermost-server
+export COMPOSE_PROJECT_NAME=sitename-server
 
 # If we don't set the build number it defaults to dev
 ifeq ($(BUILD_NUMBER),)
@@ -46,7 +46,7 @@ endif
 # mmctl
 MMCTL_BUILD_TAGS =
 MMCTL_TESTFLAGS ?= -timeout 30m
-MMCTL_PKG = github.com/mattermost/mattermost/server/v8/cmd/mmctl/commands
+MMCTL_PKG = github.com/sitename/sitename/server/v8/cmd/mmctl/commands
 MMCTL_BUILD_DATE = $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 MMCTL_GIT_COMMIT = $(shell git rev-parse HEAD)
 ifeq ($(OS),Windows_NT)
@@ -67,7 +67,7 @@ BUILD_ENTERPRISE_READY = false
 BUILD_TYPE_NAME = team
 BUILD_HASH_ENTERPRISE = none
 ifneq ($(wildcard $(BUILD_ENTERPRISE_DIR)/.),)
-	MMCTL_TESTFLAGS += -ldflags '-X "$(MMCTL_PKG).EnableEnterpriseTests=true" -X "github.com/mattermost/mattermost/server/public/model.BuildEnterpriseReady=true"'
+	MMCTL_TESTFLAGS += -ldflags '-X "$(MMCTL_PKG).EnableEnterpriseTests=true" -X "github.com/sitename/sitename/server/public/model.BuildEnterpriseReady=true"'
 	MMCTL_BUILD_TAGS += enterprise
 
   ifeq ($(BUILD_ENTERPRISE),true)
@@ -130,11 +130,11 @@ ifeq ($(FIPS_ENABLED),true)
 endif
 
 	DELVE ?= $(GOBIN)/dlv
-LDFLAGS += -X "github.com/mattermost/mattermost/server/public/model.BuildNumber=$(BUILD_NUMBER)"
-LDFLAGS += -X "github.com/mattermost/mattermost/server/public/model.BuildDate=$(BUILD_DATE)"
-LDFLAGS += -X "github.com/mattermost/mattermost/server/public/model.BuildHash=$(BUILD_HASH)"
-LDFLAGS += -X "github.com/mattermost/mattermost/server/public/model.BuildHashEnterprise=$(BUILD_HASH_ENTERPRISE)"
-LDFLAGS += -X "github.com/mattermost/mattermost/server/public/model.BuildEnterpriseReady=$(BUILD_ENTERPRISE_READY)"
+LDFLAGS += -X "github.com/sitename/sitename/server/public/model.BuildNumber=$(BUILD_NUMBER)"
+LDFLAGS += -X "github.com/sitename/sitename/server/public/model.BuildDate=$(BUILD_DATE)"
+LDFLAGS += -X "github.com/sitename/sitename/server/public/model.BuildHash=$(BUILD_HASH)"
+LDFLAGS += -X "github.com/sitename/sitename/server/public/model.BuildHashEnterprise=$(BUILD_HASH_ENTERPRISE)"
+LDFLAGS += -X "github.com/sitename/sitename/server/public/model.BuildEnterpriseReady=$(BUILD_ENTERPRISE_READY)"
 
 GO_MAJOR_VERSION = $(shell $(GO) version | cut -c 14- | cut -d' ' -f1 | cut -d'.' -f1)
 GO_MINOR_VERSION = $(shell $(GO) version | cut -c 14- | cut -d' ' -f1 | cut -d'.' -f2)
@@ -146,18 +146,18 @@ GO_COMPATIBILITY_TEST_VERSIONS := 1.22.7 1.23.6
 # GOOS/GOARCH of the build host, used to determine whether we're cross-compiling or not
 BUILDER_GOOS_GOARCH="$(shell $(GO) env GOOS)_$(shell $(GO) env GOARCH)"
 
-PLATFORM_FILES="./cmd/mattermost"
+PLATFORM_FILES="./cmd/sitename"
 
 # Output paths
 DIST_ROOT=dist
-DIST_PATH=$(DIST_ROOT)/mattermost
-DIST_PATH_LIN_AMD64=$(DIST_ROOT)/linux_amd64/mattermost
-DIST_PATH_LIN_ARM64=$(DIST_ROOT)/linux_arm64/mattermost
-DIST_PATH_OSX_AMD64=$(DIST_ROOT)/darwin_amd64/mattermost
-DIST_PATH_OSX_ARM64=$(DIST_ROOT)/darwin_arm64/mattermost
-DIST_PATH_FREEBSD_AMD64=$(DIST_ROOT)/freebsd_amd64/mattermost
-DIST_PATH_FREEBSD_ARM64=$(DIST_ROOT)/freebsd_arm64/mattermost
-DIST_PATH_WIN=$(DIST_ROOT)/windows/mattermost
+DIST_PATH=$(DIST_ROOT)/sitename
+DIST_PATH_LIN_AMD64=$(DIST_ROOT)/linux_amd64/sitename
+DIST_PATH_LIN_ARM64=$(DIST_ROOT)/linux_arm64/sitename
+DIST_PATH_OSX_AMD64=$(DIST_ROOT)/darwin_amd64/sitename
+DIST_PATH_OSX_ARM64=$(DIST_ROOT)/darwin_arm64/sitename
+DIST_PATH_FREEBSD_AMD64=$(DIST_ROOT)/freebsd_amd64/sitename
+DIST_PATH_FREEBSD_ARM64=$(DIST_ROOT)/freebsd_arm64/sitename
+DIST_PATH_WIN=$(DIST_ROOT)/windows/sitename
 
 # Packages lists
 TE_PACKAGES=$(shell $(GO) list ./public/...) $(shell $(GO) list ./... | grep -vE 'server/v8/cmd/mmctl')
@@ -217,8 +217,8 @@ include config.mk
 include build/*.mk
 include public/Makefile
 
-LDFLAGS += -X "github.com/mattermost/mattermost/server/public/model.MockCWS=$(MM_ENABLE_CWS_MOCK)"
-LDFLAGS += -X "github.com/mattermost/mattermost/server/public/model.MattermostGiphySdkKey=$(MM_GIPHY_SDK_KEY)"
+LDFLAGS += -X "github.com/sitename/sitename/server/public/model.MockCWS=$(MM_ENABLE_CWS_MOCK)"
+LDFLAGS += -X "github.com/sitename/sitename/server/public/model.MattermostGiphySdkKey=$(MM_GIPHY_SDK_KEY)"
 
 RUN_IN_BACKGROUND ?=
 ifeq ($(RUN_SERVER_IN_BACKGROUND),true)
@@ -262,8 +262,9 @@ start-docker: setup-go-work ## Starts the docker containers for local developmen
 ifeq ($(MM_NO_DOCKER),true)
 	@echo No Docker Enabled: skipping docker start
 else
-	@echo "Starting dev dependencies: postgres  [$(DEV_COMPOSE)]"
+	@echo "Starting dev dependencies: postgres, minio, prometheus  [$(DEV_COMPOSE)]"
 	docker compose -f $(DEV_COMPOSE) up -d --wait
+	docker compose -f $(DEV_COMPOSE) --profile setup run --rm minio-init || true
 endif
 
 update-docker: setup-go-work stop-docker start-docker ## Recreates the dev dependency containers.
@@ -391,7 +392,7 @@ platform-mocks: setup-go-work ## Creates mocks for platform interfaces.
 
 mmctl-mocks: setup-go-work ## Creates mocks for mmctl
 	$(GO) install github.com/golang/mock/mockgen@v1.6.0
-	$(GOBIN)/mockgen -destination=cmd/mmctl/mocks/client_mock.go -copyright_file=cmd/mmctl/mocks/copyright.txt -package=mocks github.com/mattermost/mattermost/server/v8/cmd/mmctl/client Client
+	$(GOBIN)/mockgen -destination=cmd/mmctl/mocks/client_mock.go -copyright_file=cmd/mmctl/mocks/copyright.txt -package=mocks github.com/sitename/sitename/server/v8/cmd/mmctl/client Client
 
 pluginapi: setup-go-work ## Generates api and hooks glue code for plugins
 	cd ./public && $(GO) generate $(GOFLAGS) ./plugin
@@ -614,18 +615,18 @@ build-templates: ## Compile all mjml email templates
 	cd $(TEMPLATES_DIR) && $(MAKE) build
 
 run-server: stop-server setup-go-work prepackaged-binaries validate-go-version start-docker client ## Starts the server (kills existing first).
-	@echo Running mattermost for development
+	@echo Running sitename for development
 ifeq ($(MM_USE_PGVECTOR),true)
 	@echo With pgvector PostgreSQL support enabled
 endif
 
 ifeq ($(OS),Windows_NT)
 	@if not exist $(BUILD_WEBAPP_DIR_WIN)\channels\dist\files mkdir $(BUILD_WEBAPP_DIR_WIN)\channels\dist\files
-	$(GO) build $(GOFLAGS) -tags "$(BUILD_TAGS)" -o "$(GOBIN)\mattermost-dev.exe" $(PLATFORM_FILES)
+	$(GO) build $(GOFLAGS) -tags "$(BUILD_TAGS)" -o "$(GOBIN)\sitename-dev.exe" $(PLATFORM_FILES)
 ifeq ($(RUN_SERVER_IN_BACKGROUND),true)
-	@start /B "" "$(GOBIN)\mattermost-dev.exe"
+	@start /B "" "$(GOBIN)\sitename-dev.exe"
 else
-	"$(GOBIN)\mattermost-dev.exe"
+	"$(GOBIN)\sitename-dev.exe"
 endif
 else
 	mkdir -p $(BUILD_WEBAPP_DIR)/channels/dist/files
@@ -644,16 +645,16 @@ endif
 		done; \
 	fi; \
 	[ -f "$$LIBFAKETIME" ] || { echo "Error: libfaketime not found. Install it with your package manager."; exit 1; }; \
-	echo "Building mattermost..."; \
-	$(GO) build $(GOFLAGS) -ldflags '$(LDFLAGS)' -tags '$(BUILD_TAGS)' -o $(GOBIN)/mattermost-faketime $(PLATFORM_FILES); \
-	echo "Running mattermost with FAKETIME=$(FAKETIME) (libfaketime: $$LIBFAKETIME)"; \
+	echo "Building sitename..."; \
+	$(GO) build $(GOFLAGS) -ldflags '$(LDFLAGS)' -tags '$(BUILD_TAGS)' -o $(GOBIN)/sitename-faketime $(PLATFORM_FILES); \
+	echo "Running sitename with FAKETIME=$(FAKETIME) (libfaketime: $$LIBFAKETIME)"; \
 	mkdir -p $(BUILD_WEBAPP_DIR)/channels/dist/files; \
 	if [ "$$(uname)" = "Darwin" ]; then \
 		DYLD_INSERT_LIBRARIES="$$LIBFAKETIME" DYLD_FORCE_FLAT_NAMESPACE=1 FAKETIME="$(FAKETIME)" FAKETIME_NO_CACHE=1 \
-			$(GOBIN)/mattermost-faketime $(RUN_IN_BACKGROUND) \
+			$(GOBIN)/sitename-faketime $(RUN_IN_BACKGROUND) \
 	else \
 		LD_PRELOAD="$$LIBFAKETIME" FAKETIME="$(FAKETIME)" FAKETIME_NO_CACHE=1 \
-			$(GOBIN)/mattermost-faketime $(RUN_IN_BACKGROUND) \
+			$(GOBIN)/sitename-faketime $(RUN_IN_BACKGROUND) \
 	fi
 
 run-server-pgvector: ## Starts the server with pgvector PostgreSQL image.
@@ -662,21 +663,21 @@ run-server-pgvector: ## Starts the server with pgvector PostgreSQL image.
 debug-server: stop-server setup-go-work start-docker ## Compile and start server using delve.
 	mkdir -p $(BUILD_WEBAPP_DIR)/channels/dist/files
 	$(DELVE) debug $(PLATFORM_FILES) --build-flags="-ldflags '\
-			-X github.com/mattermost/mattermost/server/public/model.BuildNumber=$(BUILD_NUMBER)\
-			-X \"github.com/mattermost/mattermost/server/public/model.BuildDate=$(BUILD_DATE)\"\
-			-X github.com/mattermost/mattermost/server/public/model.BuildHash=$(BUILD_HASH)\
-			-X github.com/mattermost/mattermost/server/public/model.BuildHashEnterprise=$(BUILD_HASH_ENTERPRISE)\
-			-X github.com/mattermost/mattermost/server/public/model.BuildEnterpriseReady=$(BUILD_ENTERPRISE_READY)'\
+			-X github.com/sitename/sitename/server/public/model.BuildNumber=$(BUILD_NUMBER)\
+			-X \"github.com/sitename/sitename/server/public/model.BuildDate=$(BUILD_DATE)\"\
+			-X github.com/sitename/sitename/server/public/model.BuildHash=$(BUILD_HASH)\
+			-X github.com/sitename/sitename/server/public/model.BuildHashEnterprise=$(BUILD_HASH_ENTERPRISE)\
+			-X github.com/sitename/sitename/server/public/model.BuildEnterpriseReady=$(BUILD_ENTERPRISE_READY)'\
 			-tags '$(BUILD_TAGS)'"
 
 debug-server-headless: stop-server setup-go-work start-docker ## Debug server from within an IDE like VSCode or IntelliJ.
 	mkdir -p $(BUILD_WEBAPP_DIR)/channels/dist/files
 	$(DELVE) debug --headless --listen=:2345 --api-version=2 --accept-multiclient $(PLATFORM_FILES) --build-flags="-ldflags '\
-			-X github.com/mattermost/mattermost/server/public/model.BuildNumber=$(BUILD_NUMBER)\
-			-X \"github.com/mattermost/mattermost/server/public/model.BuildDate=$(BUILD_DATE)\"\
-			-X github.com/mattermost/mattermost/server/public/model.BuildHash=$(BUILD_HASH)\
-			-X github.com/mattermost/mattermost/server/public/model.BuildHashEnterprise=$(BUILD_HASH_ENTERPRISE)\
-			-X github.com/mattermost/mattermost/server/public/model.BuildEnterpriseReady=$(BUILD_ENTERPRISE_READY)'\
+			-X github.com/sitename/sitename/server/public/model.BuildNumber=$(BUILD_NUMBER)\
+			-X \"github.com/sitename/sitename/server/public/model.BuildDate=$(BUILD_DATE)\"\
+			-X github.com/sitename/sitename/server/public/model.BuildHash=$(BUILD_HASH)\
+			-X github.com/sitename/sitename/server/public/model.BuildHashEnterprise=$(BUILD_HASH_ENTERPRISE)\
+			-X github.com/sitename/sitename/server/public/model.BuildEnterpriseReady=$(BUILD_ENTERPRISE_READY)'\
 			-tags '$(BUILD_TAGS)'"
 
 run-node: export MM_SERVICESETTINGS_SITEURL=http://localhost:8066
@@ -687,18 +688,18 @@ run-node: export MM_SQLSETTINGS_DRIVERNAME=postgres
 run-node: export MM_SQLSETTINGS_DATASOURCE=postgres://mmuser:mostest@localhost/mattermost_node_test?sslmode=disable&sslmode=disable&connect_timeout=10&binary_parameters=yes
 
 run-node: setup-go-work start-docker ## Runs a shared channel node.
-	@echo Running mattermost node
+	@echo Running sitename node
 
 	$(GO) run $(GOFLAGS) -ldflags '$(LDFLAGS)' -tags '$(BUILD_TAGS)' $(PLATFORM_FILES) $(RUN_IN_BACKGROUND)
 
 run-cli: setup-go-work start-docker ## Runs CLI.
-	@echo Running mattermost for development
+	@echo Running sitename for development
 	@echo Example should be like 'make ARGS="-version" run-cli'
 
 	$(GO) run $(GOFLAGS) -ldflags '$(LDFLAGS)' -tags '$(BUILD_TAGS)' $(PLATFORM_FILES) ${ARGS}
 
 run-client: client ## Runs the webapp.
-	@echo Running mattermost client for development
+	@echo Running sitename client for development
 
 	cd $(BUILD_WEBAPP_DIR) && $(MAKE) run
 
@@ -713,7 +714,7 @@ else
 endif
 
 run-client-fullmap: client ## Legacy alias to run-client
-	@echo Running mattermost client for development
+	@echo Running sitename client for development
 
 	cd $(BUILD_WEBAPP_DIR) && $(MAKE) run
 
@@ -725,25 +726,25 @@ run-pgvector: ## Runs the server and webapp with pgvector PostgreSQL image.
 run-fullmap: run-server run-client ## Legacy alias to run
 
 stop-server: ## Stops the server and cleans up.
-	@echo Stopping mattermost
+	@echo Stopping sitename
 
 ifneq ($(BUILDER_GOOS_GOARCH),"windows_amd64")
-	@pkill -9 -f "mattermost-dev" 2>/dev/null || true
-	@pkill -9 -f "go run.*mattermost" 2>/dev/null || true
-	@pkill -9 -f "go-build.*mattermost" 2>/dev/null || true
+	@pkill -9 -f "sitename-dev" 2>/dev/null || true
+	@pkill -9 -f "go run.*sitename" 2>/dev/null || true
+	@pkill -9 -f "go-build.*sitename" 2>/dev/null || true
 	@sleep 0.5
 	@lsof -ti :8065 2>/dev/null | xargs kill -9 2>/dev/null || true
-	@rm -f $(GOBIN)/mattermost-dev
+	@rm -f $(GOBIN)/sitename-dev
 	@echo Server stopped and cleaned up.
 else
 	-taskkill /F /IM go.exe > NUL 2>&1
-	-taskkill /F /IM mattermost.exe > NUL 2>&1
-	-taskkill /F /IM mattermost-dev.exe > NUL 2>&1
+	-taskkill /F /IM sitename.exe > NUL 2>&1
+	-taskkill /F /IM sitename-dev.exe > NUL 2>&1
 	@echo Server stopped and cleaned up.
 endif
 
 stop-client: ## Stops the webapp.
-	@echo Stopping mattermost client
+	@echo Stopping sitename client
 
 	cd $(BUILD_WEBAPP_DIR) && $(MAKE) stop
 
@@ -751,13 +752,13 @@ stop: stop-server stop-client stop-docker ## Stops server, client and the docker
 
 restart: restart-server restart-client ## Restarts the server and webapp.
 
-restart-server: | stop-server run-server ## Restarts the mattermost server to pick up development change.
+restart-server: | stop-server run-server ## Restarts the sitename server to pick up development change.
 
 restart-server-pgvector: ## Restarts the server with pgvector PostgreSQL image.
 	@MM_USE_PGVECTOR=true $(MAKE) restart-server
 
 restart-haserver:
-	@echo Restarting mattermost in an HA topology
+	@echo Restarting sitename in an HA topology
 
 	docker compose restart follower2
 	docker compose restart follower
@@ -784,7 +785,7 @@ config-reset: setup-go-work ## Resets the config/config.json file to the default
 	rm -f config/config.json
 	OUTPUT_CONFIG=$(PWD)/config/config.json $(GO) run $(GOFLAGS) -tags production ./scripts/config_generator
 
-diff-config: ## Compares default configuration between two mattermost versions
+diff-config: ## Compares default configuration between two sitename versions
 	@./scripts/diff-config.sh
 
 clean: setup-go-work stop-docker ## Clean up everything except persistent server data.
@@ -798,8 +799,8 @@ clean: setup-go-work stop-docker ## Clean up everything except persistent server
 	find . -type d -name data | xargs rm -rf
 	rm -rf logs
 
-	rm -f mattermost.log
-	rm -f mattermost.log.jsonl
+	rm -f sitename.log
+	rm -f sitename.log.jsonl
 	rm -f npm-debug.log
 	rm -f .prepare-go
 	rm -f cover.out
@@ -807,7 +808,7 @@ clean: setup-go-work stop-docker ## Clean up everything except persistent server
 	rm -f *.out
 	rm -f *.test
 	rm -f channels/imports/imports.go
-	rm -f cmd/mattermost/cprofile*.out
+	rm -f cmd/sitename/cprofile*.out
 
 nuke: clean clean-docker ## Clean plus removes persistent server data.
 	@echo BOOM
@@ -836,9 +837,9 @@ ifeq ($(BUILD_ENTERPRISE_READY),true)
 	mv enterprise/external_imports.go.orig enterprise/external_imports.go
 endif
 
-vet: setup-go-work ## Run mattermost go vet specific checks
-	cd ../tools/mattermost-govet && $(GO) install .
-	$(GO) vet -vettool=$(GOBIN)/mattermost-govet \
+vet: setup-go-work ## Run sitename go vet specific checks
+	cd ../tools/sitename-govet && $(GO) install .
+	$(GO) vet -vettool=$(GOBIN)/sitename-govet \
 		-structuredLogging \
 		-inconsistentReceiverName \
 		-emptyStrCmp \
@@ -855,15 +856,15 @@ vet: setup-go-work ## Run mattermost go vet specific checks
 		./...
 ifeq ($(BUILD_ENTERPRISE_READY),true)
   ifneq ($(MM_NO_ENTERPRISE_LINT),true)
-	$(GO) vet -vettool=$(GOBIN)/mattermost-govet -structuredLogging -inconsistentReceiverName -emptyStrCmp -tFatal -configtelemetry -errorAssertions -requestCtxNaming -enterpriseLicense $(BUILD_ENTERPRISE_DIR)/...
+	$(GO) vet -vettool=$(GOBIN)/sitename-govet -structuredLogging -inconsistentReceiverName -emptyStrCmp -tFatal -configtelemetry -errorAssertions -requestCtxNaming -enterpriseLicense $(BUILD_ENTERPRISE_DIR)/...
   endif
 endif
 
 vet-api: export GO := $(GO)
 vet-api: export GOBIN := $(GOBIN)
 vet-api: export ROOT := $(ROOT)
-vet-api: ## Run mattermost go vet to verify api4 documentation, currently not passing
-	cd ../tools/mattermost-govet && $(GO) install .
+vet-api: ## Run sitename go vet to verify api4 documentation, currently not passing
+	cd ../tools/sitename-govet && $(GO) install .
 	make -C ../api build
 	./scripts/vet-api-check.sh
 

@@ -3,6 +3,8 @@ package lmsapi
 import (
 	"encoding/json"
 	"net/http"
+	"slices"
+	"strings"
 
 	"github.com/iamleson98/sitename/server/public/model"
 	"github.com/iamleson98/sitename/server/public/shared/mlog"
@@ -31,7 +33,14 @@ func createUser(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	created, err := c.App.LMS().CreateUser(user)
+	user.EmailVerified = true
+	roles := user.GetRoles()
+	if !slices.Contains(roles, model.SystemUserRoleId) {
+		roles = append(roles, model.SystemUserRoleId)
+	}
+	user.Roles = strings.Join(roles, " ")
+
+	created, err := c.App.CreateUser(c.AppContext, user)
 	if err != nil {
 		c.Err = err
 		return

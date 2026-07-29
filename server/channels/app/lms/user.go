@@ -3,100 +3,10 @@ package lms
 import (
 	"context"
 	"net/http"
-	"slices"
-	"strings"
 
 	"github.com/iamleson98/sitename/server/public/model"
 	"github.com/iamleson98/sitename/server/v8/channels/store"
 )
-
-// UserFilterOpts defines filter options for querying users.
-// type UserFilterOpts struct {
-// 	Role       string
-// 	Page       int
-// 	PerPage    int
-// 	CountTotal bool
-// 	// IncludeInactive includes soft-deleted (deactivated) users in the result.
-// 	// By default deactivated users are excluded.
-// 	IncludeInactive bool
-// 	// StaffOnly restricts the result to users holding any staff/employee LMS role
-// 	// (super_admin, admin, counselor, teacher, accountant, marketing).
-// 	StaffOnly bool
-// }
-
-// staffRoles is the set of LMS roles that identify an employee/staff member.
-// var staffRoles = map[string]bool{
-// 	model.RoleLmsSuperAdminRoleId: true,
-// 	model.RoleLmsAdminRoleId:      true,
-// 	model.RoleLmsCounselorRoleId:  true,
-// 	model.RoleLmsTeacherRoleId:    true,
-// 	model.RoleLmsAccountantRoleId: true,
-// 	model.RoleLmsMarketingRoleId:  true,
-// }
-
-// func (a *LMSApp) GetUsers(opts UserFilterOpts) ([]*model.User, *model.AppError) {
-// 	// GetAll() does not filter out soft-deleted users, so we filter in-memory.
-// 	users, err := a.store.User().GetAll()
-// 	if err != nil {
-// 		return nil, model.NewAppError("GetUsers", "app.lms.user.get_all.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
-// 	}
-
-// 	filtered := make([]*model.User, 0, len(users))
-// 	for _, u := range users {
-// 		// Skip deactivated users unless explicitly requested.
-// 		if u.DeleteAt != 0 && !opts.IncludeInactive {
-// 			continue
-// 		}
-
-// 		roles := u.GetRoles()
-
-// 		// Optional staff-only filter.
-// 		if opts.StaffOnly {
-// 			isStaff := false
-// 			for _, r := range roles {
-// 				if staffRoles[r] {
-// 					isStaff = true
-// 					break
-// 				}
-// 			}
-// 			if !isStaff {
-// 				continue
-// 			}
-// 		}
-
-// 		// Optional exact-role filter.
-// 		if opts.Role != "" {
-// 			found := false
-// 			for _, r := range roles {
-// 				if r == opts.Role {
-// 					found = true
-// 					break
-// 				}
-// 			}
-// 			if !found {
-// 				continue
-// 			}
-// 		}
-
-// 		filtered = append(filtered, u)
-// 	}
-// 	return filtered, nil
-// }
-
-func (a *LMSApp) CreateUser(user *model.User) (*model.User, *model.AppError) {
-	roles := user.GetRoles()
-
-	if !slices.Contains(roles, model.SystemUserRoleId) {
-		roles = append(roles, model.SystemUserRoleId)
-	}
-	user.Roles = strings.Join(roles, " ")
-
-	saved, err := a.store.User().Save(nil, user) // TODO: pass proper request.CTX
-	if err != nil {
-		return nil, model.NewAppError("CreateUser", "app.lms.user.create.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
-	}
-	return saved, nil
-}
 
 func (a *LMSApp) UpdateUser(user *model.User) (*model.User, *model.AppError) {
 	// Load the existing user so partial updates (e.g. a role-only assignment)

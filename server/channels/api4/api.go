@@ -915,12 +915,6 @@ func (api *API) Handle404(w http.ResponseWriter, r *http.Request) {
 
 var ReturnStatusOK = web.ReturnStatusOK
 
-// var initBookingApiFunc func(api *API) error
-
-// func RegisterInitBookingApiFunc(f func(api *API) error) {
-// 	initBookingApiFunc = f
-// }
-
 var initLmsApiFunc func(api *API) error
 
 // RegisterInitLmsApiFunc allows the LMS API package to register its init function.

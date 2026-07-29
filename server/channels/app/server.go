@@ -488,13 +488,6 @@ func NewServer(options ...Option) (*Server, error) {
 		}
 	})
 
-	// init booking service
-	// if s.booking == nil {
-	// 	s.booking = booking.New(booking.BookingServiceConfigs{
-	// 		Store: s.Store(),
-	// 	})
-	// }
-
 	// init lms app
 	s.lmsApp = lms.NewLMSApp(s.Store())
 

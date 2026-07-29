@@ -161,10 +161,6 @@ func (a *App) UpdateExpiredDNDStatuses() ([]*model.Status, error) {
 	return a.Srv().Store().Status().UpdateExpiredDNDStatuses()
 }
 
-// func (a *App) Booking() *booking.BookingService {
-// 	return a.ch.srv.booking
-// }
-
 func (a *App) LMS() *lms.LMSApp {
 	return a.ch.srv.lmsApp
 }

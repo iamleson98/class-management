@@ -6,7 +6,7 @@ import (
 
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
-	"github.com/iamleson98/sitename/server/public/model_helper"
+	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
 	"github.com/iamleson98/sitename/server/v8/channels/store"
 )
 

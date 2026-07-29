@@ -1,0 +1,19 @@
+# Prometheus scrape configuration for LOCAL DEVELOPMENT.
+# The Go server runs on the host machine, so we target host.docker.internal.
+# Metrics are exposed on :8067 (MetricsSettings.ListenAddress in config.json).
+global:
+  scrape_interval: 15s
+  evaluation_interval: 60s
+
+scrape_configs:
+  - job_name: "lms-server"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["host.docker.internal:8067"]
+        labels:
+          service: "lms-server"
+          env: "dev"
+
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]

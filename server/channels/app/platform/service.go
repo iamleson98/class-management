@@ -75,14 +75,8 @@ type PlatformService struct {
 	featureFlagStop              chan struct{}
 	featureFlagStopped           chan struct{}
 
-	// licenseValue       atomic.Pointer[model.License]
-	// clientLicenseValue atomic.Value
-	// licenseListeners   map[string]func(*model.License, *model.License)
-	// licenseManager     einterfaces.LicenseInterface
-
 	telemetryId      string
 	configListenerId string
-	// licenseListenerId string
 
 	clusterLeaderListeners sync.Map
 	clusterIFace           einterfaces.ClusterInterface
@@ -90,7 +84,6 @@ type PlatformService struct {
 
 	SearchEngine           *searchengine.Broker
 	searchConfigListenerId string
-	// searchLicenseListenerId string
 
 	ldapDiagnostic einterfaces.LdapDiagnosticInterface
 
@@ -135,7 +128,6 @@ func New(sc ServiceConfig, options ...Option) (*PlatformService, error) {
 		WebSocketRouter: &WebSocketRouter{
 			handlers: make(map[string]webSocketHandler),
 		},
-		// licenseListeners:          map[string]func(*model.License, *model.License){},
 		additionalClusterHandlers: map[model.ClusterEvent]einterfaces.ClusterMessageHandler{},
 		statusUpdateChan:          make(chan *model.Status, statusUpdateBufferSize),
 		statusUpdateExitSignal:    make(chan struct{}),
@@ -188,9 +180,6 @@ func New(sc ServiceConfig, options ...Option) (*PlatformService, error) {
 
 	if model.BuildEnterpriseReady == "true" {
 		isTrial := false
-		// if licence := ps.License(); licence != nil {
-		// 	isTrial = licence.IsTrial
-		// }
 		ps.Log().Info(
 			"Enterprise Build",
 			mlog.Bool("enterprise_build", true),
@@ -286,12 +275,6 @@ func New(sc ServiceConfig, options ...Option) (*PlatformService, error) {
 			if err2 != nil {
 				return nil, fmt.Errorf("cannot create local cache layer: %w", err2)
 			}
-
-			// license := ps.License()
-			// ps.sqlStore.UpdateLicense(license)
-			// ps.AddLicenseListener(func(oldLicense, newLicense *model.License) {
-			// 	ps.sqlStore.UpdateLicense(newLicense)
-			// })
 
 			return lcl, nil
 		}
@@ -470,10 +453,6 @@ func (ps *PlatformService) initEnterprise() {
 	if ldapDiagnosticInterface != nil {
 		ps.ldapDiagnostic = ldapDiagnosticInterface(ps)
 	}
-
-	// if licenseInterface != nil {
-	// 	ps.licenseManager = licenseInterface(ps)
-	// }
 
 	if accessControlServiceInterface != nil {
 		ps.pdpService = accessControlServiceInterface(ps)
