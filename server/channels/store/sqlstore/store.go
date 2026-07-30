@@ -75,7 +75,6 @@ type SqlStoreStores struct {
 	command                    store.CommandStore
 	commandWebhook             store.CommandWebhookStore
 	preference                 store.PreferenceStore
-	license                    store.LicenseStore
 	token                      store.TokenStore
 	emoji                      store.EmojiStore
 	status                     store.StatusStore
@@ -156,7 +155,6 @@ type SqlStore struct {
 	stores            SqlStoreStores
 	settings          *model.SqlSettings
 	lockedToMaster    bool
-	license           *model.License
 	licenseMutex      sync.RWMutex
 	logger            mlog.LoggerIFace
 	metrics           einterfaces.MetricsInterface
@@ -254,7 +252,6 @@ func New(settings model.SqlSettings, logger mlog.LoggerIFace, metrics einterface
 	store.stores.command = newSqlCommandStore(store)
 	store.stores.commandWebhook = newSqlCommandWebhookStore(store)
 	store.stores.preference = newSqlPreferenceStore(store)
-	store.stores.license = newSqlLicenseStore(store)
 	store.stores.token = newSqlTokenStore(store)
 	store.stores.emoji = newSqlEmojiStore(store, metrics)
 	store.stores.status = newSqlStatusStore(store)
@@ -466,9 +463,6 @@ func (ss *SqlStore) GetInternalMasterDB() *sql.DB {
 }
 
 func (ss *SqlStore) GetSearchReplicaX() *sqlxDBWrapper {
-	if !ss.hasLicense() {
-		return ss.GetMaster()
-	}
 
 	if len(ss.settings.DataSourceSearchReplicas) == 0 {
 		return ss.GetReplica()
@@ -486,7 +480,7 @@ func (ss *SqlStore) GetSearchReplicaX() *sqlxDBWrapper {
 }
 
 func (ss *SqlStore) GetReplica() *sqlxDBWrapper {
-	if len(ss.settings.DataSourceReplicas) == 0 || ss.lockedToMaster || !ss.hasLicense() {
+	if len(ss.settings.DataSourceReplicas) == 0 || ss.lockedToMaster {
 		return ss.GetMaster()
 	}
 
@@ -548,7 +542,7 @@ func (ss *SqlStore) setDB(replica *atomic.Pointer[sqlxDBWrapper], handle *sql.DB
 }
 
 func (ss *SqlStore) GetInternalReplicaDB() *sql.DB {
-	if len(ss.settings.DataSourceReplicas) == 0 || ss.lockedToMaster || !ss.hasLicense() {
+	if len(ss.settings.DataSourceReplicas) == 0 || ss.lockedToMaster {
 		return ss.GetMaster().DB.DB
 	}
 
@@ -776,10 +770,6 @@ func (ss *SqlStore) Preference() store.PreferenceStore {
 	return ss.stores.preference
 }
 
-func (ss *SqlStore) License() store.LicenseStore {
-	return ss.stores.license
-}
-
 func (ss *SqlStore) Token() store.TokenStore {
 	return ss.stores.token
 }
@@ -952,24 +942,6 @@ func (ss *SqlStore) CheckIntegrity() <-chan model.IntegrityCheckResult {
 	results := make(chan model.IntegrityCheckResult)
 	go CheckRelationalIntegrity(ss, results)
 	return results
-}
-
-func (ss *SqlStore) UpdateLicense(license *model.License) {
-	ss.licenseMutex.Lock()
-	defer ss.licenseMutex.Unlock()
-	ss.license = license
-}
-
-func (ss *SqlStore) GetLicense() *model.License {
-	return ss.license
-}
-
-func (ss *SqlStore) hasLicense() bool {
-	ss.licenseMutex.Lock()
-	hasLicense := ss.license != nil
-	ss.licenseMutex.Unlock()
-
-	return hasLicense
 }
 
 // ensureMinimumDBVersion gets the DB version and ensures it is

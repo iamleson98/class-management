@@ -78,11 +78,6 @@ func TestUpdateActiveWithUserLimits(t *testing.T) {
 		t.Run("reactivation allowed below limit", func(t *testing.T) {
 			th := Setup(t).InitBasic(t)
 
-			userLimit := 100
-			license := model.NewTestLicense("")
-			license.IsSeatCountEnforced = true
-			license.Features.Users = &userLimit
-
 			// Deactivate user
 			_, appErr := th.App.UpdateActive(th.Context, th.BasicUser, false)
 			require.Nil(t, appErr)
@@ -95,11 +90,6 @@ func TestUpdateActiveWithUserLimits(t *testing.T) {
 
 		t.Run("reactivation blocked at grace limit", func(t *testing.T) {
 			th := SetupWithStoreMock(t)
-
-			userLimit := 100
-			license := model.NewTestLicense("")
-			license.IsSeatCountEnforced = true
-			license.Features.Users = &userLimit
 
 			// Mock user count at grace limit (105 = 100 + 5% grace period)
 			mockUserStore := storemocks.UserStore{}
@@ -124,11 +114,6 @@ func TestUpdateActiveWithUserLimits(t *testing.T) {
 		t.Run("reactivation allowed at base limit but below grace limit", func(t *testing.T) {
 			th := Setup(t).InitBasic(t)
 
-			userLimit := 5 // Grace limit will be 6 (5 + 1 minimum)
-			license := model.NewTestLicense("")
-			license.IsSeatCountEnforced = true
-			license.Features.Users = &userLimit
-
 			// InitBasic creates 3 users, create 2 more to reach base limit of 5
 			th.CreateUser(t)
 			th.CreateUser(t)
@@ -145,11 +130,6 @@ func TestUpdateActiveWithUserLimits(t *testing.T) {
 
 		t.Run("reactivation blocked above grace limit", func(t *testing.T) {
 			th := SetupWithStoreMock(t)
-
-			userLimit := 100
-			license := model.NewTestLicense("")
-			license.IsSeatCountEnforced = true
-			license.Features.Users = &userLimit
 
 			// Mock user count above grace limit (106 > 105 grace limit)
 			mockUserStore := storemocks.UserStore{}
@@ -176,11 +156,6 @@ func TestUpdateActiveWithUserLimits(t *testing.T) {
 		t.Run("reactivation allowed below unenforced limit", func(t *testing.T) {
 			th := Setup(t).InitBasic(t)
 
-			userLimit := 5
-			license := model.NewTestLicense("")
-			license.IsSeatCountEnforced = false
-			license.Features.Users = &userLimit
-
 			// Create 2 additional users to have 3 total (below limit of 5)
 			th.CreateUser(t)
 			th.CreateUser(t)
@@ -197,11 +172,6 @@ func TestUpdateActiveWithUserLimits(t *testing.T) {
 
 		t.Run("reactivation allowed at unenforced limit", func(t *testing.T) {
 			th := Setup(t).InitBasic(t)
-
-			userLimit := 5
-			license := model.NewTestLicense("")
-			license.IsSeatCountEnforced = false
-			license.Features.Users = &userLimit
 
 			// Create 4 additional users to have 5 total (at limit of 5)
 			th.CreateUser(t)
@@ -222,11 +192,6 @@ func TestUpdateActiveWithUserLimits(t *testing.T) {
 
 		t.Run("reactivation allowed above unenforced limit", func(t *testing.T) {
 			th := Setup(t).InitBasic(t)
-
-			userLimit := 5
-			license := model.NewTestLicense("")
-			license.IsSeatCountEnforced = false
-			license.Features.Users = &userLimit
 
 			// Create 5 additional users to have 6 total (above limit of 5)
 			th.CreateUser(t)
@@ -254,11 +219,6 @@ func TestCreateUserOrGuestSeatCountEnforcement(t *testing.T) {
 	t.Run("seat count enforced - allows user creation when under limit", func(t *testing.T) {
 		th := Setup(t).InitBasic(t)
 
-		userLimit := 5
-		license := model.NewTestLicense("")
-		license.IsSeatCountEnforced = true
-		license.Features.Users = &userLimit
-
 		// InitBasic creates 3 users, so we're under the limit of 5
 		user := &model.User{
 			Email:         "TestCreateUserOrGuest@example.com",
@@ -275,13 +235,6 @@ func TestCreateUserOrGuestSeatCountEnforcement(t *testing.T) {
 
 	t.Run("seat count enforced - blocks user creation when at limit", func(t *testing.T) {
 		th := Setup(t).InitBasic(t)
-
-		userLimit := 5
-		extraUsers := 1
-		license := model.NewTestLicense("")
-		license.IsSeatCountEnforced = true
-		license.Features.Users = &userLimit
-		license.ExtraUsers = &extraUsers
 
 		// Create 3 additional users to reach the hard limit of 6 (3 from InitBasic + 3)
 		// Hard limit = 5 base users + 1 extra user = 6 total
@@ -307,8 +260,6 @@ func TestCreateUserOrGuestSeatCountEnforcement(t *testing.T) {
 		// Use mocks for this test since we can't actually create users beyond the safety limit
 		th := SetupWithStoreMock(t)
 
-		userLimit := 5
-		extraUsers := 0
 		currentUserCount := int64(6) // Over limit (limit=5, hard limit=5+0=5, current=6)
 
 		mockUserStore := storemocks.UserStore{}
@@ -321,11 +272,6 @@ func TestCreateUserOrGuestSeatCountEnforcement(t *testing.T) {
 		mockStore := th.App.Srv().Store().(*storemocks.Store)
 		mockStore.On("User").Return(&mockUserStore)
 		mockStore.On("Group").Return(&mockGroupStore)
-
-		license := model.NewTestLicense("")
-		license.IsSeatCountEnforced = true
-		license.Features.Users = &userLimit
-		license.ExtraUsers = &extraUsers
 
 		user := &model.User{
 			Email:         "TestSeatCount@example.com",
@@ -342,11 +288,6 @@ func TestCreateUserOrGuestSeatCountEnforcement(t *testing.T) {
 
 	t.Run("seat count not enforced - allows user creation even when over limit", func(t *testing.T) {
 		th := Setup(t).InitBasic(t)
-
-		userLimit := 5
-		license := model.NewTestLicense("")
-		license.IsSeatCountEnforced = false
-		license.Features.Users = &userLimit
 
 		// Create additional users to exceed the limit (3 from InitBasic + 3 = 6, over limit of 5)
 		th.CreateUser(t)
@@ -387,10 +328,6 @@ func TestCreateUserOrGuestSeatCountEnforcement(t *testing.T) {
 	t.Run("license without Users feature - no seat count enforcement", func(t *testing.T) {
 		th := Setup(t).InitBasic(t)
 
-		license := model.NewTestLicense("")
-		license.IsSeatCountEnforced = true
-		license.Features.Users = nil
-
 		// Should allow creation since Users feature is nil
 		user := &model.User{
 			Email:         "TestSeatCount@example.com",
@@ -407,13 +344,6 @@ func TestCreateUserOrGuestSeatCountEnforcement(t *testing.T) {
 
 	t.Run("guest creation with seat count enforcement - blocks when at limit", func(t *testing.T) {
 		th := Setup(t).InitBasic(t)
-
-		userLimit := 5
-		extraUsers := 1
-		license := model.NewTestLicense("")
-		license.IsSeatCountEnforced = true
-		license.Features.Users = &userLimit
-		license.ExtraUsers = &extraUsers
 
 		// Create 3 additional users to reach the hard limit of 6 (3 from InitBasic + 3)
 		// Hard limit = 5 base users + 1 extra user = 6 total
@@ -437,13 +367,6 @@ func TestCreateUserOrGuestSeatCountEnforcement(t *testing.T) {
 
 	t.Run("guest creation with seat count enforcement - allows when under limit", func(t *testing.T) {
 		th := Setup(t).InitBasic(t)
-
-		userLimit := 5
-		extraUsers := 0
-		license := model.NewTestLicense("")
-		license.IsSeatCountEnforced = true
-		license.Features.Users = &userLimit
-		license.ExtraUsers = &extraUsers
 
 		// InitBasic creates 3 users, so we're under the limit of 5
 		user := &model.User{

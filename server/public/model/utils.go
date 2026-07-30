@@ -37,6 +37,7 @@ const (
 	NoTranslation     = "<untranslated>"
 	maxPropSizeBytes  = 1024 * 1024
 	PayloadParseError = "api.payload.parse.error"
+	DayInMilliseconds = 24 * 60 * 60 * 1000
 )
 
 var ErrMaxPropSizeExceeded = fmt.Errorf("max prop size of %d exceeded", maxPropSizeBytes)

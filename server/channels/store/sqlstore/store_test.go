@@ -269,12 +269,7 @@ func TestStoreLicenseRace(t *testing.T) {
 	}()
 
 	wg := sync.WaitGroup{}
-	wg.Add(3)
-
-	go func() {
-		store.UpdateLicense(&model.License{})
-		wg.Done()
-	}()
+	wg.Add(2)
 
 	go func() {
 		store.GetReplica()
@@ -370,8 +365,6 @@ func TestGetReplica(t *testing.T) {
 				store.Close()
 				storetest.CleanupSqlSettings(settings)
 			}()
-
-			store.UpdateLicense(&model.License{})
 
 			replicas := make(map[*sqlxDBWrapper]bool)
 			for range 5 {

@@ -338,8 +338,18 @@ i18n-check: ## Exit on empty translation strings and translation source strings
 	$(GOBIN)/mmgotool i18n check-empty-src --portal-dir=""
 
 store-mocks: setup-go-work ## Creates mock files.
-	$(GO) install github.com/vektra/mockery/v2/...@v2.53.4
-	$(GOBIN)/mockery --config channels/store/.mockery.yaml
+ifeq ($(OS),Windows_NT)
+	@powershell -NoProfile -Command "$$ErrorActionPreference='Stop'; $$serverMod='go.mod'; $$publicMod='public/go.mod'; $$serverBak='go.mod.mockery.bak'; $$publicBak='public/go.mod.mockery.bak'; Copy-Item $$serverMod $$serverBak -Force; Copy-Item $$publicMod $$publicBak -Force; try { (Get-Content $$serverMod -Raw).Replace('go 1.27rc2','go 1.26.3') | Set-Content $$serverMod -NoNewline; (Get-Content $$publicMod -Raw).Replace('go 1.27rc2','go 1.26.3') | Set-Content $$publicMod -NoNewline; $$env:GOWORK='off'; $$env:GOTOOLCHAIN='go1.26.3'; $(GO) run github.com/vektra/mockery/v2@v2.53.6 --config channels/store/.mockery.yaml } finally { Move-Item -Force $$serverBak $$serverMod; Move-Item -Force $$publicBak $$publicMod }"
+else
+	@set -e; \
+	cp -f go.mod go.mod.mockery.bak; \
+	cp -f public/go.mod public/go.mod.mockery.bak; \
+	cleanup() { mv -f go.mod.mockery.bak go.mod; mv -f public/go.mod.mockery.bak public/go.mod; }; \
+	trap cleanup EXIT; \
+	sed -i.bak 's/^go 1.27rc2$$/go 1.26.3/' go.mod; rm -f go.mod.bak; \
+	sed -i.bak 's/^go 1.27rc2$$/go 1.26.3/' public/go.mod; rm -f public/go.mod.bak; \
+	GOWORK=off GOTOOLCHAIN=go1.26.3 $(GO) run github.com/vektra/mockery/v2@v2.53.6 --config channels/store/.mockery.yaml
+endif
 
 cache-mocks: setup-go-work
 	$(GO) install github.com/vektra/mockery/v2/...@v2.53.4

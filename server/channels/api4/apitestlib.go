@@ -254,16 +254,6 @@ func setupTestHelper(tb testing.TB, dbStore store.Store, sqlSettings *model.SqlS
 	return th
 }
 
-func getLicense(enterprise bool, cfg *model.Config) *model.License {
-	if *cfg.ConnectedWorkspacesSettings.EnableRemoteClusterService || *cfg.ConnectedWorkspacesSettings.EnableSharedChannels {
-		return model.NewTestLicenseSKU(model.LicenseShortSkuProfessional)
-	}
-	if enterprise {
-		return model.NewTestLicense()
-	}
-	return nil
-}
-
 func setupStores(tb testing.TB) (store.Store, *model.SqlSettings, *searchengine.Broker) {
 	var dbStore store.Store
 	var dbSettings *model.SqlSettings

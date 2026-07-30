@@ -129,7 +129,6 @@ func TestGenerateSupportPacket(t *testing.T) {
 		mockStore.On("FileInfo").Return(th.App.Srv().Store().FileInfo())
 		mockStore.On("Webhook").Return(th.App.Srv().Store().Webhook())
 		mockStore.On("System").Return(th.App.Srv().Store().System())
-		mockStore.On("License").Return(th.App.Srv().Store().License())
 		mockStore.On("Command").Return(th.App.Srv().Store().Command())
 		mockStore.On("Role").Return(th.App.Srv().Store().Role())
 		mockStore.On("Scheme").Return(th.App.Srv().Store().Scheme())

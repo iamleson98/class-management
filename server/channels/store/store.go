@@ -48,7 +48,6 @@ type Store interface {
 	Command() CommandStore
 	CommandWebhook() CommandWebhookStore
 	Preference() PreferenceStore
-	License() LicenseStore
 	Token() TokenStore
 	Emoji() EmojiStore
 	Status() StatusStore
@@ -729,12 +728,6 @@ type PreferenceStore interface {
 	DeleteInvalidVisibleDmsGms() (int64, error)
 }
 
-type LicenseStore interface {
-	Save(license *model.LicenseRecord) error
-	Get(rctx request.CTX, id string) (*model.LicenseRecord, error)
-	GetAll() ([]*model.LicenseRecord, error)
-}
-
 type TokenStore interface {
 	Save(recovery *model.Token) error
 	Delete(token string) error
@@ -1043,10 +1036,10 @@ type LinkMetadataStore interface {
 
 type NotifyAdminStore interface {
 	Save(data *model.NotifyAdminData) (*model.NotifyAdminData, error)
-	GetDataByUserIdAndFeature(userID string, feature model.MattermostFeature) ([]*model.NotifyAdminData, error)
+	GetDataByUserIdAndFeature(userID string, feature model.SitenameFeature) ([]*model.NotifyAdminData, error)
 	Get(trial bool) ([]*model.NotifyAdminData, error)
 	DeleteBefore(trial bool, now int64) error
-	Update(userID string, requiredPlan string, requiredFeature model.MattermostFeature, now int64) error
+	Update(userID string, requiredPlan string, requiredFeature model.SitenameFeature, now int64) error
 }
 
 type SharedChannelStore interface {

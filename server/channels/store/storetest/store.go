@@ -33,7 +33,6 @@ type Store struct {
 	CommandStore                    mocks.CommandStore
 	CommandWebhookStore             mocks.CommandWebhookStore
 	PreferenceStore                 mocks.PreferenceStore
-	LicenseStore                    mocks.LicenseStore
 	TokenStore                      mocks.TokenStore
 	EmojiStore                      mocks.EmojiStore
 	ThreadStore                     mocks.ThreadStore
@@ -73,31 +72,31 @@ type Store struct {
 	ReadReceiptStore                mocks.ReadReceiptStore
 	TemporaryPostStore              mocks.TemporaryPostStore
 	// LMS stores
-	BranchStore                     mocks.BranchStore
-	CourseStore                     mocks.CourseStore
-	CourseLessonStore              mocks.CourseLessonStore
-	ClassStore                      mocks.ClassStore
-	StudentClassStore              mocks.StudentClassStore
-	LMSSessionStore                mocks.LMSSessionStore
-	AttendanceStore                mocks.AttendanceStore
-	LeadStore                      mocks.LeadStore
-	LeadActivityStore              mocks.LeadActivityStore
-	FeePackageStore                mocks.FeePackageStore
-	TuitionStore                   mocks.TuitionStore
-	PaymentStore                   mocks.PaymentStore
-	FeeRefundStore                 mocks.FeeRefundStore
-	AdditionalFeeStore             mocks.AdditionalFeeStore
-	PostCategoryStore              mocks.PostCategoryStore
-	BlogPostStore                  mocks.BlogPostStore
-	WeeklyReviewStore              mocks.WeeklyReviewStore
-	HomeworkStore                  mocks.HomeworkStore
-	SubmissionStore                mocks.SubmissionStore
-	ClassMediaStore                mocks.ClassMediaStore
-	TaskStore                      mocks.TaskStore
-	BannerStore                    mocks.BannerStore
-	NotificationStore              mocks.NotificationStore
-	MaterialStore                  mocks.MaterialStore
-	DashboardStore                 mocks.DashboardStore
+	BranchStore        mocks.BranchStore
+	CourseStore        mocks.CourseStore
+	CourseLessonStore  mocks.CourseLessonStore
+	ClassStore         mocks.ClassStore
+	StudentClassStore  mocks.StudentClassStore
+	LMSSessionStore    mocks.LMSSessionStore
+	AttendanceStore    mocks.AttendanceStore
+	LeadStore          mocks.LeadStore
+	LeadActivityStore  mocks.LeadActivityStore
+	FeePackageStore    mocks.FeePackageStore
+	TuitionStore       mocks.TuitionStore
+	PaymentStore       mocks.PaymentStore
+	FeeRefundStore     mocks.FeeRefundStore
+	AdditionalFeeStore mocks.AdditionalFeeStore
+	PostCategoryStore  mocks.PostCategoryStore
+	BlogPostStore      mocks.BlogPostStore
+	WeeklyReviewStore  mocks.WeeklyReviewStore
+	HomeworkStore      mocks.HomeworkStore
+	SubmissionStore    mocks.SubmissionStore
+	ClassMediaStore    mocks.ClassMediaStore
+	TaskStore          mocks.TaskStore
+	BannerStore        mocks.BannerStore
+	NotificationStore  mocks.NotificationStore
+	MaterialStore      mocks.MaterialStore
+	DashboardStore     mocks.DashboardStore
 }
 
 func (s *Store) Logger() mlog.LoggerIFace                      { return s.logger }
@@ -122,7 +121,6 @@ func (s *Store) Webhook() store.WebhookStore                       { return &s.W
 func (s *Store) Command() store.CommandStore                       { return &s.CommandStore }
 func (s *Store) CommandWebhook() store.CommandWebhookStore         { return &s.CommandWebhookStore }
 func (s *Store) Preference() store.PreferenceStore                 { return &s.PreferenceStore }
-func (s *Store) License() store.LicenseStore                       { return &s.LicenseStore }
 func (s *Store) Token() store.TokenStore                           { return &s.TokenStore }
 func (s *Store) Emoji() store.EmojiStore                           { return &s.EmojiStore }
 func (s *Store) Thread() store.ThreadStore                         { return &s.ThreadStore }
@@ -208,31 +206,31 @@ func (s *Store) TemporaryPost() store.TemporaryPostStore {
 }
 
 // LMS store accessors
-func (s *Store) Branch() store.BranchStore                     { return &s.BranchStore }
-func (s *Store) Course() store.CourseStore                     { return &s.CourseStore }
-func (s *Store) CourseLesson() store.CourseLessonStore          { return &s.CourseLessonStore }
-func (s *Store) Class() store.ClassStore                       { return &s.ClassStore }
-func (s *Store) StudentClass() store.StudentClassStore          { return &s.StudentClassStore }
-func (s *Store) LMSSession() store.LMSSessionStore             { return &s.LMSSessionStore }
-func (s *Store) Attendance() store.AttendanceStore             { return &s.AttendanceStore }
-func (s *Store) Lead() store.LeadStore                         { return &s.LeadStore }
-func (s *Store) LeadActivity() store.LeadActivityStore          { return &s.LeadActivityStore }
-func (s *Store) FeePackage() store.FeePackageStore             { return &s.FeePackageStore }
-func (s *Store) Tuition() store.TuitionStore                   { return &s.TuitionStore }
-func (s *Store) Payment() store.PaymentStore                   { return &s.PaymentStore }
-func (s *Store) FeeRefund() store.FeeRefundStore               { return &s.FeeRefundStore }
-func (s *Store) AdditionalFee() store.AdditionalFeeStore       { return &s.AdditionalFeeStore }
-func (s *Store) PostCategory() store.PostCategoryStore          { return &s.PostCategoryStore }
-func (s *Store) BlogPost() store.BlogPostStore                 { return &s.BlogPostStore }
-func (s *Store) WeeklyReview() store.WeeklyReviewStore          { return &s.WeeklyReviewStore }
-func (s *Store) Homework() store.HomeworkStore                 { return &s.HomeworkStore }
-func (s *Store) Submission() store.SubmissionStore             { return &s.SubmissionStore }
-func (s *Store) ClassMedia() store.ClassMediaStore             { return &s.ClassMediaStore }
-func (s *Store) Task() store.TaskStore                         { return &s.TaskStore }
-func (s *Store) Banner() store.BannerStore                     { return &s.BannerStore }
-func (s *Store) Notification() store.NotificationStore         { return &s.NotificationStore }
-func (s *Store) Material() store.MaterialStore                 { return &s.MaterialStore }
-func (s *Store) Dashboard() store.DashboardStore               { return &s.DashboardStore }
+func (s *Store) Branch() store.BranchStore               { return &s.BranchStore }
+func (s *Store) Course() store.CourseStore               { return &s.CourseStore }
+func (s *Store) CourseLesson() store.CourseLessonStore   { return &s.CourseLessonStore }
+func (s *Store) Class() store.ClassStore                 { return &s.ClassStore }
+func (s *Store) StudentClass() store.StudentClassStore   { return &s.StudentClassStore }
+func (s *Store) LMSSession() store.LMSSessionStore       { return &s.LMSSessionStore }
+func (s *Store) Attendance() store.AttendanceStore       { return &s.AttendanceStore }
+func (s *Store) Lead() store.LeadStore                   { return &s.LeadStore }
+func (s *Store) LeadActivity() store.LeadActivityStore   { return &s.LeadActivityStore }
+func (s *Store) FeePackage() store.FeePackageStore       { return &s.FeePackageStore }
+func (s *Store) Tuition() store.TuitionStore             { return &s.TuitionStore }
+func (s *Store) Payment() store.PaymentStore             { return &s.PaymentStore }
+func (s *Store) FeeRefund() store.FeeRefundStore         { return &s.FeeRefundStore }
+func (s *Store) AdditionalFee() store.AdditionalFeeStore { return &s.AdditionalFeeStore }
+func (s *Store) PostCategory() store.PostCategoryStore   { return &s.PostCategoryStore }
+func (s *Store) BlogPost() store.BlogPostStore           { return &s.BlogPostStore }
+func (s *Store) WeeklyReview() store.WeeklyReviewStore   { return &s.WeeklyReviewStore }
+func (s *Store) Homework() store.HomeworkStore           { return &s.HomeworkStore }
+func (s *Store) Submission() store.SubmissionStore       { return &s.SubmissionStore }
+func (s *Store) ClassMedia() store.ClassMediaStore       { return &s.ClassMediaStore }
+func (s *Store) Task() store.TaskStore                   { return &s.TaskStore }
+func (s *Store) Banner() store.BannerStore               { return &s.BannerStore }
+func (s *Store) Notification() store.NotificationStore   { return &s.NotificationStore }
+func (s *Store) Material() store.MaterialStore           { return &s.MaterialStore }
+func (s *Store) Dashboard() store.DashboardStore         { return &s.DashboardStore }
 func (s *Store) GetSchemaDefinition() (*model.SupportPacketDatabaseSchema, error) {
 	return &model.SupportPacketDatabaseSchema{
 		Tables: []model.DatabaseTable{},
@@ -257,7 +255,6 @@ func (s *Store) AssertExpectations(t mock.TestingT) bool {
 		&s.CommandStore,
 		&s.CommandWebhookStore,
 		&s.PreferenceStore,
-		&s.LicenseStore,
 		&s.TokenStore,
 		&s.EmojiStore,
 		&s.StatusStore,
@@ -287,32 +284,32 @@ func (s *Store) AssertExpectations(t mock.TestingT) bool {
 		&s.ContentFlaggingStore,
 		&s.RecapStore,
 		&s.ReadReceiptStore,
-			&s.TemporaryPostStore,
-			// LMS stores
-			&s.BranchStore,
-			&s.CourseStore,
-			&s.CourseLessonStore,
-			&s.ClassStore,
-			&s.StudentClassStore,
-			&s.LMSSessionStore,
-			&s.AttendanceStore,
-			&s.LeadStore,
-			&s.LeadActivityStore,
-			&s.FeePackageStore,
-			&s.TuitionStore,
-			&s.PaymentStore,
-			&s.FeeRefundStore,
-			&s.AdditionalFeeStore,
-			&s.PostCategoryStore,
-			&s.BlogPostStore,
-			&s.WeeklyReviewStore,
-			&s.HomeworkStore,
-			&s.SubmissionStore,
-			&s.ClassMediaStore,
-			&s.TaskStore,
-			&s.BannerStore,
-			&s.NotificationStore,
-			&s.MaterialStore,
-			&s.DashboardStore,
-		)
+		&s.TemporaryPostStore,
+		// LMS stores
+		&s.BranchStore,
+		&s.CourseStore,
+		&s.CourseLessonStore,
+		&s.ClassStore,
+		&s.StudentClassStore,
+		&s.LMSSessionStore,
+		&s.AttendanceStore,
+		&s.LeadStore,
+		&s.LeadActivityStore,
+		&s.FeePackageStore,
+		&s.TuitionStore,
+		&s.PaymentStore,
+		&s.FeeRefundStore,
+		&s.AdditionalFeeStore,
+		&s.PostCategoryStore,
+		&s.BlogPostStore,
+		&s.WeeklyReviewStore,
+		&s.HomeworkStore,
+		&s.SubmissionStore,
+		&s.ClassMediaStore,
+		&s.TaskStore,
+		&s.BannerStore,
+		&s.NotificationStore,
+		&s.MaterialStore,
+		&s.DashboardStore,
+	)
 }
