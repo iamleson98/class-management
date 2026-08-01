@@ -62,8 +62,8 @@ export default function MarketingCMSPage() {
       toast({ title: editingPost ? t('marketing.cms.updateSuccess', 'Cập nhật bài viết thành công') : t('marketing.cms.createSuccess', 'Tạo bài viết thành công') })
       closeDialog()
     },
-    onError: () => {
-      toast({ title: t('common.error', 'Có lỗi xảy ra'), variant: 'destructive' })
+    onError: (err: unknown) => {
+      toast({ title: (err as Error)?.message || t('common.error', 'Có lỗi xảy ra'), variant: 'destructive' })
     },
   })
 

@@ -162,6 +162,7 @@ export interface Class {
   status: string
   startDate: number
   branchId: string | null
+  chatChannelId: string
   createat: UnixMs
   updateat: UnixMs
   // Optional joined relations (when backend includes them)

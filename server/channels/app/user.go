@@ -104,7 +104,7 @@ func (a *App) CreateUserWithToken(rctx request.CTX, user *model.User, token *mod
 
 	if token.Type == model.TokenTypeGuestInvitation || token.Type == model.TokenTypeGuestMagicLinkInvitation || (token.Type == model.TokenTypeTeamInvitation && len(channels) > 0) {
 		for _, channel := range channels {
-			_, err := a.AddChannelMember(rctx, ruser.Id, channel, ChannelMemberOpts{})
+			_, err := a.AddChannelMember(rctx, ruser.Id, channel, model.ChannelMemberOpts{})
 			if err != nil {
 				rctx.Logger().Warn("Failed to add channel member", mlog.Err(err))
 			}

@@ -11,7 +11,8 @@ export async function uploadFile(file: File, folder: string = 'posts'): Promise<
 
   if (!res.ok) {
     const json = await res.json().catch(() => ({}))
-    throw new Error(json.error || json.message || 'Upload failed')
+    // Mattermost AppError uses `message`; prefer it over the legacy `error`.
+    throw new Error(json.message || json.error || 'Upload failed')
   }
 
   const json = await res.json()

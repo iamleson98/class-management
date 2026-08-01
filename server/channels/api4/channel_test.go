@@ -17,7 +17,6 @@ import (
 
 	"github.com/iamleson98/sitename/server/public/model"
 	"github.com/iamleson98/sitename/server/public/plugin/plugintest/mock"
-	"github.com/iamleson98/sitename/server/v8/channels/app"
 	"github.com/iamleson98/sitename/server/v8/channels/store/storetest/mocks"
 	"github.com/iamleson98/sitename/server/v8/channels/utils/testutils"
 	einterfacesmocks "github.com/iamleson98/sitename/server/v8/einterfaces/mocks"
@@ -2332,11 +2331,12 @@ func TestGetChannelsForTeamForUser(t *testing.T) {
 
 		found := make([]bool, 3)
 		for _, c := range channels {
-			if c.Id == th.BasicChannel.Id {
+			switch c.Id {
+			case th.BasicChannel.Id:
 				found[0] = true
-			} else if c.Id == th.BasicChannel2.Id {
+			case th.BasicChannel2.Id:
 				found[1] = true
-			} else if c.Id == th.BasicPrivateChannel.Id {
+			case th.BasicPrivateChannel.Id:
 				found[2] = true
 			}
 
@@ -2433,15 +2433,17 @@ func TestGetChannelsForUser(t *testing.T) {
 	numOffTopic := 0
 	numTownSquare := 0
 	for _, ch := range channels {
-		if ch.Type == model.ChannelTypeOpen {
+		switch ch.Type {
+		case model.ChannelTypeOpen:
 			numPublic++
-		} else if ch.Type == model.ChannelTypePrivate {
+		case model.ChannelTypePrivate:
 			numPrivate++
 		}
 
-		if ch.DisplayName == "Off-Topic" {
+		switch ch.DisplayName {
+		case "Off-Topic":
 			numOffTopic++
-		} else if ch.DisplayName == "Town Square" {
+		case "Town Square":
 			numTownSquare++
 		}
 	}
@@ -5739,9 +5741,9 @@ func TestChannelMembersMinusGroupMembers(t *testing.T) {
 
 	channel := th.CreatePrivateChannel(t)
 
-	_, appErr := th.App.AddChannelMember(th.Context, user1.Id, channel, app.ChannelMemberOpts{})
+	_, appErr := th.App.AddChannelMember(th.Context, user1.Id, channel, model.ChannelMemberOpts{})
 	require.Nil(t, appErr)
-	_, appErr = th.App.AddChannelMember(th.Context, user2.Id, channel, app.ChannelMemberOpts{})
+	_, appErr = th.App.AddChannelMember(th.Context, user2.Id, channel, model.ChannelMemberOpts{})
 	require.Nil(t, appErr)
 
 	channel.GroupConstrained = model.NewPointer(true)

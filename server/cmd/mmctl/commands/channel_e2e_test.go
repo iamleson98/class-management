@@ -6,7 +6,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/iamleson98/sitename/server/public/model"
 	"github.com/iamleson98/sitename/server/v8/channels/api4"
-	"github.com/iamleson98/sitename/server/v8/channels/app"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -539,7 +538,7 @@ func (s *MmctlE2ETestSuite) TestChannelRenameCmd() {
 	s.Run("Rename channel with permission", func() {
 		printer.Clean()
 
-		_, appErr := s.th.App.AddChannelMember(s.th.Context, s.th.BasicUser.Id, channel, app.ChannelMemberOpts{})
+		_, appErr := s.th.App.AddChannelMember(s.th.Context, s.th.BasicUser.Id, channel, model.ChannelMemberOpts{})
 		s.Require().Nil(appErr)
 
 		newChannelName := api4.GenerateTestChannelName()

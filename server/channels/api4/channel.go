@@ -2160,7 +2160,7 @@ func addChannelMember(c *Context, w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		cm, err := c.App.AddChannelMember(c.AppContext, member.UserId, channel, app.ChannelMemberOpts{
+		cm, err := c.App.AddChannelMember(c.AppContext, member.UserId, channel, model.ChannelMemberOpts{
 			UserRequestorID: c.AppContext.Session().UserId,
 			PostRootID:      postRootId,
 		})

@@ -78,7 +78,7 @@ function ClassMediaTab({ media, classId, onDelete, isAuthenticated }: {
       setUploadTitle('')
       toast({ title: t('classes.uploadSuccess', 'Tải lên thành công') })
     },
-    onError: () => toast({ title: t('classes.uploadFail', 'Tải lên thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('classes.uploadFail', 'Tải lên thất bại'), variant: 'destructive' }),
   })
 
   function handleUpload() {
@@ -291,7 +291,7 @@ export default function AdminClasses() {
       queryClient.invalidateQueries({ queryKey: ['class-media'] })
       toast({ title: t('classes.deleteMediaSuccess', 'Xóa media thành công') })
     },
-    onError: () => toast({ title: t('common.deleteFail', 'Xóa thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('common.deleteFail', 'Xóa thất bại'), variant: 'destructive' }),
   })
 
   const createMutation = useMutation({
@@ -301,7 +301,7 @@ export default function AdminClasses() {
       toast({ title: t('classes.createSuccess', 'Thêm lớp thành công') })
       closeDialog()
     },
-    onError: () => toast({ title: t('classes.createFail', 'Thêm lớp thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('classes.createFail', 'Thêm lớp thất bại'), variant: 'destructive' }),
   })
 
   const updateMutation = useMutation({
@@ -311,7 +311,7 @@ export default function AdminClasses() {
       toast({ title: t('classes.updateSuccess', 'Cập nhật lớp thành công') })
       closeDialog()
     },
-    onError: () => toast({ title: t('common.updateFail', 'Cập nhật thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('common.updateFail', 'Cập nhật thất bại'), variant: 'destructive' }),
   })
 
   const deleteMutation = useMutation({
@@ -322,7 +322,7 @@ export default function AdminClasses() {
       setDeleteOpen(false)
       setDeletingId(null)
     },
-    onError: () => toast({ title: t('common.deleteFail', 'Xóa thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('common.deleteFail', 'Xóa thất bại'), variant: 'destructive' }),
   })
 
   const enrollMutation = useMutation({
@@ -333,7 +333,7 @@ export default function AdminClasses() {
       setEnrollOpen(false)
       setSelectedStudentIds([])
     },
-    onError: () => toast({ title: t('classes.enrollFail', 'Ghi danh thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('classes.enrollFail', 'Ghi danh thất bại'), variant: 'destructive' }),
   })
 
   const closeDialog = () => {

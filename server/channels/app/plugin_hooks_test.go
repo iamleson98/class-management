@@ -2139,7 +2139,7 @@ func TestUserHasJoinedChannel(t *testing.T) {
 		// Setup plugin after creating the channel
 		setupPluginAPITest(t, getPluginCode(th), pluginManifest, pluginID, th.App, th.Context)
 
-		_, appErr = th.App.AddChannelMember(th.Context, user2.Id, channel, ChannelMemberOpts{
+		_, appErr = th.App.AddChannelMember(th.Context, user2.Id, channel, model.ChannelMemberOpts{
 			UserRequestorID: user2.Id,
 		})
 		require.Nil(t, appErr)
@@ -2184,7 +2184,7 @@ func TestUserHasJoinedChannel(t *testing.T) {
 		// Setup plugin after creating the channel
 		setupPluginAPITest(t, getPluginCode(th), pluginManifest, pluginID, th.App, th.Context)
 
-		_, appErr = th.App.AddChannelMember(th.Context, user2.Id, channel, ChannelMemberOpts{
+		_, appErr = th.App.AddChannelMember(th.Context, user2.Id, channel, model.ChannelMemberOpts{
 			UserRequestorID: user1.Id,
 		})
 		require.Nil(t, appErr)

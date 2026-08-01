@@ -205,6 +205,17 @@ services:
         - traefik.http.routers.lms-server.rule=Host(`api.${DOMAIN}`)
         - traefik.http.routers.lms-server.entrypoints=websecure
         - traefik.http.routers.lms-server.tls.certresolver=le
+        # Chat: serve /api/v4/* (REST + the WebSocket at /api/v4/websocket)
+        # under the SAME origin as the frontend (app.<domain>) so the
+        # httpOnly MMAUTHTOKEN cookie is first-party and rides the WS
+        # upgrade unchanged (SameSite=Lax is sufficient, no CORS/cookie
+        # changes needed). Traefik proxies the WS upgrade automatically.
+        # Priority ensures this wins over lms-fe's bare Host(`app.<domain>`).
+        - traefik.http.routers.lms-server-chat.rule=Host(`app.${DOMAIN}`) && PathPrefix(`/api/v4`)
+        - traefik.http.routers.lms-server-chat.entrypoints=websecure
+        - traefik.http.routers.lms-server-chat.tls.certresolver=le
+        - traefik.http.routers.lms-server-chat.service=lms-server
+        - traefik.http.routers.lms-server-chat.priority=100
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8065/api/v4/system/ping"]
       interval: 30s

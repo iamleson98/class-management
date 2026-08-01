@@ -1,5 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+/* highlight.js theme for chat code blocks (github light + atom-one dark). */
+@import "highlight.js/styles/github.css";
 
 @custom-variant dark (&:is(.dark *));
 

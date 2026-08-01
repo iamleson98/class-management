@@ -74,8 +74,8 @@ export default function CoursesPage() {
       setEditingCourse(null)
       form.reset(emptyCourse)
     },
-    onError: () => {
-      toast({ title: t('common.error', 'Có lỗi xảy ra'), variant: 'destructive' })
+    onError: (err: unknown) => {
+      toast({ title: (err as Error)?.message || t('common.error', 'Có lỗi xảy ra'), variant: 'destructive' })
     },
   })
 
@@ -87,8 +87,8 @@ export default function CoursesPage() {
       setDeleteDialogOpen(false)
       setEditingCourse(null)
     },
-    onError: () => {
-      toast({ title: t('common.error', 'Có lỗi xảy ra'), variant: 'destructive' })
+    onError: (err: unknown) => {
+      toast({ title: (err as Error)?.message || t('common.error', 'Có lỗi xảy ra'), variant: 'destructive' })
     },
   })
 

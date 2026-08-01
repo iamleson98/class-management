@@ -6,7 +6,6 @@ import (
 
 	"github.com/iamleson98/sitename/server/public/model"
 	"github.com/iamleson98/sitename/server/public/shared/mlog"
-	"github.com/iamleson98/sitename/server/v8/channels/app"
 	"github.com/iamleson98/sitename/server/v8/channels/web"
 )
 
@@ -213,7 +212,7 @@ func localAddChannelMember(c *Context, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	cm, err := c.App.AddChannelMember(c.AppContext, member.UserId, channel, app.ChannelMemberOpts{
+	cm, err := c.App.AddChannelMember(c.AppContext, member.UserId, channel, model.ChannelMemberOpts{
 		PostRootID: postRootId,
 	})
 	if err != nil {

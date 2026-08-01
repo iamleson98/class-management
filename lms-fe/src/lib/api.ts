@@ -345,7 +345,10 @@ async function publicJson(path: string, init: RequestInit, defaultError: string)
   const res = await fetch(`${PUBLIC_BASE}${path}`, init)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || defaultError)
+    // Mattermost AppError puts the human-readable text in `message`; some older
+    // paths use `error`. Prefer the server message so users see exactly what the
+    // backend reports (e.g. "An account with that email already exists.").
+    throw new Error(err.message || err.error || defaultError)
   }
   return res.json()
 }

@@ -31,6 +31,11 @@ const nextConfig: NextConfig = {
   // Emit a self-contained server bundle for the Docker runtime image
   // (see lms-fe/Dockerfile stage 3).
   output: "standalone",
+  // The vendored Mattermost client packages (src/chat/platform/{client,types})
+  // ship pre-built CommonJS. Transpile them through SWC so Next can bundle
+  // them for the browser and resolve CJS interop. Both are linked as local
+  // file: deps in package.json — see the chat feature (src/lib/chat, src/components/lms/chat).
+  transpilePackages: ["@mattermost/client", "@mattermost/types"],
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -50,10 +55,11 @@ const nextConfig: NextConfig = {
   // In production, achieve the same effect by serving frontend + backend under
   // one domain (or a reverse proxy) instead of this Next.js rewrite.
   async rewrites() {
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8065"
     return [
       {
         source: "/api/v4/:path*",
-        destination: `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8065"}/api/v4/:path*`,
+        destination: `${backendUrl}/api/v4/:path*`,
       },
     ];
   },

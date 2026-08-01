@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/iamleson98/sitename/server/public/model"
-	"github.com/iamleson98/sitename/server/v8/channels/app"
 )
 
 func TestInviteProvider(t *testing.T) {
@@ -139,7 +138,7 @@ func TestInviteProvider(t *testing.T) {
 
 	t.Run("try to add a user not part of the group to a group channel", func(t *testing.T) {
 		groupChannel := th.createChannel(t, th.BasicTeam, model.ChannelTypePrivate)
-		_, err := th.App.AddChannelMember(th.Context, th.BasicUser.Id, groupChannel, app.ChannelMemberOpts{})
+		_, err := th.App.AddChannelMember(th.Context, th.BasicUser.Id, groupChannel, model.ChannelMemberOpts{})
 		require.Nil(t, err)
 		groupChannel.GroupConstrained = model.NewPointer(true)
 		groupChannel, _ = th.App.UpdateChannel(th.Context, groupChannel)

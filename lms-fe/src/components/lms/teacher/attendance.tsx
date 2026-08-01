@@ -71,7 +71,7 @@ export default function TeacherAttendance() {
   const saveMutation = useMutation({
     mutationFn: (data: any[]) => saveAttendance(selectedSession, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['session-attendance'] }); toast({ title: t('teacher.attendance.saved', 'Đã lưu điểm danh') }) },
-    onError: () => toast({ title: t('common.error', 'Lỗi'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('common.error', 'Lỗi'), variant: 'destructive' }),
   })
 
   const handleSave = () => {

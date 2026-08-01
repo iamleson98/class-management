@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Users, GraduationCap, BookOpen, School, CalendarDays,
   ClipboardCheck, ChevronLeft, ChevronDown, Menu, Sun, Moon, ChevronRight,
   BarChart3, Bell, LogOut, Phone, FileText, DollarSign, ListTodo, Image,
-  Settings, CreditCard, Newspaper
+  Settings, CreditCard, Newspaper, MessageSquare
 } from 'lucide-react'
 import { useLMSStore, ROLE_COLORS, ActiveView, parseAllLMSRoles } from '@/store/lms-store'
 import type { UserRole } from '@/lib/schemas'
@@ -66,6 +66,8 @@ const StudentReviews = dynamic(() => import('@/components/lms/student/reviews').
 const StudentHomework = dynamic(() => import('@/components/lms/student/homework').then(m => m.default), { loading: () => <LoadingView /> })
 const StudentAttendance = dynamic(() => import('@/components/lms/student/attendance').then(m => m.default), { loading: () => <LoadingView /> })
 
+const ChatView = dynamic(() => import('@/components/lms/chat/chat-view').then(m => m.default), { loading: () => <LoadingView /> })
+
 function LoadingView() {
   return (
     <div className="flex items-center justify-center h-64">
@@ -100,12 +102,14 @@ const ADMIN_NAV: NavItem[] = [
   { id: 'cms', labelKey: 'nav.cms', labelDefault: 'Tin tức', icon: Newspaper, sectionKey: 'section.content', sectionDefault: 'Nội dung' },
   { id: 'reports', labelKey: 'nav.reports', labelDefault: 'Báo cáo', icon: BarChart3, sectionKey: 'section.system', sectionDefault: 'Hệ thống' },
   { id: 'settings', labelKey: 'nav.settings', labelDefault: 'Cấu hình', icon: Settings },
+  { id: 'chat', labelKey: 'nav.chat', labelDefault: 'Trò chuyện', icon: MessageSquare, sectionKey: 'section.communication', sectionDefault: 'Giao tiếp' },
 ]
 
 const COUNSELOR_NAV: NavItem[] = [
   { id: 'dashboard', labelKey: 'nav.dashboard', labelDefault: 'Tổng quan', icon: LayoutDashboard, sectionKey: 'section.overview', sectionDefault: 'Tổng quan' },
   { id: 'crm', labelKey: 'nav.crm', labelDefault: 'CRM Tuyển sinh', icon: Phone, sectionKey: 'section.admissions', sectionDefault: 'Tuyển sinh' },
   { id: 'students', labelKey: 'nav.students', labelDefault: 'Học viên', icon: Users },
+  { id: 'chat', labelKey: 'nav.chat', labelDefault: 'Trò chuyện', icon: MessageSquare, sectionKey: 'section.communication', sectionDefault: 'Giao tiếp' },
 ]
 
 const TEACHER_NAV: NavItem[] = [
@@ -115,6 +119,7 @@ const TEACHER_NAV: NavItem[] = [
   { id: 'materials', labelKey: 'nav.materials', labelDefault: 'Học liệu', icon: FileText },
   { id: 'homework', labelKey: 'nav.homework', labelDefault: 'Bài tập', icon: ListTodo },
   { id: 'reviews', labelKey: 'nav.reviews', labelDefault: 'Nhận xét', icon: CreditCard },
+  { id: 'chat', labelKey: 'nav.chat', labelDefault: 'Trò chuyện', icon: MessageSquare, sectionKey: 'section.communication', sectionDefault: 'Giao tiếp' },
 ]
 
 const ACCOUNTANT_NAV: NavItem[] = [
@@ -122,6 +127,7 @@ const ACCOUNTANT_NAV: NavItem[] = [
   { id: 'tuition', labelKey: 'nav.tuition', labelDefault: 'Học phí', icon: DollarSign, sectionKey: 'section.finance', sectionDefault: 'Tài chính' },
   { id: 'payments', labelKey: 'nav.payments', labelDefault: 'Thanh toán', icon: CreditCard },
   { id: 'reports-finance', labelKey: 'nav.reports', labelDefault: 'Báo cáo', icon: BarChart3 },
+  { id: 'chat', labelKey: 'nav.chat', labelDefault: 'Trò chuyện', icon: MessageSquare, sectionKey: 'section.communication', sectionDefault: 'Giao tiếp' },
 ]
 
 const MARKETING_NAV: NavItem[] = [
@@ -129,6 +135,7 @@ const MARKETING_NAV: NavItem[] = [
   { id: 'cms', labelKey: 'nav.cms', labelDefault: 'Tin tức', icon: Newspaper, sectionKey: 'section.content', sectionDefault: 'Nội dung' },
   { id: 'banners', labelKey: 'nav.banners', labelDefault: 'Banner', icon: Image },
   { id: 'reports-marketing', labelKey: 'nav.reports', labelDefault: 'Báo cáo', icon: BarChart3 },
+  { id: 'chat', labelKey: 'nav.chat', labelDefault: 'Trò chuyện', icon: MessageSquare, sectionKey: 'section.communication', sectionDefault: 'Giao tiếp' },
 ]
 
 const PARENT_NAV: NavItem[] = [
@@ -141,6 +148,7 @@ const PARENT_NAV: NavItem[] = [
   { id: 'homework', labelKey: 'nav.homework', labelDefault: 'Bài tập', icon: ListTodo },
   { id: 'media', labelKey: 'nav.media', labelDefault: 'Hình ảnh/Video', icon: Image },
   { id: 'notifications', labelKey: 'nav.notifications', labelDefault: 'Thông báo', icon: Bell },
+  { id: 'chat', labelKey: 'nav.chat', labelDefault: 'Trò chuyện', icon: MessageSquare, sectionKey: 'section.communication', sectionDefault: 'Giao tiếp' },
 ]
 
 const STUDENT_NAV: NavItem[] = [
@@ -150,6 +158,7 @@ const STUDENT_NAV: NavItem[] = [
   { id: 'materials', labelKey: 'nav.materials', labelDefault: 'Học liệu', icon: FileText },
   { id: 'homework', labelKey: 'nav.homework', labelDefault: 'Bài tập', icon: ListTodo },
   { id: 'reviews', labelKey: 'nav.reviews', labelDefault: 'Nhận xét', icon: CreditCard },
+  { id: 'chat', labelKey: 'nav.chat', labelDefault: 'Trò chuyện', icon: MessageSquare, sectionKey: 'section.communication', sectionDefault: 'Giao tiếp' },
 ]
 
 const NAV_MAP: Record<string, NavItem[]> = {
@@ -273,6 +282,7 @@ function renderView(role: string, view: ActiveView) {
       case 'settings': return <AdminSettings />
       case 'homework': return <AdminHomework />
       case 'reviews': return <AdminReviews />
+      case 'chat': return <ChatView />
     }
   }
   // Counselor
@@ -281,6 +291,7 @@ function renderView(role: string, view: ActiveView) {
       case 'dashboard': return <CounselorDashboard />
       case 'crm': return <CounselorCRM />
       case 'students': return <AdminStudents />
+      case 'chat': return <ChatView />
     }
   }
   // Teacher
@@ -293,6 +304,7 @@ function renderView(role: string, view: ActiveView) {
       case 'students-view': return <AdminStudents />
       case 'homework': return <AdminHomework />
       case 'reviews': return <AdminReviews />
+      case 'chat': return <ChatView />
     }
   }
   // Accountant
@@ -302,6 +314,7 @@ function renderView(role: string, view: ActiveView) {
       case 'tuition': return <AccountantTuition />
       case 'payments': return <AccountantTuition />
       case 'reports-finance': return <AdminReports />
+      case 'chat': return <ChatView />
     }
   }
   // Marketing
@@ -311,6 +324,7 @@ function renderView(role: string, view: ActiveView) {
       case 'cms': return <MarketingCMS />
       case 'banners': return <AdminSettings />
       case 'reports-marketing': return <AdminReports />
+      case 'chat': return <ChatView />
     }
   }
   // Parent
@@ -325,6 +339,7 @@ function renderView(role: string, view: ActiveView) {
       case 'homework': return <ParentHomework />
       case 'media': return <ParentMedia />
       case 'notifications': return <div className="p-6"><h2 className="text-xl font-bold">Thông báo</h2><p className="text-muted-foreground">Chức năng đang phát triển</p></div>
+      case 'chat': return <ChatView />
     }
   }
   // Student
@@ -337,6 +352,7 @@ function renderView(role: string, view: ActiveView) {
       case 'homework': return <StudentHomework />
       case 'reviews': return <StudentReviews />
       case 'submissions': return <StudentHomework />
+      case 'chat': return <ChatView />
     }
   }
   return <div className="p-6"><h2 className="text-xl font-bold">Trang không tồn tại</h2></div>

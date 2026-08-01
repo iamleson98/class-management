@@ -31,92 +31,99 @@ type Class struct {
 	TeacherID string      `boil:"teacher_id" json:"teacher_id" toml:"teacher_id" yaml:"teacher_id"`
 	Status    string      `boil:"status" json:"status" toml:"status" yaml:"status"`
 	Room      null.String `boil:"room" json:"room,omitempty" toml:"room" yaml:"room,omitempty"`
-	StartDate int64       `boil:"start_date" json:"start_date" toml:"start_date" yaml:"start_date"`
-	Createat  int64       `boil:"createat" json:"createat" toml:"createat" yaml:"createat"`
-	Updateat  int64       `boil:"updateat" json:"updateat" toml:"updateat" yaml:"updateat"`
+	StartDate     int64       `boil:"start_date" json:"start_date" toml:"start_date" yaml:"start_date"`
+	ChatChannelID string      `boil:"chat_channel_id" json:"chat_channel_id" toml:"chat_channel_id" yaml:"chat_channel_id"`
+	Createat      int64       `boil:"createat" json:"createat" toml:"createat" yaml:"createat"`
+	Updateat      int64       `boil:"updateat" json:"updateat" toml:"updateat" yaml:"updateat"`
 
 	R *classR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L classL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var ClassColumns = struct {
-	ID        string
-	CourseID  string
-	BranchID  string
-	Name      string
-	Code      string
-	TeacherID string
-	Status    string
-	Room      string
-	StartDate string
-	Createat  string
-	Updateat  string
+	ID            string
+	CourseID      string
+	BranchID      string
+	Name          string
+	Code          string
+	TeacherID     string
+	Status        string
+	Room          string
+	StartDate     string
+	ChatChannelID string
+	Createat      string
+	Updateat      string
 }{
-	ID:        "id",
-	CourseID:  "course_id",
-	BranchID:  "branch_id",
-	Name:      "name",
-	Code:      "code",
-	TeacherID: "teacher_id",
-	Status:    "status",
-	Room:      "room",
-	StartDate: "start_date",
-	Createat:  "createat",
-	Updateat:  "updateat",
+	ID:            "id",
+	CourseID:      "course_id",
+	BranchID:      "branch_id",
+	Name:          "name",
+	Code:          "code",
+	TeacherID:     "teacher_id",
+	Status:        "status",
+	Room:          "room",
+	StartDate:     "start_date",
+	ChatChannelID: "chat_channel_id",
+	Createat:      "createat",
+	Updateat:      "updateat",
 }
 
 var ClassTableColumns = struct {
-	ID        string
-	CourseID  string
-	BranchID  string
-	Name      string
-	Code      string
-	TeacherID string
-	Status    string
-	Room      string
-	StartDate string
-	Createat  string
-	Updateat  string
+	ID            string
+	CourseID      string
+	BranchID      string
+	Name          string
+	Code          string
+	TeacherID     string
+	Status        string
+	Room          string
+	StartDate     string
+	ChatChannelID string
+	Createat      string
+	Updateat      string
 }{
-	ID:        "classes.id",
-	CourseID:  "classes.course_id",
-	BranchID:  "classes.branch_id",
-	Name:      "classes.name",
-	Code:      "classes.code",
-	TeacherID: "classes.teacher_id",
-	Status:    "classes.status",
-	Room:      "classes.room",
-	StartDate: "classes.start_date",
-	Createat:  "classes.createat",
-	Updateat:  "classes.updateat",
+	ID:            "classes.id",
+	CourseID:      "classes.course_id",
+	BranchID:      "classes.branch_id",
+	Name:          "classes.name",
+	Code:          "classes.code",
+	TeacherID:     "classes.teacher_id",
+	Status:        "classes.status",
+	Room:          "classes.room",
+	StartDate:     "classes.start_date",
+	ChatChannelID: "classes.chat_channel_id",
+	Createat:      "classes.createat",
+	Updateat:      "classes.updateat",
 }
 
 // Generated where
 
 var ClassWhere = struct {
-	ID        whereHelperstring
-	CourseID  whereHelperstring
-	BranchID  whereHelperstring
-	Name      whereHelperstring
-	Code      whereHelperstring
-	TeacherID whereHelperstring
-	Status    whereHelperstring
-	Room      whereHelpernull_String
-	StartDate whereHelperint64
-	Createat  whereHelperint64
-	Updateat  whereHelperint64
+	ID            whereHelperstring
+	CourseID      whereHelperstring
+	BranchID      whereHelperstring
+	Name          whereHelperstring
+	Code          whereHelperstring
+	TeacherID     whereHelperstring
+	Status        whereHelperstring
+	Room          whereHelpernull_String
+	StartDate     whereHelperint64
+	ChatChannelID whereHelperstring
+	Createat      whereHelperint64
+	Updateat      whereHelperint64
 }{
-	ID:        whereHelperstring{field: "\"classes\".\"id\""},
-	CourseID:  whereHelperstring{field: "\"classes\".\"course_id\""},
-	BranchID:  whereHelperstring{field: "\"classes\".\"branch_id\""},
-	Name:      whereHelperstring{field: "\"classes\".\"name\""},
-	Code:      whereHelperstring{field: "\"classes\".\"code\""},
-	TeacherID: whereHelperstring{field: "\"classes\".\"teacher_id\""},
-	Status:    whereHelperstring{field: "\"classes\".\"status\""},
-	Room:      whereHelpernull_String{field: "\"classes\".\"room\""},
-	StartDate: whereHelperint64{field: "\"classes\".\"start_date\""},
-	Createat:  whereHelperint64{field: "\"classes\".\"createat\""},
-	Updateat:  whereHelperint64{field: "\"classes\".\"updateat\""},
+	ID:            whereHelperstring{field: "\"classes\".\"id\""},
+	CourseID:      whereHelperstring{field: "\"classes\".\"course_id\""},
+	BranchID:      whereHelperstring{field: "\"classes\".\"branch_id\""},
+	Name:          whereHelperstring{field: "\"classes\".\"name\""},
+	Code:          whereHelperstring{field: "\"classes\".\"code\""},
+	TeacherID:     whereHelperstring{field: "\"classes\".\"teacher_id\""},
+	Status:        whereHelperstring{field: "\"classes\".\"status\""},
+	Room:          whereHelpernull_String{field: "\"classes\".\"room\""},
+	StartDate:     whereHelperint64{field: "\"classes\".\"start_date\""},
+	ChatChannelID: whereHelperstring{field: "\"classes\".\"chat_channel_id\""},
+	Createat:      whereHelperint64{field: "\"classes\".\"createat\""},
+	Updateat:      whereHelperint64{field: "\"classes\".\"updateat\""},
 }
 
 // ClassRels is where relationship names are stored.
@@ -308,9 +315,9 @@ func (r *classR) GetWeeklyReviews() WeeklyReviewSlice {
 type classL struct{}
 
 var (
-	classAllColumns            = []string{"id", "course_id", "branch_id", "name", "code", "teacher_id", "status", "room", "start_date", "createat", "updateat"}
+	classAllColumns            = []string{"id", "course_id", "branch_id", "name", "code", "teacher_id", "status", "room", "start_date", "chat_channel_id", "createat", "updateat"}
 	classColumnsWithoutDefault = []string{"id", "course_id", "branch_id", "name", "code", "teacher_id", "status", "start_date", "createat", "updateat"}
-	classColumnsWithDefault    = []string{"room"}
+	classColumnsWithDefault    = []string{"room", "chat_channel_id"}
 	classPrimaryKeyColumns     = []string{"id"}
 	classGeneratedColumns      = []string{}
 )

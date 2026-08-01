@@ -143,7 +143,7 @@ export default function AdminCRM() {
       toast({ title: t('crm.createLeadSuccess', 'Thêm lead thành công') })
       closeDialog()
     },
-    onError: () => toast({ title: t('crm.createLeadFail', 'Thêm lead thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('crm.createLeadFail', 'Thêm lead thất bại'), variant: 'destructive' }),
   })
 
   const updateMutation = useMutation({
@@ -153,7 +153,7 @@ export default function AdminCRM() {
       toast({ title: t('crm.updateLeadSuccess', 'Cập nhật lead thành công') })
       closeDialog()
     },
-    onError: () => toast({ title: t('common.updateFail', 'Cập nhật thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('common.updateFail', 'Cập nhật thất bại'), variant: 'destructive' }),
   })
 
   const deleteMutation = useMutation({
@@ -164,7 +164,7 @@ export default function AdminCRM() {
       setDeleteOpen(false)
       setDeletingId(null)
     },
-    onError: () => toast({ title: t('common.deleteFail', 'Xóa thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('common.deleteFail', 'Xóa thất bại'), variant: 'destructive' }),
   })
 
   const activityMutation = useMutation({
@@ -175,7 +175,7 @@ export default function AdminCRM() {
       setActivityOpen(false)
       activityForm.reset(EMPTY_ACTIVITY)
     },
-    onError: () => toast({ title: t('crm.addActivityFail', 'Thêm hoạt động thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('crm.addActivityFail', 'Thêm hoạt động thất bại'), variant: 'destructive' }),
   })
 
   const convertMutation = useMutation({
@@ -186,7 +186,7 @@ export default function AdminCRM() {
       setDetailOpen(false)
       setSelectedLead(null)
     },
-    onError: () => toast({ title: t('crm.convertFail', 'Chuyển đổi thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('crm.convertFail', 'Chuyển đổi thất bại'), variant: 'destructive' }),
   })
 
   const closeDialog = () => {

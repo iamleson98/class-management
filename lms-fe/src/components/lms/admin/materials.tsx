@@ -102,7 +102,7 @@ export default function AdminMaterials() {
       toast({ title: t('materials.addSuccess', 'Thêm tài liệu thành công') })
       setDialogOpen(false)
     },
-    onError: () => toast({ title: t('materials.addFailed', 'Thêm tài liệu thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('materials.addFailed', 'Thêm tài liệu thất bại'), variant: 'destructive' }),
   })
 
   const openCreate = () => {

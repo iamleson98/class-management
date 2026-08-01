@@ -263,7 +263,7 @@ func TestCreateDefaultMemberships(t *testing.T) {
 	}
 
 	// Ensure members are in channel
-	_, err = th.App.AddChannelMember(th.Context, scientist1.Id, experimentsChannel, ChannelMemberOpts{})
+	_, err = th.App.AddChannelMember(th.Context, scientist1.Id, experimentsChannel, model.ChannelMemberOpts{})
 	if err != nil {
 		t.Errorf("unable to add user to channel: %s", err.Error())
 	}
@@ -273,7 +273,7 @@ func TestCreateDefaultMemberships(t *testing.T) {
 	if err != nil {
 		t.Errorf("unable to add user to team: %s", err.Error())
 	}
-	_, err = th.App.AddChannelMember(th.Context, singer1.Id, experimentsChannel, ChannelMemberOpts{})
+	_, err = th.App.AddChannelMember(th.Context, singer1.Id, experimentsChannel, model.ChannelMemberOpts{})
 	if err != nil {
 		t.Errorf("unable to add user to channel: %s", err.Error())
 	}
@@ -552,7 +552,7 @@ func TestDeleteGroupMemberships(t *testing.T) {
 		_, err = th.App.AddTeamMember(th.Context, th.BasicTeam.Id, userID)
 		require.Nil(t, err)
 
-		_, err = th.App.AddChannelMember(th.Context, userID, th.BasicChannel, ChannelMemberOpts{})
+		_, err = th.App.AddChannelMember(th.Context, userID, th.BasicChannel, model.ChannelMemberOpts{})
 		require.Nil(t, err)
 	}
 

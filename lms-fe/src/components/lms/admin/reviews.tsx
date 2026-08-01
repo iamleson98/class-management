@@ -174,7 +174,7 @@ export default function AdminReviews() {
       setCreateDialogOpen(false)
       form.reset({ studentId: '', classId: '', weekNumber: 1, rating: 0, content: '' })
     },
-    onError: () => toast({ title: t('reviews.createFailed', 'Viết nhận xét thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('reviews.createFailed', 'Viết nhận xét thất bại'), variant: 'destructive' }),
   })
 
   const updateMutation = useMutation({
@@ -185,7 +185,7 @@ export default function AdminReviews() {
       setEditDialogOpen(false)
       setSelectedReview(null)
     },
-    onError: () => toast({ title: t('reviews.updateFailed', 'Cập nhật nhận xét thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('reviews.updateFailed', 'Cập nhật nhận xét thất bại'), variant: 'destructive' }),
   })
 
   const deleteMutation = useMutation({
@@ -196,7 +196,7 @@ export default function AdminReviews() {
       setDeleteDialogOpen(false)
       setSelectedReview(null)
     },
-    onError: () => toast({ title: t('reviews.deleteFailed', 'Xóa nhận xét thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('reviews.deleteFailed', 'Xóa nhận xét thất bại'), variant: 'destructive' }),
   })
 
   // ── Handlers ───────────────────────────────────────────────────

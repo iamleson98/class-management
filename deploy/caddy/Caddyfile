@@ -1,0 +1,21 @@
+# Dev reverse proxy — serves the whole app on a single origin so the
+# MMAUTHTOKEN cookie is first-party for REST and the WebSocket alike.
+# Mirrors the prod Traefik path rule (deploy/swarm/stack.yml).
+#
+# Access the app at http://localhost (port from PROXY_PORT, default 80).
+:80 {
+	# Chat REST + WebSocket -> Go backend. The flush interval lets the
+	# WebSocket upgrade stream bidirectionally.
+	@apiv4 path /api/v4/*
+	handle @apiv4 {
+		reverse_proxy lms-server:8065 {
+			# Required for WebSocket upgrades.
+			flush_interval -1
+		}
+	}
+
+	# Everything else -> Next.js frontend.
+	handle {
+		reverse_proxy lms-fe:3000
+	}
+}

@@ -10,15 +10,6 @@ import (
 	"github.com/iamleson98/sitename/server/v8/channels/store"
 )
 
-// LMSApp is the LMS application layer that wraps store access with business logic.
-type LMSApp struct {
-	store store.Store
-}
-
-func NewLMSApp(s store.Store) *LMSApp {
-	return &LMSApp{store: s}
-}
-
 // Branch
 func (a *LMSApp) GetBranch(id string) (*lms_models.Branch, *model.AppError) {
 	branch, err := a.store.Branch().Get(id)

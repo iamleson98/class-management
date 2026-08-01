@@ -191,7 +191,7 @@ export default function AdminHomework() {
       form.reset()
       setFileName('')
     },
-    onError: () => toast({ title: t('homework.assignFailed', 'Giao bài tập thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('homework.assignFailed', 'Giao bài tập thất bại'), variant: 'destructive' }),
   })
 
   const bulkCreateMutation = useMutation({
@@ -203,7 +203,7 @@ export default function AdminHomework() {
       bulkForm.reset()
       setBulkFileName('')
     },
-    onError: () => toast({ title: t('homework.assignFailed', 'Giao bài tập thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('homework.assignFailed', 'Giao bài tập thất bại'), variant: 'destructive' }),
   })
 
   const deleteMutation = useMutation({
@@ -214,7 +214,7 @@ export default function AdminHomework() {
       setDeleteDialogOpen(false)
       setSelectedHomework(null)
     },
-    onError: () => toast({ title: t('homework.deleteFailed', 'Xóa bài tập thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('homework.deleteFailed', 'Xóa bài tập thất bại'), variant: 'destructive' }),
   })
 
   const gradeMutation = useMutation({
@@ -225,7 +225,7 @@ export default function AdminHomework() {
       queryClient.invalidateQueries({ queryKey: ['homework'] })
       toast({ title: t('homework.gradeSuccess', 'Chấm điểm thành công') })
     },
-    onError: () => toast({ title: t('homework.gradeFailed', 'Chấm điểm thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('homework.gradeFailed', 'Chấm điểm thất bại'), variant: 'destructive' }),
   })
 
   // ── Handlers ────────────────────────────────────────────────────

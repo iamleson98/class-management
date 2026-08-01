@@ -1817,18 +1817,8 @@ func (a *App) AddUserToChannel(rctx request.CTX, user *model.User, channel *mode
 	return newMember, nil
 }
 
-type ChannelMemberOpts struct {
-	UserRequestorID string
-	PostRootID      string
-	// SkipTeamMemberIntegrityCheck is used to indicate whether it should be checked
-	// that a user has already been removed from that team or not.
-	// This is useful to avoid in scenarios when we just added the team member,
-	// and thereby know that there is no need to check this.
-	SkipTeamMemberIntegrityCheck bool
-}
-
 // AddChannelMember adds a user to a channel. It is a wrapper over AddUserToChannel.
-func (a *App) AddChannelMember(rctx request.CTX, userID string, channel *model.Channel, opts ChannelMemberOpts) (*model.ChannelMember, *model.AppError) {
+func (a *App) AddChannelMember(rctx request.CTX, userID string, channel *model.Channel, opts model.ChannelMemberOpts) (*model.ChannelMember, *model.AppError) {
 	if member, err := a.Srv().Store().Channel().GetMember(rctx, channel.Id, userID); err != nil {
 		var nfErr *store.ErrNotFound
 		if !errors.As(err, &nfErr) {

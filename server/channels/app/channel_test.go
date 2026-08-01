@@ -957,7 +957,7 @@ func TestAddChannelMemberNoUserRequestor(t *testing.T) {
 
 	channel := th.createChannel(t, th.BasicTeam, model.ChannelTypeOpen)
 
-	_, appErr = th.App.AddChannelMember(th.Context, user.Id, channel, ChannelMemberOpts{})
+	_, appErr = th.App.AddChannelMember(th.Context, user.Id, channel, model.ChannelMemberOpts{})
 	require.Nil(t, appErr, "Failed to add user to channel.")
 
 	// there should be a ChannelMemberHistory record for the user
@@ -995,7 +995,7 @@ func TestAddChannelMemberDeletedUser(t *testing.T) {
 	require.Greater(t, deactivated.DeleteAt, int64(0))
 
 	require.Nil(t, appErr)
-	_, appErr = th.App.AddChannelMember(th.Context, user.Id, th.BasicChannel, ChannelMemberOpts{})
+	_, appErr = th.App.AddChannelMember(th.Context, user.Id, th.BasicChannel, model.ChannelMemberOpts{})
 	require.NotNil(t, appErr)
 }
 
@@ -1357,7 +1357,7 @@ func TestGetChannelMembersTimezones(t *testing.T) {
 	mainHelper.Parallel(t)
 	th := Setup(t).InitBasic(t)
 
-	_, appErr := th.App.AddChannelMember(th.Context, th.BasicUser2.Id, th.BasicChannel, ChannelMemberOpts{})
+	_, appErr := th.App.AddChannelMember(th.Context, th.BasicUser2.Id, th.BasicChannel, model.ChannelMemberOpts{})
 	require.Nil(t, appErr, "Failed to add user to channel.")
 
 	user := th.BasicUser

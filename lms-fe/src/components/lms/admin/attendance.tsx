@@ -103,7 +103,7 @@ export default function AdminAttendance() {
       queryClient.invalidateQueries({ queryKey: ['attendance'] })
       toast({ title: t('attendance.saveSuccess', 'Lưu điểm danh thành công') })
     },
-    onError: () => toast({ title: t('attendance.saveFailed', 'Lưu điểm danh thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('attendance.saveFailed', 'Lưu điểm danh thất bại'), variant: 'destructive' }),
   })
 
   const handleMark = (studentId: string, status: string) => {

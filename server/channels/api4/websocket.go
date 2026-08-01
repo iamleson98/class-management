@@ -47,8 +47,8 @@ func validateDisconnectErrCode(errCode string) bool {
 }
 
 func (api *API) InitWebSocket() {
-	// Optionally supports a trailing slash
-	api.BaseRoutes.APIRoot.Method(http.MethodGet, "/{websocket:websocket(?:\\/)?}", api.APIHandlerTrustRequester(connectWebSocket))
+	// WebSocket endpoint - use the standard APIRoot approach
+	api.BaseRoutes.APIRoot.Method(http.MethodGet, "/websocket", api.APIHandlerTrustRequester(connectWebSocket))
 }
 
 func connectWebSocket(c *Context, w http.ResponseWriter, r *http.Request) {

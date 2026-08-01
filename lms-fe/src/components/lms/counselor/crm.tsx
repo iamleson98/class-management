@@ -266,7 +266,7 @@ function ConvertTab() {
       invalidateAll()
       toast({ title: t('counselor.crm.convertSuccess', 'Chuyển thành học viên thành công') })
     },
-    onError: () => toast({ title: t('counselor.crm.convertFail', 'Chuyển đổi thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('counselor.crm.convertFail', 'Chuyển đổi thất bại'), variant: 'destructive' }),
   })
 
   const revertMutation = useMutation({
@@ -275,7 +275,7 @@ function ConvertTab() {
       invalidateAll()
       toast({ title: t('counselor.crm.revertSuccess', 'Đã chuyển học viên về người dùng') })
     },
-    onError: () => toast({ title: t('counselor.crm.revertFail', 'Chuyển về người dùng thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('counselor.crm.revertFail', 'Chuyển về người dùng thất bại'), variant: 'destructive' }),
   })
 
   const filteredUsers = convertibleUsers.filter((u: any) => {

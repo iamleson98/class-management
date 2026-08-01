@@ -302,7 +302,7 @@ func (i *InviteProvider) addUserToChannel(a *app.App, rctx request.CTX, args *mo
 		return UserInChannel
 	}
 
-	if _, err = a.AddChannelMember(rctx, userProfile.Id, channelToJoin, app.ChannelMemberOpts{UserRequestorID: args.UserId}); err != nil {
+	if _, err = a.AddChannelMember(rctx, userProfile.Id, channelToJoin, model.ChannelMemberOpts{UserRequestorID: args.UserId}); err != nil {
 		if err.Id == "api.channel.add_members.user_denied" {
 			return IsConstrained
 		} else if err.Id == "app.team.get_member.missing.app_error" ||

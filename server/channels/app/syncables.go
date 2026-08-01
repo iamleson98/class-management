@@ -62,7 +62,7 @@ func (a *App) createDefaultChannelMemberships(rctx request.CTX, params model.Cre
 			logger.Info("Added channel member for default channel membership")
 		}
 
-		_, err = a.AddChannelMember(rctx, userChannel.UserID, channel, ChannelMemberOpts{
+		_, err = a.AddChannelMember(rctx, userChannel.UserID, channel, model.ChannelMemberOpts{
 			SkipTeamMemberIntegrityCheck: true,
 		})
 		if err != nil {

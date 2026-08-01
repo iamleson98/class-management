@@ -21,6 +21,16 @@ var (
 
 type ChannelType string
 
+type ChannelMemberOpts struct {
+	UserRequestorID string
+	PostRootID      string
+	// SkipTeamMemberIntegrityCheck is used to indicate whether it should be checked
+	// that a user has already been removed from that team or not.
+	// This is useful to avoid in scenarios when we just added the team member,
+	// and thereby know that there is no need to check this.
+	SkipTeamMemberIntegrityCheck bool
+}
+
 const (
 	ChannelTypeOpen    ChannelType = "O"
 	ChannelTypePrivate ChannelType = "P"

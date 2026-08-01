@@ -489,7 +489,7 @@ func NewServer(options ...Option) (*Server, error) {
 	})
 
 	// init lms app
-	s.lmsApp = lms.NewLMSApp(s.Store())
+	s.lmsApp = lms.NewLMSApp(s.Store(), app)
 
 	return s, nil
 }

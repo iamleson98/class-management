@@ -138,7 +138,7 @@ export default function AdminStudents() {
       setEditingStudent(null)
       form.reset(EMPTY_STUDENT)
     },
-    onError: () => toast({ title: t('students.createFail', 'Thêm học viên thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('students.createFail', 'Thêm học viên thất bại'), variant: 'destructive' }),
   })
 
   const updateMutation = useMutation({
@@ -150,7 +150,7 @@ export default function AdminStudents() {
       setEditingStudent(null)
       form.reset(EMPTY_STUDENT)
     },
-    onError: () => toast({ title: t('common.updateFail', 'Cập nhật thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('common.updateFail', 'Cập nhật thất bại'), variant: 'destructive' }),
   })
 
   const deleteMutation = useMutation({
@@ -161,7 +161,7 @@ export default function AdminStudents() {
       setDeleteOpen(false)
       setDeletingId(null)
     },
-    onError: () => toast({ title: t('common.deleteFail', 'Xóa thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('common.deleteFail', 'Xóa thất bại'), variant: 'destructive' }),
   })
 
   const openCreate = () => {

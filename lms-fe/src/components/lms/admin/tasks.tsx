@@ -77,7 +77,7 @@ export default function AdminTasks() {
       toast({ title: t('tasks.addSuccess', 'Thêm công việc thành công') })
       closeDialog()
     },
-    onError: () => toast({ title: t('tasks.addFailed', 'Thêm công việc thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('tasks.addFailed', 'Thêm công việc thất bại'), variant: 'destructive' }),
   })
 
   const updateMutation = useMutation({
@@ -86,7 +86,7 @@ export default function AdminTasks() {
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
       toast({ title: t('tasks.updateSuccess', 'Cập nhật công việc thành công') })
     },
-    onError: () => toast({ title: t('tasks.updateFailed', 'Cập nhật thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('tasks.updateFailed', 'Cập nhật thất bại'), variant: 'destructive' }),
   })
 
   const tasksByColumn = useMemo(() => {

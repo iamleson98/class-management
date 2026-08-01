@@ -103,7 +103,7 @@ export default function AdminTuition() {
       setCreateOpen(false)
       createForm.reset(EMPTY_CREATE_TUITION_FORM)
     },
-    onError: () => toast({ title: t('tuition.createFail', 'Tạo học phí thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('tuition.createFail', 'Tạo học phí thất bại'), variant: 'destructive' }),
   })
 
   const createPaymentMutation = useMutation({
@@ -115,7 +115,7 @@ export default function AdminTuition() {
       setPaymentOpen(false)
       setSelectedTuition(null)
     },
-    onError: () => toast({ title: t('tuition.paymentFail', 'Ghi nhận thanh toán thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('tuition.paymentFail', 'Ghi nhận thanh toán thất bại'), variant: 'destructive' }),
   })
 
   const openCreate = () => {

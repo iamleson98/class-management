@@ -112,7 +112,7 @@ export default function AdminSettings() {
       setBranchDialogOpen(false)
       branchForm.reset({ name: '', address: '', phone: '', email: '' })
     },
-    onError: () => toast({ title: t('settings.addBranchFailed', 'Thêm chi nhánh thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('settings.addBranchFailed', 'Thêm chi nhánh thất bại'), variant: 'destructive' }),
   })
 
   const userMutation = useMutation({
@@ -123,7 +123,7 @@ export default function AdminSettings() {
       setUserDialogOpen(false)
       userForm.reset({ name: '', email: '', phone: '', role: 'lms_teacher', password: '' })
     },
-    onError: () => toast({ title: t('settings.addUserFailed', 'Thêm người dùng thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('settings.addUserFailed', 'Thêm người dùng thất bại'), variant: 'destructive' }),
   })
 
   const roleMutation = useMutation({
@@ -132,7 +132,7 @@ export default function AdminSettings() {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       toast({ title: t('settings.roleUpdated', 'Cập nhật vai trò thành công') })
     },
-    onError: () => toast({ title: t('settings.roleUpdateFailed', 'Cập nhật vai trò thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('settings.roleUpdateFailed', 'Cập nhật vai trò thất bại'), variant: 'destructive' }),
   })
 
   const deactivateMutation = useMutation({
@@ -141,7 +141,7 @@ export default function AdminSettings() {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       toast({ title: t('settings.deactivateSuccess', 'Đã vô hiệu hóa người dùng') })
     },
-    onError: () => toast({ title: t('settings.deactivateFailed', 'Vô hiệu hóa thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('settings.deactivateFailed', 'Vô hiệu hóa thất bại'), variant: 'destructive' }),
   })
 
   const reactivateMutation = useMutation({
@@ -150,7 +150,7 @@ export default function AdminSettings() {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       toast({ title: t('settings.reactivateSuccess', 'Đã kích hoạt lại người dùng') })
     },
-    onError: () => toast({ title: t('settings.reactivateFailed', 'Kích hoạt lại thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('settings.reactivateFailed', 'Kích hoạt lại thất bại'), variant: 'destructive' }),
   })
 
   return (

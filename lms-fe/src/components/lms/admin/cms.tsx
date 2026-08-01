@@ -107,7 +107,7 @@ export default function AdminCMS() {
       toast({ title: t('cms.createSuccess', 'Tạo bài viết thành công') })
       closeDialog()
     },
-    onError: () => toast({ title: t('cms.createFailed', 'Tạo bài viết thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('cms.createFailed', 'Tạo bài viết thất bại'), variant: 'destructive' }),
   })
 
   const updateMutation = useMutation({
@@ -117,7 +117,7 @@ export default function AdminCMS() {
       toast({ title: t('cms.updateSuccess', 'Cập nhật bài viết thành công') })
       closeDialog()
     },
-    onError: () => toast({ title: t('cms.updateFailed', 'Cập nhật thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('cms.updateFailed', 'Cập nhật thất bại'), variant: 'destructive' }),
   })
 
   const deleteMutation = useMutation({
@@ -128,7 +128,7 @@ export default function AdminCMS() {
       setDeleteOpen(false)
       setDeletingId(null)
     },
-    onError: () => toast({ title: t('cms.deleteFailed', 'Xóa thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('cms.deleteFailed', 'Xóa thất bại'), variant: 'destructive' }),
   })
 
   /* ---------- Category create/edit/delete ---------- */
@@ -146,7 +146,7 @@ export default function AdminCMS() {
       toast({ title: t('cms.createCategorySuccess', 'Tạo chuyên mục thành công') })
       closeCategoryDialog()
     },
-    onError: () => toast({ title: t('cms.createCategoryFailed', 'Tạo chuyên mục thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('cms.createCategoryFailed', 'Tạo chuyên mục thất bại'), variant: 'destructive' }),
   })
 
   const updateCategoryMutation = useMutation({
@@ -156,7 +156,7 @@ export default function AdminCMS() {
       toast({ title: t('cms.updateCategorySuccess', 'Cập nhật chuyên mục thành công') })
       closeCategoryDialog()
     },
-    onError: () => toast({ title: t('cms.updateCategoryFailed', 'Cập nhật chuyên mục thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('cms.updateCategoryFailed', 'Cập nhật chuyên mục thất bại'), variant: 'destructive' }),
   })
 
   const deleteCategoryMutation = useMutation({
@@ -167,7 +167,7 @@ export default function AdminCMS() {
       setCatDeleteOpen(false)
       setDeletingCategoryId(null)
     },
-    onError: () => toast({ title: t('cms.deleteCategoryFailed', 'Xóa chuyên mục thất bại'), variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('cms.deleteCategoryFailed', 'Xóa chuyên mục thất bại'), variant: 'destructive' }),
   })
 
   const onCategorySubmit = (values: PostCategoryInput) => {
