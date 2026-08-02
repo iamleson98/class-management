@@ -7,7 +7,7 @@
  * to its channel (and thread if it's a reply).
  */
 
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { format } from 'date-fns'
 import { X, Bookmark, Pin, AtSign } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -19,6 +19,7 @@ import {
 } from '@/lib/chat/hooks'
 import { useChatStore } from '@/lib/chat/store'
 import { userDisplayName, type ChatPost } from '@/lib/chat/types'
+import { getMentionSearchTerms } from '@/lib/chat/utils'
 import { useTranslation } from '@/lib/i18n'
 
 type PostListKind = 'flagged' | 'pinned' | 'mentions'
@@ -44,8 +45,11 @@ export function PostListRhs({ kind, channelId, teamId, onJump, onClose }: PostLi
   const users = useChatStore((s) => s.users)
   const cfg = CONFIG[kind]
 
-  // Mentions uses a search for the user's mention keys.
-  const mentionSearch = useSearchPosts(teamId)
+  // Mentions: search across all of the user's mention keys (username + first
+  // name + any custom mention keys), as an OR search so any one key matches.
+  // Ports the vendored rhs showMentions() which builds terms from
+  // getCurrentUserMentionKeys and runs an is_or_search across all teams.
+  const mentionSearch = useSearchPosts(teamId, /* isOrSearch */ true)
 
   const flaggedQuery = useFlaggedPosts(userId, teamId)
   const pinnedQuery = usePinnedPosts(channelId ?? null)
@@ -53,24 +57,23 @@ export function PostListRhs({ kind, channelId, teamId, onJump, onClose }: PostLi
   const posts: ChatPost[] = useMemo(() => {
     if (kind === 'flagged') return flaggedQuery.data ?? []
     if (kind === 'pinned') return pinnedQuery.data ?? []
-    // mentions: trigger search once on mount via the parent; here just read.
     return (mentionSearch.data ?? []).slice().sort((a, b) => b.create_at - a.create_at)
   }, [kind, flaggedQuery.data, pinnedQuery.data, mentionSearch.data])
 
-  // Mentions: fire the search (built from current user's username) on mount.
-  // useSearchPosts is a mutation; the parent ChatView triggers it. To keep this
-  // panel self-contained, trigger it here when kind === 'mentions'.
-  useMemo(() => {
-    if (kind === 'mentions' && userId && teamId && !mentionSearch.isPending && !mentionSearch.data) {
-      const me = useChatStore.getState().users[userId]
-      if (me?.username) mentionSearch.mutate(`@${me.username}`)
-    }
-  }, [kind, userId, teamId, mentionSearch])
+  // Fire the mentions search on mount (and when the user/team changes), built
+  // from the full set of mention keys — not just @username.
+  useEffect(() => {
+    if (kind !== 'mentions' || !userId || !teamId) return
+    const me = useChatStore.getState().users[userId]
+    if (!me) return
+    const terms = getMentionSearchTerms(me).join(' ')
+    if (terms.trim()) mentionSearch.mutate(terms)
+  }, [kind, userId, teamId])
 
   const authorIds = useMemo(() => Array.from(new Set(posts.map((p) => p.user_id))), [posts])
   useUsers(authorIds)
 
-  const loading = flaggedQuery.isLoading || pinnedQuery.isLoading
+  const loading = flaggedQuery.isLoading || pinnedQuery.isLoading || (kind === 'mentions' && mentionSearch.isPending)
 
   const Icon = cfg.icon
 
@@ -110,7 +113,7 @@ export function PostListRhs({ kind, channelId, teamId, onJump, onClose }: PostLi
                     <span className="text-xs font-semibold truncate">{userDisplayName(author)}</span>
                     <span className="text-[10px] text-muted-foreground/70 ml-auto">{format(new Date(post.create_at), 'dd/MM/yy HH:mm')}</span>
                   </div>
-                  <p className="text-sm line-clamp-3 whitespace-pre-wrap break-words">{post.message}</p>
+                  <p className="text-sm line-clamp-3 whitespace-pre-wrap wrap-break-word">{post.message}</p>
                   {channel && <div className="mt-1 text-[10px] text-muted-foreground/70 truncate">#{channel.display_name}</div>}
                 </button>
               )

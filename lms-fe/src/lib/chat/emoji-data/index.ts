@@ -195,3 +195,53 @@ export function shortcodeToUnicode(name: string): string | null {
   if (emoji && isSystemEmoji(emoji)) return unifiedToUnicode(emoji.unified)
   return null
 }
+
+// ─── Inline :shortcode: autocomplete (ports EmoticonProvider + compareEmojis) ──
+
+const MIN_EMOJI_AUTOCOMPLETE_LEN = 2
+const EMOJI_CATEGORY_SUGGESTION_BLOCKLIST = new Set(['skintone'])
+
+export interface EmojiMatch {
+  name: string
+  emoji: Emoji
+}
+
+/**
+ * Find emojis whose short_name/name contains `partial` (substring match, the
+ * same behavior as the vendored EmoticonProvider.findAndSuggestEmojis), sorted
+ * prefix-matches-first then alphabetically. Caps at `limit` results. Excludes
+ * the skintone category, matching the vendored blocklist.
+ */
+export function findEmojisByPrefix(partial: string, limit = 50): EmojiMatch[] {
+  if (partial.length < MIN_EMOJI_AUTOCOMPLETE_LEN) return []
+  const q = partial.toLowerCase()
+  const matched: EmojiMatch[] = []
+  for (const [name, emoji] of emojiMap) {
+    if (EMOJI_CATEGORY_SUGGESTION_BLOCKLIST.has(
+      isSystemEmoji(emoji) ? emoji.category : 'custom',
+    )) continue
+    if (isSystemEmoji(emoji)) {
+      // A system emoji may match via any of its short_names.
+      const alias = emoji.short_names.find((a) => a.toLowerCase().includes(q))
+      if (alias) {
+        // System emojis take precedence over a custom emoji of the same name.
+        if (emojiMap.hasSystemEmoji(name)) matched.push({ name: alias, emoji })
+      }
+    } else if (name.toLowerCase().includes(q) && !emojiMap.hasSystemEmoji(name)) {
+      matched.push({ name, emoji })
+    }
+  }
+  // Sort: prefix-matches first, then alphabetical (ports compareEmojis default rule).
+  matched.sort((a, b) => {
+    const aName = getEmojiName(a.emoji)
+    const bName = getEmojiName(b.emoji)
+    const aPrefix = aName.toLowerCase().startsWith(q)
+    const bPrefix = bName.toLowerCase().startsWith(q)
+    if (aPrefix !== bPrefix) return aPrefix ? -1 : 1
+    // Custom emojis sink to the bottom within an equal prefix group.
+    if (!isSystemEmoji(a.emoji) && isSystemEmoji(b.emoji)) return 1
+    if (isSystemEmoji(a.emoji) && !isSystemEmoji(b.emoji)) return -1
+    return aName.localeCompare(bName)
+  })
+  return matched.slice(0, limit)
+}

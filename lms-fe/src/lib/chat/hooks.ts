@@ -7,7 +7,7 @@
 
 'use client'
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { client4, connectWebSocket, disconnectWebSocket, configureClient4, wsClient } from './client'
 import { bindChatWebSocket } from './websocket-events'
@@ -56,6 +56,9 @@ export function useCurrentUserId(): string | undefined {
 
 const POSTS_PER_PAGE = 60
 
+/** Maximum characters allowed in a post (webapp DEFAULT_CHARS_PER_POST). */
+export const MAX_POST_CHARS = 4000
+
 /**
  * Load my teams + the channels/memberships for each, polling so newly
  * provisioned class channels (or enrollment changes) appear without a reload.
@@ -66,6 +69,7 @@ export function useChannels() {
   const upsertChannels = useChatStore((s) => s.upsertChannels)
   const setMemberships = useChatStore((s) => s.setMemberships)
   const setUnread = useChatStore((s) => s.setUnread)
+  const setMentions = useChatStore((s) => s.setMentions)
 
   const teamsQuery = useQuery({
     queryKey: ['chat', 'teams'],
@@ -86,11 +90,14 @@ export function useChannels() {
       // though the vendored Channel type omits it; read it defensively.
       const channelsById = new Map(channels.map((c) => [c.id, c]))
       const unread: Record<string, number> = {}
+      const mentions: Record<string, number> = {}
       for (const m of members) {
         const total = (channelsById.get(m.channel_id) as unknown as { total_msg_count?: number })?.total_msg_count ?? 0
         unread[m.channel_id] = Math.max(0, total - m.msg_count)
+        mentions[m.channel_id] = m.mention_count ?? 0
       }
       setUnread(unread)
+      setMentions(mentions)
       return { teams, channels, members }
     },
     // Poll so new class channels (after enroll/admin provisioning) show up.
@@ -112,6 +119,7 @@ export function useChannelPosts(channelId: string | null) {
   const userId = useCurrentUserId()
   const setChannelPosts = useChatStore((s) => s.setChannelPosts)
   const prependPosts = useChatStore((s) => s.prependPosts)
+  const appendPosts = useChatStore((s) => s.appendPosts)
   const setLoading = useChatStore((s) => s.setChannelPostsLoading)
   const cpState = useChatStore((s) => (channelId ? s.postsByChannel[channelId] : undefined))
 
@@ -152,7 +160,30 @@ export function useChannelPosts(channelId: string | null) {
     }
   }, [channelId, cpState, prependPosts, setLoading])
 
-  return { loadOlder, hasOlder: !!cpState?.prevPostId, loading: cpState?.loading ?? false }
+  // Load newer messages (scroll down into a gap) via getPostsAfter using nextPostId cursor.
+  // Live posts still arrive via websocket; this covers the scrolled-up-with-gap case.
+  const loadNewer = useCallback(async () => {
+    if (!channelId || !cpState || cpState.loading) return
+    if (!cpState.nextPostId) return // at newest
+    const newestId = cpState.order[0]
+    if (!newestId) return
+    setLoading(channelId, true)
+    try {
+      const list = await client4.getPostsAfter(channelId, newestId, 0, POSTS_PER_PAGE)
+      const posts = (list.order ?? []).map((id) => list.posts[id]).filter(Boolean) as ChatPost[]
+      appendPosts(channelId, posts, list.next_post_id)
+    } finally {
+      setLoading(channelId, false)
+    }
+  }, [channelId, cpState, appendPosts, setLoading])
+
+  return {
+    loadOlder,
+    loadNewer,
+    hasOlder: !!cpState?.prevPostId,
+    hasNewer: !!cpState?.nextPostId,
+    loading: cpState?.loading ?? false,
+  }
 }
 
 /** Mark a channel read (viewMyChannel) — called when a channel is opened/focused. */
@@ -305,6 +336,159 @@ export function useThread(rootId: string | null) {
   })
 }
 
+// ─── Collapsed Reply Threads (CRT) ──────────────────────────────────
+// Ports the vendored mattermost-redux thread actions. The thread id IS the
+// root post id. Following is optimistic (flip local → API → refetch counts).
+
+const THREADS_PAGE_SIZE = 25
+
+/**
+ * Load the user's threads for a team (the global inbox list). Pass
+ * { unread: true } for the unread-only list. Seeds the store + counts.
+ */
+export function useUserThreads(teamId: string | undefined, opts: { unread?: boolean } = {}) {
+  const receiveThreads = useChatStore((s) => s.receiveThreads)
+  const unread = !!opts.unread
+  return useQuery({
+    queryKey: ['chat', 'user-threads', teamId, unread],
+    queryFn: async () => {
+      if (!teamId) return []
+      const res = await client4.getUserThreads('me', teamId, {
+        perPage: THREADS_PAGE_SIZE,
+        extended: true,
+        threadsOnly: true,
+        totalsOnly: false,
+        unread,
+      })
+      const threads = (res.threads ?? []).map((t) => {
+        // Strip the embedded root post; store it as a normal post, keep thread meta.
+        const { post, ...meta } = t as typeof t & { post: ChatPost }
+        if (post) upsertPostOnce(post)
+        return meta as import('./threads').ChatThread
+      })
+      receiveThreads(teamId, threads, {
+        total: res.total,
+        total_unread_threads: res.total_unread_threads,
+        total_unread_mentions: res.total_unread_mentions,
+        total_unread_urgent_mentions: res.total_unread_urgent_mentions,
+      })
+      return threads
+    },
+    enabled: !!teamId,
+    staleTime: 10_000,
+  })
+}
+
+// upsertPost without re-grabbing the store hook (used inside queryFn).
+function upsertPostOnce(post: ChatPost): void {
+  useChatStore.getState().upsertPost(post)
+}
+
+/** Load thread counts for a team (totalsOnly). Seeds the store. */
+export function useThreadCounts(teamId: string | undefined) {
+  const setThreadCounts = useChatStore((s) => s.setThreadCounts)
+  const userId = useCurrentUserId()
+  return useQuery({
+    queryKey: ['chat', 'thread-counts', teamId],
+    queryFn: async () => {
+      if (!teamId || !userId) return null
+      const res = await client4.getUserThreads(userId, teamId, { totalsOnly: true })
+      const counts = {
+        total: res.total,
+        total_unread_threads: res.total_unread_threads,
+        total_unread_mentions: res.total_unread_mentions,
+        total_unread_urgent_mentions: res.total_unread_urgent_mentions,
+      }
+      setThreadCounts(teamId, counts)
+      return counts
+    },
+    enabled: !!teamId && !!userId,
+    refetchInterval: 30_000,
+  })
+}
+
+/** Follow / unfollow a thread (optimistic). */
+export function useFollowThread(teamId?: string) {
+  const setThreadFollow = useChatStore((s) => s.setThreadFollow)
+  const receiveThread = useChatStore((s) => s.receiveThread)
+  const userId = useCurrentUserId()
+  return useMutation({
+    mutationFn: async (args: { threadId: string; follow: boolean }) => {
+      if (!teamId) throw new Error('team required')
+      await client4.updateThreadFollowForUser(userId ?? 'me', teamId, args.threadId, args.follow)
+      return args
+    },
+    onMutate: (args) => {
+      // Optimistic flip.
+      setThreadFollow(args.threadId, args.follow)
+      return args
+    },
+    onSuccess: (args) => {
+      // Re-fetch the thread metadata so the store reflects the server's view
+      // (counts, last_viewed, etc.) — matches the vendored getMyTeamUnreads refresh.
+      if (teamId) {
+        client4.getUserThread(userId ?? 'me', teamId, args.threadId, false)
+          .then((full) => {
+            const { post, ...meta } = full as typeof full & { post: ChatPost }
+            void post
+            receiveThread(teamId, meta as import('./threads').ChatThread)
+          })
+          .catch(() => {})
+      }
+    },
+    onError: (_e, args) => {
+      // Roll back the optimistic flip.
+      setThreadFollow(args.threadId, !args.follow)
+    },
+  })
+}
+
+/**
+ * Mark a thread read up to now (gated — only hits the server if there's
+ * actually something to clear). Mirrors the vendored updateThreadRead gate.
+ */
+export function useMarkThreadRead(teamId?: string) {
+  const setThreadReadState = useChatStore((s) => s.setThreadReadState)
+  const userId = useCurrentUserId()
+  return useMutation({
+    mutationFn: async (args: { threadId: string }) => {
+      const thread = useChatStore.getState().threadsById[args.threadId]
+      if (!thread) return
+      // Gate: only call the server if there is unread state to clear.
+      if (thread.last_viewed_at >= thread.last_reply_at && !thread.unread_mentions && !thread.unread_replies) return
+      const now = Date.now()
+      await client4.updateThreadReadForUser(userId ?? 'me', teamId ?? '', args.threadId, now)
+      setThreadReadState(args.threadId, { unread_replies: 0, unread_mentions: 0, last_viewed_at: now })
+    },
+  })
+}
+
+/** Mark all threads in a team read. */
+export function useMarkAllThreadsRead(teamId?: string) {
+  const markAllThreadsRead = useChatStore((s) => s.markAllThreadsRead)
+  const userId = useCurrentUserId()
+  return useMutation({
+    mutationFn: async () => {
+      if (!teamId) return
+      await client4.updateThreadsReadForUser(userId ?? 'me', teamId)
+      markAllThreadsRead(teamId)
+    },
+  })
+}
+
+/** Mark a thread unread from a specific post (Alt-click / menu). */
+export function useMarkThreadUnread(teamId?: string) {
+  const setThreadReadState = useChatStore((s) => s.setThreadReadState)
+  const userId = useCurrentUserId()
+  return useMutation({
+    mutationFn: async (args: { threadId: string; postId: string }) => {
+      if (!teamId) return
+      await client4.markThreadAsUnreadForUser(userId ?? 'me', teamId, args.threadId, args.postId)
+      setThreadReadState(args.threadId, { unread_replies: 1, unread_mentions: 0 })
+    },
+  })
+}
+
 // ─── Members + presence ─────────────────────────────────────────────
 
 /** Channel members (user ids) for the info pane. */
@@ -369,13 +553,63 @@ export function useStatuses(userIds: string[]) {
   })
 }
 
+/**
+ * Poll presence for "visible" users — recent posters in the active channel +
+ * DM partners + the current user (ports addVisibleUsersInCurrentChannelAndSelfToStatusPoll).
+ * Runs every ~60s. The status_change WS event keeps statuses live between polls.
+ */
+export function usePresencePoll(activeChannelId: string | null) {
+  const setStatuses = useChatStore((s) => s.setStatuses)
+  const userId = useCurrentUserId()
+
+  // Collect the visible user ids from the store (recent posters + DM partners + self).
+  const visibleIds = useChatStore((s) => {
+    const ids = new Set<string>()
+    if (userId) ids.add(userId)
+    // Recent posters in the active channel.
+    if (activeChannelId) {
+      const cp = s.postsByChannel[activeChannelId]
+      if (cp) {
+        for (const id of cp.order.slice(0, 30)) {
+          const p = cp.byId[id]
+          if (p?.user_id) ids.add(p.user_id)
+        }
+      }
+    }
+    // DM partners (channels of type D/G).
+    for (const ch of Object.values(s.channels)) {
+      if ((ch.type === 'D' || ch.type === 'G') && ch.name) {
+        const parts = ch.name.split('__').filter(Boolean)
+        for (const pid of parts) if (pid !== userId) ids.add(pid)
+      }
+    }
+    return Array.from(ids)
+  })
+
+  const key = visibleIds.slice().sort().join(',')
+  return useQuery({
+    queryKey: ['chat', 'presence-poll', key],
+    queryFn: async () => {
+      if (visibleIds.length === 0) return {}
+      const list = await client4.getStatusesByIds(visibleIds)
+      const map: Record<string, import('./types').PresenceStatus> = {}
+      for (const st of list) map[st.user_id] = st.status as import('./types').PresenceStatus
+      setStatuses(map)
+      return map
+    },
+    enabled: visibleIds.length > 0,
+    refetchInterval: 60_000,
+    staleTime: 45_000,
+  })
+}
+
 // ─── Search ─────────────────────────────────────────────────────────
 
-export function useSearchPosts(teamId: string | undefined) {
+export function useSearchPosts(teamId: string | undefined, isOrSearch = false) {
   return useMutation({
     mutationFn: async (terms: string) => {
       if (!teamId || !terms.trim()) return []
-      const results = await client4.searchPosts(teamId, terms, false)
+      const results = await client4.searchPosts(teamId, terms, isOrSearch)
       const posts = (results.order ?? []).map((id) => results.posts[id]).filter(Boolean) as ChatPost[]
       return posts
     },
@@ -493,16 +727,21 @@ export function useMarkPostUnread(userId?: string) {
 
 export function useMarkAllRead() {
   const setUnread = useChatStore((s) => s.setUnread)
+  const setMentions = useChatStore((s) => s.setMentions)
   return useMutation({
     mutationFn: async (args: { userId: string; teamId?: string }) => {
       if (args.teamId) await client4.markAllInTeamAsRead(args.userId, args.teamId)
       else await client4.markAllMessagesAsRead(args.userId)
     },
     onSuccess: () => {
-      // Zero every channel's unread locally.
+      // Zero every channel's unread + mention counts locally.
+      const state = useChatStore.getState()
       const map: Record<string, number> = {}
-      for (const cid of Object.keys(useChatStore.getState().unreadByChannel)) map[cid] = 0
+      for (const cid of Object.keys(state.unreadByChannel)) map[cid] = 0
       setUnread(map)
+      const mentionMap: Record<string, number> = {}
+      for (const cid of Object.keys(state.mentionByChannel)) mentionMap[cid] = 0
+      setMentions(mentionMap)
     },
   })
 }
@@ -598,6 +837,85 @@ export function useCustomEmojis(enabled = true) {
     enabled,
     staleTime: 5 * 60 * 1000,
   })
+}
+
+// ─── Emoji preferences (skin tone + recent emojis) ──────────────────
+// Ports the vendored emoji_picker preferences: category "emoji", names
+// "emoji_skintone" and "recent_emojis". Stored server-side via Client4
+// preferences; the hooks expose a live value + a setter that persists.
+
+const EMOJI_PREF_CATEGORY = 'emoji'
+const EMOJI_SKINTONE_PREF = 'emoji_skintone'
+const RECENT_EMOJIS_PREF = 'recent_emojis'
+
+/** Read + write the user's preferred emoji skin tone ('default'|'1F3FB'|…). */
+export function useSkinTone(userId?: string) {
+  const [skinTone, setSkinTone] = useState<string>('default')
+  const queryClient = useQueryClient()
+
+  // Load the saved skin tone once.
+  useEffect(() => {
+    if (!userId) return
+    let cancelled = false
+    client4.getMyPreferences().then((prefs) => {
+      if (cancelled) return
+      const p = (prefs as unknown as Array<{ category: string; name: string; value: string }>).find(
+        (x) => x.category === EMOJI_PREF_CATEGORY && x.name === EMOJI_SKINTONE_PREF,
+      )
+      if (p?.value) setSkinTone(p.value)
+    }).catch(() => { /* non-critical */ })
+    return () => { cancelled = true }
+  }, [userId])
+
+  const change = useCallback((next: string) => {
+    setSkinTone(next)
+    if (!userId) return
+    const pref = { user_id: userId, category: EMOJI_PREF_CATEGORY, name: EMOJI_SKINTONE_PREF, value: next }
+    if (next === 'default') {
+      client4.deletePreferences(userId, [pref]).catch(() => {})
+    } else {
+      client4.savePreferences(userId, [pref]).catch(() => {})
+    }
+    void queryClient.invalidateQueries({ queryKey: ['chat', 'my-preferences'] })
+  }, [userId, queryClient])
+
+  return { skinTone, setSkinTone: change }
+}
+
+/** Read + write the user's recent-emoji short_names (most-recent-first, capped). */
+export function useRecentEmojis(userId?: string) {
+  const [recent, setRecent] = useState<string[]>([])
+  const queryClient = useQueryClient()
+
+  // Load saved recents once.
+  useEffect(() => {
+    if (!userId) return
+    let cancelled = false
+    client4.getMyPreferences().then((prefs) => {
+      if (cancelled) return
+      const p = (prefs as unknown as Array<{ category: string; name: string; value: string }>).find(
+        (x) => x.category === EMOJI_PREF_CATEGORY && x.name === RECENT_EMOJIS_PREF,
+      )
+      if (p?.value) {
+        try { setRecent(JSON.parse(p.value)) } catch { /* ignore bad json */ }
+      }
+    }).catch(() => { /* non-critical */ })
+    return () => { cancelled = true }
+  }, [userId])
+
+  const add = useCallback((name: string) => {
+    setRecent((prev) => {
+      const next = [name, ...prev.filter((n) => n !== name)].slice(0, 27)
+      if (userId) {
+        const pref = { user_id: userId, category: EMOJI_PREF_CATEGORY, name: RECENT_EMOJIS_PREF, value: JSON.stringify(next) }
+        client4.savePreferences(userId, [pref]).catch(() => {})
+        void queryClient.invalidateQueries({ queryKey: ['chat', 'my-preferences'] })
+      }
+      return next
+    })
+  }, [userId, queryClient])
+
+  return { recent, addRecent: add }
 }
 
 // ─── Channel categories / favorites ─────────────────────────────────
@@ -711,6 +1029,40 @@ export function useDeleteBookmark() {
     mutationFn: async (args: { channelId: string; bookmarkId: string; connectionId: string }) =>
       client4.deleteChannelBookmark(args.channelId, args.bookmarkId, args.connectionId),
     onSuccess: (deleted, args) => removeBookmark(args.channelId, args.bookmarkId),
+  })
+}
+
+/** Edit an existing bookmark (PATCH). Response may include updated + deleted. */
+export function useUpdateBookmark() {
+  const upsertBookmark = useChatStore((s) => s.upsertBookmark)
+  const setBookmarks = useChatStore((s) => s.setBookmarks)
+  const removeBookmark = useChatStore((s) => s.removeBookmark)
+  return useMutation({
+    mutationFn: async (args: { channelId: string; bookmarkId: string; patch: Parameters<typeof client4.updateChannelBookmark>[2]; connectionId: string }) => {
+      const res = await client4.updateChannelBookmark(args.channelId, args.bookmarkId, args.patch, args.connectionId)
+      return res as unknown as { updated?: Parameters<typeof upsertBookmark>[0]; deleted?: Parameters<typeof removeBookmark>[1] }
+    },
+    onSuccess: (res, args) => {
+      // The response carries the full sorted list when ordering changes, OR an
+      // updated bookmark. Apply whatever is present.
+      if (res.updated) upsertBookmark(res.updated)
+      // If the edit caused a reorder, the server returns the full list via the
+      // WS channel_bookmark_* events which already update the store; nothing to do.
+      void setBookmarks
+      void args
+    },
+  })
+}
+
+/** Reorder a bookmark (POST sort_order). Returns the full sorted list. */
+export function useReorderBookmark() {
+  const setBookmarks = useChatStore((s) => s.setBookmarks)
+  return useMutation({
+    mutationFn: async (args: { channelId: string; bookmarkId: string; newOrder: number; connectionId: string }) => {
+      const list = await client4.updateChannelBookmarkSortOrder(args.channelId, args.bookmarkId, args.newOrder, args.connectionId)
+      return list as unknown as Parameters<typeof setBookmarks>[1]
+    },
+    onSuccess: (list, args) => setBookmarks(args.channelId, list),
   })
 }
 

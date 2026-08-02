@@ -105,7 +105,7 @@ export function DmModal({ teamId, currentUserId, onOpen, onClose }: DmModalProps
             </div>
           )}
         </div>
-        <ScrollArea className="flex-1 min-h-[200px]">
+        <ScrollArea className="flex-1 min-h-50">
           <div className="p-1">
             {loading && <div className="py-6 text-center text-sm text-muted-foreground flex items-center justify-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> {t('chat.loading', 'Đang tải…')}</div>}
             {!loading && query && results.length === 0 && <div className="py-6 text-center text-sm text-muted-foreground">{t('chat.noUsers', 'Không tìm thấy')}</div>}

@@ -60,12 +60,19 @@ export function isMentioned(message: string, mentionUsernames: string[]): boolea
 /**
  * Split a message into segments, classifying mention/channel tokens so the
  * renderer can emit chips/links instead of raw text. Returns an array of
- * { text } or { mention, username } or { channel, name } parts.
+ * { text } or { mention, username } or { channel, name } or { special } parts.
+ *
+ * Special mentions (@channel/@all/@here) are recognized as a distinct segment
+ * type so the renderer can style them as broadcast highlights (ports
+ * SPECIAL_MENTIONS handling in text_formatting.tsx).
  */
 export type MessageSegment =
   | { type: 'text'; text: string }
   | { type: 'mention'; username: string }
   | { type: 'channel'; name: string }
+  | { type: 'special'; name: 'channel' | 'all' | 'here' }
+
+const SPECIAL_MENTIONS = new Set(['channel', 'all', 'here'])
 
 export function segmentMessage(message: string): MessageSegment[] {
   if (!message) return []
@@ -78,15 +85,21 @@ export function segmentMessage(message: string): MessageSegment[] {
     const [full, boundary, mention, channel] = match
     const matchStart = match.index
     const boundaryLen = boundary.length
-    // Emit any text before the boundary.
+    // Emit any text before the matched token (including the boundary).
     if (matchStart + boundaryLen > lastIndex) {
-      segments.push({ type: 'text', text: message.slice(lastIndex, matchStart + (boundaryLen && boundary !== '' ? 0 : 0) + (boundaryLen ? 0 : 0)) })
+      segments.push({ type: 'text', text: message.slice(lastIndex, matchStart + boundaryLen) })
     }
-    // Re-emit the boundary as text so spaces/punctuation are preserved.
-    if (boundary) segments.push({ type: 'text', text: boundary })
     lastIndex = matchStart + full.length
-    if (mention) segments.push({ type: 'mention', username: mention })
-    else if (channel) segments.push({ type: 'channel', name: channel })
+    if (mention) {
+      const lower = mention.toLowerCase()
+      if (SPECIAL_MENTIONS.has(lower)) {
+        segments.push({ type: 'special', name: lower as 'channel' | 'all' | 'here' })
+      } else {
+        segments.push({ type: 'mention', username: mention })
+      }
+    } else if (channel) {
+      segments.push({ type: 'channel', name: channel })
+    }
   }
   if (lastIndex < message.length) {
     segments.push({ type: 'text', text: message.slice(lastIndex) })

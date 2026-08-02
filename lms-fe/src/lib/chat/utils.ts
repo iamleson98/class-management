@@ -237,6 +237,66 @@ export function displayUsername(user: ChatUser | undefined, fallback = 'Không x
   return user.nickname || `${user.first_name} ${user.last_name}`.trim() || user.username
 }
 
+// ─── Permalink detection (ports utils/url.tsx isPermalinkURL) ─────────
+
+/**
+ * Match a Mattermost permalink embedded in a message. Captures the named
+ * team, channel, and post id from paths like:
+ *   /team-name/pl/{postId}
+ *   /team-name/channels/{channelName}
+ *   /api/v4/... (raw API links — not jumped)
+ * Returns null if the URL isn't an in-app permalink.
+ */
+export function parsePermalink(href: string): { teamName?: string; channelName?: string; postId?: string } | null {
+  if (!href) return null
+  try {
+    const url = new URL(href, typeof window !== 'undefined' ? window.location.origin : 'http://localhost')
+    // Same-origin only (don't intercept external links).
+    if (typeof window !== 'undefined' && url.origin !== window.location.origin) return null
+    const m = url.pathname.match(/\/([^/]+)\/pl\/([a-zA-Z0-9]+)/)
+    if (m) return { teamName: m[1], postId: m[2] }
+    const c = url.pathname.match(/\/([^/]+)\/channels\/([^/]+)/)
+    if (c) return { teamName: c[1], channelName: decodeURIComponent(c[2]) }
+    return null
+  } catch {
+    return null
+  }
+}
+
+// ─── Mention keys (ported from mattermost-redux getCurrentUserMentionKeys) ──
+
+/**
+ * Build the current user's mention search terms — the strings a posts search
+ * should look for to find messages mentioning them. Mirrors the vendored
+ * getCurrentUserMentionKeys, EXCLUDING the broadcast mentions (@channel/@all/
+ * @here) since those are not username search terms. Each term is quoted so the
+ * server treats dashed/multi-word keys as one unit in an OR search.
+ */
+export function getMentionSearchTerms(user: ChatUser | undefined): string[] {
+  if (!user) return []
+  const terms: string[] = []
+  const notifyProps = (user.notify_props ?? {}) as Record<string, string>
+  if (notifyProps.mention_keys) {
+    for (const raw of notifyProps.mention_keys.split(',')) {
+      const key = raw.trim()
+      // Skip broadcast mentions — they're not per-user search terms.
+      if (key && key !== '@channel' && key !== '@all' && key !== '@here') {
+        terms.push(key.startsWith('@') ? key : `@${key}`)
+      }
+    }
+  }
+  if (notifyProps.first_name === 'true' && user.first_name) {
+    terms.push(user.first_name)
+  }
+  // Always include the @username (deduped).
+  const usernameKey = `@${user.username}`
+  if (!terms.some((t) => t.toLowerCase() === usernameKey.toLowerCase())) {
+    terms.push(usernameKey)
+  }
+  // Quote each term so special chars are one unit in the OR query.
+  return terms.map((t) => `"${t}"`)
+}
+
 // ─── @mention autocomplete helpers (ported from mattermost-redux/utils/user_utils.ts
 //      and at_mention_provider.ts) ───────────────────────────────────
 
@@ -302,10 +362,33 @@ export function isWithinCodeBlock(message: string, caretPosition: number): boole
 }
 
 /**
+ * Whether pressing Ctrl/Cmd+Enter inside a code block can auto-close the
+ * backticks and send. Ports the webapp's canAutomaticallyCloseBackticks:
+ * the last fenced block must be empty-ish (only whitespace/newlines after the
+ * opening fence) so we don't mangle real code.
+ */
+export function canAutomaticallyCloseBackticks(message: string): { allowSending: boolean; message?: string } {
+  // Find the content after the last opening ```.
+  const lastOpen = message.lastIndexOf('```')
+  if (lastOpen === -1) return { allowSending: false }
+  const after = message.slice(lastOpen + 3)
+  // Skip an optional language tag on the opening line.
+  const newlineIdx = after.indexOf('\n')
+  const body = newlineIdx === -1 ? '' : after.slice(newlineIdx + 1)
+  // Only auto-close if the body is empty/whitespace (mirrors the webapp guard).
+  if (body.trim() !== '') return { allowSending: false }
+  return { allowSending: true, message: `${message}\n\`\`\`` }
+}
+
+/**
  * Decide whether pressing Enter should send the message. Mirrors the webapp's
  * behavior: Shift/Alt+Enter → newline; Enter inside a code block → newline
- * (unless Ctrl/Cmd+Enter + sendCodeBlockOnCtrlEnter); the channel-switch
+ * (unless Ctrl/Cmd+Enter with sendCodeBlockOnCtrlEnter, in which case the
+ * backticks are auto-closed and the message is sent); the channel-switch
  * 500ms guard avoids accidental sends right after switching channels.
+ *
+ * Returns the (possibly rewritten) message via `nextMessage` when the code
+ * block was auto-closed.
  */
 export function enterShouldSend(args: {
   event: { shiftKey: boolean; altKey: boolean; ctrlKey: boolean; metaKey: boolean }
@@ -313,18 +396,30 @@ export function enterShouldSend(args: {
   caretPosition: number
   lastChannelSwitchAt: number
   sendMessageOnCtrlEnter?: boolean
-}): boolean {
+  sendCodeBlockOnCtrlEnter?: boolean
+}): { send: boolean; nextMessage?: string } {
   const { event, message, caretPosition, lastChannelSwitchAt } = args
   const now = Date.now()
   // Don't send right after switching channels (webapp: 500ms guard).
-  if (lastChannelSwitchAt > 0 && now - lastChannelSwitchAt <= 500) return false
+  if (lastChannelSwitchAt > 0 && now - lastChannelSwitchAt <= 500) return { send: false }
   // Shift/Alt always → newline.
-  if (event.shiftKey || event.altKey) return false
+  if (event.shiftKey || event.altKey) return { send: false }
+
   const inCodeBlock = isWithinCodeBlock(message, caretPosition)
   if (inCodeBlock) {
-    // Inside a code block, only Ctrl/Cmd+Enter sends (when configured).
-    return Boolean(args.sendMessageOnCtrlEnter && (event.ctrlKey || event.metaKey))
+    // Inside a code block, only Ctrl/Cmd+Enter can send — and only if the
+    // code-block-on-ctrl-enter mode is enabled.
+    if (args.sendCodeBlockOnCtrlEnter && (event.ctrlKey || event.metaKey)) {
+      const closed = canAutomaticallyCloseBackticks(message)
+      if (closed.allowSending) return { send: true, nextMessage: closed.message }
+      return { send: false }
+    }
+    // Plain Ctrl/Cmd+Enter send-on-ctrl-enter mode also sends out of a block.
+    if (args.sendMessageOnCtrlEnter && (event.ctrlKey || event.metaKey)) {
+      return { send: true }
+    }
+    return { send: false }
   }
-  return true
+  return { send: true }
 }
 

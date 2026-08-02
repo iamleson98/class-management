@@ -68,11 +68,11 @@ export function PostMenu(props: PostMenuProps) {
   return (
     <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setShowEmoji(false) }}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-7 w-7">
+        <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="More">
           <MoreVertical className="h-3.5 w-3.5" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align={align} className="w-52 p-1">
+      <PopoverContent align={align} className="w-52 p-1" aria-label="Post extra options">
         {showEmoji ? (
           <EmojiPicker onSelect={(emoji) => { onReact(emoji); setShowEmoji(false); setOpen(false) }} onClose={() => setShowEmoji(false)} />
         ) : (

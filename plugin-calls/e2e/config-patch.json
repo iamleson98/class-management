@@ -1,0 +1,11 @@
+{
+  "PluginSettings": {
+    "Plugins": {
+      "com.mattermost.calls": {
+        "enablerecordings": true,
+        "rtcdserviceurl": "http://rtcd:8045",
+        "jobserviceurl": "http://calls-offloader:4545"
+      }
+    }
+  }
+}

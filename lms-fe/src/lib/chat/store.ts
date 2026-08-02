@@ -21,6 +21,7 @@ import type {
   ChatFileInfo,
   PresenceStatus,
 } from './types'
+import type { ChatThread, ChatThreadCounts } from './threads'
 
 // ─── Store state shape ──────────────────────────────────────────────
 
@@ -53,7 +54,7 @@ interface ChatCategory {
   collapsed: boolean
 }
 
-interface ChatBookmark {
+export interface ChatBookmark {
   id: string
   channel_id: string
   display_name: string
@@ -86,6 +87,13 @@ interface ChatState {
    * the badge live without a separate totals fetch.
    */
   unreadByChannel: Record<string, number>
+  /**
+   * channel id → locally-tracked unread mention count. Incremented from the
+   * `mentions` array on WS `posted` events (when the channel is inactive) and
+   * reset on mark-read. Distinct from unreadByChannel so the sidebar can render
+   * a mention highlight separately from the unread count.
+   */
+  mentionByChannel: Record<string, number>
 
   users: Record<string, ChatUser>
   statuses: Record<string, PresenceStatus>
@@ -99,6 +107,18 @@ interface ChatState {
   /** `${channelId}:${rootId}` → list of typing users with timestamps. */
   typing: Record<string, TypingEntry[]>
 
+  // ── Threads (Collapsed Reply Threads) ──
+  /** thread id → thread (the id is the root post id). */
+  threadsById: Record<string, ChatThread>
+  /** team id → ordered thread ids the user follows (sorted by last_reply_at desc). */
+  threadsInTeam: Record<string, string[]>
+  /** team id → set of thread ids with unread replies/mentions. */
+  unreadThreadsInTeam: Record<string, Set<string>>
+  /** team id → thread counts envelope. */
+  threadCounts: Record<string, ChatThreadCounts>
+  /** thread ids the user manually marked unread (Alt-click); excluded from auto-read. */
+  manuallyUnreadThreads: Set<string>
+
   // ── actions ──
   setConnected: (connected: boolean) => void
   setConnectionId: (connectionId: string) => void
@@ -111,8 +131,12 @@ interface ChatState {
   upsertMembership: (membership: ChatChannelMember) => void
   /** Increment a channel's unread count (WS posted while channel inactive). */
   incrementUnread: (channelId: string, delta: number) => void
+  /** Increment a channel's mention count (mentions array on WS posted). */
+  incrementMention: (channelId: string, delta: number) => void
   /** Bulk-set unread counts (seeded from membership on channel load). */
   setUnread: (map: Record<string, number>) => void
+  /** Bulk-set mention counts (seeded from membership on channel load). */
+  setMentions: (map: Record<string, number>) => void
   /** Reset a channel's unread count to 0 (on mark-read). */
   clearUnread: (channelId: string) => void
   removeChannel: (channelId: string) => void
@@ -134,6 +158,8 @@ interface ChatState {
   ) => void
   /** Prepend older posts (scroll up). */
   prependPosts: (channelId: string, posts: ChatPost[], prevPostId?: string) => void
+  /** Append newer posts (scroll down into a gap). */
+  appendPosts: (channelId: string, posts: ChatPost[], nextPostId?: string) => void
   upsertPost: (post: ChatPost) => void
   editPost: (post: ChatPost) => void
   deletePost: (postId: string) => void
@@ -147,6 +173,22 @@ interface ChatState {
   clearTyping: (channelId: string, rootId: string, userId?: string) => void
 
   setFlagged: (ids: Set<string>) => void
+
+  // ── Thread actions ──
+  /** Receive a single thread (merge into the map + team list). */
+  receiveThread: (teamId: string, thread: ChatThread) => void
+  /** Receive a list of threads (bulk merge + optional counts). */
+  receiveThreads: (teamId: string, threads: ChatThread[], counts?: ChatThreadCounts) => void
+  /** Set a thread's follow state (optimistic). */
+  setThreadFollow: (threadId: string, following: boolean) => void
+  /** Set a thread's read state (unread counts + last_viewed_at). */
+  setThreadReadState: (threadId: string, readState: { unread_replies?: number; unread_mentions?: number; last_viewed_at?: number }) => void
+  /** Set the thread counts for a team. */
+  setThreadCounts: (teamId: string, counts: ChatThreadCounts) => void
+  /** Mark all threads in a team read (zero unreads). */
+  markAllThreadsRead: (teamId: string) => void
+  /** Toggle a thread's manually-unread flag (Alt-click). */
+  toggleManuallyUnread: (threadId: string) => void
 
   reset: () => void
 }
@@ -175,12 +217,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
   bookmarksByChannel: {},
   memberships: {},
   unreadByChannel: {},
+  mentionByChannel: {},
   users: {},
   statuses: {},
   postsByChannel: {},
   reactionsByPost: {},
   flagged: new Set<string>(),
   typing: {},
+
+  threadsById: {},
+  threadsInTeam: {},
+  unreadThreadsInTeam: {},
+  threadCounts: {},
+  manuallyUnreadThreads: new Set<string>(),
 
   setConnected: (connected) => set({ connected }),
   setConnectionId: (connectionId) => set({ connectionId }),
@@ -205,24 +254,31 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((s) => ({ memberships: { ...s.memberships, [membership.channel_id]: membership } })),
   incrementUnread: (channelId, delta) =>
     set((s) => ({ unreadByChannel: { ...s.unreadByChannel, [channelId]: Math.max(0, (s.unreadByChannel[channelId] ?? 0) + delta) } })),
+  incrementMention: (channelId, delta) =>
+    set((s) => ({ mentionByChannel: { ...s.mentionByChannel, [channelId]: Math.max(0, (s.mentionByChannel[channelId] ?? 0) + delta) } })),
   setUnread: (map) => set((s) => ({ unreadByChannel: { ...s.unreadByChannel, ...map } })),
+  setMentions: (map) => set((s) => ({ mentionByChannel: { ...s.mentionByChannel, ...map } })),
   clearUnread: (channelId) =>
     set((s) => {
       const unreadByChannel = { ...s.unreadByChannel }
+      const mentionByChannel = { ...s.mentionByChannel }
       unreadByChannel[channelId] = 0
-      return { unreadByChannel }
+      mentionByChannel[channelId] = 0
+      return { unreadByChannel, mentionByChannel }
     }),
   removeChannel: (channelId) =>
     set((s) => {
       const channels = { ...s.channels }
       const memberships = { ...s.memberships }
       const unreadByChannel = { ...s.unreadByChannel }
+      const mentionByChannel = { ...s.mentionByChannel }
       const postsByChannel = { ...s.postsByChannel }
       delete channels[channelId]
       delete memberships[channelId]
       delete unreadByChannel[channelId]
+      delete mentionByChannel[channelId]
       delete postsByChannel[channelId]
-      return { channels, memberships, unreadByChannel, postsByChannel }
+      return { channels, memberships, unreadByChannel, mentionByChannel, postsByChannel }
     }),
 
   setCategories: (teamId, categories, order) =>
@@ -282,6 +338,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
         .slice()
         .sort((a, b) => (cp.byId[b]?.create_at ?? 0) - (cp.byId[a]?.create_at ?? 0))
       if (prevPostId !== undefined) cp.prevPostId = prevPostId
+      return { postsByChannel: { ...s.postsByChannel, [channelId]: cp } }
+    }),
+
+  appendPosts: (channelId, posts, nextPostId) =>
+    set((s) => {
+      const existing = s.postsByChannel[channelId] ?? emptyChannelPosts()
+      let cp: ChannelPosts = { ...existing, byId: { ...existing.byId } }
+      for (const p of posts) cp = upsertOrdered(cp, p)
+      cp.order = cp.order
+        .slice()
+        .sort((a, b) => (cp.byId[b]?.create_at ?? 0) - (cp.byId[a]?.create_at ?? 0))
+      if (nextPostId !== undefined) cp.nextPostId = nextPostId
       return { postsByChannel: { ...s.postsByChannel, [channelId]: cp } }
     }),
 
@@ -366,6 +434,102 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   setFlagged: (ids) => set({ flagged: new Set(ids) }),
 
+  // ── Thread actions ──
+  receiveThread: (teamId, thread) =>
+    set((s) => {
+      const threadsById = { ...s.threadsById, [thread.id]: thread }
+      const teamList = s.threadsInTeam[teamId] ?? []
+      let threadsInTeam = s.threadsInTeam
+      if (thread.is_following && !teamList.includes(thread.id)) {
+        const next = [thread.id, ...teamList]
+        threadsInTeam = { ...s.threadsInTeam, [teamId]: next }
+      }
+      // Update the unread set membership based on the thread's unread state.
+      const unreadSet = new Set(s.unreadThreadsInTeam[teamId] ?? [])
+      if (thread.unread_replies > 0 || thread.unread_mentions > 0) unreadSet.add(thread.id)
+      else unreadSet.delete(thread.id)
+      return {
+        threadsById,
+        threadsInTeam,
+        unreadThreadsInTeam: { ...s.unreadThreadsInTeam, [teamId]: unreadSet },
+      }
+    }),
+
+  receiveThreads: (teamId, threads, counts) =>
+    set((s) => {
+      const threadsById = { ...s.threadsById }
+      for (const t of threads) threadsById[t.id] = t
+      // Sorted by last_reply_at desc (following only).
+      const sorted = threads
+        .filter((t) => t.is_following && t.last_reply_at !== 0)
+        .sort((a, b) => b.last_reply_at - a.last_reply_at)
+        .map((t) => t.id)
+      const unreadSet = new Set<string>()
+      for (const t of threads) {
+        if (t.unread_replies > 0 || t.unread_mentions > 0) unreadSet.add(t.id)
+      }
+      const next: Partial<ChatState> = {
+        threadsById,
+        threadsInTeam: { ...s.threadsInTeam, [teamId]: sorted },
+        unreadThreadsInTeam: { ...s.unreadThreadsInTeam, [teamId]: unreadSet },
+      }
+      if (counts) next.threadCounts = { ...s.threadCounts, [teamId]: counts }
+      return next as ChatState
+    }),
+
+  setThreadFollow: (threadId, following) =>
+    set((s) => {
+      const t = s.threadsById[threadId]
+      if (!t) return s
+      return { threadsById: { ...s.threadsById, [threadId]: { ...t, is_following: following } } }
+    }),
+
+  setThreadReadState: (threadId, readState) =>
+    set((s) => {
+      const t = s.threadsById[threadId]
+      if (!t) return s
+      const updated: ChatThread = {
+        ...t,
+        unread_replies: readState.unread_replies ?? t.unread_replies,
+        unread_mentions: readState.unread_mentions ?? t.unread_mentions,
+        last_viewed_at: readState.last_viewed_at ?? t.last_viewed_at,
+      }
+      // Find the team this thread belongs to (via its channel) to update the unread set.
+      const teamId = Object.keys(s.unreadThreadsInTeam).find((tid) => s.unreadThreadsInTeam[tid]?.has(threadId))
+      const unreadThreadsInTeam = { ...s.unreadThreadsInTeam }
+      if (teamId) {
+        const set = new Set(s.unreadThreadsInTeam[teamId])
+        if (updated.unread_replies > 0 || updated.unread_mentions > 0) set.add(threadId)
+        else set.delete(threadId)
+        unreadThreadsInTeam[teamId] = set
+      }
+      return { threadsById: { ...s.threadsById, [threadId]: updated }, unreadThreadsInTeam }
+    }),
+
+  setThreadCounts: (teamId, counts) =>
+    set((s) => ({ threadCounts: { ...s.threadCounts, [teamId]: counts } })),
+
+  markAllThreadsRead: (teamId) =>
+    set((s) => {
+      const threadsById = { ...s.threadsById }
+      for (const id of Object.keys(threadsById)) {
+        threadsById[id] = { ...threadsById[id], unread_replies: 0, unread_mentions: 0 }
+      }
+      return {
+        threadsById,
+        unreadThreadsInTeam: { ...s.unreadThreadsInTeam, [teamId]: new Set<string>() },
+        threadCounts: { ...s.threadCounts, [teamId]: { ...(s.threadCounts[teamId] ?? { total: 0, total_unread_threads: 0, total_unread_mentions: 0 }), total_unread_threads: 0, total_unread_mentions: 0 } },
+      }
+    }),
+
+  toggleManuallyUnread: (threadId) =>
+    set((s) => {
+      const next = new Set(s.manuallyUnreadThreads)
+      if (next.has(threadId)) next.delete(threadId)
+      else next.add(threadId)
+      return { manuallyUnreadThreads: next }
+    }),
+
   reset: () =>
     set({
       connected: false,
@@ -378,12 +542,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
       bookmarksByChannel: {},
       memberships: {},
       unreadByChannel: {},
+      mentionByChannel: {},
       users: {},
       statuses: {},
       flagged: new Set<string>(),
       postsByChannel: {},
       reactionsByPost: {},
       typing: {},
+      threadsById: {},
+      threadsInTeam: {},
+      unreadThreadsInTeam: {},
+      threadCounts: {},
+      manuallyUnreadThreads: new Set<string>(),
     }),
 }))
 
@@ -399,8 +569,9 @@ export function unreadCount(channelId: string): number {
 }
 
 /** Mention count for a channel (drives the badge highlight). */
-export function mentionCount(membership?: ChatChannelMember): number {
-  return membership?.mention_count ?? 0
+export function mentionCount(channelId: string, membership?: ChatChannelMember): number {
+  const live = useChatStore.getState().mentionByChannel[channelId]
+  return live ?? membership?.mention_count ?? 0
 }
 
 /** Convenience: typing entries for a channel (+optional thread root). */

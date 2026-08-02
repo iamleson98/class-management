@@ -43,8 +43,20 @@ export const wsClient = new WebSocketClient()
 let wsInitialized = false
 
 /**
- * Open the WebSocket connection. Derives the ws(s) URL from the page origin
- * and initializes with token = undefined so the cookie authenticates.
+ * Open the WebSocket connection.
+ *
+ * Connects to the backend directly (NEXT_PUBLIC_API_URL), because the httpOnly
+ * MMAUTHTOKEN cookie is host-only to "localhost" and cookies are port-agnostic
+ * (RFC 6265 §5.1.4) — so a WS to localhost:8065 from a page on localhost:3001
+ * DOES carry the cookie. The backend's AllowCorsFrom includes the frontend
+ * origin and CorsAllowCredentials is true, so the credentialed upgrade is
+ * accepted.
+ *
+ * Production note: when frontend + backend share one origin (Caddy/Traefik,
+ * see deploy/caddy/Caddyfile), the WS is same-origin and the cookie model is
+ * identical. Do not switch this to the page origin in dev — Next.js rewrites
+ * proxy REST but CANNOT proxy WebSocket upgrades, so a same-origin WS would 404.
+ *
  * Idempotent; safe to call again after a disconnect (reconnect is handled
  * internally by WebSocketClient).
  *
@@ -55,8 +67,7 @@ export function connectWebSocket(): void {
   if (typeof window === 'undefined' || wsInitialized) return
   configureClient4()
 
-  // Connect directly to backend for WebSocket (Next.js rewrites don't handle WebSocket upgrades)
-  // CORS is configured on the backend to allow connections from the frontend
+  // Backend origin → ws(s). The cookie (host-only "localhost") rides along.
   const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8065'
   const wsOrigin = backendUrl.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:')
   const connUrl = `${wsOrigin}/api/v4/websocket`

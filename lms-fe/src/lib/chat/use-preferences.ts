@@ -10,7 +10,6 @@
 
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { client4 } from './client'
-import { useChatStore } from './store'
 import { useCurrentUserId } from './hooks'
 
 export interface Preference {

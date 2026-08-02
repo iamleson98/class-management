@@ -10,8 +10,10 @@
  */
 
 import type { WebSocketMessage, WebSocketMessages } from '@mattermost/client'
-import { wsClient } from './client'
+import { wsClient, client4 } from './client'
 import { useChatStore } from './store'
+import { notifyIfNeeded, resolveAuthorName } from './notifications'
+import { useLMSStore } from '@/store/lms-store'
 import type { ChatPost, ChatReaction, PresenceStatus } from './types'
 
 // WebSocket event names — string literals (the WebSocketEvents const enum
@@ -36,6 +38,10 @@ const EVT = {
   ChannelBookmarkUpdated: 'channel_bookmark_updated',
   ChannelBookmarkDeleted: 'channel_bookmark_deleted',
   ChannelBookmarkSorted: 'channel_bookmark_sorted',
+  // Collapsed Reply Threads.
+  ThreadUpdated: 'thread_updated',
+  ThreadFollowChanged: 'thread_follow_changed',
+  ThreadReadChanged: 'thread_read_changed',
 } as const
 
 let listenerBound = false
@@ -76,14 +82,44 @@ function handleEvent(msg: WebSocketMessage): void {
       store.upsertPost(post)
       // Typing clears when a user posts.
       if (channelId) store.clearTyping(channelId, post.root_id, post.user_id)
-      // Presence hint: poster is online if the event says so.
+      // Presence hint: poster is online if the event says so — but don't
+      // override a manual (DND) status the user explicitly set. Mirrors the
+      // vendored !getIsManualStatusForUserId guard.
       const setOnline = (msg as WebSocketMessages.Posted).data?.set_online
-      if (setOnline) store.setStatus(post.user_id, 'online')
+      if (setOnline) {
+        const current = useChatStore.getState().statuses[post.user_id]
+        if (current !== 'dnd' && current !== 'offline') store.setStatus(post.user_id, 'online')
+      }
       // Increment unread unless this is the active channel (the active channel
       // is kept read by the posts hook's mark-read on focus).
       const activeChannelId = useChatStore.getState().activeChannelId
       if (channelId && channelId !== activeChannelId) {
         store.incrementUnread(channelId, 1)
+        // Bump the mention counter if the post mentions anyone. The server
+        // includes a `mentions` array (user ids) on the posted event.
+        const data = (msg as unknown as { data?: { mentions?: string } }).data
+        const mentions = data?.mentions
+        let mentionIds: string[] = []
+        if (mentions) {
+          try {
+            const parsed = JSON.parse(mentions) as string[]
+            if (Array.isArray(parsed)) mentionIds = parsed
+          } catch { /* ignore malformed mentions */ }
+        }
+        if (mentionIds.length > 0) {
+          store.incrementMention(channelId, mentionIds.length)
+        }
+        // Desktop notification + sound (ports notification_actions). Fires only
+        // when the channel is inactive / window unfocused (gated internally).
+        const state = useChatStore.getState()
+        notifyIfNeeded({
+          post,
+          channel: channelId ? state.channels[channelId] : undefined,
+          mentionUserIds: mentionIds,
+          currentUserId: useLMSStore.getState().authUser?.id,
+          activeChannelId: state.activeChannelId,
+          authorName: resolveAuthorName(post, state.users),
+        })
       }
       break
     }
@@ -173,6 +209,66 @@ function handleEvent(msg: WebSocketMessage): void {
     }
     case EVT.ChannelBookmarkSorted: {
       // Full reorder — refetch is handled by the bookmarks hook's poll. Nothing to do here.
+      break
+    }
+
+    case EVT.ThreadUpdated: {
+      // A thread's metadata changed (new reply, mention, etc.). The `data.thread`
+      // field is a JSON-encoded UserThread.
+      const data = (msg as unknown as { data?: { thread?: string } }).data
+      const teamId = msg.broadcast?.team_id
+      if (!teamId || !data?.thread) break
+      try {
+        const thread = JSON.parse(data.thread) as import('./threads').ChatThread
+        // Force is_following for the root author.
+        const state = useChatStore.getState()
+        const rootPost = Object.values(state.postsByChannel).find((cp) => cp.byId[thread.id])?.byId[thread.id]
+        if (rootPost && rootPost.user_id === useLMSStore.getState().authUser?.id) {
+          thread.is_following = true
+        }
+        // If the thread is currently open + window focused + not manually unread,
+        // auto-mark it read (mirrors handleThreadUpdated).
+        const isOpen = state.activeThreadRootId === thread.id
+        const windowActive = typeof document !== 'undefined' && !document.hidden
+        const manuallyUnread = state.manuallyUnreadThreads.has(thread.id)
+        if (isOpen && windowActive && !manuallyUnread) {
+          thread.unread_replies = 0
+          thread.unread_mentions = 0
+          thread.last_viewed_at = Date.now()
+          // Persist server-side (best-effort).
+          client4.updateThreadReadForUser(useLMSStore.getState().authUser?.id ?? 'me', teamId, thread.id, Date.now()).catch(() => {})
+        }
+        state.receiveThread(teamId, thread)
+      } catch { /* ignore malformed */ }
+      break
+    }
+
+    case EVT.ThreadFollowChanged: {
+      const data = (msg as unknown as { data?: { thread_id?: string; state?: boolean } }).data
+      if (data?.thread_id && typeof data.state === 'boolean') {
+        useChatStore.getState().setThreadFollow(data.thread_id, data.state)
+      }
+      break
+    }
+
+    case EVT.ThreadReadChanged: {
+      // Union payload: single-thread, all-in-team, or all-teams.
+      const data = (msg as unknown as {
+        data?: { thread_id?: string; timestamp?: number; unread_mentions?: number; unread_replies?: number; channel_id?: string }
+      }).data
+      const teamId = msg.broadcast?.team_id
+      const store = useChatStore.getState()
+      if (data?.thread_id) {
+        // Single thread read.
+        store.setThreadReadState(data.thread_id, {
+          unread_replies: data.unread_replies ?? 0,
+          unread_mentions: data.unread_mentions ?? 0,
+          last_viewed_at: data.timestamp ?? Date.now(),
+        })
+      } else if (teamId) {
+        // All threads in team read.
+        store.markAllThreadsRead(teamId)
+      }
       break
     }
 

@@ -1,0 +1,67 @@
+
+
+package testutils
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"time"
+
+	tc "github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/postgres"
+	"github.com/testcontainers/testcontainers-go/wait"
+)
+
+const (
+	DBName         = "mattermost_test"
+	DBUser         = "mmuser"
+	DBPass         = "mostest"
+	DBNetworkAlias = "db"
+
+	PostgresImage = "postgres:14"
+	PostgrePort   = 5432
+)
+
+// RunPostgresContainerLocal creates and run a postgres container accessible
+// from the local network.
+func RunPostgresContainerLocal(ctx context.Context) (string, func(), error) {
+	cnt, tearDown, err := RunPostgresContainer(ctx, tc.CustomizeRequest(tc.GenericContainerRequest{
+		Started: true,
+	}))
+	if err != nil {
+		return "", nil, err
+	}
+
+	dsn, err := cnt.ConnectionString(ctx)
+	if err != nil {
+		tearDown()
+		return "", nil, err
+	}
+
+	return dsn + "sslmode=disable", tearDown, err
+}
+
+// RunPostgresContainer creates and runs a postgres container
+func RunPostgresContainer(ctx context.Context, opts ...tc.ContainerCustomizer) (*postgres.PostgresContainer, func(), error) {
+	opts = append([]tc.ContainerCustomizer{
+		postgres.WithDatabase(DBName),
+		postgres.WithUsername(DBUser),
+		postgres.WithPassword(DBPass),
+		tc.WithWaitStrategy(
+			wait.ForLog("database system is ready to accept connections").
+				WithOccurrence(2).
+				WithStartupTimeout(15 * time.Second)),
+	}, opts...)
+
+	cnt, err := postgres.Run(ctx, PostgresImage, opts...)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to run container: %w", err)
+	}
+
+	return cnt, func() {
+		if err := cnt.Terminate(ctx); err != nil {
+			log.Print(err.Error())
+		}
+	}, nil
+}

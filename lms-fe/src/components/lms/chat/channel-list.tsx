@@ -1,31 +1,55 @@
 'use client'
 
 /**
- * Channel list — ports the vendored webapp's sidebar logic into shadcn/ui:
- *   - channels grouped by team (teaching / operations) then sorted by type+name
- *     (channel_utils.sortChannelsByTypeAndDisplayName)
- *   - unread + mention badges via calculateUnreadCount
+ * Channel list — ports the vendored webapp's sidebar into shadcn/ui:
+ *   - channels grouped by team, then by sidebar category (favorites → channels
+ *     → direct_messages), mirroring the webapp's category-driven sidebar
+ *   - unread + mention badges (mention shows as a filled pill)
+ *   - presence dots on DM/GM channels (online/away/dnd)
+ *   - per-row context menu (mark as read, favorite/unfavorite, leave) — a subset
+ *     of the vendored sidebar_channel_menu
  *   - search filter (client-side on display name + channel name)
  *
- * The server scopes membership: a user only ever receives channels they belong
- * to, so this list is automatically focused per the requirement.
+ * The store already models `categoriesByTeam` and the favorite/move hooks
+ * (useToggleFavorite, isFavoriteChannel); this component wires them into the UI.
  */
 
-import { useMemo, useState } from 'react'
-import { Hash, Lock, Users, Search, MessageSquare } from 'lucide-react'
+import { useMemo, useState, useCallback } from 'react'
+import { Hash, Lock, Users, Search, MessageSquare, Star, MoreHorizontal, CheckCheck, LogOut } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
-import { useChannels } from '@/lib/chat/hooks'
+import { Button } from '@/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  useChannels, useToggleFavorite, useCurrentUserId,
+} from '@/lib/chat/hooks'
 import { useChatStore } from '@/lib/chat/store'
+import { client4 } from '@/lib/chat/client'
 import { sortChannelsByTypeAndDisplayName } from '@/lib/chat/utils'
-import type { ChatChannel } from '@/lib/chat/types'
+import { useToast } from '@/hooks/use-toast'
+import type { ChatChannel, PresenceStatus } from '@/lib/chat/types'
 import { useTranslation } from '@/lib/i18n'
 
 interface ChannelListProps {
   selectedChannelId: string | null
   onSelect: (channel: ChatChannel) => void
+}
+
+const PRESENCE_COLOR: Record<PresenceStatus, string> = {
+  online: 'bg-emerald-500',
+  away: 'bg-amber-500',
+  dnd: 'bg-rose-500',
+  offline: 'bg-gray-400',
+}
+
+/** Resolve the "other" user in a DM channel (for presence + name). */
+function dmOtherUserId(channel: ChatChannel, currentUserId?: string): string | undefined {
+  const name = channel.name ?? ''
+  // DM channel names are "__userId1____userId2".
+  const parts = name.split('__').filter(Boolean)
+  return parts.find((id) => id !== currentUserId) ?? parts[0]
 }
 
 export function ChannelList({ selectedChannelId, onSelect }: ChannelListProps) {
@@ -35,8 +59,11 @@ export function ChannelList({ selectedChannelId, onSelect }: ChannelListProps) {
   const teams = useChatStore((s) => s.teams)
   const channels = useChatStore((s) => s.channels)
   const unreadByChannel = useChatStore((s) => s.unreadByChannel)
-  const memberships = useChatStore((s) => s.memberships)
+  const mentionByChannel = useChatStore((s) => s.mentionByChannel)
+  const statuses = useChatStore((s) => s.statuses)
+  const userId = useCurrentUserId()
 
+  // Group channels within a team into: favorites, channels (O/P), DMs (D/G).
   const grouped = useMemo(() => {
     const allChannels: ChatChannel[] = Object.values(channels).filter((c) => c.delete_at === 0)
     const filtered = query
@@ -47,13 +74,24 @@ export function ChannelList({ selectedChannelId, onSelect }: ChannelListProps) {
         )
       : allChannels
     return teams
-      .map((team) => ({
-        team,
-        channels: filtered
+      .map((team) => {
+        const teamChannels = filtered
           .filter((c) => c.team_id === team.id)
-          .sort((a, b) => sortChannelsByTypeAndDisplayName('vi', a, b)),
-      }))
-      .filter((g) => g.channels.length > 0)
+          .sort((a, b) => sortChannelsByTypeAndDisplayName('vi', a, b))
+        const favorites = teamChannels.filter((c) => isFav(c))
+        const channelsGroup = teamChannels.filter((c) => (c.type === 'O' || c.type === 'P') && !isFav(c))
+        const dms = teamChannels.filter((c) => (c.type === 'D' || c.type === 'G'))
+        return { team, favorites, channels: channelsGroup, dms }
+      })
+      .filter((g) => g.favorites.length > 0 || g.channels.length > 0 || g.dms.length > 0)
+
+    function isFav(_c: ChatChannel): boolean {
+      // Favorites are derived from the categories store (type === 'favorites').
+      // We read it inline to avoid re-render churn; the toggle hook refreshes it.
+      const cats = useChatStore.getState().categoriesByTeam[_c.team_id]?.categories ?? []
+      const fav = cats.find((cat) => cat.type === 'favorites')
+      return !!fav?.channel_ids.includes(_c.id)
+    }
   }, [teams, channels, query])
 
   return (
@@ -83,52 +121,207 @@ export function ChannelList({ selectedChannelId, onSelect }: ChannelListProps) {
               {query ? t('chat.noResults', 'Không tìm thấy kênh') : t('chat.noChannels', 'Bạn chưa thuộc kênh nào')}
             </div>
           ) : (
-            grouped.map(({ team, channels: teamChannels }) => (
+            grouped.map(({ team, favorites, channels: teamChannels, dms }) => (
               <div key={team.id} className="mb-3">
-                <div className="px-2 py-1.5 flex items-center gap-1.5">
+                {/* Team header */}
+                <div className="px-2 py-1.5">
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                     {team.display_name || team.name}
                   </span>
                 </div>
-                <div className="space-y-0.5">
-                  {teamChannels.map((channel) => {
-                    const isSelected = channel.id === selectedChannelId
-                    const isPrivate = channel.type === 'P'
-                    const unread = unreadByChannel[channel.id] ?? 0
-                    const mentions = memberships[channel.id]?.mention_count ?? 0
-                    return (
-                      <button
-                        key={channel.id}
-                        onClick={() => onSelect(channel)}
-                        className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-colors text-left ${
-                          isSelected
-                            ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 font-medium'
-                            : unread > 0 || mentions > 0
-                              ? 'text-foreground hover:bg-muted/60 font-medium'
-                              : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                        }`}
-                      >
-                        {isPrivate ? (
-                          <Lock className="h-4 w-4 shrink-0 opacity-70" />
-                        ) : (
-                          <Hash className="h-4 w-4 shrink-0 opacity-70" />
-                        )}
-                        <span className="truncate flex-1">{channel.display_name}</span>
-                        {mentions > 0 ? (
-                          <Badge className="h-4 min-w-4 px-1 text-[10px] bg-sky-600 text-white hover:bg-sky-600">{mentions}</Badge>
-                        ) : unread > 0 ? (
-                          <span className="text-[10px] font-semibold text-sky-600 dark:text-sky-400">{unread > 99 ? '99+' : unread}</span>
-                        ) : null}
-                      </button>
-                    )
-                  })}
-                </div>
+
+                {/* Favorites */}
+                {favorites.length > 0 && (
+                  <CategorySection title={t('chat.favorites', 'Yêu thích')}>
+                    {favorites.map((ch) => (
+                      <ChannelRow
+                        key={ch.id}
+                        channel={ch}
+                        selectedChannelId={selectedChannelId}
+                        unread={unreadByChannel[ch.id] ?? 0}
+                        mentions={mentionByChannel[ch.id] ?? 0}
+                        presence={undefined}
+                        onSelect={onSelect}
+                      />
+                    ))}
+                  </CategorySection>
+                )}
+
+                {/* Channels (O/P) */}
+                {teamChannels.length > 0 && (
+                  <CategorySection title={t('chat.channels', 'Kênh')}>
+                    {teamChannels.map((ch) => (
+                      <ChannelRow
+                        key={ch.id}
+                        channel={ch}
+                        selectedChannelId={selectedChannelId}
+                        unread={unreadByChannel[ch.id] ?? 0}
+                        mentions={mentionByChannel[ch.id] ?? 0}
+                        presence={undefined}
+                        onSelect={onSelect}
+                      />
+                    ))}
+                  </CategorySection>
+                )}
+
+                {/* Direct messages */}
+                {dms.length > 0 && (
+                  <CategorySection title={t('chat.directMessages', 'Tin nhắn trực tiếp')}>
+                    {dms.map((ch) => {
+                      const otherId = dmOtherUserId(ch, userId)
+                      return (
+                        <ChannelRow
+                          key={ch.id}
+                          channel={ch}
+                          selectedChannelId={selectedChannelId}
+                          unread={unreadByChannel[ch.id] ?? 0}
+                          mentions={mentionByChannel[ch.id] ?? 0}
+                          presence={otherId ? statuses[otherId] : undefined}
+                          onSelect={onSelect}
+                        />
+                      )
+                    })}
+                  </CategorySection>
+                )}
               </div>
             ))
           )}
         </div>
       </ScrollArea>
     </div>
+  )
+}
+
+/** A collapsible category section header + its channels. */
+function CategorySection({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(true)
+  return (
+    <div className="mb-1">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full px-2 py-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 hover:text-muted-foreground"
+      >
+        <span className={`transition-transform ${open ? 'rotate-90' : ''}`}>▸</span>
+        <span>{title}</span>
+      </button>
+      {open && <div className="space-y-0.5">{children}</div>}
+    </div>
+  )
+}
+
+interface ChannelRowProps {
+  channel: ChatChannel
+  selectedChannelId: string | null
+  unread: number
+  mentions: number
+  presence?: PresenceStatus
+  onSelect: (channel: ChatChannel) => void
+}
+
+function ChannelRow({ channel, selectedChannelId, unread, mentions, presence, onSelect }: ChannelRowProps) {
+  const { t } = useTranslation()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const isSelected = channel.id === selectedChannelId
+  const isPrivate = channel.type === 'P'
+  const isDM = channel.type === 'D' || channel.type === 'G'
+  const toggleFavorite = useToggleFavorite(useCurrentUserId())
+  const removeChannel = useChatStore((s) => s.removeChannel)
+  const clearUnread = useChatStore((s) => s.clearUnread)
+  const { toast } = useToast()
+
+  const onLeave = useCallback(async () => {
+    const { useLMSStore } = await import('@/store/lms-store')
+    const meId = useLMSStore.getState().authUser?.id
+    if (!meId) return
+    try {
+      await client4.removeFromChannel(meId, channel.id)
+      removeChannel(channel.id)
+      toast({ title: t('chat.leftChannel', 'Đã rời kênh') })
+    } catch (err: unknown) {
+      toast({ title: (err as Error)?.message || t('chat.leaveFailed', 'Rời kênh thất bại'), variant: 'destructive' })
+    }
+  }, [channel.id, removeChannel, toast, t])
+
+  const onMarkRead = useCallback(() => {
+    client4.viewMyChannel(channel.id).then(() => clearUnread(channel.id)).catch(() => {})
+  }, [channel.id, clearUnread])
+
+  const onToggleFav = useCallback(() => {
+    const teamId = channel.team_id
+    if (!teamId) return
+    const isFav = (() => {
+      const cats = useChatStore.getState().categoriesByTeam[teamId]?.categories ?? []
+      const fav = cats.find((cat) => cat.type === 'favorites')
+      return !!fav?.channel_ids.includes(channel.id)
+    })()
+    toggleFavorite.mutate({ channelId: channel.id, teamId, favorite: !isFav })
+  }, [channel.id, channel.team_id, toggleFavorite])
+
+  return (
+    <div className="group relative flex items-center">
+      <button
+        onClick={() => onSelect(channel)}
+        className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-colors text-left ${
+          isSelected
+            ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 font-medium'
+            : unread > 0 || mentions > 0
+              ? 'text-foreground hover:bg-muted/60 font-medium'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+        }`}
+      >
+        {isDM ? (
+          <span className="relative shrink-0">
+            <Users className="h-4 w-4 opacity-70" />
+            {presence && (
+              <span className={`absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full ring-1 ring-background ${PRESENCE_COLOR[presence]}`} />
+            )}
+          </span>
+        ) : isPrivate ? (
+          <Lock className="h-4 w-4 shrink-0 opacity-70" />
+        ) : (
+          <Hash className="h-4 w-4 shrink-0 opacity-70" />
+        )}
+        <span className="truncate flex-1">{channel.display_name}</span>
+        {mentions > 0 ? (
+          <Badge className="h-4 min-w-4 px-1 text-[10px] bg-sky-600 text-white hover:bg-sky-600">{mentions}</Badge>
+        ) : unread > 0 ? (
+          <span className="text-[10px] font-semibold text-sky-600 dark:text-sky-400">{unread > 99 ? '99+' : unread}</span>
+        ) : null}
+      </button>
+
+      {/* Per-row context menu (subset of the vendored sidebar_channel_menu). */}
+      <Popover open={menuOpen} onOpenChange={setMenuOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="ghost" size="icon"
+            className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100"
+            onClick={(e) => e.stopPropagation()}
+            aria-label={t('chat.channelOptions', 'Tùy chọn kênh')}
+          >
+            <MoreHorizontal className="h-3.5 w-3.5" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-48 p-1" onClick={(e) => e.stopPropagation()}>
+          <MenuButton icon={<CheckCheck className="h-3.5 w-3.5" />} label={t('chat.markAsRead', 'Đánh dấu đã đọc')} onClick={() => { onMarkRead(); setMenuOpen(false) }} />
+          <MenuButton icon={<Star className="h-3.5 w-3.5" />} label={t('chat.favorite', 'Yêu thích')} onClick={() => { onToggleFav(); setMenuOpen(false) }} />
+          {channel.type !== 'D' && (
+            <MenuButton icon={<LogOut className="h-3.5 w-3.5" />} label={t('chat.leaveChannel', 'Rời kênh')} danger onClick={() => { onLeave(); setMenuOpen(false) }} />
+          )}
+        </PopoverContent>
+      </Popover>
+    </div>
+  )
+}
+
+function MenuButton({ icon, label, onClick, danger }: { icon: React.ReactNode; label: string; onClick: () => void; danger?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm text-left transition-colors hover:bg-muted ${danger ? 'text-destructive hover:bg-destructive/10' : 'text-foreground'}`}
+    >
+      {icon}
+      {label}
+    </button>
   )
 }
 

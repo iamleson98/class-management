@@ -25,7 +25,7 @@ import { useCurrentUserId } from '@/lib/chat/hooks'
 import { preprocessMessage, segmentMessage, resolveMention } from '@/lib/chat/message-format'
 import { renderSystemMessage, isSystemMessageType } from '@/lib/chat/system-messages'
 import { renderLineNumbers, getLanguageName } from '@/lib/chat/syntax-highlighting'
-import { displayUsername } from '@/lib/chat/utils'
+import { displayUsername, parsePermalink } from '@/lib/chat/utils'
 import type { ChatPost } from '@/lib/chat/types'
 
 /** Safe wrapper so SSR/build don't choke on the (client-only) lookup. */
@@ -42,6 +42,8 @@ interface MessageContentProps {
   isOwn: boolean
   onMentionClick?: (userId: string) => void
   onChannelClick?: (channelName: string) => void
+  /** Jump to a permalinks post in-app (instead of opening a new tab). */
+  onJumpToPost?: (postId: string) => void
   compact?: boolean
 }
 
@@ -73,6 +75,15 @@ function RichText({ text, onMentionClick, onChannelClick }: { text: string; onMe
             >
               @{seg.username}
               {user && <span className="sr-only"> ({name})</span>}
+            </span>
+          )
+        }
+        if (seg.type === 'special') {
+          // Broadcast mentions (@channel/@all/@here) render as a distinct chip
+          // so they're visually prominent (ports SPECIAL_MENTIONS styling).
+          return (
+            <span key={i} className="mention-link rounded px-0.5 font-medium bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300">
+              @{seg.name}
             </span>
           )
         }
@@ -194,7 +205,7 @@ function EmbedPreviews({ post }: { post: ChatPost }) {
   )
 }
 
-function MessageContentImpl({ post, isOwn, onMentionClick, onChannelClick, compact }: MessageContentProps) {
+function MessageContentImpl({ post, isOwn, onMentionClick, onChannelClick, onJumpToPost, compact }: MessageContentProps) {
   const processed = useMemo(() => preprocessMessage(post.message), [post.message])
 
   // System messages (join/leave/header-change/etc.) render as a localized
@@ -225,8 +236,36 @@ function MessageContentImpl({ post, isOwn, onMentionClick, onChannelClick, compa
                 const value = String(props.children ?? '')
                 return <RichText text={value} onMentionClick={onMentionClick} onChannelClick={onChannelClick} />
               },
+              // Inline markdown images `![](url)` — render as a clickable image.
+              img(props) {
+                const src = String(props.src ?? '')
+                const alt = String(props.alt ?? '')
+                if (!src) return null
+                return (
+                  <img
+                    src={src}
+                    alt={alt}
+                    loading="lazy"
+                    className="max-h-72 max-w-full rounded-lg border border-black/10 dark:border-white/10 my-1"
+                  />
+                )
+              },
               a(props) {
                 const href = String(props.href ?? '')
+                // Intercept in-app permalinks (/team/pl/{postId}) so they jump
+                // to the post instead of opening a new tab (ports handleFormattedTextClick).
+                const permalink = parsePermalink(href)
+                if (permalink?.postId && onJumpToPost) {
+                  return (
+                    <a
+                      href={href}
+                      onClick={(e) => { e.preventDefault(); onJumpToPost(permalink.postId!) }}
+                      className="text-sky-600 dark:text-sky-400 hover:underline cursor-pointer"
+                    >
+                      {props.children}
+                    </a>
+                  )
+                }
                 return (
                   <a href={href} target="_blank" rel="noreferrer" className="text-sky-600 dark:text-sky-400 hover:underline">
                     {props.children}

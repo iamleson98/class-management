@@ -49,11 +49,32 @@ export function SearchPanel({ teamId, onJump, onClose }: SearchPanelProps) {
       </div>
 
       <div className="p-3 border-b">
+        {/* Search-modifier hint chips (ports searchHintOptions). Clicking a chip
+            seeds the terms with the modifier prefix. */}
+        <div className="flex flex-wrap gap-1 mb-2">
+          {[
+            { label: 'from:', hint: t('chat.searchFrom', 'từ người') },
+            { label: 'in:', hint: t('chat.searchIn', 'trong kênh') },
+            { label: 'on:', hint: t('chat.searchOn', 'vào ngày') },
+            { label: 'before:', hint: t('chat.searchBefore', 'trước ngày') },
+            { label: 'after:', hint: t('chat.searchAfter', 'sau ngày') },
+          ].map((chip) => (
+            <button
+              key={chip.label}
+              type="button"
+              onClick={() => { setTerms((prev) => (prev ? `${prev} ` : '') + chip.label); document.querySelector<HTMLInputElement>('input[placeholder]')?.focus() }}
+              className="rounded-full border px-2 py-0.5 text-[10px] text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
+              title={chip.hint}
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
         <form
           onSubmit={(e) => { e.preventDefault(); if (terms.trim()) search.mutate(terms) }}
           className="flex gap-2"
         >
-          <Input value={terms} onChange={(e) => setTerms(e.target.value)} placeholder={t('chat.searchPlaceholder', 'Nhập từ khóa…')} className="h-8 text-sm" autoFocus />
+          <Input value={terms} onChange={(e) => setTerms(e.target.value)} placeholder={t('chat.searchPlaceholder', 'Nhập từ khóa… (dùng from:/in:/on: để lọc)')} className="h-8 text-sm" autoFocus />
           <Button type="submit" size="sm" disabled={search.isPending || !terms.trim()}>
             {search.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
           </Button>
@@ -86,7 +107,7 @@ export function SearchPanel({ teamId, onJump, onClose }: SearchPanelProps) {
                     <span className="text-xs font-semibold truncate">{userDisplayName(author)}</span>
                     <span className="text-[10px] text-muted-foreground/70">{format(new Date(post.create_at), 'dd/MM/yyyy HH:mm')}</span>
                   </div>
-                  <p className="text-sm line-clamp-2 whitespace-pre-wrap break-words">{post.message}</p>
+                  <p className="text-sm line-clamp-2 whitespace-pre-wrap wrap-break-word">{post.message}</p>
                   {channel && (
                     <div className="mt-1 text-[10px] text-muted-foreground/70 truncate">#{channel.display_name}</div>
                   )}

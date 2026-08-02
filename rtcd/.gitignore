@@ -1,0 +1,18 @@
+# Binaries
+dist/
+
+# Editors/IDEs
+*.swp
+*.swo
+*.vim
+.vscode/
+~
+
+# Helm
+Chart.lock
+*.tgz
+
+# App Specific
+config/config.toml
+*.log
+.aider*
