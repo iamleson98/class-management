@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/alt-text */
 'use client'
 
 import { useState } from 'react'
@@ -7,30 +8,30 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { Settings, Building2, Users, Image, Plus, UserX, UserCheck } from 'lucide-react'
 import { createBranchSchema, createUserSchema, type CreateBranchInput, type CreateUserInput } from '@/lib/schemas'
-import { getBranches, createBranch, getUsers, createUser, updateUser, deactivateUser, reactivateUser, getBanners } from '@/lib/api'
+import { getBranches, getUsers, updateUser, deactivateUser, reactivateUser, getBanners } from '@/lib/api'
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/lms/page-header'
 import { ErrorState } from '@/components/lms/error-state'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { useLMSStore } from '@/store/lms-store'
 import { staggerContainer } from '@/components/lms/shared/animations'
 import { useTranslation } from '@/lib/i18n'
 import { Field } from '@/components/ui/field'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
+import UserForm from './components/user-form'
+import BranchForm from './components/branch-form'
 
 // Staff roles a super admin / admin can assign to an employee. Keys match the
 // canonical lowercase role IDs stored in the user's `roles` string.
@@ -81,12 +82,12 @@ export default function AdminSettings() {
 
   const branchForm = useForm<CreateBranchInput>({
     resolver: zodResolver(createBranchSchema),
-    defaultValues: { name: '', address: '', phone: '', email: '' },
+    defaultValues: { name: '', address: '', phone: '' },
   })
 
   const userForm = useForm<CreateUserInput>({
     resolver: zodResolver(createUserSchema),
-    defaultValues: { name: '', email: '', phone: '', role: 'lms_teacher', password: '' },
+    defaultValues: { firstname: '', lastname: '', email: '', phone: '', roles: 'lms_teacher', password: '' },
   })
 
   const { data: branches = [], isLoading: branchesLoading, isError: isBranchesError, refetch: refetchBranches } = useQuery({
@@ -102,28 +103,6 @@ export default function AdminSettings() {
   const { data: banners = [], isLoading: bannersLoading, isError: isBannersError, refetch: refetchBanners } = useQuery({
     queryKey: ['banners'],
     queryFn: () => getBanners(),
-  })
-
-  const branchMutation = useMutation({
-    mutationFn: (data: CreateBranchInput) => createBranch(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['branches'] })
-      toast({ title: t('settings.addBranchSuccess', 'Thêm chi nhánh thành công') })
-      setBranchDialogOpen(false)
-      branchForm.reset({ name: '', address: '', phone: '', email: '' })
-    },
-    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('settings.addBranchFailed', 'Thêm chi nhánh thất bại'), variant: 'destructive' }),
-  })
-
-  const userMutation = useMutation({
-    mutationFn: (data: CreateUserInput) => createUser(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
-      toast({ title: t('settings.addUserSuccess', 'Thêm người dùng thành công') })
-      setUserDialogOpen(false)
-      userForm.reset({ name: '', email: '', phone: '', role: 'lms_teacher', password: '' })
-    },
-    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('settings.addUserFailed', 'Thêm người dùng thất bại'), variant: 'destructive' }),
   })
 
   const roleMutation = useMutation({
@@ -172,7 +151,7 @@ export default function AdminSettings() {
                 {t('settings.manageBranches', 'Quản lý chi nhánh')}
                 <Badge variant="secondary" className="text-xs">{branches.length}</Badge>
               </CardTitle>
-              <Button onClick={() => { branchForm.reset({ name: '', address: '', phone: '', email: '' }); setBranchDialogOpen(true) }} className="bg-sky-600 hover:bg-sky-700 text-white rounded-lg h-8 text-xs">
+              <Button onClick={() => { branchForm.reset({ name: '', address: '', phone: '' }); setBranchDialogOpen(true) }} className="bg-sky-600 hover:bg-sky-700 text-white rounded-lg h-8 text-xs">
                 <Plus className="h-3.5 w-3.5 mr-1" />
                 {t('settings.addBranch', 'Thêm chi nhánh')}
               </Button>
@@ -197,7 +176,6 @@ export default function AdminSettings() {
                       <TableHead className="uppercase text-xs font-semibold">{t('common.name', 'Tên')}</TableHead>
                       <TableHead className="uppercase text-xs font-semibold hidden md:table-cell">{t('settings.address', 'Địa chỉ')}</TableHead>
                       <TableHead className="uppercase text-xs font-semibold hidden sm:table-cell">{t('common.phone', 'SĐT')}</TableHead>
-                      <TableHead className="uppercase text-xs font-semibold hidden lg:table-cell">{t('common.email', 'Email')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -206,7 +184,6 @@ export default function AdminSettings() {
                         <TableCell className="font-medium text-sm">{branch.name}</TableCell>
                         <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{branch.address || '-'}</TableCell>
                         <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">{branch.phone || '-'}</TableCell>
-                        <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{branch.email || '-'}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -232,7 +209,7 @@ export default function AdminSettings() {
                   <Checkbox id="include-inactive" checked={includeInactive} onCheckedChange={(checked) => setIncludeInactive(checked as boolean)} />
                   <Label htmlFor="include-inactive">{t('settings.includeInactive', 'Bao gồm đã vô hiệu')}</Label>
                 </Field>
-                <Button onClick={() => { userForm.reset({ name: '', email: '', phone: '', role: 'lms_teacher', password: '' }); setUserDialogOpen(true) }} className="bg-sky-600 hover:bg-sky-700 text-white rounded-lg h-8 text-xs">
+                <Button onClick={() => { userForm.reset({ firstname: '', lastname: '', email: '', phone: '', roles: 'lms_teacher', password: '' }); setUserDialogOpen(true) }} className="bg-sky-600 hover:bg-sky-700 text-white rounded-lg h-8 text-xs">
                   <Plus className="h-3.5 w-3.5 mr-1" />
                   {t('settings.addUser', 'Thêm người dùng')}
                 </Button>
@@ -388,62 +365,7 @@ export default function AdminSettings() {
             <DialogTitle>{t('settings.addBranch', 'Thêm chi nhánh')}</DialogTitle>
             <DialogDescription />
           </DialogHeader>
-          <Form {...branchForm} schema={createBranchSchema}>
-            <form onSubmit={branchForm.handleSubmit((data) => branchMutation.mutate(data))} className="space-y-4">
-              <FormField
-                control={branchForm.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('settings.branchName', 'Tên chi nhánh')}</FormLabel>
-                    <FormControl><Input {...field} value={field.value ?? ''} placeholder="Trung tâm ABC" /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={branchForm.control}
-                name="address"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('settings.address', 'Địa chỉ')}</FormLabel>
-                    <FormControl><Input {...field} value={field.value ?? ''} placeholder="123 Đường XYZ, Quận Z" /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="grid grid-cols-2 gap-4 items-start">
-                <FormField
-                  control={branchForm.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('common.phone', 'Số điện thoại')}</FormLabel>
-                      <FormControl><Input {...field} value={field.value ?? ''} placeholder="028-xxxx" /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={branchForm.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('common.email', 'Email')}</FormLabel>
-                      <FormControl><Input type="email" {...field} value={field.value ?? ''} placeholder="info@abc.vn" /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" type="button" onClick={() => setBranchDialogOpen(false)}>{t('common.cancel', 'Hủy')}</Button>
-                <Button type="submit" disabled={branchMutation.isPending} className="bg-sky-600 hover:bg-sky-700 text-white">
-                  {branchMutation.isPending ? t('common.loading', 'Đang lưu...') : t('common.create', 'Thêm')}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
+          <BranchForm onDone={() => setBranchDialogOpen(false)} />
         </DialogContent>
       </Dialog>
 
@@ -454,82 +376,7 @@ export default function AdminSettings() {
             <DialogTitle>{t('settings.addUser', 'Thêm người dùng')}</DialogTitle>
             <DialogDescription />
           </DialogHeader>
-          <Form {...userForm} schema={createUserSchema}>
-            <form onSubmit={userForm.handleSubmit((data) => userMutation.mutate(data))} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 items-start">
-                <FormField
-                  control={userForm.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('settings.fullName', 'Họ tên')}</FormLabel>
-                      <FormControl><Input {...field} value={field.value ?? ''} placeholder="Nguyễn Văn A" /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={userForm.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('common.email', 'Email')}</FormLabel>
-                      <FormControl><Input type="email" {...field} value={field.value ?? ''} placeholder="email@example.com" /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4 items-start">
-                <FormField
-                  control={userForm.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('common.phone', 'Số điện thoại')}</FormLabel>
-                      <FormControl><Input {...field} value={field.value ?? ''} placeholder="0901xxx" /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={userForm.control}
-                  name="role"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('settings.role', 'Vai trò')}</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                        <SelectContent>
-                          {Object.entries(ROLE_LABELS).map(([key, label]) => (
-                            <SelectItem key={key} value={key}>{label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <FormField
-                control={userForm.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('settings.password', 'Mật khẩu')}</FormLabel>
-                    <FormControl><Input type="password" {...field} value={field.value ?? ''} placeholder={t('settings.defaultPassword', 'Mật khẩu mặc định')} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <Button variant="outline" type="button" onClick={() => setUserDialogOpen(false)}>{t('common.cancel', 'Hủy')}</Button>
-                <Button type="submit" disabled={userMutation.isPending} className="bg-sky-600 hover:bg-sky-700 text-white">
-                  {userMutation.isPending ? t('common.loading', 'Đang lưu...') : t('common.create', 'Thêm')}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
+          <UserForm onDone={() => setUserDialogOpen(false)} />
         </DialogContent>
       </Dialog>
     </motion.div>

@@ -23,18 +23,18 @@ import (
 
 // Class is an object representing the database table.
 type Class struct {
-	ID        string      `boil:"id" json:"id" toml:"id" yaml:"id"`
-	CourseID  string      `boil:"course_id" json:"course_id" toml:"course_id" yaml:"course_id"`
-	BranchID  string      `boil:"branch_id" json:"branch_id" toml:"branch_id" yaml:"branch_id"`
-	Name      string      `boil:"name" json:"name" toml:"name" yaml:"name"`
-	Code      string      `boil:"code" json:"code" toml:"code" yaml:"code"`
-	TeacherID string      `boil:"teacher_id" json:"teacher_id" toml:"teacher_id" yaml:"teacher_id"`
-	Status    string      `boil:"status" json:"status" toml:"status" yaml:"status"`
-	Room      null.String `boil:"room" json:"room,omitempty" toml:"room" yaml:"room,omitempty"`
-	StartDate     int64       `boil:"start_date" json:"start_date" toml:"start_date" yaml:"start_date"`
-	ChatChannelID string      `boil:"chat_channel_id" json:"chat_channel_id" toml:"chat_channel_id" yaml:"chat_channel_id"`
+	ID            string      `boil:"id" json:"id" toml:"id" yaml:"id"`
+	CourseID      string      `boil:"course_id" json:"course_id" toml:"course_id" yaml:"course_id"`
+	BranchID      string      `boil:"branch_id" json:"branch_id" toml:"branch_id" yaml:"branch_id"`
+	Name          string      `boil:"name" json:"name" toml:"name" yaml:"name"`
+	Code          string      `boil:"code" json:"code" toml:"code" yaml:"code"`
+	TeacherID     string      `boil:"teacher_id" json:"teacher_id" toml:"teacher_id" yaml:"teacher_id"`
+	Status        string      `boil:"status" json:"status" toml:"status" yaml:"status"`
+	Room          null.String `boil:"room" json:"room,omitempty" toml:"room" yaml:"room,omitempty"`
+	StartDate     time.Time   `boil:"start_date" json:"start_date" toml:"start_date" yaml:"start_date"`
 	Createat      int64       `boil:"createat" json:"createat" toml:"createat" yaml:"createat"`
 	Updateat      int64       `boil:"updateat" json:"updateat" toml:"updateat" yaml:"updateat"`
+	ChatChannelID string      `boil:"chat_channel_id" json:"chat_channel_id" toml:"chat_channel_id" yaml:"chat_channel_id"`
 
 	R *classR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L classL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -50,9 +50,9 @@ var ClassColumns = struct {
 	Status        string
 	Room          string
 	StartDate     string
-	ChatChannelID string
 	Createat      string
 	Updateat      string
+	ChatChannelID string
 }{
 	ID:            "id",
 	CourseID:      "course_id",
@@ -63,9 +63,9 @@ var ClassColumns = struct {
 	Status:        "status",
 	Room:          "room",
 	StartDate:     "start_date",
-	ChatChannelID: "chat_channel_id",
 	Createat:      "createat",
 	Updateat:      "updateat",
+	ChatChannelID: "chat_channel_id",
 }
 
 var ClassTableColumns = struct {
@@ -78,9 +78,9 @@ var ClassTableColumns = struct {
 	Status        string
 	Room          string
 	StartDate     string
-	ChatChannelID string
 	Createat      string
 	Updateat      string
+	ChatChannelID string
 }{
 	ID:            "classes.id",
 	CourseID:      "classes.course_id",
@@ -91,12 +91,33 @@ var ClassTableColumns = struct {
 	Status:        "classes.status",
 	Room:          "classes.room",
 	StartDate:     "classes.start_date",
-	ChatChannelID: "classes.chat_channel_id",
 	Createat:      "classes.createat",
 	Updateat:      "classes.updateat",
+	ChatChannelID: "classes.chat_channel_id",
 }
 
 // Generated where
+
+type whereHelpertime_Time struct{ field string }
+
+func (w whereHelpertime_Time) EQ(x time.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.EQ, x)
+}
+func (w whereHelpertime_Time) NEQ(x time.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.NEQ, x)
+}
+func (w whereHelpertime_Time) LT(x time.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LT, x)
+}
+func (w whereHelpertime_Time) LTE(x time.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelpertime_Time) GT(x time.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GT, x)
+}
+func (w whereHelpertime_Time) GTE(x time.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
 
 var ClassWhere = struct {
 	ID            whereHelperstring
@@ -107,10 +128,10 @@ var ClassWhere = struct {
 	TeacherID     whereHelperstring
 	Status        whereHelperstring
 	Room          whereHelpernull_String
-	StartDate     whereHelperint64
-	ChatChannelID whereHelperstring
+	StartDate     whereHelpertime_Time
 	Createat      whereHelperint64
 	Updateat      whereHelperint64
+	ChatChannelID whereHelperstring
 }{
 	ID:            whereHelperstring{field: "\"classes\".\"id\""},
 	CourseID:      whereHelperstring{field: "\"classes\".\"course_id\""},
@@ -120,10 +141,10 @@ var ClassWhere = struct {
 	TeacherID:     whereHelperstring{field: "\"classes\".\"teacher_id\""},
 	Status:        whereHelperstring{field: "\"classes\".\"status\""},
 	Room:          whereHelpernull_String{field: "\"classes\".\"room\""},
-	StartDate:     whereHelperint64{field: "\"classes\".\"start_date\""},
-	ChatChannelID: whereHelperstring{field: "\"classes\".\"chat_channel_id\""},
+	StartDate:     whereHelpertime_Time{field: "\"classes\".\"start_date\""},
 	Createat:      whereHelperint64{field: "\"classes\".\"createat\""},
 	Updateat:      whereHelperint64{field: "\"classes\".\"updateat\""},
+	ChatChannelID: whereHelperstring{field: "\"classes\".\"chat_channel_id\""},
 }
 
 // ClassRels is where relationship names are stored.
@@ -315,7 +336,7 @@ func (r *classR) GetWeeklyReviews() WeeklyReviewSlice {
 type classL struct{}
 
 var (
-	classAllColumns            = []string{"id", "course_id", "branch_id", "name", "code", "teacher_id", "status", "room", "start_date", "chat_channel_id", "createat", "updateat"}
+	classAllColumns            = []string{"id", "course_id", "branch_id", "name", "code", "teacher_id", "status", "room", "start_date", "createat", "updateat", "chat_channel_id"}
 	classColumnsWithoutDefault = []string{"id", "course_id", "branch_id", "name", "code", "teacher_id", "status", "start_date", "createat", "updateat"}
 	classColumnsWithDefault    = []string{"room", "chat_channel_id"}
 	classPrimaryKeyColumns     = []string{"id"}

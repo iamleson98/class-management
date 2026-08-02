@@ -22,7 +22,7 @@ import type {
   CreateFeePackageInput,
 } from '@/lib/schemas'
 import type { SearchOpts } from '@/lib/query'
-import { LMS_STAFF_ROLES } from '@/store/lms-store';
+import { type UserProfile } from '@mattermost/types/users'
 
 export const formatVND = (n: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n)
@@ -120,6 +120,214 @@ function toSnake<T>(data: unknown): T {
   return transformKeys<T>(data, camelToSnake)
 }
 
+// ─── Inbound value normalization ────────────────────────────────────
+//
+// The transform layer above only rewrites KEYS, never values. Two backend
+// conventions need value-level fixes on the way in:
+//
+// 1. decimal.Decimal (shopspring) marshals as a JSON STRING ("1000000"), but
+//    the frontend treats money/amount fields as numbers (arithmetic, formatVND).
+//    We coerce known decimal fields to numbers on inbound.
+// 2. Session `start_time`/`end_time` are int64 epoch MILLIS while `date` is an
+//    RFC3339 string. The UI wants `startTime`/`endTime` as 'HH:mm' and `date`
+//    as 'yyyy-MM-dd'. We normalize inbound sessions into that display shape.
+
+/** Coerce a value that may be a numeric string into a number, else 0. */
+function toNumber(v: unknown): number {
+  if (typeof v === 'number') return v
+  if (typeof v === 'string' && v.trim() !== '' && !isNaN(Number(v))) return Number(v)
+  return 0
+}
+
+const DECIMAL_FIELDS = new Set([
+  'fee', 'totalAmount', 'discountAmount', 'paidAmount', 'remainingAmount',
+  'discountValue', 'promotionalFee', 'totalFee', 'amount',
+])
+
+/** Recursively coerce known decimal-string fields to numbers. */
+function coerceDecimals<T>(value: unknown): T {
+  if (value === null || value === undefined) return value as T
+  if (typeof value !== 'object') return value as T
+  if (Array.isArray(value)) return value.map(coerceDecimals) as T
+
+  const result: Record<string, unknown> = {}
+  for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+    if (DECIMAL_FIELDS.has(key) && (typeof val === 'string' || typeof val === 'number')) {
+      result[key] = val === '' || val === null ? 0 : toNumber(val)
+    } else if (val !== null && typeof val === 'object') {
+      result[key] = coerceDecimals(val)
+    } else {
+      result[key] = val
+    }
+  }
+  return result as T
+}
+
+/** Convert an epoch-ms or RFC3339 value into 'HH:mm' (local time), else ''. */
+function epochToTimeOfDay(v: unknown): string {
+  if (v === null || v === undefined || v === '') return ''
+  const n = typeof v === 'number' ? v : Date.parse(String(v))
+  if (typeof n !== 'number' || isNaN(n)) return typeof v === 'string' ? v : ''
+  const d = new Date(n)
+  if (isNaN(d.getTime())) return ''
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `${hh}:${mm}`
+}
+
+/** Normalize a session's date/times into the display shape. */
+function normalizeSession<T>(s: T): T {
+  if (!s || typeof s !== 'object') return s
+  const obj = s as Record<string, unknown>
+  // date: backend is RFC3339 → keep as 'yyyy-MM-dd' for grouping/filtering
+  if (typeof obj.date === 'string' && obj.date.length >= 10) {
+    obj.date = obj.date.slice(0, 10)
+  } else if (typeof obj.date === 'number') {
+    obj.date = new Date(obj.date).toISOString().slice(0, 10)
+  }
+  // start_time / end_time: epoch ms (or RFC3339) → 'HH:mm'
+  if (obj.startTime !== undefined || obj.starttime !== undefined) {
+    obj.startTime = epochToTimeOfDay(obj.startTime ?? obj.starttime)
+  }
+  if (obj.endTime !== undefined || obj.endtime !== undefined) {
+    obj.endTime = epochToTimeOfDay(obj.endTime ?? obj.endtime)
+  }
+  return s
+}
+
+/** Recursively normalize session display fields. */
+function normalizeSessions<T>(value: unknown): T {
+  if (value === null || value === undefined) return value as T
+  if (Array.isArray(value)) return value.map(normalizeSession) as T
+  if (typeof value === 'object') return normalizeSession(value as Record<string, unknown>) as T
+  return value as T
+}
+
+/**
+ * Denormalize a student record. The backend stores student-specific data as a
+ * JSON string under `user.props.student` (see app/lms/student.go). For display
+ * convenience we lift those keys to the top level and synthesize a `name`.
+ * Canonical prop keys: gender, student_status, code, dob, school, school_grade,
+ * parent_name, vmg_class_code, notes.
+ */
+function denormalizeStudent<T>(raw: T): T {
+  if (!raw || typeof raw !== 'object') return raw
+  const s = raw as Record<string, unknown>
+  const props = (s.props ?? {}) as Record<string, unknown>
+  // `props.student` is a JSON STRING; parse it.
+  let studentProps: Record<string, unknown> = {}
+  const rawStudent = props.student
+  if (typeof rawStudent === 'string' && rawStudent !== '') {
+    try { studentProps = JSON.parse(rawStudent) } catch { /* leave empty */ }
+  } else if (rawStudent && typeof rawStudent === 'object') {
+    studentProps = rawStudent as Record<string, unknown>
+  }
+
+  const firstname = (s.firstname as string) ?? (s.user as Record<string, unknown> | undefined)?.firstname as string | undefined
+  const lastname = (s.lastname as string) ?? (s.user as Record<string, unknown> | undefined)?.lastname as string | undefined
+
+  // Lift student props to top level (without clobbering existing user fields).
+  const lifted: Record<string, unknown> = {
+    userId: s.userId ?? s.id,
+    firstname,
+    lastname,
+    // status lives under the canonical `student_status` prop key
+    status: studentProps.student_status ?? s.status,
+    gender: studentProps.gender ?? s.gender,
+    code: studentProps.code ?? s.code,
+    dob: studentProps.dob ?? s.dob,
+    school: studentProps.school ?? s.school,
+    schoolGrade: studentProps.school_grade ?? studentProps.schoolGrade ?? s.schoolGrade,
+    parentName: studentProps.parent_name ?? studentProps.parentName ?? s.parentName,
+    vmgClassCode: studentProps.vmg_class_code ?? studentProps.vmgClassCode ?? s.vmgClassCode,
+    notes: studentProps.notes ?? s.notes,
+  }
+  // Synthesize a display `name` from firstname/lastname (Vietnamese: lastname
+  // is the given name, firstname is the family name).
+  if (s.name === undefined) {
+    lifted.name = [firstname, lastname].filter(Boolean).join(' ').trim() || s.username || ''
+  }
+  return { ...s, ...lifted } as T
+}
+
+function denormalizeStudents<T>(value: unknown): T {
+  if (value === null || value === undefined) return value as T
+  if (Array.isArray(value)) return value.map(denormalizeStudent) as T
+  if (typeof value === 'object') return denormalizeStudent(value as Record<string, unknown>) as T
+  return value as T
+}
+
+// ─── Outbound transforms (request bodies) ───────────────────────────
+
+/**
+ * Combine a 'yyyy-MM-dd' date and an 'HH:mm' time-of-day into epoch milliseconds.
+ * Returns null if either part is missing/invalid.
+ */
+function combineDateAndTime(dateStr: string, timeStr: string): number | null {
+  if (!dateStr || !timeStr) return null
+  const d = new Date(`${dateStr}T${timeStr}:00`)
+  return isNaN(d.getTime()) ? null : d.getTime()
+}
+
+/**
+ * Convert a flat create/update session form value (date 'yyyy-MM-dd',
+ * startTime/endTime 'HH:mm') into the backend wire shape: date as RFC3339,
+ * startTime/endTime as epoch ms. Server requires classId/teacherId/date.
+ */
+function buildSessionPayload(values: Record<string, unknown>): Record<string, unknown> {
+  const { date, startTime, endTime, ...rest } = values
+  const start = combineDateAndTime(String(date ?? ''), String(startTime ?? ''))
+  const end = combineDateAndTime(String(date ?? ''), String(endTime ?? ''))
+  const payload: Record<string, unknown> = { ...rest }
+  // Backend `date` is a time.Time — send a full ISO/RFC3339 string at midnight.
+  payload.date = date ? new Date(`${date}T00:00:00`).toISOString() : date
+  if (start !== null) payload.startTime = start
+  if (end !== null) payload.endTime = end
+  return payload
+}
+
+/**
+ * Split a flat student form value into the backend wrapper
+ * `{ user: <model.User>, props: <map> }`. The server stores props as JSON under
+ * `user.props["student"]`. Canonical prop keys: gender, student_status.
+ */
+function buildStudentPayload(values: Record<string, unknown>): { user: Record<string, unknown>; props: Record<string, unknown> } {
+  const {
+    firstname, lastname, email, phone, parentId, branchId,
+    code, gender, status, dob, school, schoolGrade, parentName, vmgClassCode, notes,
+  } = values
+
+  const user: Record<string, unknown> = {}
+  if (firstname !== undefined) user.firstname = firstname
+  if (lastname !== undefined) user.lastname = lastname
+  if (email !== undefined) user.email = email
+  if (phone !== undefined) user.phone = phone
+  if (parentId !== undefined) user.parentId = parentId
+  if (branchId !== undefined) user.branchId = branchId
+
+  const props: Record<string, unknown> = {}
+  if (code !== undefined) props.code = code
+  if (gender !== undefined && gender !== '') props.gender = gender
+  if (status !== undefined && status !== '') props.student_status = status
+  if (dob !== undefined && dob !== '') props.dob = dob
+  if (school !== undefined && school !== '') props.school = school
+  if (schoolGrade !== undefined && schoolGrade !== '') props.school_grade = schoolGrade
+  if (parentName !== undefined && parentName !== '') props.parent_name = parentName
+  if (vmgClassCode !== undefined && vmgClassCode !== '') props.vmg_class_code = vmgClassCode
+  if (notes !== undefined && notes !== '') props.notes = notes
+
+  return { user, props }
+}
+
+/**
+ * Convert a flat bulk-assign homework form value into the backend nested body
+ * `{ homework: {...}, student_ids: [...] }`. See homework.go bulkAssignHomework.
+ */
+function buildBulkAssignPayload(values: Record<string, unknown>): { homework: Record<string, unknown>; studentIds: unknown } {
+  const { studentIds, ...homeworkFields } = values
+  return { homework: homeworkFields, studentIds }
+}
+
 /** Result of a paginated search — items plus the server-reported total count. */
 export interface PaginatedList<T> {
   items: T[]
@@ -185,7 +393,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const json = await readJson(res)
   // Unwrap { data: ... } envelope when present (but not when { items } is also present).
   const raw = json.data !== undefined && json.items === undefined ? json.data : json
-  return toCamel<T>(raw)
+  return coerceDecimals<T>(toCamel<T>(raw))
 }
 
 /** List endpoint (GET or POST with body). Returns only the items, camelCased. */
@@ -196,7 +404,7 @@ async function apiFetchList<T>(path: string, options?: RequestInit): Promise<T[]
     ...options,
   })
   const json = await readJson(res)
-  return toCamel<T[]>(extractItems(json))
+  return coerceDecimals<T[]>(toCamel<T[]>(extractItems(json)))
 }
 
 /**
@@ -213,7 +421,7 @@ async function apiSearchPaginated<T>(path: string, body: unknown): Promise<Pagin
   const json = await readJson(res)
   const items = extractItems(json)
   const totalCount = typeof json.total_count === 'number' ? json.total_count : items.length
-  return { items: toCamel<T[]>(items), totalCount }
+  return { items: coerceDecimals<T[]>(toCamel<T[]>(items)), totalCount }
 }
 
 /** Fetch a list, returning only the items (drops total_count). */
@@ -393,6 +601,25 @@ export interface GetUsersParams {
   staffOnly?: boolean
 }
 
+// export type UserSearch = {
+//   term: string;
+//   team_id: string;
+//   not_in_team_id: string;
+//   in_channel_id: string;
+//   not_in_channel_id: string;
+//   in_group_id: string;
+//   group_constrained: boolean;
+//   allow_inactive: boolean;
+//   without_team: boolean;
+//   limit: number;
+//   role: string;
+//   roles: string[];
+//   channel_roles: string[];
+//   team_roles: string[];
+//   not_in_group_id: string;
+// };
+
+
 export const getUsers = (params: GetUsersParams = {}) => {
   const opts: SearchOpts = {
     where_ands: [],
@@ -410,15 +637,9 @@ export const getUsers = (params: GetUsersParams = {}) => {
     value: 0
   })
   if (params.staffOnly) {
-    LMS_STAFF_ROLES.forEach(role => {
-      opts.where_ors?.push({
-        column: 'users.roles',
-        operator: 'ILIKE',
-        value: `%${role}%`,
-      })
-    })
+    opts.employee_only = true;
   }
-  return apiSearchPaginated<User>(`/users/search2`, opts)
+  return apiSearchPaginated<UserProfile>(`/users/search2`, opts)
 }
 export const createUser = (data: CreateUserInput): Promise<User> => apiPost<User>('/lms/users', data)
 export const updateUser = (id: string, data: UpdateUserInput): Promise<User> => apiPut<User>(`/lms/users/${id}`, data)
@@ -433,14 +654,20 @@ export const reactivateUser = (id: string): Promise<User> => apiPost<User>(`/lms
 // also honors top-level `search`, `status`, and `class_id` fields, so callers may
 // include those directly in the body alongside the generic where_ands/limit/etc.
 
-/** List students (items only). */
+/** List students (items only). Denormalizes props.student for display. */
 export const getStudents = (opts: SearchOpts = {}): Promise<Student[]> =>
-  apiSearchList<Student>('/lms/students', opts)
+  apiSearchList<Student>('/lms/students', opts).then((items) => denormalizeStudents<Student[]>(items))
 /** List students with total_count for server-driven paging. */
 export const getStudentsPaginated = (opts: SearchOpts = {}): Promise<PaginatedList<Student>> =>
-  apiSearchPaginated<Student>('/lms/students', opts)
-export const createStudent = (data: CreateStudentInput): Promise<Student> => apiPost<Student>('/lms/students/create', data)
-export const updateStudent = (id: string, data: UpdateStudentInput): Promise<Student> => apiPut<Student>(`/lms/students/${id}`, data)
+  apiSearchPaginated<Student>('/lms/students', opts).then((r) => ({ ...r, items: denormalizeStudents<Student[]>(r.items) }))
+// Create/update decode into a wrapper `{ user, props }` (see app/lms/student.go);
+// buildStudentPayload splits the flat form value into that shape.
+export const createStudent = (data: CreateStudentInput): Promise<Student> =>
+  apiPost<Student>('/lms/students/create', buildStudentPayload(data as Record<string, unknown>))
+    .then((s) => denormalizeStudents<Student>(s))
+export const updateStudent = (id: string, data: UpdateStudentInput): Promise<Student> =>
+  apiPut<Student>(`/lms/students/${id}`, buildStudentPayload(data as Record<string, unknown>))
+    .then((s) => denormalizeStudents<Student>(s))
 export const deleteStudent = (id: string): Promise<void> => apiDelete<void>(`/lms/students/${id}`)
 
 // ─── Counselor: user ↔ student conversions ─────────────────────────
@@ -493,22 +720,36 @@ export const enrollStudents = (classId: string, studentIds: string[]): Promise<C
  * via src/lib/query.ts). NOTE: the `lms_sessions` table has NO `month` and NO
  * `student_id` column — sessions link to students only indirectly via class
  * enrollment. Filter those client-side on the returned list.
+ *
+ * Inbound normalization: backend `date` is RFC3339 and `start_time`/`end_time`
+ * are epoch millis; we convert to 'yyyy-MM-dd' and 'HH:mm' for display.
  */
 export const getSessions = (opts: SearchOpts = {}): Promise<SessionListItem[]> =>
-  apiSearchList<SessionListItem>('/lms/sessions', opts)
+  apiSearchPaginated<SessionListItem>('/lms/sessions', opts).then((r) => normalizeSessions<SessionListItem[]>(r.items))
 export const createSession = (data: CreateSessionInput): Promise<SessionListItem> =>
-  apiPost<SessionListItem>('/lms/sessions/create', data)
+  apiFetch<SessionListItem>('/lms/sessions/create', { method: 'POST', body: JSON.stringify(toSnake(buildSessionPayload(data as Record<string, unknown>))) })
+    .then((s) => normalizeSessions<SessionListItem>(s))
 export const updateSession = (id: string, data: UpdateSessionInput): Promise<SessionListItem> =>
-  apiPut<SessionListItem>(`/lms/sessions/${id}`, data)
+  apiFetch<SessionListItem>(`/lms/sessions/${id}`, { method: 'PUT', body: JSON.stringify(toSnake(buildSessionPayload(data as Record<string, unknown>))) })
+    .then((s) => normalizeSessions<SessionListItem>(s))
 export const deleteSession = (id: string): Promise<void> =>
   apiDelete<void>(`/lms/sessions/${id}`)
 
 // ─── Attendance ────────────────────────────────────────────────────
+//
+// POST /lms/sessions/{id}/attendance expects a BARE JSON ARRAY of attendance
+// records (the handler decodes into []*lms_models.Attendance), NOT an object
+// wrapped in { records }. The session id is taken from the URL and overwrites
+// any session_id in the body (full-replace semantics: existing records are
+// deleted, then the provided ones are inserted).
 
 export const getSessionAttendance = (sessionId: string): Promise<AttendanceResponse> =>
   apiFetch<AttendanceResponse>(`/lms/sessions/${sessionId}/attendance`)
 export const saveAttendance = (sessionId: string, records: AttendanceInput[]): Promise<{ count: number; records: Attendance[] }> =>
-  apiPost<{ count: number; records: Attendance[] }>(`/lms/sessions/${sessionId}/attendance`, { records })
+  apiFetch<{ count: number; records: Attendance[] }>(
+    `/lms/sessions/${sessionId}/attendance`,
+    { method: 'POST', body: JSON.stringify(toSnake(records)) },
+  )
 
 // ─── Leads (CRM) ────────────────────────────────────────────────────
 
@@ -645,8 +886,10 @@ export function deleteHomework(id: string) {
   return apiDelete(`/lms/homeworks/${id}`)
 }
 
+// Bulk-assign decodes into a nested body `{ homework, student_ids }`
+// (see homework.go bulkAssignHomework), so the flat form value is split here.
 export function bulkAssignHomework(data: Record<string, unknown>) {
-  return apiPost('/lms/homeworks/bulk-assign', data)
+  return apiPost('/lms/homeworks/bulk-assign', buildBulkAssignPayload(data))
 }
 
 export function getHomeworkSubmissions(homeworkId: string) {

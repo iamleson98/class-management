@@ -972,11 +972,12 @@ func getUsers(c *Context, w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if sort == "status" {
+		switch sort {
+		case "status":
 			profiles, appErr = c.App.GetUsersInChannelPageByStatus(userGetOptions, c.IsSystemAdmin())
-		} else if sort == "admin" {
+		case "admin":
 			profiles, appErr = c.App.GetUsersInChannelPageByAdmin(userGetOptions, c.IsSystemAdmin())
-		} else {
+		default:
 			profiles, appErr = c.App.GetUsersInChannelPage(userGetOptions, c.IsSystemAdmin())
 		}
 	} else if inGroupId != "" {

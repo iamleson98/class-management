@@ -62,7 +62,7 @@ const SOURCE_MAP: Record<string, string> = {
   TIKTOK: 'TikTok',
 }
 
-const EMPTY_ACTIVITY: LeadActivityInput = { type: 'NOTE', content: '', nextFollowUp: '', createdBy: '' }
+const EMPTY_ACTIVITY: LeadActivityInput = { type: 'NOTE', content: '', nextFollowUp: '' }
 
 export default function AdminCRM() {
   const { t } = useTranslation()
@@ -632,7 +632,7 @@ export default function AdminCRM() {
             <TabsContent value="activities" className="mt-4">
               <div className="flex justify-end mb-3">
                 <Button variant="outline" size="sm" onClick={() => {
-                  activityForm.reset({ type: 'NOTE', content: '', nextFollowUp: '', createdBy: authUser?.id || '' })
+                  activityForm.reset({ type: 'NOTE', content: '', nextFollowUp: '' })
                   setActivityOpen(true)
                 }}>
                   <Plus className="h-3.5 w-3.5 mr-1" />{t('crm.addActivity', 'Thêm hoạt động')}

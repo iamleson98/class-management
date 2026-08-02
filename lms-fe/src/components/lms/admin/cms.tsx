@@ -51,7 +51,7 @@ const STATUS_MAP: Record<string, { label: string; className: string }> = {
 type PostFormValues = z.input<typeof createPostSchema>
 
 const EMPTY_CREATE: PostFormValues = {
-  title: '', slug: '', content: '', excerpt: '', categoryId: '', status: 'DRAFT', imageUrl: '', authorId: '', seoTitle: '', seoDescription: '', seoKeywords: '',
+  title: '', slug: '', content: '', excerpt: '', categoryId: '', status: 'DRAFT', authorId: '', seoTitle: '', seoDescription: '', seoKeywords: '',
 }
 
 export default function AdminCMS() {
@@ -213,7 +213,7 @@ export default function AdminCMS() {
     form.reset({
       title: post.title || '', slug: post.slug || '', content: post.content || '',
       excerpt: post.excerpt || '', categoryId: post.categoryId || '', status: post.status || 'DRAFT',
-      imageUrl: post.imageUrl || '', seoTitle: post.seoTitle || '', seoDescription: post.seoDescription || '', seoKeywords: post.seoKeywords || '',
+      seoTitle: post.seoTitle || '', seoDescription: post.seoDescription || '', seoKeywords: post.seoKeywords || '',
       authorId: post.authorId || post.author?.id || authUser?.id || '',
     })
     setDialogOpen(true)
@@ -453,37 +453,24 @@ export default function AdminCMS() {
                   </FormItem>
                 )}
               />
-              <div className="grid grid-cols-2 gap-4 items-start">
-                <FormField
-                  control={form.control}
-                  name="imageUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('cms.imageUrl', 'URL ảnh')}</FormLabel>
-                      <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="status"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('common.status', 'Trạng thái')}</FormLabel>
-                      <Select value={field.value || ''} onValueChange={field.onChange}>
-                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                        <SelectContent>
-                          {Object.entries(STATUS_MAP).map(([key, val]) => (
-                            <SelectItem key={key} value={key}>{val.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('common.status', 'Trạng thái')}</FormLabel>
+                    <Select value={field.value || ''} onValueChange={field.onChange}>
+                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {Object.entries(STATUS_MAP).map(([key, val]) => (
+                          <SelectItem key={key} value={key}>{val.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <div className="grid grid-cols-2 gap-4 items-start">
                 <FormField
                   control={form.control}
@@ -538,7 +525,6 @@ export default function AdminCMS() {
             <DialogTitle>{viewingPost?.title}</DialogTitle>
             <DialogDescription />
           </DialogHeader>
-          {viewingPost?.imageUrl && <img src={viewingPost.imageUrl} alt="" className="w-full rounded-lg" />}
           <div className="prose prose-sm dark:prose-invert max-w-none">
             <p className="whitespace-pre-wrap">{viewingPost?.content || viewingPost?.excerpt || t('cms.noContent', 'Chưa có nội dung')}</p>
           </div>

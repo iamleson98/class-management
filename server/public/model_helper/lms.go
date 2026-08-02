@@ -1,6 +1,7 @@
 package modelhelper
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -46,6 +47,51 @@ type StudentFilterOpts struct {
 	Status              StudentStatus `json:"status"`
 	Search              string        `json:"search"`
 	Gender              UserGender    `json:"gender"`
+}
+
+func LmsUserToOldUser(u *lms_models.User) *model.User {
+	if u == nil {
+		return nil
+	}
+	res := &model.User{
+		Id:                 u.ID,
+		CreateAt:           u.Createat,
+		UpdateAt:           u.Updateat,
+		DeleteAt:           u.Deleteat.Int64,
+		Username:           u.Username,
+		Password:           u.Password,
+		AuthData:           &u.Authdata.String,
+		AuthService:        u.Authservice,
+		Email:              u.Email,
+		EmailVerified:      u.Emailverified,
+		Nickname:           u.Nickname,
+		FirstName:          u.Firstname,
+		LastName:           u.Lastname,
+		Position:           u.Position.String,
+		Roles:              u.Roles,
+		AllowMarketing:     u.Allowmarketing,
+		Props:              model.StringMap{},
+		NotifyProps:        model.StringMap{},
+		LastPasswordUpdate: u.Lastpasswordupdate.Int64,
+		LastPictureUpdate:  u.Lastpictureupdate.Int64,
+		FailedAttempts:     u.Failedattempts.Int,
+		Locale:             u.Locale,
+		Timezone:           model.StringMap{},
+		MfaActive:          u.Mfaactive.Bool,
+		MfaSecret:          u.Mfasecret.String,
+		RemoteId:           &u.Remoteid.String,
+		LastLogin:          u.Lastlogin,
+		MfaUsedTimestamps:  model.StringArray{},
+		Phone:              &u.Phone.String,
+		ParentId:           &u.ParentID.String,
+	}
+
+	json.Unmarshal(u.Props, &res.Props)
+	json.Unmarshal(u.Timezone.JSON, &res.Timezone)
+	json.Unmarshal(u.Mfausedtimestamps.JSON, &res.MfaUsedTimestamps)
+	json.Unmarshal(u.Notifyprops, &res.NotifyProps)
+
+	return res
 }
 
 type BranchFilterOpts struct {
@@ -105,6 +151,7 @@ type MaterialFilterOpts struct {
 
 type UserFilterOpts struct {
 	utils.SearchOpts[utils.UserColumn]
+	EmployeeOnly bool `json:"employee_only"`
 }
 
 // ============================================================================
@@ -273,11 +320,14 @@ func ClassIsValid(c *lms_models.Class) *model.AppError {
 	if len(c.Name) > 100 {
 		return model.NewAppError("ClassIsValid", "model.lms.class.name.len.app_error", nil, "", http.StatusBadRequest)
 	}
-	if c.CourseID == "" {
+	if !model.IsValidId(c.CourseID) {
 		return model.NewAppError("ClassIsValid", "model.lms.class.course_id.app_error", nil, "", http.StatusBadRequest)
 	}
-	if c.TeacherID == "" {
+	if !model.IsValidId(c.TeacherID) {
 		return model.NewAppError("ClassIsValid", "model.lms.class.teacher_id.app_error", nil, "", http.StatusBadRequest)
+	}
+	if c.BranchID != "" && !model.IsValidId(c.BranchID) {
+		return model.NewAppError("ClassIsValid", "model.lms.class.branch_id.app_error", nil, "", http.StatusBadRequest)
 	}
 	if !ClassStatus(c.Status).IsValid() {
 		return model.NewAppError("ClassIsValid", "model.lms.class.status.len.app_error", nil, "", http.StatusBadRequest)

@@ -30,7 +30,7 @@ import { useTranslation } from '@/lib/i18n'
 type MarketingPostFormValues = z.input<typeof createPostSchema>
 
 const EMPTY_CREATE: MarketingPostFormValues = {
-  title: '', slug: '', content: '', excerpt: '', categoryId: '', status: 'DRAFT', imageUrl: '', authorId: '', seoTitle: '', seoDescription: '', seoKeywords: '',
+  title: '', slug: '', content: '', excerpt: '', categoryId: '', status: 'DRAFT', authorId: '', seoTitle: '', seoDescription: '', seoKeywords: '',
 }
 
 export default function MarketingCMSPage() {
@@ -82,7 +82,6 @@ export default function MarketingCMSPage() {
       excerpt: post.excerpt || '',
       categoryId: post.categoryId || '',
       status: post.status || 'DRAFT',
-      imageUrl: post.imageUrl || '',
       seoTitle: post.seoTitle || '',
       seoDescription: post.seoDescription || '',
       seoKeywords: post.seoKeywords || '',

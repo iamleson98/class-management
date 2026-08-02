@@ -35,7 +35,6 @@ export const leadActivitySchema = z.object({
   type: ActivityType,
   content: requiredString,
   nextFollowUp: optionalDateField,
-  createdBy: idField,
 })
 
 export type CreateLeadInput = z.infer<typeof createLeadSchema>

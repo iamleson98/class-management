@@ -99,19 +99,11 @@ export default function NewsPage() {
                 >
                   <Link href={`/news/${post.slug || post.id}`}>
                     <Card className="h-full hover:shadow-lg transition-shadow group border-0 shadow-sm flex flex-col cursor-pointer">
-                      {/* Image */}
+                      {/* Image — backend BlogPost has no image field */}
                       <div className="aspect-16/10 bg-gray-100 dark:bg-gray-800 rounded-t-xl overflow-hidden relative">
-                        {post.imageUrl ? (
-                          <img
-                            src={post.imageUrl}
-                            alt={post.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-sky-50 dark:bg-sky-900/20">
-                            <Newspaper className="h-10 w-10 text-sky-300 dark:text-sky-700" />
-                          </div>
-                        )}
+                        <div className="w-full h-full flex items-center justify-center bg-sky-50 dark:bg-sky-900/20">
+                          <Newspaper className="h-10 w-10 text-sky-300 dark:text-sky-700" />
+                        </div>
                         {post.categoryName && (
                           <Badge className="absolute top-3 left-3 bg-sky-600 text-white border-0 text-[10px]">
                             {post.categoryName}

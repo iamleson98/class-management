@@ -5,8 +5,9 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"slices"
+	"strings"
 
-	"github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
 	"github.com/iamleson98/sitename/server/public/shared/i18n"
@@ -29,11 +30,6 @@ func (us *UserService) CreateUser(rctx request.CTX, user *model.User, opts UserC
 		return us.createUser(rctx, user)
 	}
 
-	user.Roles = model.SystemUserRoleId
-	if opts.Guest {
-		user.Roles = model.SystemGuestRoleId
-	}
-
 	if !user.IsLDAPUser() && !user.IsSAMLUser() && !user.IsGuest() && !CheckUserDomain(user, *us.config().TeamSettings.RestrictCreationToDomains) {
 		return nil, AcceptedDomainError
 	}
@@ -49,6 +45,16 @@ func (us *UserService) CreateUser(rctx request.CTX, user *model.User, opts UserC
 		return nil, errors.Wrap(UserStoreIsEmptyError, err.Error())
 	} else if ok {
 		user.Roles = model.SystemAdminRoleId + " " + model.SystemUserRoleId + " " + model.RoleLmsSuperAdminRoleId
+	} else {
+		roles := user.GetRoles()
+
+		if !slices.Contains(roles, model.SystemUserRoleId) {
+			roles = append(roles, model.SystemUserRoleId)
+		} else if opts.Guest {
+			roles = []string{model.SystemGuestRoleId}
+		}
+
+		user.Roles = strings.Join(roles, " ")
 	}
 
 	if _, ok := i18n.GetSupportedLocales()[user.Locale]; !ok {
@@ -99,12 +105,21 @@ func (us *UserService) GetUsers(rctx request.CTX, userIDs []string) ([]*model.Us
 	return us.store.GetMany(rctx, userIDs)
 }
 
-func (us *UserService) SearchUsers(opts modelhelper.UserFilterOpts) (lms_models.UserSlice, int64, *model.AppError) {
+func (us *UserService) SearchUsers(opts modelhelper.UserFilterOpts) ([]*model.User, int64, *model.AppError) {
 	users, count, err := us.store.SearchUsers(opts)
 	if err != nil {
 		return nil, 0, model.NewAppError("SearchUsers", "app.users.search_users.app_error", nil, err.Error(), http.StatusInternalServerError).Wrap(err)
 	}
-	return users, count, nil
+
+	sanOpts := us.GetSanitizeOptions(false)
+	res := make([]*model.User, len(users))
+	for i, u := range users {
+		user := modelhelper.LmsUserToOldUser(u)
+		user.SanitizeProfile(sanOpts, false)
+		res[i] = user
+	}
+
+	return res, count, nil
 }
 
 func (us *UserService) GetUserByUsername(username string) (*model.User, error) {

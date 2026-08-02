@@ -17,6 +17,7 @@ import (
 	"github.com/aarondl/sqlboiler/v4/queries"
 	"github.com/aarondl/sqlboiler/v4/queries/qm"
 	"github.com/aarondl/sqlboiler/v4/queries/qmhelper"
+	"github.com/aarondl/sqlboiler/v4/types"
 	"github.com/aarondl/strmangle"
 	"github.com/friendsofgo/errors"
 )
@@ -24,26 +25,26 @@ import (
 // User is an object representing the database table.
 type User struct {
 	ID                 string      `boil:"id" json:"id" toml:"id" yaml:"id"`
-	Createat           null.Int64  `boil:"createat" json:"createat,omitempty" toml:"createat" yaml:"createat,omitempty"`
-	Updateat           null.Int64  `boil:"updateat" json:"updateat,omitempty" toml:"updateat" yaml:"updateat,omitempty"`
+	Createat           int64       `boil:"createat" json:"createat" toml:"createat" yaml:"createat"`
+	Updateat           int64       `boil:"updateat" json:"updateat" toml:"updateat" yaml:"updateat"`
 	Deleteat           null.Int64  `boil:"deleteat" json:"deleteat,omitempty" toml:"deleteat" yaml:"deleteat,omitempty"`
-	Username           null.String `boil:"username" json:"username,omitempty" toml:"username" yaml:"username,omitempty"`
-	Password           null.String `boil:"password" json:"password,omitempty" toml:"password" yaml:"password,omitempty"`
+	Username           string      `boil:"username" json:"username" toml:"username" yaml:"username"`
+	Password           string      `boil:"password" json:"password" toml:"password" yaml:"password"`
 	Authdata           null.String `boil:"authdata" json:"authdata,omitempty" toml:"authdata" yaml:"authdata,omitempty"`
-	Authservice        null.String `boil:"authservice" json:"authservice,omitempty" toml:"authservice" yaml:"authservice,omitempty"`
-	Email              null.String `boil:"email" json:"email,omitempty" toml:"email" yaml:"email,omitempty"`
-	Emailverified      null.Bool   `boil:"emailverified" json:"emailverified,omitempty" toml:"emailverified" yaml:"emailverified,omitempty"`
-	Nickname           null.String `boil:"nickname" json:"nickname,omitempty" toml:"nickname" yaml:"nickname,omitempty"`
-	Firstname          null.String `boil:"firstname" json:"firstname,omitempty" toml:"firstname" yaml:"firstname,omitempty"`
-	Lastname           null.String `boil:"lastname" json:"lastname,omitempty" toml:"lastname" yaml:"lastname,omitempty"`
-	Roles              null.String `boil:"roles" json:"roles,omitempty" toml:"roles" yaml:"roles,omitempty"`
-	Allowmarketing     null.Bool   `boil:"allowmarketing" json:"allowmarketing,omitempty" toml:"allowmarketing" yaml:"allowmarketing,omitempty"`
-	Props              null.JSON   `boil:"props" json:"props,omitempty" toml:"props" yaml:"props,omitempty"`
-	Notifyprops        null.JSON   `boil:"notifyprops" json:"notifyprops,omitempty" toml:"notifyprops" yaml:"notifyprops,omitempty"`
+	Authservice        string      `boil:"authservice" json:"authservice" toml:"authservice" yaml:"authservice"`
+	Email              string      `boil:"email" json:"email" toml:"email" yaml:"email"`
+	Emailverified      bool        `boil:"emailverified" json:"emailverified" toml:"emailverified" yaml:"emailverified"`
+	Nickname           string      `boil:"nickname" json:"nickname" toml:"nickname" yaml:"nickname"`
+	Firstname          string      `boil:"firstname" json:"firstname" toml:"firstname" yaml:"firstname"`
+	Lastname           string      `boil:"lastname" json:"lastname" toml:"lastname" yaml:"lastname"`
+	Roles              string      `boil:"roles" json:"roles" toml:"roles" yaml:"roles"`
+	Allowmarketing     bool        `boil:"allowmarketing" json:"allowmarketing" toml:"allowmarketing" yaml:"allowmarketing"`
+	Props              types.JSON  `boil:"props" json:"props" toml:"props" yaml:"props"`
+	Notifyprops        types.JSON  `boil:"notifyprops" json:"notifyprops" toml:"notifyprops" yaml:"notifyprops"`
 	Lastpasswordupdate null.Int64  `boil:"lastpasswordupdate" json:"lastpasswordupdate,omitempty" toml:"lastpasswordupdate" yaml:"lastpasswordupdate,omitempty"`
 	Lastpictureupdate  null.Int64  `boil:"lastpictureupdate" json:"lastpictureupdate,omitempty" toml:"lastpictureupdate" yaml:"lastpictureupdate,omitempty"`
 	Failedattempts     null.Int    `boil:"failedattempts" json:"failedattempts,omitempty" toml:"failedattempts" yaml:"failedattempts,omitempty"`
-	Locale             null.String `boil:"locale" json:"locale,omitempty" toml:"locale" yaml:"locale,omitempty"`
+	Locale             string      `boil:"locale" json:"locale" toml:"locale" yaml:"locale"`
 	Mfaactive          null.Bool   `boil:"mfaactive" json:"mfaactive,omitempty" toml:"mfaactive" yaml:"mfaactive,omitempty"`
 	Mfasecret          null.String `boil:"mfasecret" json:"mfasecret,omitempty" toml:"mfasecret" yaml:"mfasecret,omitempty"`
 	Position           null.String `boil:"position" json:"position,omitempty" toml:"position" yaml:"position,omitempty"`
@@ -188,6 +189,27 @@ var UserTableColumns = struct {
 
 // Generated where
 
+type whereHelpertypes_JSON struct{ field string }
+
+func (w whereHelpertypes_JSON) EQ(x types.JSON) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.EQ, x)
+}
+func (w whereHelpertypes_JSON) NEQ(x types.JSON) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.NEQ, x)
+}
+func (w whereHelpertypes_JSON) LT(x types.JSON) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LT, x)
+}
+func (w whereHelpertypes_JSON) LTE(x types.JSON) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelpertypes_JSON) GT(x types.JSON) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GT, x)
+}
+func (w whereHelpertypes_JSON) GTE(x types.JSON) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
+
 type whereHelpernull_JSON struct{ field string }
 
 func (w whereHelpernull_JSON) EQ(x null.JSON) qm.QueryMod {
@@ -214,26 +236,26 @@ func (w whereHelpernull_JSON) IsNotNull() qm.QueryMod { return qmhelper.WhereIsN
 
 var UserWhere = struct {
 	ID                 whereHelperstring
-	Createat           whereHelpernull_Int64
-	Updateat           whereHelpernull_Int64
+	Createat           whereHelperint64
+	Updateat           whereHelperint64
 	Deleteat           whereHelpernull_Int64
-	Username           whereHelpernull_String
-	Password           whereHelpernull_String
+	Username           whereHelperstring
+	Password           whereHelperstring
 	Authdata           whereHelpernull_String
-	Authservice        whereHelpernull_String
-	Email              whereHelpernull_String
-	Emailverified      whereHelpernull_Bool
-	Nickname           whereHelpernull_String
-	Firstname          whereHelpernull_String
-	Lastname           whereHelpernull_String
-	Roles              whereHelpernull_String
-	Allowmarketing     whereHelpernull_Bool
-	Props              whereHelpernull_JSON
-	Notifyprops        whereHelpernull_JSON
+	Authservice        whereHelperstring
+	Email              whereHelperstring
+	Emailverified      whereHelperbool
+	Nickname           whereHelperstring
+	Firstname          whereHelperstring
+	Lastname           whereHelperstring
+	Roles              whereHelperstring
+	Allowmarketing     whereHelperbool
+	Props              whereHelpertypes_JSON
+	Notifyprops        whereHelpertypes_JSON
 	Lastpasswordupdate whereHelpernull_Int64
 	Lastpictureupdate  whereHelpernull_Int64
 	Failedattempts     whereHelpernull_Int
-	Locale             whereHelpernull_String
+	Locale             whereHelperstring
 	Mfaactive          whereHelpernull_Bool
 	Mfasecret          whereHelpernull_String
 	Position           whereHelpernull_String
@@ -245,26 +267,26 @@ var UserWhere = struct {
 	ParentID           whereHelpernull_String
 }{
 	ID:                 whereHelperstring{field: "\"users\".\"id\""},
-	Createat:           whereHelpernull_Int64{field: "\"users\".\"createat\""},
-	Updateat:           whereHelpernull_Int64{field: "\"users\".\"updateat\""},
+	Createat:           whereHelperint64{field: "\"users\".\"createat\""},
+	Updateat:           whereHelperint64{field: "\"users\".\"updateat\""},
 	Deleteat:           whereHelpernull_Int64{field: "\"users\".\"deleteat\""},
-	Username:           whereHelpernull_String{field: "\"users\".\"username\""},
-	Password:           whereHelpernull_String{field: "\"users\".\"password\""},
+	Username:           whereHelperstring{field: "\"users\".\"username\""},
+	Password:           whereHelperstring{field: "\"users\".\"password\""},
 	Authdata:           whereHelpernull_String{field: "\"users\".\"authdata\""},
-	Authservice:        whereHelpernull_String{field: "\"users\".\"authservice\""},
-	Email:              whereHelpernull_String{field: "\"users\".\"email\""},
-	Emailverified:      whereHelpernull_Bool{field: "\"users\".\"emailverified\""},
-	Nickname:           whereHelpernull_String{field: "\"users\".\"nickname\""},
-	Firstname:          whereHelpernull_String{field: "\"users\".\"firstname\""},
-	Lastname:           whereHelpernull_String{field: "\"users\".\"lastname\""},
-	Roles:              whereHelpernull_String{field: "\"users\".\"roles\""},
-	Allowmarketing:     whereHelpernull_Bool{field: "\"users\".\"allowmarketing\""},
-	Props:              whereHelpernull_JSON{field: "\"users\".\"props\""},
-	Notifyprops:        whereHelpernull_JSON{field: "\"users\".\"notifyprops\""},
+	Authservice:        whereHelperstring{field: "\"users\".\"authservice\""},
+	Email:              whereHelperstring{field: "\"users\".\"email\""},
+	Emailverified:      whereHelperbool{field: "\"users\".\"emailverified\""},
+	Nickname:           whereHelperstring{field: "\"users\".\"nickname\""},
+	Firstname:          whereHelperstring{field: "\"users\".\"firstname\""},
+	Lastname:           whereHelperstring{field: "\"users\".\"lastname\""},
+	Roles:              whereHelperstring{field: "\"users\".\"roles\""},
+	Allowmarketing:     whereHelperbool{field: "\"users\".\"allowmarketing\""},
+	Props:              whereHelpertypes_JSON{field: "\"users\".\"props\""},
+	Notifyprops:        whereHelpertypes_JSON{field: "\"users\".\"notifyprops\""},
 	Lastpasswordupdate: whereHelpernull_Int64{field: "\"users\".\"lastpasswordupdate\""},
 	Lastpictureupdate:  whereHelpernull_Int64{field: "\"users\".\"lastpictureupdate\""},
 	Failedattempts:     whereHelpernull_Int{field: "\"users\".\"failedattempts\""},
-	Locale:             whereHelpernull_String{field: "\"users\".\"locale\""},
+	Locale:             whereHelperstring{field: "\"users\".\"locale\""},
 	Mfaactive:          whereHelpernull_Bool{field: "\"users\".\"mfaactive\""},
 	Mfasecret:          whereHelpernull_String{field: "\"users\".\"mfasecret\""},
 	Position:           whereHelpernull_String{field: "\"users\".\"position\""},
@@ -694,8 +716,8 @@ type userL struct{}
 
 var (
 	userAllColumns            = []string{"id", "createat", "updateat", "deleteat", "username", "password", "authdata", "authservice", "email", "emailverified", "nickname", "firstname", "lastname", "roles", "allowmarketing", "props", "notifyprops", "lastpasswordupdate", "lastpictureupdate", "failedattempts", "locale", "mfaactive", "mfasecret", "position", "timezone", "remoteid", "lastlogin", "mfausedtimestamps", "phone", "parent_id"}
-	userColumnsWithoutDefault = []string{"id"}
-	userColumnsWithDefault    = []string{"createat", "updateat", "deleteat", "username", "password", "authdata", "authservice", "email", "emailverified", "nickname", "firstname", "lastname", "roles", "allowmarketing", "props", "notifyprops", "lastpasswordupdate", "lastpictureupdate", "failedattempts", "locale", "mfaactive", "mfasecret", "position", "timezone", "remoteid", "lastlogin", "mfausedtimestamps", "phone", "parent_id"}
+	userColumnsWithoutDefault = []string{"id", "createat", "updateat", "username", "password", "authservice", "email", "emailverified", "nickname", "firstname", "lastname", "roles", "props", "notifyprops", "locale"}
+	userColumnsWithDefault    = []string{"deleteat", "authdata", "allowmarketing", "lastpasswordupdate", "lastpictureupdate", "failedattempts", "mfaactive", "mfasecret", "position", "timezone", "remoteid", "lastlogin", "mfausedtimestamps", "phone", "parent_id"}
 	userPrimaryKeyColumns     = []string{"id"}
 	userGeneratedColumns      = []string{}
 )

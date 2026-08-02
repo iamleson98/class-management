@@ -133,16 +133,7 @@ export default function NewsDetailPage() {
             )}
           </div>
 
-          {/* Image */}
-          {post.imageUrl && (
-            <div className="mb-8 rounded-xl overflow-hidden">
-              <img
-                src={post.imageUrl}
-                alt={post.title}
-                className="w-full h-auto object-cover"
-              />
-            </div>
-          )}
+          {/* Image — backend BlogPost has no image field */}
 
           {/* Content */}
           <div className="prose prose-lg dark:prose-invert max-w-none">

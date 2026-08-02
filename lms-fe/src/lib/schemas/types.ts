@@ -120,7 +120,6 @@ export interface Branch {
   name: string
   address: string | null
   phone: string | null
-  rooms: string | null
   createat: UnixMs
   updateat: UnixMs
 }
@@ -158,7 +157,6 @@ export interface Class {
   courseId: string
   teacherId: string
   room: string | null
-  maxSize: number
   status: string
   startDate: number
   branchId: string | null
@@ -173,6 +171,11 @@ export interface Class {
 }
 
 // ─── Session ───────────────────────────────────────────────────────
+//
+// Backend wire shape: `date` is RFC3339 (time.Time), `start_time`/`end_time`
+// are int64 epoch millis. The api.ts inbound layer normalizes these to a
+// display-friendly shape: `date` → 'yyyy-MM-dd', `startTime`/`endTime` →
+// 'HH:mm'. So consumers can treat the three as simple strings.
 
 export interface Session {
   id: string
@@ -221,10 +224,24 @@ export interface AttendanceResponse {
 }
 
 // ─── Student ───────────────────────────────────────────────────────
+//
+// A student is a model.User whose `roles` includes `lms_student`, with
+// student-specific data stored as JSON under `user.props["student"]` (see
+// app/lms/student.go). The api.ts inbound layer DENORMALIZES this into a flat
+// display shape: base user fields + the student props (code, gender, status,
+// dob, school, …) at the top level. The nested `user` is kept for fallback
+// access to the raw model.User fields.
 
 export interface Student {
   id: string
   userId: string
+  // Base model.User fields (denormalized to the top level for convenience)
+  username: string
+  email: string
+  phone: string | null
+  parentId: string | null
+  branchId: string | null
+  // Student props (from user.props["student"])
   code: string
   name: string
   dob: string | null
@@ -233,8 +250,11 @@ export interface Student {
   schoolGrade: string | null
   status: string
   notes: string | null
-  parentId: string | null
-  branchId: string | null
+  parentName: string | null
+  vmgClassCode: string | null
+  // Optional join relations
+  user?: User
+  enrollments?: Array<{ id: string; classId: string; status: string; className?: string }>
   createat: UnixMs
   updateat: UnixMs
 }
@@ -324,9 +344,7 @@ export interface Material {
   id: string
   title: string
   description: string | null
-  fileUrl: string | null
-  fileName: string | null
-  fileType: string | null
+  fileId: string
   courseId: string
   unit: string | null
   visibility: string
@@ -367,13 +385,13 @@ export interface Post {
   content: string | null
   excerpt: string | null
   categoryId: string
-  imageUrl: string | null
   authorId: string
   status: string
+  // Epoch millis (null.Int64 on the backend)
+  publishedAt: number | null
   seoTitle: string | null
   seoDescription: string | null
   seoKeywords: string | null
-  publishedAt: string | null
   createat: UnixMs
   updateat: UnixMs
   // Optional joined relations
@@ -430,6 +448,8 @@ export interface Homework {
 }
 
 // ─── Homework Submission — matches lms_models.Submission ─────────
+//
+// Note: the submissions table has NO `grade` column — only `feedback`.
 
 export interface HomeworkSubmission {
   id: string
@@ -439,7 +459,6 @@ export interface HomeworkSubmission {
   description: string | null
   fileId: string | null
   feedback: string | null
-  grade: number | null
   createat: UnixMs
   updateat: UnixMs
 }

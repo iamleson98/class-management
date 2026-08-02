@@ -41,7 +41,8 @@ import { useTranslation } from '@/lib/i18n'
 type StudentFormValues = z.input<typeof updateStudentSchema>
 
 const EMPTY_STUDENT: StudentFormValues = {
-  name: '',
+  firstname: '',
+  lastname: '',
   email: '',
   phone: '',
   parentName: '',
@@ -62,7 +63,6 @@ const STATUS_MAP: Record<string, { label: string; className: string }> = {
   RESERVED: { label: 'Bảo lưu', className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
   DROPPED: { label: 'Nghỉ', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
   PENDING: { label: 'Chờ xếp', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
-  COMPLETED: { label: 'Hoàn thành', className: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' },
 }
 
 function normalizeGender(value: unknown): StudentFormValues['gender'] {
@@ -71,7 +71,6 @@ function normalizeGender(value: unknown): StudentFormValues['gender'] {
 
   if (normalized === 'male' || normalized === 'nam') return 'male'
   if (normalized === 'female' || normalized === 'nu' || normalized === 'nữ') return 'female'
-  if (normalized === 'other' || normalized === 'khac' || normalized === 'khác') return 'other'
 
   return 'male'
 }
@@ -173,7 +172,8 @@ export default function AdminStudents() {
   const openEdit = (student: any) => {
     setEditingStudent(student)
     form.reset({
-      name: student.name || '',
+      firstname: student.firstname || student.user?.firstname || '',
+      lastname: student.lastname || student.user?.lastname || '',
       email: student.email || student.user?.email || '',
       phone: student.phone || student.user?.phone || '',
       parentName: student.parentName || '',
@@ -345,15 +345,28 @@ export default function AdminStudents() {
               <div className="grid grid-cols-2 gap-4 items-start">
                 <FormField
                   control={form.control}
-                  name="name"
+                  name="firstname"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t('common.name', 'Họ tên')}</FormLabel>
-                      <FormControl><Input {...field} value={field.value ?? ''} placeholder="Nguyễn Văn A" /></FormControl>
+                      <FormLabel>{t('settings.firstName', 'Họ')}</FormLabel>
+                      <FormControl><Input {...field} value={field.value ?? ''} placeholder="Nguyễn" /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+                <FormField
+                  control={form.control}
+                  name="lastname"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('settings.lastName', 'Tên')}</FormLabel>
+                      <FormControl><Input {...field} value={field.value ?? ''} placeholder="Văn A" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4 items-start">
                 <FormField
                   control={form.control}
                   name="phone"
@@ -365,8 +378,6 @@ export default function AdminStudents() {
                     </FormItem>
                   )}
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-4 items-start">
                 <FormField
                   control={form.control}
                   name="email"
@@ -378,6 +389,8 @@ export default function AdminStudents() {
                     </FormItem>
                   )}
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-4 items-start">
                 <FormField
                   control={form.control}
                   name="parentName"
@@ -389,8 +402,6 @@ export default function AdminStudents() {
                     </FormItem>
                   )}
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-4 items-start">
                 <FormField
                   control={form.control}
                   name="gender"
@@ -402,7 +413,6 @@ export default function AdminStudents() {
                         <SelectContent>
                           <SelectItem value="male">{t('students.male', 'Nam')}</SelectItem>
                           <SelectItem value="female">{t('students.female', 'Nữ')}</SelectItem>
-                          <SelectItem value="other">{t('students.other', 'Khác')}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />

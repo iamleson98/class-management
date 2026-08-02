@@ -2,10 +2,16 @@ import { z } from 'zod/v4'
 import { optionalString, optionalDateField, idField, positiveNumber, notesField } from './common'
 import { PaymentMethod, TuitionStatus } from './enums'
 
-const additionalFeeItemSchema = z.object({
-  label: z.enum(['BÁN_TRÚ', 'TRÔNG_MUỘN', 'ĐƯA_ĐÓN', 'NỘI_TRÚ', 'TÀI_LIỆU', 'ĐỒNG_PHỤC']),
-  amount: positiveNumber,
-})
+// Backend contract: server/public/lms_models/tuitions.go (lms_models.Tuition).
+// Wire fields: student_id, class_id, fee_package_id, total_amount (decimal),
+// discount_amount (read-only, server-computed), paid_amount (read-only),
+// remaining_amount (read-only), status, due_date, note, promotional_fee,
+// discount_value, discount_type.
+//
+// IMPORTANT: there is NO `additional_fees` field on the Tuition create/update
+// struct (the handler decodes directly into lms_models.Tuition), and no
+// additional-fee backend route exists. So additionalFees is omitted — it would
+// be silently dropped.
 
 export const createTuitionSchema = z.object({
   studentId: idField,
@@ -16,7 +22,6 @@ export const createTuitionSchema = z.object({
   discountValue: positiveNumber.optional().default(0),
   dueDate: optionalDateField,
   note: notesField,
-  additionalFees: z.array(additionalFeeItemSchema).optional().default([]),
 })
 
 export const updateTuitionSchema = z.object({
@@ -26,7 +31,6 @@ export const updateTuitionSchema = z.object({
   dueDate: optionalDateField,
   note: notesField,
   status: TuitionStatus.optional(),
-  additionalFees: z.array(additionalFeeItemSchema).optional(),
 })
 
 export const paymentSchema = z.object({
@@ -40,4 +44,3 @@ export const paymentSchema = z.object({
 export type CreateTuitionInput = z.infer<typeof createTuitionSchema>
 export type UpdateTuitionInput = z.infer<typeof updateTuitionSchema>
 export type PaymentInput = z.infer<typeof paymentSchema>
-export type AdditionalFeeItem = z.infer<typeof additionalFeeItemSchema>

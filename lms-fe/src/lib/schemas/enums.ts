@@ -8,16 +8,16 @@ export const UserRole = z.enum([
 export type UserRole = z.infer<typeof UserRole>
 
 // ─── Student ─────────────────────────────────────────────────────────
+// Backend canonical values (see server/public/model_helper/lms.go,
+// LmsStudentStatusProp). NOTE: 'COMPLETED' is NOT a backend student status.
 export const StudentStatus = z.enum([
-  'ACTIVE', 'RESERVED', 'DROPPED', 'PENDING', 'COMPLETED',
+  'ACTIVE', 'RESERVED', 'DROPPED', 'PENDING',
 ])
 export type StudentStatus = z.infer<typeof StudentStatus>
 
-
-export const Gender = z.enum(['male', 'female', 'other']).refine(
-  (val) => ['male', 'female', 'other'].includes(val),
-  { message: "Giới tính không hợp lệ. Vui lòng chọn 'male', 'female' hoặc 'other'." }
-);
+// Backend only accepts 'male' / 'female' (see model_helper/lms.go
+// LmsUserGenderMale / LmsUserGenderFemale).
+export const Gender = z.enum(['male', 'female'])
 export type Gender = z.infer<typeof Gender>
 
 // ─── Lead ───────────────────────────────────────────────────────────
@@ -42,7 +42,9 @@ export const CourseLevel = z.enum([
 export type CourseLevel = z.infer<typeof CourseLevel>
 
 // ─── Class ──────────────────────────────────────────────────────────
-export const ClassStatus = z.enum(['OPEN', 'CLOSED', 'CANCELLED'])
+// Backend ClassStatus enum (model_helper/lms.go): the full set the validator
+// accepts. Matches the STATUS_MAP options offered in the UI.
+export const ClassStatus = z.enum(['OPEN', 'CLOSED', 'PAUSED', 'ACTIVE', 'COMPLETED'])
 export type ClassStatus = z.infer<typeof ClassStatus>
 
 // ─── Session ─────────────────────────────────────────────────────────

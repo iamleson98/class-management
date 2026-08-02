@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS classes (
     teacher_id varchar(26) NOT NULL,
     status VARCHAR(50) NOT NULL,
     room VARCHAR(100),
-    start_date bigint NOT NULL,
+    start_date DATE NOT NULL,
     createat bigint NOT NULL,
     updateat bigint NOT NULL
 );

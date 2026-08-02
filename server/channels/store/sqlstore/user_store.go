@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/aarondl/sqlboiler/v4/queries/qm"
 	sq "github.com/mattermost/squirrel"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -20,6 +21,7 @@ import (
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
 	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"github.com/iamleson98/sitename/server/public/shared/request"
+	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/v8/channels/store"
 	"github.com/iamleson98/sitename/server/v8/einterfaces"
 )
@@ -2495,7 +2497,21 @@ func (us *SqlUserStore) GetUserReport(filter *model.UserReportOptions) ([]*model
 }
 
 func (us *SqlUserStore) SearchUsers(opts modelhelper.UserFilterOpts) (lms_models.UserSlice, int64, error) {
-	users, err := lms_models.Users(&opts).All(us.GetReplica())
+	mods := []qm.QueryMod{&opts}
+
+	if opts.EmployeeOnly {
+		ors := &utils.WhereOrs[utils.UserColumn]{
+			{Column: utils.UserRoles, Operator: utils.OperatorILike, Value: "%" + model.RoleLmsAdminRoleId + "%"},
+			{Column: utils.UserRoles, Operator: utils.OperatorILike, Value: "%" + model.RoleLmsAccountantRoleId + "%"},
+			{Column: utils.UserRoles, Operator: utils.OperatorILike, Value: "%" + model.RoleLmsSuperAdminRoleId + "%"},
+			{Column: utils.UserRoles, Operator: utils.OperatorILike, Value: "%" + model.RoleLmsTeacherRoleId + "%"},
+			{Column: utils.UserRoles, Operator: utils.OperatorILike, Value: "%" + model.RoleLmsCounselorRoleId + "%"},
+			{Column: utils.UserRoles, Operator: utils.OperatorILike, Value: "%" + model.RoleLmsMarketingRoleId + "%"},
+		}
+		mods = append(mods, ors)
+	}
+
+	users, err := lms_models.Users(mods...).All(us.GetReplica())
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "search_users")
 	}

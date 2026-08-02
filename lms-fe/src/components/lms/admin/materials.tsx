@@ -19,7 +19,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { FileTypeIcon } from '@/components/lms/file-type-icon'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
@@ -36,14 +35,6 @@ import { cn } from '@/lib/utils'
 import { staggerContainer, staggerItem } from '@/components/lms/shared/animations'
 import { useTranslation } from '@/lib/i18n'
 
-const TYPE_MAP: Record<string, { label: string; className: string }> = {
-  DOCUMENT: { label: 'Tài liệu', className: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400' },
-  VIDEO: { label: 'Video', className: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' },
-  AUDIO: { label: 'Âm thanh', className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-  EXERCISE: { label: 'Bài tập', className: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400' },
-  IMAGE: { label: 'Hình ảnh', className: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' },
-}
-
 export default function AdminMaterials() {
   const { toast } = useToast()
   const { t } = useTranslation()
@@ -59,7 +50,7 @@ export default function AdminMaterials() {
 
   type MaterialFormValues = z.input<typeof createMaterialSchema>
   const emptyMaterialForm: MaterialFormValues = {
-    title: '', description: '', fileUrl: '', fileName: '', fileType: '',
+    title: '', description: '', fileId: '',
     courseId: '', unit: '', visibility: 'TEACHER_ONLY', uploadedById: authUser?.id || '',
   }
 
@@ -152,7 +143,6 @@ export default function AdminMaterials() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="uppercase text-xs font-semibold">{t('materials.type', 'Loại')}</TableHead>
                   <TableHead className="uppercase text-xs font-semibold">{t('materials.title', 'Tiêu đề')}</TableHead>
                   <TableHead className="uppercase text-xs font-semibold">{t('materials.course', 'Khóa học')}</TableHead>
                   <TableHead className="uppercase text-xs font-semibold hidden lg:table-cell">Unit</TableHead>
@@ -162,10 +152,8 @@ export default function AdminMaterials() {
               </TableHeader>
               <TableBody>
                 {materials.map((material: any) => {
-                  const type = TYPE_MAP[material.type] || TYPE_MAP.DOCUMENT
                   return (
                     <motion.tr key={material.id} variants={staggerItem} className="hover:bg-muted/30">
-                      <TableCell><FileTypeIcon fileType={material.fileType} /></TableCell>
                       <TableCell className="font-medium text-sm">{material.title}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{material.course?.name || material.courseName || '-'}</TableCell>
                       <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{material.unit || '-'}</TableCell>
@@ -206,19 +194,10 @@ export default function AdminMaterials() {
                 </FormItem>
               )} />
               <div className="grid grid-cols-2 gap-4 items-start">
-                <FormField control={form.control} name="fileType" render={({ field }) => (
+                <FormField control={form.control} name="fileId" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('materials.fileType', 'Loại file')}</FormLabel>
-                    <Select value={field.value || ''} onValueChange={field.onChange}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        <SelectItem value="PDF">PDF</SelectItem>
-                        <SelectItem value="DOCX">DOCX</SelectItem>
-                        <SelectItem value="PPTX">PPTX</SelectItem>
-                        <SelectItem value="XLSX">XLSX</SelectItem>
-                        <SelectItem value="IMAGE">{t('materials.image', 'Hình ảnh')}</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <FormLabel>{t('materials.fileId', 'File ID')}</FormLabel>
+                    <FormControl><Input {...field} value={field.value ?? ''} placeholder={t('materials.fileIdPlaceholder', 'ID của file đã upload')} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />

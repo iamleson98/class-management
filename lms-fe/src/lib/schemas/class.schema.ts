@@ -1,14 +1,17 @@
 import { z } from 'zod/v4'
-import { requiredString, optionalString, optionalDateField, idField, positiveNumber } from './common'
+import { requiredString, optionalString, optionalDateField, idField } from './common'
 import { ClassStatus } from './enums'
 
+// Backend contract: server/public/lms_models/classes.go (lms_models.Class).
+// Fields: id, course_id, branch_id, name, code, teacher_id, status, room,
+// start_date (time.Time, RFC3339), chat_channel_id, createat, updateat.
+// NOTE: there is NO max_size / maxSize field on the backend Class struct.
 export const createClassSchema = z.object({
   code: requiredString,
   name: requiredString,
   courseId: idField,
   teacherId: idField,
   room: optionalString,
-  maxSize: positiveNumber.optional().default(15),
   status: ClassStatus.optional().default('OPEN'),
   startDate: optionalDateField,
   branchId: optionalString,
@@ -20,7 +23,6 @@ export const updateClassSchema = z.object({
   courseId: idField.optional(),
   teacherId: idField.optional(),
   room: optionalString,
-  maxSize: positiveNumber.optional(),
   status: ClassStatus.optional(),
   startDate: optionalDateField,
   branchId: optionalString,

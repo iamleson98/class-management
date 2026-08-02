@@ -47,6 +47,9 @@ import { staggerContainer, staggerItem } from '@/components/lms/shared/animation
 import { useTranslation } from '@/lib/i18n'
 
 // ── Schema ──────────────────────────────────────────────────────────
+// Backend lms_models.Homework has no file_url/file_name — only file_id.
+// courseName/teacherName are display-only convenience fields (phantom on the
+// backend) and are stripped at the submit boundary in buildHomeworkPayload.
 const homeworkSchema = z.object({
   title: z.string().min(1, 'Vui lòng nhập tiêu đề'),
   description: z.string().optional().default(''),
@@ -57,8 +60,7 @@ const homeworkSchema = z.object({
   teacherName: z.string().optional().default(''),
   sessionId: z.string().optional().default(''),
   deadline: z.string().min(1, 'Vui lòng chọn hạn nộp'),
-  fileUrl: z.string().optional().default(''),
-  fileName: z.string().optional().default(''),
+  fileId: z.string().optional().default(''),
 })
 
 type HomeworkFormValues = z.input<typeof homeworkSchema>
@@ -68,6 +70,19 @@ const bulkHomeworkSchema = homeworkSchema.extend({
 })
 
 type BulkHomeworkFormValues = z.input<typeof bulkHomeworkSchema>
+
+// Strip display-only fields before sending to the backend. The backend
+// lms_models.Homework only has: title, description, session_id, class_id,
+// course_id, teacher_id, deadline, file_id. courseName/teacherName are
+// frontend display conveniences and are silently dropped by the backend.
+function buildHomeworkPayload(values: HomeworkFormValues) {
+  const { courseName, teacherName, ...payload } = values
+  return payload
+}
+function buildBulkHomeworkPayload(values: BulkHomeworkFormValues) {
+  const { courseName, teacherName, ...payload } = values
+  return payload
+}
 
 // const gradeSchema = z.object({
 //   studentId: z.string(),
@@ -116,7 +131,7 @@ export default function AdminHomework() {
     resolver: zodResolver(homeworkSchema),
     defaultValues: {
       title: '', description: '', classId: '', courseId: '', courseName: '',
-      teacherId: '', teacherName: '', sessionId: '', deadline: '', fileUrl: '', fileName: '',
+      teacherId: '', teacherName: '', sessionId: '', deadline: '', fileId: '',
     },
   })
 
@@ -125,7 +140,7 @@ export default function AdminHomework() {
     defaultValues: {
       title: '', description: '', classId: '', courseId: '', courseName: '',
       teacherId: '', teacherName: '', sessionId: '', deadline: '',
-      fileUrl: '', fileName: '', studentIds: [],
+      fileId: '', studentIds: [],
     },
   })
 
@@ -183,7 +198,7 @@ export default function AdminHomework() {
 
   // ── Mutations ─────────────────────────────────────────────────
   const createMutation = useMutation({
-    mutationFn: (data: HomeworkFormValues) => createHomework(data as any),
+    mutationFn: (data: HomeworkFormValues) => createHomework(buildHomeworkPayload(data) as any),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['homework'] })
       toast({ title: t('homework.assignSuccess', 'Giao bài tập thành công') })
@@ -195,7 +210,7 @@ export default function AdminHomework() {
   })
 
   const bulkCreateMutation = useMutation({
-    mutationFn: (data: BulkHomeworkFormValues) => bulkAssignHomework(data as any),
+    mutationFn: (data: BulkHomeworkFormValues) => bulkAssignHomework(buildBulkHomeworkPayload(data) as any),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['homework'] })
       toast({ title: t('homework.bulkAssignSuccess', 'Giao bài tập hàng loạt thành công') })
@@ -218,8 +233,10 @@ export default function AdminHomework() {
   })
 
   const gradeMutation = useMutation({
-    mutationFn: ({ homeworkId, studentId, grade, feedback }: { homeworkId: string; studentId: string; grade: string; feedback: string }) =>
-      gradeHomework(homeworkId, { studentId, grade, feedback }),
+    // The submissions table has NO grade column — only feedback is writable.
+    // The grade input is kept for local display only.
+    mutationFn: ({ homeworkId, studentId, feedback }: { homeworkId: string; studentId: string; grade: string; feedback: string }) =>
+      gradeHomework(homeworkId, { studentId, feedback }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['homework-submissions'] })
       queryClient.invalidateQueries({ queryKey: ['homework'] })
@@ -232,7 +249,7 @@ export default function AdminHomework() {
   const openCreate = () => {
     form.reset({
       title: '', description: '', classId: '', courseId: '', courseName: '',
-      teacherId: '', teacherName: '', sessionId: '', deadline: '', fileUrl: '', fileName: '',
+      teacherId: '', teacherName: '', sessionId: '', deadline: '', fileId: '',
     })
     setFileName('')
     setCreateDialogOpen(true)
@@ -242,7 +259,7 @@ export default function AdminHomework() {
     bulkForm.reset({
       title: '', description: '', classId: '', courseId: '', courseName: '',
       teacherId: '', teacherName: '', sessionId: '', deadline: '',
-      fileUrl: '', fileName: '', studentIds: [],
+      fileId: '', studentIds: [],
     })
     setBulkFileName('')
     setBulkDialogOpen(true)
@@ -262,11 +279,12 @@ export default function AdminHomework() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, isBulk: boolean) => {
     const file = e.target.files?.[0]
     if (file) {
+      // NOTE: a real upload (uploadFile → fileId) is not wired here. We only
+      // capture the picked filename for the display label; fileId stays empty
+      // until an upload flow is added.
       if (isBulk) {
-        bulkForm.setValue('fileName', file.name)
         setBulkFileName(file.name)
       } else {
-        form.setValue('fileName', file.name)
         setFileName(file.name)
       }
     }
@@ -736,10 +754,10 @@ export default function AdminHomework() {
                   <p className="text-xs text-muted-foreground font-medium">{t('homework.description', 'Mô tả')}</p>
                   <p className="text-sm text-muted-foreground">{selectedHomework.description || t('homework.noDescription', 'Không có mô tả')}</p>
                 </div>
-                {selectedHomework.fileName && (
+                {selectedHomework.fileId && (
                   <div className="space-y-1 col-span-2 sm:col-span-3">
                     <p className="text-xs text-muted-foreground font-medium">{t('homework.attachment', 'File đính kèm')}</p>
-                    <p className="text-sm text-sky-600">{selectedHomework.fileName}</p>
+                    <p className="text-sm text-sky-600 font-mono">{selectedHomework.fileId}</p>
                   </div>
                 )}
               </div>
@@ -770,9 +788,9 @@ export default function AdminHomework() {
                           <div className="space-y-1">
                             <p className="text-sm font-medium">{sub.student?.name || sub.studentName || '-'}</p>
                             <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                              <span>{t('homework.submitted', 'Nộp')}: {sub.submittedAt ? new Date(sub.submittedAt).toLocaleDateString('vi-VN') : '-'}</span>
-                              {sub.fileName && (
-                                <span className="text-sky-600">{t('homework.file', 'File')}: {sub.fileName}</span>
+                              <span>{t('homework.submitted', 'Nộp')}: {sub.createat ? new Date(sub.createat).toLocaleDateString('vi-VN') : '-'}</span>
+                              {sub.fileId && (
+                                <span className="text-sky-600 font-mono">{t('homework.file', 'File')}: {sub.fileId}</span>
                               )}
                             </div>
                           </div>

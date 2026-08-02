@@ -7,8 +7,8 @@ import { z } from 'zod/v4'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { School, Plus, Pencil, Trash2, UserPlus, Users, Eye, Camera, Calendar, Play } from 'lucide-react'
-import { createClassSchema, updateClassSchema, type CreateClassInput, type UpdateClassInput } from '@/lib/schemas'
-import { getClassesPaginated, createClass, updateClass, deleteClass, enrollStudents, getCourses, getStudents, getUsers, getClassDetail, getClassMedia, createClassMedia, deleteClassMedia, getSessions, getSessionAttendance } from '@/lib/api'
+import { createClassSchema, type CreateClassInput, type UpdateClassInput } from '@/lib/schemas'
+import { getClassesPaginated, createClass, updateClass, deleteClass, enrollStudents, getStudents, getClassDetail, getClassMedia, createClassMedia, deleteClassMedia, getSessions } from '@/lib/api'
 import { eq, and, paginate } from '@/lib/query'
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/lms/page-header'
@@ -34,11 +34,11 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { PaginationControls, usePagination, derivePageInfo } from '@/components/lms/shared/pagination'
 import { cn } from '@/lib/utils'
 import { staggerContainer, staggerItem } from '@/components/lms/shared/animations'
 import { useTranslation } from '@/lib/i18n'
+import ClassForm from './components/class-form'
 
 const STATUS_MAP: Record<string, { label: string; className: string }> = {
   OPEN: { label: 'Chờ mở', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
@@ -51,7 +51,7 @@ const STATUS_MAP: Record<string, { label: string; className: string }> = {
 type ClassFormValues = z.input<typeof createClassSchema>
 
 const EMPTY_CLASS: ClassFormValues = {
-  code: '', name: '', courseId: '', teacherId: '', room: '', maxSize: 15, status: 'OPEN', startDate: '', branchId: '',
+  code: '', name: '', courseId: '', teacherId: '', room: '', status: 'OPEN', startDate: '', branchId: '',
 }
 
 // ── Class Media Tab Component ──────────────────────────
@@ -249,17 +249,6 @@ export default function AdminClasses() {
   const classes = data?.items ?? []
   const pageInfo = derivePageInfo(data?.totalCount ?? 0, pagination.pageIndex, pagination.pageSize, classes.length)
 
-  const { data: courses = [], isLoading: isLoadingCourses, isError: isCoursesError } = useQuery({
-    queryKey: ['courses-select'],
-    queryFn: () => getCourses(),
-  })
-
-  const { data: teachersData, isLoading: isLoadingTeachers, isError: isTeachersError } = useQuery({
-    queryKey: ['users-teachers'],
-    queryFn: () => getUsers({ role: 'lms_teacher' }),
-  })
-  const teachers = teachersData?.items ?? []
-
   const { data: students = [], isLoading: isLoadingStudents, isError: isStudentsError } = useQuery({
     queryKey: ['students-enroll'],
     queryFn: () => getStudents(),
@@ -352,7 +341,7 @@ export default function AdminClasses() {
     setEditingClass(cls)
     form.reset({
       code: cls.code || '', name: cls.name || '', courseId: cls.courseId || '',
-      teacherId: cls.teacherId || '', room: cls.room || '', maxSize: cls.maxSize || 15,
+      teacherId: cls.teacherId || '', room: cls.room || '',
       status: cls.status || 'OPEN', startDate: cls.startDate || '', branchId: cls.branchId || '',
     })
     setDialogOpen(true)
@@ -368,14 +357,6 @@ export default function AdminClasses() {
     setViewingClassId(cls.id)
     setDetailTab('students')
     setDetailOpen(true)
-  }
-
-  const onSubmit = (values: ClassFormValues) => {
-    if (editingClass) {
-      updateMutation.mutate({ id: editingClass.id, data: updateClassSchema.parse(values) })
-    } else {
-      createMutation.mutate(createClassSchema.parse(values))
-    }
   }
 
   const handleEnroll = () => {
@@ -466,9 +447,7 @@ export default function AdminClasses() {
                       <TableCell className="hidden sm:table-cell">
                         <div className="flex items-center gap-1.5 text-sm">
                           <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span className={cn(enrolled >= (cls.maxSize || 15) && 'text-amber-600 font-medium')}>
-                            {enrolled}/{cls.maxSize || 15}
-                          </span>
+                          <span>{enrolled}</span>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -507,146 +486,7 @@ export default function AdminClasses() {
             <DialogTitle>{editingClass ? t('classes.editClass', 'Chỉnh sửa lớp') : t('classes.createNewClass', 'Tạo lớp mới')}</DialogTitle>
             <DialogDescription />
           </DialogHeader>
-          <Form {...form} schema={editingClass ? updateClassSchema : createClassSchema}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 items-start">
-                <FormField
-                  control={form.control}
-                  name="code"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('classes.classCode', 'Mã lớp')}</FormLabel>
-                      <FormControl><Input {...field} value={field.value ?? ''} placeholder="OPW1-A" /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="room"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('classes.roomField', 'Phòng học')}</FormLabel>
-                      <FormControl><Input {...field} value={field.value ?? ''} placeholder="P.101" /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('classes.className', 'Tên lớp')}</FormLabel>
-                    <FormControl><Input {...field} value={field.value ?? ''} placeholder="OPW1-A Sáng T3-T5" /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="grid grid-cols-2 gap-4 items-start">
-                <FormField
-                  control={form.control}
-                  name="courseId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('classes.course', 'Khóa học')}</FormLabel>
-                      <Select value={field.value || ''} onValueChange={field.onChange}>
-                        <FormControl>
-                          {isLoadingCourses ? (
-                            <SelectTrigger disabled><SelectValue placeholder={t('common.loading', 'Đang tải...')} /></SelectTrigger>
-                          ) : (
-                            <SelectTrigger><SelectValue placeholder={t('classes.selectCourse', 'Chọn khóa học')} /></SelectTrigger>
-                          )}
-                        </FormControl>
-                        <SelectContent>
-                          {isCoursesError ? (
-                            <SelectItem value="__error" disabled>
-                              <span className="text-destructive">{t('common.loadFailed', 'Tải thất bại')}</span>
-                            </SelectItem>
-                          ) : (
-                            courses.map((c: any) => (
-                              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="teacherId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('classes.teacher', 'Giáo viên')}</FormLabel>
-                      <Select value={field.value || ''} onValueChange={field.onChange}>
-                        <FormControl>
-                          {isLoadingTeachers ? (
-                            <SelectTrigger disabled><SelectValue placeholder={t('common.loading', 'Đang tải...')} /></SelectTrigger>
-                          ) : (
-                            <SelectTrigger><SelectValue placeholder={t('classes.selectTeacher', 'Chọn giáo viên')} /></SelectTrigger>
-                          )}
-                        </FormControl>
-                        <SelectContent>
-                          {isTeachersError ? (
-                            <SelectItem value="__error" disabled>
-                              <span className="text-destructive">{t('common.loadFailed', 'Tải thất bại')}</span>
-                            </SelectItem>
-                          ) : (
-                            teachers.map((t: any) => (
-                              <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4 items-start">
-                <FormField
-                  control={form.control}
-                  name="maxSize"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('classes.maxSize', 'Sĩ số tối đa')}</FormLabel>
-                      <FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="status"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('common.status', 'Trạng thái')}</FormLabel>
-                      <Select value={field.value || ''} onValueChange={field.onChange}>
-                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                        <SelectContent>
-                          {Object.entries(STATUS_MAP).map(([key, val]) => (
-                            <SelectItem key={key} value={key}>{val.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <input type="hidden" {...form.register('startDate')} />
-              <input type="hidden" {...form.register('branchId')} />
-              <DialogFooter>
-                <Button variant="outline" type="button" onClick={closeDialog}>{t('common.cancel', 'Hủy')}</Button>
-                <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="bg-sky-600 hover:bg-sky-700 text-white">
-                  {createMutation.isPending || updateMutation.isPending ? t('common.saving', 'Đang lưu...') : editingClass ? t('common.update', 'Cập nhật') : t('classes.createClass', 'Tạo lớp')}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
+          <ClassForm onDone={closeDialog} editingClass={editingClass} editingClassId={editingClass ? editingClass.id : undefined} />
         </DialogContent>
       </Dialog>
 
@@ -669,26 +509,26 @@ export default function AdminClasses() {
                   <p className="text-sm text-destructive">{t('common.loadFailed', 'Tải thất bại')}</p>
                 </div>
               ) : (
-              <div className="space-y-1">
-                {students.map((student: any) => (
-                  <label key={student.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer">
-                    <Checkbox
-                      checked={selectedStudentIds.includes(student.id)}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setSelectedStudentIds([...selectedStudentIds, student.id])
-                        } else {
-                          setSelectedStudentIds(selectedStudentIds.filter((id: string) => id !== student.id))
-                        }
-                      }}
-                    />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{student.name}</p>
-                      <p className="text-xs text-muted-foreground">{student.email || student.phone || ''}</p>
-                    </div>
-                  </label>
-                ))}
-              </div>
+                <div className="space-y-1">
+                  {students.map((student: any) => (
+                    <label key={student.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer">
+                      <Checkbox
+                        checked={selectedStudentIds.includes(student.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedStudentIds([...selectedStudentIds, student.id])
+                          } else {
+                            setSelectedStudentIds(selectedStudentIds.filter((id: string) => id !== student.id))
+                          }
+                        }}
+                      />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{student.name}</p>
+                        <p className="text-xs text-muted-foreground">{student.email || student.phone || ''}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
               )}
             </ScrollArea>
             {selectedStudentIds.length > 0 && (
@@ -774,8 +614,8 @@ export default function AdminClasses() {
                                 <Badge className={cn(
                                   'rounded-full text-xs',
                                   enrollment.status === 'ACTIVE' ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400' :
-                                  enrollment.status === 'DROPPED' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                                  'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400'
+                                    enrollment.status === 'DROPPED' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                                      'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400'
                                 )}>
                                   {enrollment.status === 'ACTIVE' ? t('classes.studying', 'Đang học') : enrollment.status === 'DROPPED' ? t('classes.dropped', 'Đã nghỉ') : enrollment.status || '-'}
                                 </Badge>
@@ -860,12 +700,12 @@ export default function AdminClasses() {
                     <p className="text-sm text-destructive">{t('common.loadFailed', 'Tải thất bại')}</p>
                   </div>
                 ) : (
-                <ClassMediaTab
-                  media={classMedia as any[]}
-                  classId={viewingClassId!}
-                  onDelete={(id) => mediaDeleteMutation.mutate(id)}
-                  isAuthenticated={true}
-                />
+                  <ClassMediaTab
+                    media={classMedia as any[]}
+                    classId={viewingClassId!}
+                    onDelete={(id) => mediaDeleteMutation.mutate(id)}
+                    isAuthenticated={true}
+                  />
                 )}
               </TabsContent>
             </Tabs>

@@ -182,7 +182,7 @@ export default function AdminAttendance() {
                 <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => markAll('PRESENT')}>
                   <Check className="h-3 w-3 mr-1" />{t('attendance.present', 'Có mặt')}
                 </Button>
-                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => markAll('ABSENT')}>
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => markAll('UNEXCUSED_ABSENT')}>
                   <X className="h-3 w-3 mr-1" />{t('attendance.absent', 'Vắng')}
                 </Button>
               </div>
