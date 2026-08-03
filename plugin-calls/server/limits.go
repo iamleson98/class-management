@@ -9,8 +9,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/mattermost/mattermost-plugin-calls/server/license"
-
 	"github.com/mattermost/mattermost/server/public/model"
 )
 
@@ -46,12 +44,6 @@ func getConcurrentSessionsWarningBackoffTime() time.Duration {
 
 // handleCloudNotifyAdmins notifies the user's admin about upgrading for calls
 func (p *Plugin) handleCloudNotifyAdmins(w http.ResponseWriter, r *http.Request) error {
-	if !license.IsCloud(p.API.GetLicense()) {
-		p.handleErrorWithCode(w, http.StatusBadRequest, "not a cloud server",
-			errors.New("not a cloud server, will not notify admins"))
-		return nil
-	}
-
 	userID := r.Header.Get("Mattermost-User-Id")
 
 	author, err := p.API.GetUser(userID)
@@ -171,14 +163,6 @@ func (p *Plugin) shouldSendConcurrentSessionsWarning(threshold int64, backoff ti
 func (p *Plugin) sendConcurrentSessionsWarning() error {
 	p.LogWarn("The number of active call sessions is high. Consider deploying a dedicated RTCD service.")
 
-	l := p.API.GetLicense()
-
-	// This shouldn't happen since Cloud instances should always be using RTCD.
-	if license.IsCloud(l) {
-		p.LogWarn("unexpected Cloud license")
-		return nil
-	}
-
 	admins, appErr := p.API.GetUsers(&model.UserGetOptions{
 		Role:    model.SystemAdminRoleId,
 		Page:    0,
@@ -204,17 +188,6 @@ func (p *Plugin) sendConcurrentSessionsWarning() error {
 
 		msg := T("app.admin.concurrent_sessions_warning.intro")
 		msg += "\r\n\r\n"
-
-		if license.IsEnterprise(l) {
-			// Enterprise
-			msg += T("app.admin.concurrent_sessions_warning.enterprise")
-		} else if license.IsProfessional(l) || p.API.IsEnterpriseReady() {
-			// Professional or E0
-			msg += T("app.admin.concurrent_sessions_warning.pro_or_e0")
-		} else {
-			// Team edition
-			msg += T("app.admin.concurrent_sessions_warning.team")
-		}
 
 		post := &model.Post{
 			Message:   ":warning: " + msg,

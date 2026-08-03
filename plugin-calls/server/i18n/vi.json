@@ -1,10 +1,58 @@
 [
-    {
-        "id": "app.call.ended_message",
-        "translation": "Cuộc gọi kết thúc"
-    },
-    {
-        "id": "app.call.new_recording_message",
-        "translation": "Đây là ghi âm cuộc gọi"
-    }
+  {
+    "id": "app.add_user_session.group_calls_not_allowed_error",
+    "translation": "Các cuộc gọi trên các máy chủ không có giấy phép chỉ khả dụng trong tin nhắn trực tiếp."
+  },
+  {
+    "id": "app.admin.concurrent_sessions_warning.enterprise",
+    "translation": "Chúng tôi khuyến nghị triển khai dịch vụ RTCD để chuyển tải xử lý cuộc gọi sang một phiên bản riêng biệt nhằm duy trì hiệu suất, khả năng mở rộng và độ tin cậy của máy chủ  chính của bạn."
+  },
+  {
+    "id": "app.admin.concurrent_sessions_warning.intro",
+    "translation": "Cài đặt của bạn đang trải qua mức sử dụng cao từ Calls có thể ảnh hưởng tiêu cực đến hiệu suất và khả năng phản hồi của hệ thống."
+  },
+  {
+    "id": "app.admin.concurrent_sessions_warning.pro_or_e0",
+    "translation": "Chúng tôi khuyến nghị nâng cấp lên bản doanh nghiệp và triển khai dịch vụ RTCD để chuyển tải xử lý cuộc gọi sang một phiên bản riêng biệt nhằm duy trì hiệu suất, khả năng mở rộng và độ tin cậy của máy chủ  chính của bạn."
+  },
+  {
+    "id": "app.admin.concurrent_sessions_warning.team",
+    "translation": "Chúng tôi khuyến nghị chuyển sang bản doanh nghiệp và triển khai dịch vụ RTCD để chuyển tải xử lý cuộc gọi sang một phiên bản riêng biệt nhằm duy trì hiệu suất, khả năng mở rộng và độ tin cậy của máy chủ  chính của bạn."
+  },
+  {
+    "id": "app.call.ended_message",
+    "translation": "Cuộc gọi đã kết thúc"
+  },
+  {
+    "id": "app.call.new_recording_and_transcription_message",
+    "translation": "Đây là bản ghi cuộc gọi. Bản ghi đang được xử lý và sẽ được đăng khi sẵn sàng."
+  },
+  {
+    "id": "app.call.new_recording_message",
+    "translation": "Đây là bản ghi cuộc gọi"
+  },
+  {
+    "id": "app.call.new_transcription_message",
+    "translation": "Đây là bản ghi cuộc gọi"
+  },
+  {
+    "id": "app.call.started_message",
+    "translation": "{{.Username}} đã bắt đầu một cuộc gọi"
+  },
+  {
+    "id": "app.call.started_message_fullname",
+    "translation": "{{.FirstName}} {{.LastName}} đã bắt đầu một cuộc gọi"
+  },
+  {
+    "id": "app.push_notification.generic_message",
+    "translation": "Bạn đã được mời tham gia một cuộc gọi"
+  },
+  {
+    "id": "app.push_notification.inviting_message",
+    "translation": "{{.SenderName}} đang mời bạn tham gia một cuộc gọi"
+  },
+  {
+    "id": "app.save_config.error",
+    "translation": "Không thể lưu cấu hình."
+  }
 ]

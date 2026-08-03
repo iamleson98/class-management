@@ -10,7 +10,6 @@ import (
 
 	"github.com/mattermost/mattermost-plugin-calls/server/cluster"
 	"github.com/mattermost/mattermost-plugin-calls/server/enterprise"
-	"github.com/mattermost/mattermost-plugin-calls/server/license"
 
 	"github.com/mattermost/rtcd/service/rtc"
 
@@ -111,16 +110,11 @@ func (p *Plugin) OnActivate() (retErr error) {
 		return err
 	}
 
-	// On Cloud installations we want calls enabled in all channels so we
-	// override it since the plugin's default is now false.
-	if license.IsCloud(p.API.GetLicense()) {
-		cfg.DefaultEnabled = new(bool)
-		*cfg.DefaultEnabled = true
-		if err := p.setConfiguration(cfg); err != nil {
-			err = fmt.Errorf("failed to set configuration: %w", err)
-			p.LogError(err.Error())
-			return err
-		}
+	cfg.DefaultEnabled = new(true)
+	if err := p.setConfiguration(cfg); err != nil {
+		err = fmt.Errorf("failed to set configuration: %w", err)
+		p.LogError(err.Error())
+		return err
 	}
 
 	session, err := p.createBotSession()
