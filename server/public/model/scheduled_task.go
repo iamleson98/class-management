@@ -1,7 +1,9 @@
 package model
 
 import (
+	"context"
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -15,6 +17,9 @@ type ScheduledTask struct {
 	cancel               chan struct{}
 	cancelled            chan struct{}
 	fromNextIntervalTime bool
+	ctx                  context.Context
+	cancelFunc           context.CancelFunc
+	mu                   sync.Mutex
 }
 
 func CreateTask(name string, function TaskFunc, timeToExecution time.Duration) *ScheduledTask {
@@ -29,7 +34,27 @@ func CreateRecurringTaskFromNextIntervalTime(name string, function TaskFunc, int
 	return createTask(name, function, interval, true, true)
 }
 
+// CreateTaskWithContext creates a one-time task that can be cancelled via context.
+func CreateTaskWithContext(ctx context.Context, name string, function TaskFunc, timeToExecution time.Duration) *ScheduledTask {
+	return createTaskWithContext(ctx, name, function, timeToExecution, false, false)
+}
+
+// CreateRecurringTaskWithContext creates a recurring task that can be cancelled via context.
+func CreateRecurringTaskWithContext(ctx context.Context, name string, function TaskFunc, interval time.Duration) *ScheduledTask {
+	return createTaskWithContext(ctx, name, function, interval, true, false)
+}
+
+// CreateRecurringTaskFromNextIntervalTimeWithContext creates a recurring task starting from the next interval boundary.
+func CreateRecurringTaskFromNextIntervalTimeWithContext(ctx context.Context, name string, function TaskFunc, interval time.Duration) *ScheduledTask {
+	return createTaskWithContext(ctx, name, function, interval, true, true)
+}
+
 func createTask(name string, function TaskFunc, interval time.Duration, recurring bool, fromNextIntervalTime bool) *ScheduledTask {
+	return createTaskWithContext(context.Background(), name, function, interval, recurring, fromNextIntervalTime)
+}
+
+func createTaskWithContext(ctx context.Context, name string, function TaskFunc, interval time.Duration, recurring bool, fromNextIntervalTime bool) *ScheduledTask {
+	taskCtx, cancelFunc := context.WithCancel(ctx)
 	task := &ScheduledTask{
 		Name:                 name,
 		Interval:             interval,
@@ -38,10 +63,13 @@ func createTask(name string, function TaskFunc, interval time.Duration, recurrin
 		cancel:               make(chan struct{}),
 		cancelled:            make(chan struct{}),
 		fromNextIntervalTime: fromNextIntervalTime,
+		ctx:                  taskCtx,
+		cancelFunc:           cancelFunc,
 	}
 
 	go func() {
 		defer close(task.cancelled)
+		defer task.cancelFunc()
 
 		var firstTick <-chan time.Time
 		var ticker *time.Ticker
@@ -53,23 +81,38 @@ func createTask(name string, function TaskFunc, interval time.Duration, recurrin
 				first = first.Add(interval)
 			}
 			firstTick = time.After(time.Until(first))
-			ticker = &time.Ticker{C: nil}
+			ticker = nil // Use nil channel to block until firstTick fires
 		} else {
 			firstTick = nil
 			ticker = time.NewTicker(interval)
 		}
+
+		// Proper ticker lifecycle management
 		defer func() {
-			ticker.Stop()
+			if ticker != nil {
+				ticker.Stop()
+			}
 		}()
 
 		for {
+			var tickerChan <-chan time.Time
+			if ticker != nil {
+				tickerChan = ticker.C
+			}
+
 			select {
 			case <-firstTick:
-				ticker = time.NewTicker(interval)
+				// First tick fired, create a real ticker and nullify firstTick
+				firstTick = nil
+				if ticker == nil {
+					ticker = time.NewTicker(interval)
+				}
 				function()
-			case <-ticker.C:
+			case <-tickerChan:
 				function()
 			case <-task.cancel:
+				return
+			case <-task.ctx.Done():
 				return
 			}
 
@@ -83,7 +126,16 @@ func createTask(name string, function TaskFunc, interval time.Duration, recurrin
 }
 
 func (task *ScheduledTask) Cancel() {
-	close(task.cancel)
+	task.mu.Lock()
+	defer task.mu.Unlock()
+
+	select {
+	case <-task.cancel:
+		// Already cancelled
+		return
+	default:
+		close(task.cancel)
+	}
 	<-task.cancelled
 }
 
