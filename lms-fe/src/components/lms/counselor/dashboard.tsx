@@ -160,29 +160,33 @@ function CounselorDashboardInner() {
               if (link.id) {
                 return (
                   <motion.a
+                    key={link.id ?? `action-${i}`}
                     {...baseProps}
-                    key={link.id}
                     href={`#counselor/${link.id}`}
                   >
-                    <div className={cn('p-2.5 rounded-xl transition-all duration-200 group-hover:scale-110', link.color)}>
-                      <Icon className="h-4 w-4" />
+                    <div className="flex items-center gap-3 w-full">
+                      <div className={cn('p-2.5 rounded-xl transition-all duration-200 group-hover:scale-110', link.color)}>
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <span className="text-sm font-medium text-nowrap">{link.label}</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground ml-auto opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
                     </div>
-                    <span className="text-sm font-medium text-nowrap">{link.label}</span>
-                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground ml-auto opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
                   </motion.a>
                 )
               }
               return (
                 <motion.button
-                  key={link.id}
+                  key={link.id ?? `action-${i}`}
                   {...baseProps}
                   onClick={() => link.action?.()}
                 >
-                  <div className={cn('p-2.5 rounded-xl transition-all duration-200 group-hover:scale-110', link.color)}>
-                    <Icon className="h-4 w-4" />
+                  <div className="flex items-center gap-3 w-full">
+                    <div className={cn('p-2.5 rounded-xl transition-all duration-200 group-hover:scale-110', link.color)}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <span className="text-sm font-medium text-nowrap">{link.label}</span>
+                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground ml-auto opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
                   </div>
-                  <span className="text-sm font-medium text-nowrap">{link.label}</span>
-                  <ArrowRight className="h-3.5 w-3.5 text-muted-foreground ml-auto opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
                 </motion.button>
               )
             })}

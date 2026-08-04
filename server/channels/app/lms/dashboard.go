@@ -32,6 +32,8 @@ func (a *LMSApp) GetDashboard(role string, userID string) (*DashboardStats, *mod
 		return a.getParentDashboard(userID)
 	case model.RoleLmsStudentRoleId:
 		return a.getStudentDashboard(userID)
+	case model.RoleLmsCounselorRoleId:
+		return a.getCounselorDashboard(userID)
 	default:
 		return nil, model.NewAppError("GetDashboard", "app.lms.dashboard.invalid_role.app_error", map[string]any{"Role": role}, "", http.StatusBadRequest)
 	}
@@ -61,6 +63,18 @@ func (a *LMSApp) getAdminDashboard() (*DashboardStats, *model.AppError) {
 	res.TotalClasses = new(int(activeClasses))
 
 	newLeads, err := a.store.Lead().CountNewThisMonth("")
+	if err != nil {
+		return nil, model.NewAppError("GetDashboard", "app.lms.dashboard.new_leads.app_error", nil, err.Error(), http.StatusInternalServerError)
+	}
+	res.TotalNewLeadsThisMonth = new(int(newLeads))
+
+	return res, nil
+}
+
+func (a *LMSApp) getCounselorDashboard(id string) (*DashboardStats, *model.AppError) {
+	res := &DashboardStats{}
+
+	newLeads, err := a.store.Lead().CountNewThisMonth(id)
 	if err != nil {
 		return nil, model.NewAppError("GetDashboard", "app.lms.dashboard.new_leads.app_error", nil, err.Error(), http.StatusInternalServerError)
 	}

@@ -269,37 +269,38 @@ func ParseSearchParams(text string, timeZoneOffset int) []*SearchParams {
 	extensions := []string{}
 
 	for _, flag := range flags {
-		if flag.name == "in" || flag.name == "channel" {
+		switch flag.name {
+		case "in", "channel":
 			if flag.exclude {
 				excludedChannels = append(excludedChannels, flag.value)
 			} else {
 				inChannels = append(inChannels, flag.value)
 			}
-		} else if flag.name == "from" {
+		case "from":
 			if flag.exclude {
 				excludedUsers = append(excludedUsers, flag.value)
 			} else {
 				fromUsers = append(fromUsers, flag.value)
 			}
-		} else if flag.name == "after" {
+		case "after":
 			if flag.exclude {
 				excludedAfterDate = flag.value
 			} else {
 				afterDate = flag.value
 			}
-		} else if flag.name == "before" {
+		case "before":
 			if flag.exclude {
 				excludedBeforeDate = flag.value
 			} else {
 				beforeDate = flag.value
 			}
-		} else if flag.name == "on" {
+		case "on":
 			if flag.exclude {
 				excludedDate = flag.value
 			} else {
 				onDate = flag.value
 			}
-		} else if flag.name == "ext" {
+		case "ext":
 			if flag.exclude {
 				excludedExtensions = append(excludedExtensions, flag.value)
 			} else {

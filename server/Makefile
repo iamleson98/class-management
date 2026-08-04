@@ -142,8 +142,8 @@ LDFLAGS += -X "github.com/sitename/sitename/server/public/model.BuildHash=$(BUIL
 LDFLAGS += -X "github.com/sitename/sitename/server/public/model.BuildHashEnterprise=$(BUILD_HASH_ENTERPRISE)"
 LDFLAGS += -X "github.com/sitename/sitename/server/public/model.BuildEnterpriseReady=$(BUILD_ENTERPRISE_READY)"
 
-GO_MAJOR_VERSION = $(shell $(GO) version | cut -c 14- | cut -d' ' -f1 | cut -d'.' -f1)
-GO_MINOR_VERSION = $(shell $(GO) version | cut -c 14- | cut -d' ' -f1 | cut -d'.' -f2)
+GO_MAJOR_VERSION = $(shell $(GO) version | cut -c 14- | cut -d' ' -f1 | cut -d'.' -f1 | sed 's/[^0-9].*//')
+GO_MINOR_VERSION = $(shell $(GO) version | cut -c 14- | cut -d' ' -f1 | cut -d'.' -f2 | sed 's/[^0-9].*//')
 MINIMUM_SUPPORTED_GO_MAJOR_VERSION = 1
 MINIMUM_SUPPORTED_GO_MINOR_VERSION = 15
 GO_VERSION_VALIDATION_ERR_MSG = Golang version is not supported, please update to at least $(MINIMUM_SUPPORTED_GO_MAJOR_VERSION).$(MINIMUM_SUPPORTED_GO_MINOR_VERSION)
@@ -345,13 +345,13 @@ i18n-check: ## Exit on empty translation strings and translation source strings
 
 store-mocks: setup-go-work ## Creates mock files.
 ifeq ($(OS),Windows_NT)
-	@powershell -NoProfile -Command "$$ErrorActionPreference='Stop'; Push-Location tools/mockery; try { $$env:GOWORK='off'; $(GO) build -o $(GOBIN)\mockery.exe github.com/vektra/mockery/v3 } finally { Pop-Location }; $$serverMod='go.mod'; $$serverBak='go.mod.mockery.bak'; Copy-Item $$serverMod $$serverBak -Force; try { (Get-Content $$serverMod -Raw) -replace '(?m)^replace github\.com/mattermost/mattermost/server/public => \./public\r?\n','' | Set-Content $$serverMod -NoNewline; $$env:GOWORK='off'; & '$(GOBIN)\mockery.exe' --config channels/store/.mockery.yaml } finally { Move-Item -Force $$serverBak $$serverMod }"
+	@powershell -NoProfile -Command "$$ErrorActionPreference='Stop'; Push-Location tools/mockery; try { $$env:GOWORK='off'; $(GO) build -o $(GOBIN)\mockery.exe github.com/vektra/mockery/v3 } finally { Pop-Location }; $$serverMod='go.mod'; $$serverBak='go.mod.mockery.bak'; Copy-Item $$serverMod $$serverBak -Force; try { (Get-Content $$serverMod -Raw) -replace '(?m)^[ \t]*(replace[ \t]+)?github\.com/mattermost/mattermost/server/public => \./public\r?\n','' | Set-Content $$serverMod -NoNewline; $$env:GOWORK='off'; & '$(GOBIN)\mockery.exe' --config channels/store/.mockery.yaml } finally { Move-Item -Force $$serverBak $$serverMod }"
 else
 	@set -e; \
 	cp -f go.mod go.mod.mockery.bak; \
 	cleanup() { mv -f go.mod.mockery.bak go.mod; }; \
 	trap cleanup EXIT; \
-	sed -i.bak '/^replace github\.com\/mattermost\/mattermost\/server\/public => \.\/public$$/d' go.mod; rm -f go.mod.bak; \
+	sed -i.bak '/^[[:space:]]*\(replace[[:space:]]\{1,\}\)\{0,1\}github\.com\/mattermost\/mattermost\/server\/public => \.\/public$$/d' go.mod; rm -f go.mod.bak; \
 	($(MOCKERY_BUILD)); \
 	GOWORK=off $(GOBIN)/mockery --config channels/store/.mockery.yaml
 endif
