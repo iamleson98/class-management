@@ -135,6 +135,13 @@ type Store interface {
 	Notification() NotificationStore
 	Material() MaterialStore
 	Dashboard() DashboardStore
+
+	// Calls sub-stores
+	Call() CallStore
+	CallSession() CallSessionStore
+	CallJob() CallJobStore
+	CallStat() CallStatStore
+	CallsChannel() CallsChannelStore
 }
 
 type RetentionPolicyStore interface {

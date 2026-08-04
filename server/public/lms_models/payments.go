@@ -19,6 +19,7 @@ import (
 	"github.com/aarondl/sqlboiler/v4/queries/qmhelper"
 	"github.com/aarondl/strmangle"
 	"github.com/friendsofgo/errors"
+	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/shopspring/decimal"
 )
 
@@ -27,7 +28,7 @@ type Payment struct {
 	ID            string          `boil:"id" json:"id" toml:"id" yaml:"id"`
 	TuitionID     string          `boil:"tuition_id" json:"tuition_id" toml:"tuition_id" yaml:"tuition_id"`
 	Amount        decimal.Decimal `boil:"amount" json:"amount" toml:"amount" yaml:"amount"`
-	PaymentDate   time.Time       `boil:"payment_date" json:"payment_date" toml:"payment_date" yaml:"payment_date"`
+	PaymentDate   utils.VnTime    `boil:"payment_date" json:"payment_date" toml:"payment_date" yaml:"payment_date"`
 	Method        string          `boil:"method" json:"method" toml:"method" yaml:"method"`
 	ReceiptNumber null.String     `boil:"receipt_number" json:"receipt_number,omitempty" toml:"receipt_number" yaml:"receipt_number,omitempty"`
 	PaidByID      string          `boil:"paid_by_id" json:"paid_by_id" toml:"paid_by_id" yaml:"paid_by_id"`
@@ -93,7 +94,7 @@ var PaymentWhere = struct {
 	ID            whereHelperstring
 	TuitionID     whereHelperstring
 	Amount        whereHelperdecimal_Decimal
-	PaymentDate   whereHelpertime_Time
+	PaymentDate   whereHelperutils_VnTime
 	Method        whereHelperstring
 	ReceiptNumber whereHelpernull_String
 	PaidByID      whereHelperstring
@@ -104,7 +105,7 @@ var PaymentWhere = struct {
 	ID:            whereHelperstring{field: "\"payments\".\"id\""},
 	TuitionID:     whereHelperstring{field: "\"payments\".\"tuition_id\""},
 	Amount:        whereHelperdecimal_Decimal{field: "\"payments\".\"amount\""},
-	PaymentDate:   whereHelpertime_Time{field: "\"payments\".\"payment_date\""},
+	PaymentDate:   whereHelperutils_VnTime{field: "\"payments\".\"payment_date\""},
 	Method:        whereHelperstring{field: "\"payments\".\"method\""},
 	ReceiptNumber: whereHelpernull_String{field: "\"payments\".\"receipt_number\""},
 	PaidByID:      whereHelperstring{field: "\"payments\".\"paid_by_id\""},

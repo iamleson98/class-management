@@ -7,6 +7,7 @@ import (
 	"github.com/aarondl/sqlboiler/v4/boil"
 	"github.com/aarondl/sqlboiler/v4/queries/qm"
 	lms_models "github.com/iamleson98/sitename/server/public/lms_models"
+	"github.com/iamleson98/sitename/server/public/model"
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
 	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/v8/channels/store"
@@ -120,11 +121,23 @@ func (s *SqlLeadStore) Delete(id string) error {
 	return nil
 }
 
-func (s *SqlLeadStore) CountNewThisMonth() (int64, error) {
+func (s *SqlLeadStore) CountNewThisMonth(counselorId string) (int64, error) {
 	var count int64
-	err := s.sqlStore.GetReplicaExecuter().QueryRow(
-		"SELECT COUNT(*) FROM Leads WHERE Status = 'NEW' AND EXTRACT(MONTH FROM createat) = EXTRACT(MONTH FROM CURRENT_TIMESTAMP) AND EXTRACT(YEAR FROM createat) = EXTRACT(YEAR FROM CURRENT_TIMESTAMP)",
-	).Scan(&count)
+	args := []any{}
+
+	query := `SELECT COUNT(*)
+FROM leads
+WHERE status = 'NEW'
+AND EXTRACT(MONTH FROM to_timestamp(createat)) = EXTRACT(MONTH FROM CURRENT_TIMESTAMP)
+AND EXTRACT(YEAR  FROM to_timestamp(createat)) = EXTRACT(YEAR  FROM CURRENT_TIMESTAMP)`
+	if model.IsValidId(counselorId) {
+		query += " AND counselor_id = $1"
+		args = append(args, counselorId)
+	}
+
+	query += ";"
+
+	err := s.sqlStore.GetReplicaExecuter().QueryRow(query, args...).Scan(&count)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to count new leads this month")
 	}

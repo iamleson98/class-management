@@ -40,6 +40,8 @@ const BUFFER_TO_BE_CONSIDERED_BOTTOM = 100 // px: within this of the bottom = "a
 
 // A small set of quick reactions shown under each post.
 const QUICK_EMOJIS = ['👍', '❤️', '🎉', '😂', '👀']
+const EMPTY_POST_MAP: Record<string, ChatPost> = Object.freeze({})
+const EMPTY_POST_ORDER = Object.freeze([])
 
 function sameDay(a: number, b: number): boolean {
   return isSameDay(new Date(a), new Date(b))
@@ -48,8 +50,9 @@ function sameDay(a: number, b: number): boolean {
 export function PostList({ channelId, onOpenThread, onForward, onShowEditHistory, onJumpToPost }: PostListProps) {
   const { t } = useTranslation()
   const userId = useCurrentUserId()
-  const postMap = useChatStore((s) => s.postsByChannel[channelId]?.byId ?? {})
-  const order = useChatStore((s) => s.postsByChannel[channelId]?.order ?? [])
+  const channelPosts = useChatStore((s) => s.postsByChannel[channelId])
+  const postMap = useMemo(() => channelPosts?.byId ?? EMPTY_POST_MAP, [channelPosts])
+  const order = useMemo(() => channelPosts?.order ?? EMPTY_POST_ORDER, [channelPosts])
   const channels = useChatStore((s) => s.channels)
   const membership = useChatStore((s) => s.memberships[channelId])
   const { loadOlder, loadNewer, hasOlder, hasNewer, loading } = useChannelPosts(channelId)
@@ -427,7 +430,8 @@ interface PostRowProps {
 function PostRow(props: PostRowProps) {
   const { post, replyCount, isOwn, authorName, isFlagged, onOpenThread, editing, draft, setDraft, onStartEdit, onSaveEdit, onCancelEdit, onDelete, onToggleReaction, onTogglePin, onToggleFlag, onMarkUnread, onForward, onShowEditHistory, onJumpToPost, onHover, canModerate } = props
   const { t } = useTranslation()
-  const reactions = useChatStore((s) => s.reactionsByPost[post.id] ?? [])
+  const EMPTY: any[] = []
+  const reactions = useChatStore((s) => s.reactionsByPost[post.id] ?? EMPTY)
   const threadMeta = useChatStore((s) => s.threadsById[post.id])
   const currentUserId = useCurrentUserId()
   const [showEmoji, setShowEmoji] = useState(false)

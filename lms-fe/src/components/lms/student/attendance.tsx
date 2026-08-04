@@ -36,8 +36,8 @@ export default function StudentAttendance() {
   const [viewMode, setViewMode] = useState<'list' | 'table'>('list')
 
   const dashboardQuery = useQuery({
-    queryKey: ['dashboard', 'STUDENT', authUser?.id],
-    queryFn: () => getDashboard('STUDENT', authUser!.id),
+    queryKey: ['dashboard', 'lms_student', authUser?.id],
+    queryFn: () => getDashboard('lms_student', authUser!.id),
     enabled: !!authUser?.id,
   })
 

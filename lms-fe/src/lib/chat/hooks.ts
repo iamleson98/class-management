@@ -7,10 +7,11 @@
 
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { client4, connectWebSocket, disconnectWebSocket, configureClient4, wsClient } from './client'
 import { bindChatWebSocket } from './websocket-events'
+import { bindCallsWebSocket } from './calls-events'
 import { useChatStore, unreadCount, mentionCount } from './store'
 import { useLMSStore } from '@/store/lms-store'
 import type { ChatChannel, ChatPost, ChatUser, PresenceStatus } from './types'
@@ -33,6 +34,7 @@ export function useChatConnection(): { connected: boolean } {
   useEffect(() => {
     configureClient4()
     bindChatWebSocket()
+    bindCallsWebSocket()
     connectWebSocket()
     return () => {
       disconnectWebSocket()
@@ -560,33 +562,32 @@ export function useStatuses(userIds: string[]) {
  */
 export function usePresencePoll(activeChannelId: string | null) {
   const setStatuses = useChatStore((s) => s.setStatuses)
+  const channels = useChatStore((s) => s.channels)
+  const activeChannelPosts = useChatStore((s) => (activeChannelId ? s.postsByChannel[activeChannelId] : undefined))
   const userId = useCurrentUserId()
 
-  // Collect the visible user ids from the store (recent posters + DM partners + self).
-  const visibleIds = useChatStore((s) => {
+  const visibleIds = useMemo(() => {
     const ids = new Set<string>()
     if (userId) ids.add(userId)
-    // Recent posters in the active channel.
-    if (activeChannelId) {
-      const cp = s.postsByChannel[activeChannelId]
-      if (cp) {
-        for (const id of cp.order.slice(0, 30)) {
-          const p = cp.byId[id]
-          if (p?.user_id) ids.add(p.user_id)
-        }
+
+    if (activeChannelId && activeChannelPosts) {
+      for (const id of activeChannelPosts.order.slice(0, 30)) {
+        const p = activeChannelPosts.byId[id]
+        if (p?.user_id) ids.add(p.user_id)
       }
     }
-    // DM partners (channels of type D/G).
-    for (const ch of Object.values(s.channels)) {
+
+    for (const ch of Object.values(channels)) {
       if ((ch.type === 'D' || ch.type === 'G') && ch.name) {
         const parts = ch.name.split('__').filter(Boolean)
         for (const pid of parts) if (pid !== userId) ids.add(pid)
       }
     }
-    return Array.from(ids)
-  })
 
-  const key = visibleIds.slice().sort().join(',')
+    return Array.from(ids).sort()
+  }, [activeChannelId, activeChannelPosts, channels, userId])
+
+  const key = visibleIds.join(',')
   return useQuery({
     queryKey: ['chat', 'presence-poll', key],
     queryFn: async () => {

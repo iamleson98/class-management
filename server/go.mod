@@ -4,6 +4,20 @@ go 1.27rc2
 
 replace github.com/iamleson98/sitename/server/public => ./public
 
+// Alias the upstream Mattermost public module to the fork's local public module
+// (same ./public directory) so that the rtcd SFU client — which imports
+// github.com/mattermost/mattermost/server/public/... — resolves to the same
+// types the server already uses. Without this, rtcd's mlog/model would be a
+// distinct, incompatible set of packages.
+replace github.com/mattermost/mattermost/server/public => ./public
+
+// Use the local rtcd source (sibling directory) for the SFU control client.
+replace github.com/mattermost/rtcd => ../rtcd
+
+// Pion forks required by rtcd's RTC layer.
+replace github.com/pion/ice/v4 => github.com/bgardner8008/ice/v4 v4.2.0-role-conflict-fix-v4
+replace github.com/pion/interceptor v0.1.44 => github.com/bgardner8008/interceptor v0.1.44-mm-mods
+
 require (
 	code.sajari.com/docconv/v2 v2.0.0-pre.4
 	github.com/LumenResearch/uasurfer v0.0.0-20260126094926-dace53404a8d
@@ -53,6 +67,7 @@ require (
 	github.com/mattermost/logr/v2 v2.0.22
 	github.com/mattermost/mattermost-plugin-agents v1.14.1-0.20260519141957-379b06b188d9
 	github.com/mattermost/mattermost/server/public v0.3.1-0.20260402155910-d9d71af83e3f
+	github.com/mattermost/rtcd v1.2.6
 	github.com/mattermost/morph v1.1.0
 	github.com/mattermost/rsc v0.0.0-20160330161541-bbaefb05eaa0
 	github.com/mattermost/squirrel v0.5.0
@@ -60,6 +75,9 @@ require (
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/minio/minio-go/v7 v7.2.0
 	github.com/opensearch-project/opensearch-go/v4 v4.6.0
+	github.com/pion/ice/v4 v4.2.0
+	github.com/pion/interceptor v0.1.44
+	github.com/pion/webrtc/v4 v4.2.6
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2

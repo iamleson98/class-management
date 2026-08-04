@@ -722,9 +722,11 @@ func ParseHashtags(text string) (string, string) {
 		word = hashtagStart.ReplaceAllString(word, "#")
 
 		if validHashtag.MatchString(word) {
-			hashtagStringSb.WriteString(" " + word)
+			hashtagStringSb.WriteString(" ")
+			hashtagStringSb.WriteString(word)
 		} else {
-			plainString.WriteString(" " + word)
+			plainString.WriteString(" ")
+			plainString.WriteString(word)
 		}
 	}
 	hashtagString := hashtagStringSb.String()

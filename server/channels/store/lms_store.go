@@ -113,7 +113,7 @@ type AttendanceStore interface {
 type LeadStore interface {
 	Get(id string) (*lms_models.Lead, error)
 	Search(opts modelhelper.LeadFilterOpts) ([]*lms_models.Lead, int64, error)
-	CountNewThisMonth() (int64, error)
+	CountNewThisMonth(counselorId string) (int64, error)
 	Save(lead *lms_models.Lead) (*lms_models.Lead, error)
 	Update(lead *lms_models.Lead) (*lms_models.Lead, error)
 	Delete(id string) error
@@ -304,4 +304,71 @@ type MaterialStore interface {
 	Save(m *lms_models.Material) (*lms_models.Material, error)
 	Update(m *lms_models.Material) (*lms_models.Material, error)
 	Delete(id string) error
+}
+
+// ============================================================================
+// Calls
+//
+// The calls sub-stores persist only the durable boundaries of a realtime call:
+// call start/end (CallStore), participant join/leave (CallSessionStore),
+// recording/transcription jobs (CallJobStore), historical aggregates
+// (CallStatStore), and per-channel configuration (CallsChannelStore).
+//
+// Live / transient state (mute, voice, screen, video, raised hand) is held
+// in-memory in the calls service and fanned out over websockets — it is NOT
+// written here, which keeps the DB write rate proportional to
+// (calls x participants) rather than (calls x participants x interactions).
+// ============================================================================
+
+// CallFilterOpts filters calls for history / reporting queries.
+type CallFilterOpts struct {
+	ChannelID string
+	OwnerID   string
+	Active    *bool // true => only ongoing calls (endat = 0)
+	Page      int
+	PerPage   int
+}
+
+// CallStore persists call lifecycle records (start / end).
+type CallStore interface {
+	Get(callID string) (*model.Call, error)
+	GetActiveByChannel(channelID string) (*model.Call, error)
+	Search(opts CallFilterOpts) ([]*model.Call, error)
+	Save(call *model.Call) (*model.Call, error)
+	Update(call *model.Call) (*model.Call, error)
+	Delete(callID string) error
+}
+
+// CallSessionStore persists per-participant join/leave records.
+type CallSessionStore interface {
+	Get(sessionID string) (*model.CallSession, error)
+	GetByCall(callID string) ([]*model.CallSession, error)
+	GetByCallAndUser(callID, userID string) (*model.CallSession, error)
+	Save(session *model.CallSession) (*model.CallSession, error)
+	Update(session *model.CallSession) (*model.CallSession, error)
+	Delete(sessionID string) error
+}
+
+// CallJobStore persists recording / transcription / captions jobs.
+type CallJobStore interface {
+	Get(jobID string) (*model.CallJob, error)
+	GetByCall(callID string) ([]*model.CallJob, error)
+	Save(job *model.CallJob) (*model.CallJob, error)
+	Update(job *model.CallJob) (*model.CallJob, error)
+	Delete(jobID string) error
+}
+
+// CallStatStore persists one aggregate row per completed call.
+type CallStatStore interface {
+	Get(statID string) (*model.CallStat, error)
+	GetByCall(callID string) (*model.CallStat, error)
+	GetByChannel(channelID string, page, perPage int) ([]*model.CallStat, error)
+	Save(stat *model.CallStat) (*model.CallStat, error)
+}
+
+// CallsChannelStore persists per-channel call configuration / defaults.
+type CallsChannelStore interface {
+	Get(channelID string) (*model.CallsChannel, error)
+	Save(cc *model.CallsChannel) (*model.CallsChannel, error)
+	Delete(channelID string) error
 }

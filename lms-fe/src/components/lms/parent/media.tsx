@@ -26,8 +26,8 @@ export default function ParentMedia() {
   const [dialogOpen, setDialogOpen] = useState(false)
 
   const dashboardQuery = useQuery({
-    queryKey: ['dashboard', 'PARENT', authUser?.id, 'media-child'],
-    queryFn: () => getDashboard('PARENT', authUser!.id),
+    queryKey: ['dashboard', 'lms_parent', authUser?.id, 'media-child'],
+    queryFn: () => getDashboard('lms_parent', authUser!.id),
     enabled: !!authUser?.id,
   })
 

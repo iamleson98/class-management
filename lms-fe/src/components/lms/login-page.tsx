@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Mail, Lock, LogIn, Eye, EyeOff, GraduationCap } from 'lucide-react'
 import Link from 'next/link'
 import { loginSchema, type LoginInput } from '@/lib/schemas'
-import { loginWithMattermost } from '@/lib/api'
+import { login } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
@@ -31,7 +31,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   })
 
   const loginMutation = useMutation({
-    mutationFn: (values: LoginInput) => loginWithMattermost(values.email, values.password),
+    mutationFn: (values: LoginInput) => login(values.email, values.password),
     onSuccess: (user) => onLogin(user),
     onError: (err) => setError(err.message),
   })

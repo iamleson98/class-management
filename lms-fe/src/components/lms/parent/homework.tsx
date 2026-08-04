@@ -45,8 +45,8 @@ export default function ParentHomework() {
   const { t } = useTranslation()
 
   const dashboardQuery = useQuery({
-    queryKey: ['dashboard', 'PARENT', authUser?.id, 'homework-child'],
-    queryFn: () => getDashboard('PARENT', authUser!.id),
+    queryKey: ['dashboard', 'lms_parent', authUser?.id, 'homework-child'],
+    queryFn: () => getDashboard('lms_parent', authUser!.id),
     enabled: !!authUser?.id,
   })
 

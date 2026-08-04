@@ -8,4 +8,7 @@ import (
 
 	// to register lms API endpoints
 	_ "github.com/iamleson98/sitename/server/v8/channels/api4/lms_api"
+
+	// to register calls API endpoints
+	_ "github.com/iamleson98/sitename/server/v8/channels/api4/calls_api"
 )

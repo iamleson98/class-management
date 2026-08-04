@@ -1,13 +1,14 @@
-with-expecter: false
+template: testify
+template-data:
+  unroll-variadic: true
 packages:
   github.com/iamleson98/sitename/server/public/plugin:
     config:
-      dir: "public/plugin/plugintest"
+      dir: public/plugin/plugintest
       filename: "{{.InterfaceNameLower}}.go"
-      mockname: "{{.InterfaceName}}"
-      outpkg: "plugintest"
-      note: "Regenerate this file using `make plugin-mocks`."
+      structname: '{{.InterfaceName}}'
+      pkgname: plugintest
     interfaces:
-      API:
-      Hooks:
-      Driver:
+      API: {}
+      Driver: {}
+      Hooks: {}

@@ -19,22 +19,23 @@ import (
 	"github.com/aarondl/sqlboiler/v4/queries/qmhelper"
 	"github.com/aarondl/strmangle"
 	"github.com/friendsofgo/errors"
+	"github.com/iamleson98/sitename/server/public/utils"
 )
 
 // Class is an object representing the database table.
 type Class struct {
-	ID            string      `boil:"id" json:"id" toml:"id" yaml:"id"`
-	CourseID      string      `boil:"course_id" json:"course_id" toml:"course_id" yaml:"course_id"`
-	BranchID      string      `boil:"branch_id" json:"branch_id" toml:"branch_id" yaml:"branch_id"`
-	Name          string      `boil:"name" json:"name" toml:"name" yaml:"name"`
-	Code          string      `boil:"code" json:"code" toml:"code" yaml:"code"`
-	TeacherID     string      `boil:"teacher_id" json:"teacher_id" toml:"teacher_id" yaml:"teacher_id"`
-	Status        string      `boil:"status" json:"status" toml:"status" yaml:"status"`
-	Room          null.String `boil:"room" json:"room,omitempty" toml:"room" yaml:"room,omitempty"`
-	StartDate     time.Time   `boil:"start_date" json:"start_date" toml:"start_date" yaml:"start_date"`
-	Createat      int64       `boil:"createat" json:"createat" toml:"createat" yaml:"createat"`
-	Updateat      int64       `boil:"updateat" json:"updateat" toml:"updateat" yaml:"updateat"`
-	ChatChannelID string      `boil:"chat_channel_id" json:"chat_channel_id" toml:"chat_channel_id" yaml:"chat_channel_id"`
+	ID            string       `boil:"id" json:"id" toml:"id" yaml:"id"`
+	CourseID      string       `boil:"course_id" json:"course_id" toml:"course_id" yaml:"course_id"`
+	BranchID      string       `boil:"branch_id" json:"branch_id" toml:"branch_id" yaml:"branch_id"`
+	Name          string       `boil:"name" json:"name" toml:"name" yaml:"name"`
+	Code          string       `boil:"code" json:"code" toml:"code" yaml:"code"`
+	TeacherID     string       `boil:"teacher_id" json:"teacher_id" toml:"teacher_id" yaml:"teacher_id"`
+	Status        string       `boil:"status" json:"status" toml:"status" yaml:"status"`
+	Room          null.String  `boil:"room" json:"room,omitempty" toml:"room" yaml:"room,omitempty"`
+	StartDate     utils.VnTime `boil:"start_date" json:"start_date" toml:"start_date" yaml:"start_date"`
+	Createat      int64        `boil:"createat" json:"createat" toml:"createat" yaml:"createat"`
+	Updateat      int64        `boil:"updateat" json:"updateat" toml:"updateat" yaml:"updateat"`
+	ChatChannelID string       `boil:"chat_channel_id" json:"chat_channel_id" toml:"chat_channel_id" yaml:"chat_channel_id"`
 
 	R *classR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L classL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -98,24 +99,24 @@ var ClassTableColumns = struct {
 
 // Generated where
 
-type whereHelpertime_Time struct{ field string }
+type whereHelperutils_VnTime struct{ field string }
 
-func (w whereHelpertime_Time) EQ(x time.Time) qm.QueryMod {
+func (w whereHelperutils_VnTime) EQ(x utils.VnTime) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.EQ, x)
 }
-func (w whereHelpertime_Time) NEQ(x time.Time) qm.QueryMod {
+func (w whereHelperutils_VnTime) NEQ(x utils.VnTime) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.NEQ, x)
 }
-func (w whereHelpertime_Time) LT(x time.Time) qm.QueryMod {
+func (w whereHelperutils_VnTime) LT(x utils.VnTime) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.LT, x)
 }
-func (w whereHelpertime_Time) LTE(x time.Time) qm.QueryMod {
+func (w whereHelperutils_VnTime) LTE(x utils.VnTime) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.LTE, x)
 }
-func (w whereHelpertime_Time) GT(x time.Time) qm.QueryMod {
+func (w whereHelperutils_VnTime) GT(x utils.VnTime) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.GT, x)
 }
-func (w whereHelpertime_Time) GTE(x time.Time) qm.QueryMod {
+func (w whereHelperutils_VnTime) GTE(x utils.VnTime) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.GTE, x)
 }
 
@@ -128,7 +129,7 @@ var ClassWhere = struct {
 	TeacherID     whereHelperstring
 	Status        whereHelperstring
 	Room          whereHelpernull_String
-	StartDate     whereHelpertime_Time
+	StartDate     whereHelperutils_VnTime
 	Createat      whereHelperint64
 	Updateat      whereHelperint64
 	ChatChannelID whereHelperstring
@@ -141,7 +142,7 @@ var ClassWhere = struct {
 	TeacherID:     whereHelperstring{field: "\"classes\".\"teacher_id\""},
 	Status:        whereHelperstring{field: "\"classes\".\"status\""},
 	Room:          whereHelpernull_String{field: "\"classes\".\"room\""},
-	StartDate:     whereHelpertime_Time{field: "\"classes\".\"start_date\""},
+	StartDate:     whereHelperutils_VnTime{field: "\"classes\".\"start_date\""},
 	Createat:      whereHelperint64{field: "\"classes\".\"createat\""},
 	Updateat:      whereHelperint64{field: "\"classes\".\"updateat\""},
 	ChatChannelID: whereHelperstring{field: "\"classes\".\"chat_channel_id\""},

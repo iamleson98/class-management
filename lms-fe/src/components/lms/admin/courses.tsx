@@ -256,41 +256,41 @@ export default function CoursesPage() {
         />
       ) : (
         <>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {pageCourses.map((course: any) => (
-            <Card key={course.id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <Badge variant="outline">{course.code}</Badge>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(course)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(course)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+            {pageCourses.map((course: any) => (
+              <Card key={course.id}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <Badge variant="outline">{course.code}</Badge>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(course)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(course)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <h3 className="font-semibold text-lg mb-2">{course.name}</h3>
-                <div className="space-y-1 text-sm text-muted-foreground">
-                  <p>{t('courses.levelLabel', 'Trình độ')}: {course.level || '—'}</p>
-                  <p>{t('courses.ageRangeLabel', 'Độ tuổi')}: {course.ageRange || '—'}</p>
-                  <p>{t('courses.sessionsLabel', 'Số buổi')}: {course.totalSessions || 0}</p>
-                  <p className="text-base font-medium text-foreground">
-                    {t('courses.tuitionLabel', 'Học phí')}: {formatVND(course.fee || 0)}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-        <PaginationControls
-          {...pageInfo}
-          onPageIndexChange={pagination.setPageIndex}
-          onPageSizeChange={pagination.setPageSize}
-        />
+                </CardHeader>
+                <CardContent>
+                  <h3 className="font-semibold text-lg mb-2">{course.name}</h3>
+                  <div className="space-y-1 text-sm text-muted-foreground">
+                    <p>{t('courses.levelLabel', 'Trình độ')}: {course.level || '—'}</p>
+                    <p>{t('courses.ageRangeLabel', 'Độ tuổi')}: {course.ageRange || '—'}</p>
+                    <p>{t('courses.sessionsLabel', 'Số buổi')}: {course.totalSessions || 0}</p>
+                    <p className="text-base font-medium text-foreground">
+                      {t('courses.tuitionLabel', 'Học phí')}: {formatVND(course.fee || 0)}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <PaginationControls
+            {...pageInfo}
+            onPageIndexChange={pagination.setPageIndex}
+            onPageSizeChange={pagination.setPageSize}
+          />
         </>
       )}
 
@@ -340,13 +340,13 @@ export default function CoursesPage() {
               <FormField
                 control={form.control}
                 name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('courses.courseName', 'Tên khóa học')}</FormLabel>
-                      <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('courses.courseName', 'Tên khóa học')}</FormLabel>
+                    <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
               <div className="grid grid-cols-3 gap-4 items-start">
                 <FormField

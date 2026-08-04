@@ -1,13 +1,14 @@
-with-expecter: false
+template: testify
+template-data:
+  unroll-variadic: true
 packages:
   github.com/iamleson98/sitename/server/v8/einterfaces:
     config:
       all: true
-      dir: "einterfaces/mocks"
-      filename: "{{.InterfaceName}}.go"
-      mockname: "{{.InterfaceName}}"
-      outpkg: mocks
-      recursive: true
-      exclude:
+      dir: einterfaces/mocks
+      exclude-subpkg-regex:
         - mocks
-      note: "Regenerate this file using `make einterfaces-mocks`."
+      filename: "{{.InterfaceName}}.go"
+      structname: '{{.InterfaceName}}'
+      pkgname: mocks
+      recursive: true

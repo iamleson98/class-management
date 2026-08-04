@@ -33,8 +33,8 @@ export default function AdminDashboard() {
   const currentMonth = format(new Date(), 'yyyy-MM')
 
   const dashboardQuery = useQuery({
-    queryKey: ['dashboard', 'ADMIN'],
-    queryFn: () => getDashboard('ADMIN'),
+    queryKey: ['dashboard', 'lms_admin'],
+    queryFn: () => getDashboard('lms_admin'),
   })
 
   const sessionsQuery = useQuery({

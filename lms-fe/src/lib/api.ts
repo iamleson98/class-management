@@ -5,9 +5,8 @@ import type {
   FeePackage, FeePackageListItem, Tuition, TuitionListItem,
   Payment, PaymentWithUser, Material, MaterialListItem,
   Task, TaskListItem, Post, PostListItem, PostCategory, PostCategoryWithCount,
-  Banner, DashboardData, NotificationListResponse,
+  Banner, DashboardStats, NotificationListResponse,
   Homework, HomeworkSubmission, WeeklyReview, ClassMedia,
-  ApiUser,
   CreateUserInput, UpdateUserInput,
   CreateStudentInput, UpdateStudentInput,
   CreateCourseInput, UpdateCourseInput,
@@ -20,6 +19,7 @@ import type {
   CreatePostInput, UpdatePostInput, PostCategoryInput,
   CreateBranchInput, CreateBannerInput, UpdateBannerInput,
   CreateFeePackageInput,
+  UserRole,
 } from '@/lib/schemas'
 import type { SearchOpts } from '@/lib/query'
 import { type UserProfile } from '@mattermost/types/users'
@@ -39,19 +39,6 @@ export class ValidationError extends Error {
 
 // Relative base — proxied by Next.js rewrites to the backend
 const BASE = '/api/v4'
-
-// ─── Auth model ────────────────────────────────────────────────────
-// Auth is exclusively via the httpOnly MMAUTHTOKEN cookie the backend sets at
-// login (login.go AttachSessionCookies). The cookie is first-party because the
-// Next.js rewrite proxy (next.config.ts) maps /api/v4/* on the frontend origin
-// to the backend, so SameSite=Lax works without SameSite=None/Secure gymnastics.
-//
-// Every request uses credentials:'include' (sends the cookie) and the
-// X-Requested-With: XMLHttpRequest header. The backend's CSRF check
-// (handlers.go checkCSRFToken) fires for cookie-authenticated non-GET requests;
-// because ExperimentalStrictCSRFEnforcement is false, X-Requested-With satisfies
-// the legacy fallback. No JS-side token is stored — the token never touches JS,
-// so it cannot be exfiltrated by XSS. Do not re-introduce a localStorage token.
 
 /** Headers required on every API call: CSRF-satisfying header + JSON content type. */
 function authHeaders(extra?: HeadersInit): HeadersInit {
@@ -438,34 +425,6 @@ const apiPut = <T>(path: string, data: unknown): Promise<T> =>
   apiFetch<T>(path, { method: 'PUT', body: JSON.stringify(toSnake(data)) })
 const apiDelete = <T>(path: string): Promise<T> => apiFetch<T>(path, { method: 'DELETE' })
 
-// ─── Auth ───────────────────────────────────────────────────────────
-
-/**
- * The Go backend stores LMS roles as UPPERCASE Mattermost-style strings
- * (e.g. "STUDENT", "TEACHER", "ADMIN" — see server/channels/app/lms/student.go
- * and the dashboard switch in app/lms/dashboard.go). The frontend, however,
- * uses `lms_*` role strings everywhere (UserRole enum in schemas/enums.ts,
- * ROLE_PRIORITY in the store, NAV_MAP in page.tsx).
- *
- * To keep both sides' internal conventions intact, we translate the role
- * string here in the API layer on the way in (login / getMe), so the rest of
- * the frontend only ever sees `lms_student`, `lms_admin`, etc.
- */
-const ROLE_BACKEND_TO_FRONTEND: Record<string, string> = {
-  STUDENT: 'lms_student',
-  TEACHER: 'lms_teacher',
-  ADMIN: 'lms_admin',
-  SUPER_ADMIN: 'lms_super_admin',
-  COUNSELOR: 'lms_counselor',
-  ACCOUNTANT: 'lms_accountant',
-  MARKETING: 'lms_marketing',
-  PARENT: 'lms_parent',
-}
-
-/** Reverse map for outbound requests (e.g. the dashboard `role` query param). */
-const ROLE_FRONTEND_TO_BACKEND: Record<string, string> = Object.fromEntries(
-  Object.entries(ROLE_BACKEND_TO_FRONTEND).map(([backend, frontend]) => [frontend, backend])
-)
 
 /**
  * Rewrite a space-separated roles string from backend conventions
@@ -477,18 +436,10 @@ function normalizeRolesString(roles: string): string {
   return roles
     .split(/\s+/)
     .filter(Boolean)
-    .map((r) => ROLE_BACKEND_TO_FRONTEND[r] ?? r)
     .join(' ')
 }
 
-/**
- * POST /api/v4/users/login returns a flat model.User JSON object.
- * The backend sets the httpOnly MMAUTHTOKEN session cookie when X-Requested-With
- * is present (login.go AttachSessionCookies) — that cookie IS the credential; no
- * token is read from the response or stored in JS. The `roles` field is a
- * space-separated string normalized to the lms_* convention for the store.
- */
-export const loginWithMattermost = async (email: string, password: string) => {
+export const login = async (email: string, password: string) => {
   const res = await fetch('/api/v4/users/login', {
     method: 'POST',
     credentials: 'include',
@@ -500,7 +451,7 @@ export const loginWithMattermost = async (email: string, password: string) => {
     try { const err = await res.json(); errorMsg = err.message || err.error || errorMsg } catch { /* use default */ }
     throw new Error(errorMsg)
   }
-  const userData: ApiUser = await res.json()
+  const userData: UserProfile = await res.json()
 
   // Translate backend role strings (e.g. "STUDENT") into the lms_* convention
   // the frontend uses everywhere.
@@ -515,13 +466,13 @@ export const loginWithMattermost = async (email: string, password: string) => {
  * (401, network error, etc.) instead of throwing, so the caller can handle
  * unauthenticated state gracefully.
  */
-export const getMe = (): Promise<ApiUser | null> => {
+export const getMe = (): Promise<UserProfile | null> => {
   return fetch('/api/v4/users/me', {
     credentials: 'include',
     headers: { 'X-Requested-With': 'XMLHttpRequest' },
   }).then(async (r) => {
     if (!r.ok) return null
-    const json: ApiUser = await r.json()
+    const json: UserProfile = await r.json()
     // Translate backend role strings (e.g. "STUDENT") into the lms_* convention
     // the frontend uses everywhere.
     json.roles = normalizeRolesString(json.roles)
@@ -641,13 +592,13 @@ export const getUsers = (params: GetUsersParams = {}) => {
   }
   return apiSearchPaginated<UserProfile>(`/users/search2`, opts)
 }
-export const createUser = (data: CreateUserInput): Promise<User> => apiPost<User>('/lms/users', data)
-export const updateUser = (id: string, data: UpdateUserInput): Promise<User> => apiPut<User>(`/lms/users/${id}`, data)
+export const createUser = (data: CreateUserInput): Promise<UserProfile> => apiPost<UserProfile>('/lms/users', data)
+export const updateUser = (id: string, data: UpdateUserInput): Promise<UserProfile> => apiPut<UserProfile>(`/lms/users/${id}`, data)
 export const deleteUser = (id: string): Promise<void> => apiDelete<void>(`/lms/users/${id}`)
 /** Soft-deactivate an employee (blocks login, keeps the record). */
-export const deactivateUser = (id: string): Promise<User> => apiPost<User>(`/lms/users/${id}/deactivate`, {})
+export const deactivateUser = (id: string): Promise<UserProfile> => apiPost<UserProfile>(`/lms/users/${id}/deactivate`, {})
 /** Reactivate a previously deactivated employee. */
-export const reactivateUser = (id: string): Promise<User> => apiPost<User>(`/lms/users/${id}/reactivate`, {})
+export const reactivateUser = (id: string): Promise<UserProfile> => apiPost<UserProfile>(`/lms/users/${id}/reactivate`, {})
 
 // ─── Students ───────────────────────────────────────────────────────
 // `opts` is a utils.SearchOpts body (built via src/lib/query.ts). StudentFilterOpts
@@ -704,6 +655,7 @@ export const deleteCourse = (id: string): Promise<void> => apiDelete<void>(`/lms
 
 export const getClasses = (opts: SearchOpts = {}): Promise<Class[]> =>
   apiSearchList<Class>('/lms/classes', opts)
+
 export const getClassesPaginated = (opts: SearchOpts = {}): Promise<PaginatedList<Class>> =>
   apiSearchPaginated<Class>('/lms/classes', opts)
 export const createClass = (data: CreateClassInput): Promise<Class> => apiPost<Class>('/lms/classes/create', data)
@@ -835,25 +787,10 @@ export const markNotificationRead = (id: string): Promise<void> => apiFetch<void
 
 // ─── Dashboard & Reports ────────────────────────────────────────────
 
-/**
- * GET /lms/dashboard — returns dashboard stats.
- *
- * NOTE on backend behavior: the current API handler (server/channels/api4/
- * lms_api/dashboard.go) only calls GetDashboardStats(), which returns an
- * AGGREGATE object ({total_students, total_classes, total_courses, total_leads,
- * total_teachers, total_revenue}). The `role` / `user_id` query params are
- * currently IGNORED by the route — the per-role GetDashboard() in the app layer
- * is not wired into any endpoint yet. Components therefore use `?? 0` defaults
- * against the flexible DashboardStats type; role-specific fields simply stay
- * undefined until the backend exposes a role-aware endpoint. We still send
- * `role`/`user_id` (translated to the backend's UPPERCASE convention) so the
- * call is correct the moment that endpoint is wired up.
- */
-export const getDashboard = (role: string, userId?: string): Promise<DashboardData> => {
-  const backendRole = ROLE_FRONTEND_TO_BACKEND[role] ?? role
-  const q = new URLSearchParams({ role: backendRole })
+export const getDashboard = (role: UserRole, userId?: string): Promise<DashboardStats> => {
+  const q = new URLSearchParams({ role })
   if (userId) q.set('user_id', userId)
-  return apiFetch<DashboardData>(`/lms/dashboard?${q}`)
+  return apiFetch<DashboardStats>(`/lms/dashboard?${q}`)
 }
 export const getReport = (type: string, params?: Record<string, string>): Promise<Record<string, any>> => {
   const q = new URLSearchParams({ type, ...params })

@@ -2050,6 +2050,10 @@ func login(c *Context, w http.ResponseWriter, r *http.Request) {
 	ldapOnly := props["ldap_only"] == "true"
 	magicLinkToken := props["magic_link_token"]
 
+	auditRec := c.MakeAuditRecord(model.AuditEventLogin, model.AuditStatusFail)
+	defer c.LogAuditRec(auditRec)
+	model.AddEventParameterToAuditRec(auditRec, "device_id", deviceId)
+
 	// if this is first account, then create the first user account as superadmin
 	if c.App.IsFirstUserAccount() {
 		username, _, _ := strings.Cut(loginId, "@")
@@ -2064,11 +2068,20 @@ func login(c *Context, w http.ResponseWriter, r *http.Request) {
 			c.Err = err
 			return
 		}
+		team := &model.Team{
+			Name:            model.TeamEmployee,
+			DisplayName:     model.TeamEmployee,
+			Email:           "employee@vmg.com",
+			Type:            model.TeamOpen,
+			InviteId:        model.NewId(),
+			AllowOpenInvite: true,
+		}
+		_, err = c.App.CreateTeamWithUser(c.AppContext, team, user.Id)
+		if err != nil {
+			c.Err = err
+			return
+		}
 	}
-
-	auditRec := c.MakeAuditRecord(model.AuditEventLogin, model.AuditStatusFail)
-	defer c.LogAuditRec(auditRec)
-	model.AddEventParameterToAuditRec(auditRec, "device_id", deviceId)
 
 	var user *model.User
 	var err *model.AppError

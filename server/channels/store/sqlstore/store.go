@@ -137,6 +137,13 @@ type SqlStoreStores struct {
 	notification  store.NotificationStore
 	material      store.MaterialStore
 	dashboard     store.DashboardStore
+
+	// Calls stores
+	call         store.CallStore
+	callSession  store.CallSessionStore
+	callJob      store.CallJobStore
+	callStat     store.CallStatStore
+	callsChannel store.CallsChannelStore
 }
 
 type SqlStore struct {
@@ -316,6 +323,13 @@ func New(settings model.SqlSettings, logger mlog.LoggerIFace, metrics einterface
 	store.stores.notification = lmsstore.NewSqlNotificationStore(store)
 	store.stores.material = lmsstore.NewSqlMaterialStore(store)
 	store.stores.dashboard = lmsstore.NewSqlDashboardStore(store)
+
+	// Calls stores
+	store.stores.call = lmsstore.NewSqlCallStore(store)
+	store.stores.callSession = lmsstore.NewSqlCallSessionStore(store)
+	store.stores.callJob = lmsstore.NewSqlCallJobStore(store)
+	store.stores.callStat = lmsstore.NewSqlCallStatStore(store)
+	store.stores.callsChannel = lmsstore.NewSqlCallsChannelStore(store)
 
 	store.stores.preference.(*SqlPreferenceStore).deleteUnusedFeatures()
 
@@ -1147,4 +1161,25 @@ func (ss *SqlStore) Material() store.MaterialStore {
 
 func (ss *SqlStore) Dashboard() store.DashboardStore {
 	return ss.stores.dashboard
+}
+
+// Calls accessors
+func (ss *SqlStore) Call() store.CallStore {
+	return ss.stores.call
+}
+
+func (ss *SqlStore) CallSession() store.CallSessionStore {
+	return ss.stores.callSession
+}
+
+func (ss *SqlStore) CallJob() store.CallJobStore {
+	return ss.stores.callJob
+}
+
+func (ss *SqlStore) CallStat() store.CallStatStore {
+	return ss.stores.callStat
+}
+
+func (ss *SqlStore) CallsChannel() store.CallsChannelStore {
+	return ss.stores.callsChannel
 }

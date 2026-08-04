@@ -1,10 +1,11 @@
-with-expecter: false
+template: testify
+template-data:
+  unroll-variadic: true
 packages:
   github.com/iamleson98/sitename/server/v8/platform/services/cache:
     config:
       all: true
-      dir: "platform/services/cache/mocks"
+      dir: platform/services/cache/mocks
       filename: "{{.InterfaceName}}.go"
-      mockname: "{{.InterfaceName}}"
-      outpkg: mocks
-      note: "Regenerate this file using `make cache-mocks`."
+      structname: '{{.InterfaceName}}'
+      pkgname: mocks

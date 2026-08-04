@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { getMe, logout as apiLogout } from '@/lib/api'
 import { queryClient } from '@/lib/query-client'
 import type { UserRole } from '@/lib/schemas'
-import type { ApiUser } from '@/lib/schemas'
+import { UserProfile } from '@mattermost/types/users'
 
 // ─── Role helpers ─────────────────────────────────────────────────
 
@@ -78,7 +78,7 @@ export type ActiveView =
 
 interface LMSState {
   isAuthenticated: boolean
-  authUser: ApiUser | null
+  authUser: UserProfile | null
   currentRole: UserRole | null
   activeView: ActiveView | null
   selectedDate: string
@@ -87,9 +87,9 @@ interface LMSState {
   showDetail: boolean
   isHydrating: boolean
 
-  login: (user: ApiUser) => void
+  login: (user: UserProfile) => void
   logout: () => Promise<void>
-  hydrate: () => Promise<{ authenticated: boolean; user?: ApiUser; role?: UserRole }>
+  hydrate: () => Promise<{ authenticated: boolean; user?: UserProfile; role?: UserRole }>
   setCurrentRole: (role: UserRole) => void
   setActiveView: (view: ActiveView) => void
   setSelectedDate: (date: string) => void
@@ -209,7 +209,7 @@ export const useLMSStore = create<LMSState>((set) => ({
     }
 
     const role = parsePrimaryRole(user.roles)
-    const result: { authenticated: boolean; user: ApiUser; role?: UserRole } = { authenticated: true, user, role: role ?? undefined }
+    const result: { authenticated: boolean; user: UserProfile; role?: UserRole } = { authenticated: true, user, role: role ?? undefined }
     set({
       isAuthenticated: true,
       authUser: user,

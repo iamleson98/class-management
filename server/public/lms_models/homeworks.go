@@ -19,21 +19,22 @@ import (
 	"github.com/aarondl/sqlboiler/v4/queries/qmhelper"
 	"github.com/aarondl/strmangle"
 	"github.com/friendsofgo/errors"
+	"github.com/iamleson98/sitename/server/public/utils"
 )
 
 // Homework is an object representing the database table.
 type Homework struct {
-	ID          string      `boil:"id" json:"id" toml:"id" yaml:"id"`
-	Title       string      `boil:"title" json:"title" toml:"title" yaml:"title"`
-	Description null.String `boil:"description" json:"description,omitempty" toml:"description" yaml:"description,omitempty"`
-	SessionID   string      `boil:"session_id" json:"session_id" toml:"session_id" yaml:"session_id"`
-	ClassID     string      `boil:"class_id" json:"class_id" toml:"class_id" yaml:"class_id"`
-	CourseID    string      `boil:"course_id" json:"course_id" toml:"course_id" yaml:"course_id"`
-	TeacherID   string      `boil:"teacher_id" json:"teacher_id" toml:"teacher_id" yaml:"teacher_id"`
-	Deadline    time.Time   `boil:"deadline" json:"deadline" toml:"deadline" yaml:"deadline"`
-	Createat    int64       `boil:"createat" json:"createat" toml:"createat" yaml:"createat"`
-	FileID      string      `boil:"file_id" json:"file_id" toml:"file_id" yaml:"file_id"`
-	Updateat    int64       `boil:"updateat" json:"updateat" toml:"updateat" yaml:"updateat"`
+	ID          string       `boil:"id" json:"id" toml:"id" yaml:"id"`
+	Title       string       `boil:"title" json:"title" toml:"title" yaml:"title"`
+	Description null.String  `boil:"description" json:"description,omitempty" toml:"description" yaml:"description,omitempty"`
+	SessionID   string       `boil:"session_id" json:"session_id" toml:"session_id" yaml:"session_id"`
+	ClassID     string       `boil:"class_id" json:"class_id" toml:"class_id" yaml:"class_id"`
+	CourseID    string       `boil:"course_id" json:"course_id" toml:"course_id" yaml:"course_id"`
+	TeacherID   string       `boil:"teacher_id" json:"teacher_id" toml:"teacher_id" yaml:"teacher_id"`
+	Deadline    utils.VnTime `boil:"deadline" json:"deadline" toml:"deadline" yaml:"deadline"`
+	Createat    int64        `boil:"createat" json:"createat" toml:"createat" yaml:"createat"`
+	FileID      string       `boil:"file_id" json:"file_id" toml:"file_id" yaml:"file_id"`
+	Updateat    int64        `boil:"updateat" json:"updateat" toml:"updateat" yaml:"updateat"`
 
 	R *homeworkR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L homeworkL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -101,7 +102,7 @@ var HomeworkWhere = struct {
 	ClassID     whereHelperstring
 	CourseID    whereHelperstring
 	TeacherID   whereHelperstring
-	Deadline    whereHelpertime_Time
+	Deadline    whereHelperutils_VnTime
 	Createat    whereHelperint64
 	FileID      whereHelperstring
 	Updateat    whereHelperint64
@@ -113,7 +114,7 @@ var HomeworkWhere = struct {
 	ClassID:     whereHelperstring{field: "\"homeworks\".\"class_id\""},
 	CourseID:    whereHelperstring{field: "\"homeworks\".\"course_id\""},
 	TeacherID:   whereHelperstring{field: "\"homeworks\".\"teacher_id\""},
-	Deadline:    whereHelpertime_Time{field: "\"homeworks\".\"deadline\""},
+	Deadline:    whereHelperutils_VnTime{field: "\"homeworks\".\"deadline\""},
 	Createat:    whereHelperint64{field: "\"homeworks\".\"createat\""},
 	FileID:      whereHelperstring{field: "\"homeworks\".\"file_id\""},
 	Updateat:    whereHelperint64{field: "\"homeworks\".\"updateat\""},

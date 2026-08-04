@@ -34,8 +34,8 @@ function CounselorDashboardInner() {
   const { toast } = useToast()
 
   const dashboardQuery = useQuery({
-    queryKey: ['dashboard', 'COUNSELOR', authUser?.id],
-    queryFn: () => getDashboard('COUNSELOR', authUser!.id),
+    queryKey: ['dashboard', 'lms_counselor', authUser?.id],
+    queryFn: () => getDashboard('lms_counselor', authUser?.id),
   })
 
   const leadsQuery = useQuery({
@@ -53,9 +53,9 @@ function CounselorDashboardInner() {
     return <ErrorState onRetry={() => leadsQuery.refetch()} />
   }
 
-  const dashboard = dashboardQuery.data
+  // const dashboard = dashboardQuery.data
   const leads = leadsQuery.data || []
-  const stats = dashboard || {}
+  // const stats = dashboard || {}
 
   const myLeads = leads.length
   const newLeads = leads.filter((l: any) => l.status === 'NEW').length

@@ -12,6 +12,7 @@ import (
 	"github.com/iamleson98/sitename/server/public/shared/timezones"
 	"github.com/iamleson98/sitename/server/v8/channels/app/lms"
 	"github.com/iamleson98/sitename/server/v8/channels/app/users"
+	"github.com/iamleson98/sitename/server/v8/channels/calls"
 	"github.com/iamleson98/sitename/server/v8/einterfaces"
 	"github.com/iamleson98/sitename/server/v8/platform/services/imageproxy"
 	"github.com/iamleson98/sitename/server/v8/platform/services/searchengine"
@@ -163,6 +164,11 @@ func (a *App) UpdateExpiredDNDStatuses() ([]*model.Status, error) {
 
 func (a *App) LMS() *lms.LMSApp {
 	return a.ch.srv.lmsApp
+}
+
+// Calls returns the realtime calls service, or nil if it was not initialized.
+func (a *App) Calls() *calls.CallService {
+	return a.ch.srv.callsService
 }
 
 func (a *App) User() *users.UserService {

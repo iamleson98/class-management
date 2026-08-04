@@ -31,8 +31,8 @@ function StudentDashboardInner() {
   const { t } = useTranslation()
 
   const dashboardQuery = useQuery({
-    queryKey: ['dashboard', 'STUDENT', authUser?.id],
-    queryFn: () => getDashboard('STUDENT', authUser!.id),
+    queryKey: ['dashboard', 'lms_student', authUser?.id],
+    queryFn: () => getDashboard('lms_student', authUser!.id),
   })
 
   const sessionsQuery = useQuery({
@@ -65,7 +65,7 @@ function StudentDashboardInner() {
   const stats = dashboard || {}
 
   // Student info
-  const studentName = authUser?.nickname || `${authUser?.firstname || ''} ${authUser?.lastname || ''}`.trim() || t('student.dashboard.defaultName', 'Hoc vien')
+  const studentName = authUser?.nickname || `${authUser?.first_name || ''} ${authUser?.last_name || ''}`.trim() || t('student.dashboard.defaultName', 'Hoc vien')
   const initials = studentName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
 
   // My classes

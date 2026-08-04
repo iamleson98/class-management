@@ -2,11 +2,13 @@ package lmsapi
 
 import (
 	"encoding/json"
-	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"net/http"
+
+	"github.com/iamleson98/sitename/server/public/shared/mlog"
 
 	"github.com/iamleson98/sitename/server/public/model"
 	"github.com/iamleson98/sitename/server/v8/channels/api4"
+	"github.com/iamleson98/sitename/server/v8/channels/web"
 )
 
 func (a *LMSAPI) InitDashboard() {
@@ -19,7 +21,14 @@ func getDashboard(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stats, err := c.App.LMS().GetDashboardStats()
+	role := c.RequireParam("role", web.RequireString)
+	userId := r.URL.Query().Get("user_id")
+
+	if c.Err != nil {
+		return
+	}
+
+	stats, err := c.App.LMS().GetDashboard(role, userId)
 	if err != nil {
 		c.Err = err
 		return

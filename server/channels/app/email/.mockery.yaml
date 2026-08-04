@@ -1,11 +1,12 @@
-with-expecter: false
+template: testify
+template-data:
+  unroll-variadic: true
 packages:
   github.com/iamleson98/sitename/server/v8/channels/app/email:
     config:
-      dir: "channels/app/email/mocks"
+      dir: channels/app/email/mocks
       filename: "{{.InterfaceName}}.go"
-      mockname: "{{.InterfaceName}}"
-      outpkg: mocks
-      note: "Regenerate this file using `make email-mocks`."
+      structname: '{{.InterfaceName}}'
+      pkgname: mocks
     interfaces:
-      ServiceInterface:
+      ServiceInterface: {}

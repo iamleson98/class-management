@@ -28,7 +28,7 @@ const ROLE_LABELS: Record<string, string> = {
 }
 
 export type UserFormProps = {
-    onDone: () => void;
+    onDone: (id?: string) => void;
 }
 
 export default function UserForm({ onDone }: UserFormProps) {
@@ -43,11 +43,11 @@ export default function UserForm({ onDone }: UserFormProps) {
 
     const userMutation = useMutation({
         mutationFn: (data: CreateUserInput) => createUser(data),
-        onSuccess: () => {
+        onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: ['users'] })
             toast({ title: t('settings.addUserSuccess', 'Thêm người dùng thành công') })
             userForm.reset({ firstname: '', lastname: '', email: '', phone: '', roles: 'lms_teacher', password: '' })
-            onDone()
+            onDone(data.id)
         },
         onError: (err: unknown) => toast({ title: (err as Error)?.message || t('settings.addUserFailed', 'Thêm người dùng thất bại'), variant: 'destructive' }),
     })
@@ -86,6 +86,17 @@ export default function UserForm({ onDone }: UserFormProps) {
                         <FormItem>
                             <FormLabel>{t('common.email', 'Email')}</FormLabel>
                             <FormControl><Input type="email" {...field} value={field.value ?? ''} placeholder="email@example.com" /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={userForm.control}
+                    name="username"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>{t('common.username', 'Email')}</FormLabel>
+                            <FormControl><Input type="text" {...field} value={field.value ?? ''} placeholder="username1" /></FormControl>
                             <FormMessage />
                         </FormItem>
                     )}
@@ -133,7 +144,7 @@ export default function UserForm({ onDone }: UserFormProps) {
                     )}
                 />
                 <DialogFooter>
-                    <Button variant="outline" type="button" onClick={onDone}>{t('common.cancel', 'Hủy')}</Button>
+                    <Button variant="outline" type="button" onClick={() => onDone()}>{t('common.cancel', 'Hủy')}</Button>
                     <Button type="submit" disabled={userMutation.isPending} className="bg-sky-600 hover:bg-sky-700 text-white">
                         {userMutation.isPending ? t('common.loading', 'Đang lưu...') : t('common.create', 'Thêm')}
                     </Button>

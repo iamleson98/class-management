@@ -14,8 +14,8 @@ import { useTranslation } from '@/lib/i18n'
 export default function MarketingDashboard() {
   const { t } = useTranslation()
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['dashboard', 'MARKETING'],
-    queryFn: () => getDashboard('MARKETING'),
+    queryKey: ['dashboard', 'lms_marketing'],
+    queryFn: () => getDashboard('lms_marketing'),
   })
 
   const stats = data || {}

@@ -64,33 +64,15 @@ export interface ApiUser {
  * richer role-based data. Use a flexible type so both work.
  */
 export interface DashboardStats {
-  totalStudents?: number
-  totalTeachers?: number
+  totalChildren?: number
   totalClasses?: number
   totalCourses?: number
   totalLeads?: number
-  totalRevenue?: string
-  // Role-specific fields (returned by future role-based endpoint):
-  activeClasses?: number
-  newLeadsThisMonth?: number
-  myClasses?: number
-  upcomingSessions?: number
-  children?: Array<{ id: string; username: string; email: string; nickname?: string; firstname?: string; lastname?: string }>
-  child?: Array<{ id: string; username: string; email: string; nickname?: string; firstname?: string; lastname?: string }>
-  student?: Array<{ id: string; username: string; email: string; nickname?: string; firstname?: string; lastname?: string }>
-  enrollments?: Array<{ id: string; classId: string; status: string }>
-  sessions?: Array<Session>
-  attendance?: Array<Attendance>
-  tuition?: Tuition
-  tuitions?: Tuition[]
-  recentPayments?: Payment[]
-  recentTransactions?: Payment[]
-  leads?: Lead[]
-  recentLeads?: Lead[]
-  posts?: Post[]
-  topPosts?: Post[]
-  // Allow additional dynamic fields
-  [key: string]: unknown
+  totalNewLeadsThisMonth?: number
+  totalRevenue?: number
+  totalStudents?: number
+  totalTeachers?: number
+  totalUpcomingSessions?: number
 }
 
 // ─── User ──────────────────────────────────────────────────────────
@@ -518,6 +500,3 @@ export interface ResponseList<T> {
   items: T[]
   totalCount: number
 }
-
-/** Dashboard — returned RAW (no wrapper) */
-export type DashboardData = DashboardStats

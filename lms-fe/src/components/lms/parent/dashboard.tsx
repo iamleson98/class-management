@@ -18,8 +18,8 @@ export default function ParentDashboard() {
   const { t } = useTranslation()
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['dashboard', 'PARENT', authUser?.id],
-    queryFn: () => getDashboard('PARENT', authUser!.id),
+    queryKey: ['dashboard', 'lms_parent', authUser?.id],
+    queryFn: () => getDashboard('lms_parent', authUser!.id),
     enabled: !!authUser?.id,
   })
 

@@ -56,7 +56,6 @@ export default {
   'chat.purpose': 'Mục đích',
   'chat.typing.one': '{user} đang soạn tin nhắn…',
   'chat.typing.many': '{users} và {last} đang soạn tin nhắn…',
-  'chat.reply': 'Trả lời',
   'chat.addReaction': 'Thả cảm xúc',
   'chat.forward': 'Chuyển tiếp',
   'chat.markUnread': 'Đánh dấu chưa đọc',
@@ -108,10 +107,6 @@ export default {
   'chat.markAllRead': 'Đánh dấu đã đọc tất cả',
   'chat.setStatus': 'Đặt trạng thái',
   'chat.settings': 'Cài đặt kênh',
-  'chat.header': 'Tiêu đề',
-  'chat.membersSection': 'Thành viên',
-  'chat.searchEmoji': 'Tìm emoji…',
-  'chat.noEmoji': 'Không tìm thấy emoji',
   'chat.keyboardShortcuts': 'Phím tắt',
   'chat.slashHint': 'Bắt đầu tin nhắn bằng / để xem danh sách lệnh.',
   'chat.findChannel': 'Tìm kênh…',
@@ -120,13 +115,11 @@ export default {
   'chat.bookmarkUrl': 'URL',
   'chat.bookmarkAddFailed': 'Không thể thêm liên kết',
   'chat.forwardTitle': 'Chuyển tiếp tin nhắn',
-  'chat.forward': 'Chuyển tiếp',
   'chat.forwarded': 'Đã chuyển tiếp',
   'chat.forwardFailed': 'Chuyển tiếp thất bại',
   'chat.forwardComment': 'Thêm ghi chú (tùy chọn)…',
   'chat.searchChannel': 'Tìm kênh…',
   'chat.edited': 'đã sửa',
-  'chat.settings': 'Cài đặt',
   'chat.tabDisplay': 'Hiển thị',
   'chat.tabSidebar': 'Thanh bên',
   'chat.tabAdvanced': 'Nâng cao',
@@ -150,7 +143,6 @@ export default {
   'chat.commentsRoot': 'Chỉ chuỗi của tôi',
   'chat.commentsNever': 'Không',
   'chat.themeNote': 'Giao diện kênh trò chuyện áp dụng cho các màu nhấn.',
-  'common.close': 'Đóng',
 
   // ── Common ───────────────────────────────────────────────
   'common.save': 'Lưu',
@@ -1524,6 +1516,13 @@ export default {
   "upload.orBrowse": 'hoặc',
   "upload.toChoose": 'để chọn',
   "upload.uploading": 'Đang tải lên...',
+
+  // ── Missing translations (auto-detected, fill in) ──
+  "common.username": 'Username',
+  "materials.fileId": 'Tệp',
+  "materials.fileIdPlaceholder": 'Tệp',
+  "settings.firstName": 'Tên',
+  "settings.lastName": 'Họ',
 } as const
 
 export type TranslationKey = keyof typeof import('./vi').default

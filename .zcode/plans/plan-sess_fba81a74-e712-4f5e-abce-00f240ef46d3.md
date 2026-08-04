@@ -21,7 +21,7 @@ The current code runs a confused hybrid that's the source of past bugs:
 - **Remove** `getStoredToken` / `setStoredToken` / `clearStoredToken` and the `vmg-auth-token` localStorage key.
 - **Remove** the `Authorization: Bearer` header from `apiFetch`, `apiFetchList`, `apiSearchPaginated`, and `getMe` — auth is now exclusively via the cookie.
 - **Standardize `X-Requested-With: XMLHttpRequest`** on every API call (auth + data + public-where-relevant) in one shared helper, so CSRF is satisfied consistently. Currently it's on login/logout but inconsistently on data calls. Centralize it.
-- `loginWithMattermost`: keep sending `X-Requested-With` (so the backend attaches cookies), but **stop reading the `token` response header** into localStorage — it's no longer needed. The cookie is the credential.
+- `login`: keep sending `X-Requested-With` (so the backend attaches cookies), but **stop reading the `token` response header** into localStorage — it's no longer needed. The cookie is the credential.
 - `getMe`: relies on the cookie (`credentials: 'include'`); no Bearer header. Keep returning `null` on 401.
 - 401 handling unchanged: dispatch `auth:expired` → store logs out → redirect to /login (the reactive gate we added earlier).
 

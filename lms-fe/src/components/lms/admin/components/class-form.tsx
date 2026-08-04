@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createClassSchema, updateClassSchema } from '@/lib/schemas'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createClass, getCourses, getUsers, updateClass } from '@/lib/api'
+import { createClass, getBranches, getCourses, getUsers, updateClass } from '@/lib/api'
 import { useToast } from '@/hooks/use-toast'
 import { useTranslation } from '@/lib/i18n'
 import { Input } from '@/components/ui/input'
@@ -56,6 +56,11 @@ export default function ClassForm({ editingClass, onDone, editingClassId }: Clas
             createMutation.mutate(createClassSchema.parse(values))
         }
     }
+
+    const { data: branches = [], isLoading: branchesLoading, isError: isBranchesError, refetch: refetchBranches } = useQuery({
+        queryKey: ['branches'],
+        queryFn: () => getBranches(),
+    })
 
     const createMutation = useMutation({
         mutationFn: (data: CreateClassInput) => createClass(data),
@@ -230,21 +235,31 @@ export default function ClassForm({ editingClass, onDone, editingClassId }: Clas
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel>{t('students.branch', 'Chi nhánh')}</FormLabel>
-                                {/* <Select value={field.value || ''} onValueChange={field.onChange}>
-                                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                <Select value={field.value || ''} onValueChange={field.onChange}>
+                                    <FormControl>
+                                        {branchesLoading ? (
+                                            <SelectTrigger disabled><SelectValue placeholder={t('common.loading', 'Đang tải...')} /></SelectTrigger>
+                                        ) : (
+                                            <SelectTrigger><SelectValue placeholder={t('settings.addBranch', 'Chọn chi nhánh')} /></SelectTrigger>
+                                        )}
+                                    </FormControl>
                                     <SelectContent>
-                                        {Object.entries(STATUS_MAP).map(([key, val]) => (
-                                            <SelectItem key={key} value={key}>{val.label}</SelectItem>
-                                        ))}
+                                        {isBranchesError ? (
+                                            <SelectItem value="__error" disabled>
+                                                <span className="text-destructive">{t('common.loadFailed', 'Tải thất bại')}</span>
+                                            </SelectItem>
+                                        ) : (
+                                            branches.map((b) => (
+                                                <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                                            ))
+                                        )}
                                     </SelectContent>
-                                </Select> */}
+                                </Select>
                                 <FormMessage />
                             </FormItem>
                         )}
                     />
                 </div>
-                {/* <input {...form.register('startDate')} /> */}
-                {/* <input {...form.register('branchId')} /> */}
                 <DialogFooter>
                     <Button variant="outline" type="button" onClick={onDone}>{t('common.cancel', 'Hủy')}</Button>
                     <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="bg-sky-600 hover:bg-sky-700 text-white">

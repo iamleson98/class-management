@@ -405,7 +405,7 @@ func LMSSessionIsValid(s *lms_models.LMSSession) *model.AppError {
 	if s.TeacherID == "" {
 		return model.NewAppError("LMSSessionIsValid", "model.lms.session.teacher_id.app_error", nil, "", http.StatusBadRequest)
 	}
-	if s.Date.IsZero() {
+	if time.Time(s.Date).IsZero() {
 		return model.NewAppError("LMSSessionIsValid", "model.lms.session.date.app_error", nil, "", http.StatusBadRequest)
 	}
 	if s.Title.Valid && len(s.Title.String) > 200 {
@@ -676,8 +676,8 @@ func PaymentPreCreate(p *lms_models.Payment) {
 	if p.Method == "" {
 		p.Method = "CASH"
 	}
-	if p.PaymentDate.IsZero() {
-		p.PaymentDate = time.Now()
+	if time.Time(p.PaymentDate).IsZero() {
+		p.PaymentDate = utils.VnTime(time.Now())
 	}
 	now := time.Now().UnixMilli()
 	p.Createat = now
@@ -711,8 +711,8 @@ func FeeRefundPreCreate(fr *lms_models.FeeRefund) {
 	if fr.Status == "" {
 		fr.Status = "PENDING"
 	}
-	if fr.RefundDate.IsZero() {
-		fr.RefundDate = time.Now()
+	if time.Time(fr.RefundDate).IsZero() {
+		fr.RefundDate = utils.VnTime(time.Now())
 	}
 	now := time.Now().UnixMilli()
 	fr.Createat = now

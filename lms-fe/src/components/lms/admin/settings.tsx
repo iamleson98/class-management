@@ -376,7 +376,7 @@ export default function AdminSettings() {
             <DialogTitle>{t('settings.addUser', 'Thêm người dùng')}</DialogTitle>
             <DialogDescription />
           </DialogHeader>
-          <UserForm onDone={() => setUserDialogOpen(false)} />
+          <UserForm onDone={(id) => setUserDialogOpen(false)} />
         </DialogContent>
       </Dialog>
     </motion.div>

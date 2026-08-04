@@ -23,7 +23,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { loginSchema, type LoginInput } from '@/lib/schemas'
-import { loginWithMattermost } from '@/lib/api'
+import { login } from '@/lib/api'
 import { useLMSStore } from '@/store/lms-store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -45,7 +45,7 @@ const STATS = [
 
 export default function PublicLoginPage() {
   const router = useRouter()
-  const login = useLMSStore((s) => s.login)
+  const storeLogin = useLMSStore((s) => s.login)
   const { theme, setTheme } = useTheme()
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -60,10 +60,10 @@ export default function PublicLoginPage() {
   })
 
   const loginMutation = useMutation({
-    mutationFn: (values: LoginInput) => loginWithMattermost(values.email, values.password),
+    mutationFn: (values: LoginInput) => login(values.email, values.password),
     onSuccess: (user) => {
       // login() persists auth to sessionStorage + sets zustand state
-      login(user)
+      storeLogin(user)
       // Navigate to app root using Next.js router
       router.push('/')
     },

@@ -19,6 +19,7 @@ import (
 	"github.com/aarondl/sqlboiler/v4/queries/qmhelper"
 	"github.com/aarondl/strmangle"
 	"github.com/friendsofgo/errors"
+	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/shopspring/decimal"
 )
 
@@ -27,7 +28,7 @@ type FeeRefund struct {
 	ID           string          `boil:"id" json:"id" toml:"id" yaml:"id"`
 	TuitionID    string          `boil:"tuition_id" json:"tuition_id" toml:"tuition_id" yaml:"tuition_id"`
 	Amount       decimal.Decimal `boil:"amount" json:"amount" toml:"amount" yaml:"amount"`
-	RefundDate   time.Time       `boil:"refund_date" json:"refund_date" toml:"refund_date" yaml:"refund_date"`
+	RefundDate   utils.VnTime    `boil:"refund_date" json:"refund_date" toml:"refund_date" yaml:"refund_date"`
 	Reason       null.String     `boil:"reason" json:"reason,omitempty" toml:"reason" yaml:"reason,omitempty"`
 	Status       string          `boil:"status" json:"status" toml:"status" yaml:"status"`
 	ApprovedByID null.String     `boil:"approved_by_id" json:"approved_by_id,omitempty" toml:"approved_by_id" yaml:"approved_by_id,omitempty"`
@@ -88,7 +89,7 @@ var FeeRefundWhere = struct {
 	ID           whereHelperstring
 	TuitionID    whereHelperstring
 	Amount       whereHelperdecimal_Decimal
-	RefundDate   whereHelpertime_Time
+	RefundDate   whereHelperutils_VnTime
 	Reason       whereHelpernull_String
 	Status       whereHelperstring
 	ApprovedByID whereHelpernull_String
@@ -98,7 +99,7 @@ var FeeRefundWhere = struct {
 	ID:           whereHelperstring{field: "\"fee_refunds\".\"id\""},
 	TuitionID:    whereHelperstring{field: "\"fee_refunds\".\"tuition_id\""},
 	Amount:       whereHelperdecimal_Decimal{field: "\"fee_refunds\".\"amount\""},
-	RefundDate:   whereHelpertime_Time{field: "\"fee_refunds\".\"refund_date\""},
+	RefundDate:   whereHelperutils_VnTime{field: "\"fee_refunds\".\"refund_date\""},
 	Reason:       whereHelpernull_String{field: "\"fee_refunds\".\"reason\""},
 	Status:       whereHelperstring{field: "\"fee_refunds\".\"status\""},
 	ApprovedByID: whereHelpernull_String{field: "\"fee_refunds\".\"approved_by_id\""},

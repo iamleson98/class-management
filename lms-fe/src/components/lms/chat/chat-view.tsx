@@ -44,7 +44,10 @@ import { QuickSwitcher } from './quick-switcher'
 import { ChannelBookmarks } from './channel-bookmarks'
 import { AccountSettingsModal } from './account-settings-modal'
 import { ForwardModal } from './forward-modal'
+import { CallButton } from './call-button'
+import { CallWidget } from './call-widget'
 import { useChatShortcuts } from '@/lib/chat/use-chat-shortcuts'
+import { useCallsStore } from '@/lib/chat/calls-store'
 import { useTranslation } from '@/lib/i18n'
 
 type RHS = 'none' | 'thread' | 'info' | 'members' | 'search' | 'pinned' | 'saved' | 'mentions' | 'threads'
@@ -65,6 +68,8 @@ export default function ChatView() {
   const setActiveThread = useChatStore((s) => s.setActiveThread)
   const activeThreadRootId = useChatStore((s) => s.activeThreadRootId)
   const channel = useChatStore((s) => (activeChannelId ? s.channels[activeChannelId] : undefined))
+  // The channel id of an in-progress call, if any (drives the CallWidget overlay).
+  const activeCallChannel = useCallsStore((s) => s.channelId)
   const teams = useChatStore((s) => s.teams)
   const unreadByChannel = useChatStore((s) => s.unreadByChannel)
   // Poll visible users' presence every ~60s (after activeChannelId is known).
@@ -196,6 +201,7 @@ export default function ChatView() {
                     <span className="text-base">⋯</span>
                   </Button>
                 </StatusMenu>
+                <CallButton channelId={channel.id} enableVideo />
                 <div className="flex items-center gap-0.5">
                   <HeaderBtn active={rhs === 'threads'} onClick={() => setRhs(rhs === 'threads' ? 'none' : 'threads')} icon={<MessageSquare className="h-4 w-4" />} label={t('chat.threads', 'Chuỗi')} badge={unreadThreadCount} />
                   <HeaderBtn active={rhs === 'saved'} onClick={() => setRhs(rhs === 'saved' ? 'none' : 'saved')} icon={<Bookmark className="h-4 w-4" />} label={t('chat.saved', 'Đã lưu')} />
@@ -268,6 +274,9 @@ export default function ChatView() {
         )}
         {forwardPost && (
           <ForwardModal post={forwardPost} teamId={teamId} onClose={() => setForwardPost(null)} />
+        )}
+        {activeCallChannel && (
+          <CallWidget channelId={activeCallChannel} />
         )}
       </div>
     </TooltipProvider>

@@ -19,27 +19,28 @@ import (
 	"github.com/aarondl/sqlboiler/v4/queries/qmhelper"
 	"github.com/aarondl/strmangle"
 	"github.com/friendsofgo/errors"
+	"github.com/iamleson98/sitename/server/public/utils"
 )
 
 // Lead is an object representing the database table.
 type Lead struct {
-	ID          string      `boil:"id" json:"id" toml:"id" yaml:"id"`
-	Name        string      `boil:"name" json:"name" toml:"name" yaml:"name"`
-	Email       null.String `boil:"email" json:"email,omitempty" toml:"email" yaml:"email,omitempty"`
-	Phone       null.String `boil:"phone" json:"phone,omitempty" toml:"phone" yaml:"phone,omitempty"`
-	Age         null.String `boil:"age" json:"age,omitempty" toml:"age" yaml:"age,omitempty"`
-	School      null.String `boil:"school" json:"school,omitempty" toml:"school" yaml:"school,omitempty"`
-	Source      null.String `boil:"source" json:"source,omitempty" toml:"source" yaml:"source,omitempty"`
-	Need        null.String `boil:"need" json:"need,omitempty" toml:"need" yaml:"need,omitempty"`
-	Status      string      `boil:"status" json:"status" toml:"status" yaml:"status"`
-	StudentID   null.String `boil:"student_id" json:"student_id,omitempty" toml:"student_id" yaml:"student_id,omitempty"`
-	Notes       null.String `boil:"notes" json:"notes,omitempty" toml:"notes" yaml:"notes,omitempty"`
-	TestDate    null.Time   `boil:"test_date" json:"test_date,omitempty" toml:"test_date" yaml:"test_date,omitempty"`
-	TestResult  null.String `boil:"test_result" json:"test_result,omitempty" toml:"test_result" yaml:"test_result,omitempty"`
-	TestScore   null.Int    `boil:"test_score" json:"test_score,omitempty" toml:"test_score" yaml:"test_score,omitempty"`
-	CounselorID null.String `boil:"counselor_id" json:"counselor_id,omitempty" toml:"counselor_id" yaml:"counselor_id,omitempty"`
-	Createat    int64       `boil:"createat" json:"createat" toml:"createat" yaml:"createat"`
-	Updateat    int64       `boil:"updateat" json:"updateat" toml:"updateat" yaml:"updateat"`
+	ID          string       `boil:"id" json:"id" toml:"id" yaml:"id"`
+	Name        string       `boil:"name" json:"name" toml:"name" yaml:"name"`
+	Email       null.String  `boil:"email" json:"email,omitempty" toml:"email" yaml:"email,omitempty"`
+	Phone       null.String  `boil:"phone" json:"phone,omitempty" toml:"phone" yaml:"phone,omitempty"`
+	Age         null.String  `boil:"age" json:"age,omitempty" toml:"age" yaml:"age,omitempty"`
+	School      null.String  `boil:"school" json:"school,omitempty" toml:"school" yaml:"school,omitempty"`
+	Source      null.String  `boil:"source" json:"source,omitempty" toml:"source" yaml:"source,omitempty"`
+	Need        null.String  `boil:"need" json:"need,omitempty" toml:"need" yaml:"need,omitempty"`
+	Status      string       `boil:"status" json:"status" toml:"status" yaml:"status"`
+	StudentID   null.String  `boil:"student_id" json:"student_id,omitempty" toml:"student_id" yaml:"student_id,omitempty"`
+	Notes       null.String  `boil:"notes" json:"notes,omitempty" toml:"notes" yaml:"notes,omitempty"`
+	TestDate    utils.VnTime `boil:"test_date" json:"test_date,omitempty" toml:"test_date" yaml:"test_date,omitempty"`
+	TestResult  null.String  `boil:"test_result" json:"test_result,omitempty" toml:"test_result" yaml:"test_result,omitempty"`
+	TestScore   null.Int     `boil:"test_score" json:"test_score,omitempty" toml:"test_score" yaml:"test_score,omitempty"`
+	CounselorID null.String  `boil:"counselor_id" json:"counselor_id,omitempty" toml:"counselor_id" yaml:"counselor_id,omitempty"`
+	Createat    int64        `boil:"createat" json:"createat" toml:"createat" yaml:"createat"`
+	Updateat    int64        `boil:"updateat" json:"updateat" toml:"updateat" yaml:"updateat"`
 
 	R *leadR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L leadL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -123,29 +124,8 @@ var LeadTableColumns = struct {
 
 // Generated where
 
-type whereHelpernull_Time struct{ field string }
-
-func (w whereHelpernull_Time) EQ(x null.Time) qm.QueryMod {
-	return qmhelper.WhereNullEQ(w.field, false, x)
-}
-func (w whereHelpernull_Time) NEQ(x null.Time) qm.QueryMod {
-	return qmhelper.WhereNullEQ(w.field, true, x)
-}
-func (w whereHelpernull_Time) LT(x null.Time) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.LT, x)
-}
-func (w whereHelpernull_Time) LTE(x null.Time) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.LTE, x)
-}
-func (w whereHelpernull_Time) GT(x null.Time) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.GT, x)
-}
-func (w whereHelpernull_Time) GTE(x null.Time) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.GTE, x)
-}
-
-func (w whereHelpernull_Time) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
-func (w whereHelpernull_Time) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
+func (w whereHelperutils_VnTime) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
+func (w whereHelperutils_VnTime) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
 
 var LeadWhere = struct {
 	ID          whereHelperstring
@@ -159,7 +139,7 @@ var LeadWhere = struct {
 	Status      whereHelperstring
 	StudentID   whereHelpernull_String
 	Notes       whereHelpernull_String
-	TestDate    whereHelpernull_Time
+	TestDate    whereHelperutils_VnTime
 	TestResult  whereHelpernull_String
 	TestScore   whereHelpernull_Int
 	CounselorID whereHelpernull_String
@@ -177,7 +157,7 @@ var LeadWhere = struct {
 	Status:      whereHelperstring{field: "\"leads\".\"status\""},
 	StudentID:   whereHelpernull_String{field: "\"leads\".\"student_id\""},
 	Notes:       whereHelpernull_String{field: "\"leads\".\"notes\""},
-	TestDate:    whereHelpernull_Time{field: "\"leads\".\"test_date\""},
+	TestDate:    whereHelperutils_VnTime{field: "\"leads\".\"test_date\""},
 	TestResult:  whereHelpernull_String{field: "\"leads\".\"test_result\""},
 	TestScore:   whereHelpernull_Int{field: "\"leads\".\"test_score\""},
 	CounselorID: whereHelpernull_String{field: "\"leads\".\"counselor_id\""},

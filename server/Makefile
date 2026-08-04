@@ -124,6 +124,12 @@ export GOFLAGS ?= -buildvcs=false
 export GOBIN ?= $(CURDIR)/bin
 GO ?= go
 
+# mockery is built through the tools/mockery wrapper module, which overrides
+# golang.org/x/tools with a version able to load packages on Go 1.27 (the pin
+# bundled with mockery v3 cannot parse Go 1.27 export data). GOWORK=off because
+# the wrapper module is intentionally not part of go.work.
+MOCKERY_BUILD = cd tools/mockery && GOWORK=off $(GO) build -o $(GOBIN)/mockery github.com/vektra/mockery/v3
+
 ifeq ($(FIPS_ENABLED),true)
 	BUILD_TAGS += requirefips
 	MMCTL_BUILD_TAGS += requirefips
@@ -339,20 +345,19 @@ i18n-check: ## Exit on empty translation strings and translation source strings
 
 store-mocks: setup-go-work ## Creates mock files.
 ifeq ($(OS),Windows_NT)
-	@powershell -NoProfile -Command "$$ErrorActionPreference='Stop'; $$serverMod='go.mod'; $$publicMod='public/go.mod'; $$serverBak='go.mod.mockery.bak'; $$publicBak='public/go.mod.mockery.bak'; Copy-Item $$serverMod $$serverBak -Force; Copy-Item $$publicMod $$publicBak -Force; try { (Get-Content $$serverMod -Raw).Replace('go 1.27rc2','go 1.26.3') | Set-Content $$serverMod -NoNewline; (Get-Content $$publicMod -Raw).Replace('go 1.27rc2','go 1.26.3') | Set-Content $$publicMod -NoNewline; $$env:GOWORK='off'; $$env:GOTOOLCHAIN='go1.26.3'; $(GO) run github.com/vektra/mockery/v2@v2.53.6 --config channels/store/.mockery.yaml } finally { Move-Item -Force $$serverBak $$serverMod; Move-Item -Force $$publicBak $$publicMod }"
+	@powershell -NoProfile -Command "$$ErrorActionPreference='Stop'; Push-Location tools/mockery; try { $$env:GOWORK='off'; $(GO) build -o $(GOBIN)\mockery.exe github.com/vektra/mockery/v3 } finally { Pop-Location }; $$serverMod='go.mod'; $$serverBak='go.mod.mockery.bak'; Copy-Item $$serverMod $$serverBak -Force; try { (Get-Content $$serverMod -Raw) -replace '(?m)^replace github\.com/mattermost/mattermost/server/public => \./public\r?\n','' | Set-Content $$serverMod -NoNewline; $$env:GOWORK='off'; & '$(GOBIN)\mockery.exe' --config channels/store/.mockery.yaml } finally { Move-Item -Force $$serverBak $$serverMod }"
 else
 	@set -e; \
 	cp -f go.mod go.mod.mockery.bak; \
-	cp -f public/go.mod public/go.mod.mockery.bak; \
-	cleanup() { mv -f go.mod.mockery.bak go.mod; mv -f public/go.mod.mockery.bak public/go.mod; }; \
+	cleanup() { mv -f go.mod.mockery.bak go.mod; }; \
 	trap cleanup EXIT; \
-	sed -i.bak 's/^go 1.27rc2$$/go 1.26.3/' go.mod; rm -f go.mod.bak; \
-	sed -i.bak 's/^go 1.27rc2$$/go 1.26.3/' public/go.mod; rm -f public/go.mod.bak; \
-	GOWORK=off GOTOOLCHAIN=go1.26.3 $(GO) run github.com/vektra/mockery/v2@v2.53.6 --config channels/store/.mockery.yaml
+	sed -i.bak '/^replace github\.com\/mattermost\/mattermost\/server\/public => \.\/public$$/d' go.mod; rm -f go.mod.bak; \
+	($(MOCKERY_BUILD)); \
+	GOWORK=off $(GOBIN)/mockery --config channels/store/.mockery.yaml
 endif
 
 cache-mocks: setup-go-work
-	$(GO) install github.com/vektra/mockery/v2/...@v2.53.4
+	$(MOCKERY_BUILD)
 	$(GOBIN)/mockery --config platform/services/cache/.mockery.yaml
 
 
@@ -365,7 +370,7 @@ new-migration: ## Creates a new migration. Run with make new-migration name=<>
 	$(GOBIN)/morph new script $(name) --driver postgres --dir channels/db/migrations --sequence
 
 filestore-mocks: setup-go-work ## Creates mock files.
-	$(GO) install github.com/vektra/mockery/v2/...@v2.53.4
+	$(MOCKERY_BUILD)
 	$(GOBIN)/mockery --config platform/shared/filestore/.mockery.yaml
 
 ldap-mocks: setup-go-work ## Creates mock files for ldap.
@@ -373,31 +378,31 @@ ldap-mocks: setup-go-work ## Creates mock files for ldap.
 	$(GOBIN)/mockery --dir $(BUILD_ENTERPRISE_DIR)/ldap --all --inpackage --note 'Regenerate this file using `make ldap-mocks`.'
 
 plugin-mocks: setup-go-work ## Creates mock files for plugins.
-	$(GO) install github.com/vektra/mockery/v2/...@v2.53.4
+	$(MOCKERY_BUILD)
 	$(GOBIN)/mockery --config public/plugin/.mockery.yaml
 
 einterfaces-mocks: setup-go-work ## Creates mock files for einterfaces.
-	$(GO) install github.com/vektra/mockery/v2/...@v2.53.4
+	$(MOCKERY_BUILD)
 	$(GOBIN)/mockery --config einterfaces/.mockery.yaml
 
 searchengine-mocks: setup-go-work ## Creates mock files for searchengines.
-	$(GO) install github.com/vektra/mockery/v2/...@v2.53.4
+	$(MOCKERY_BUILD)
 	$(GOBIN)/mockery --config platform/services/searchengine/.mockery.yaml
 
 sharedchannel-mocks: setup-go-work ## Creates mock files for shared channels.
-	$(GO) install github.com/vektra/mockery/v2/...@v2.53.4
+	$(MOCKERY_BUILD)
 	$(GOBIN)/mockery --config platform/services/sharedchannel/.mockery.yaml
 
 misc-mocks: setup-go-work ## Creates mocks for misc interfaces.
-	$(GO) install github.com/vektra/mockery/v2/...@v2.53.4
+	$(MOCKERY_BUILD)
 	$(GOBIN)/mockery --config channels/utils/.mockery.yaml
 
 email-mocks: setup-go-work ## Creates mocks for misc interfaces.
-	$(GO) install github.com/vektra/mockery/v2/...@v2.53.4
+	$(MOCKERY_BUILD)
 	$(GOBIN)/mockery --config channels/app/email/.mockery.yaml
 
 platform-mocks: setup-go-work ## Creates mocks for platform interfaces.
-	$(GO) install github.com/vektra/mockery/v2/...@v2.53.4
+	$(MOCKERY_BUILD)
 	$(GOBIN)/mockery --config channels/app/platform/.mockery.yaml
 
 mmctl-mocks: setup-go-work ## Creates mocks for mmctl

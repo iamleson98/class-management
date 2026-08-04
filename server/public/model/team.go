@@ -18,6 +18,9 @@ const (
 	TeamEmailMaxLength          = 128
 	TeamNameMaxLength           = 64
 	TeamNameMinLength           = 2
+
+	TeamEmployee = "team-employee"
+	TeamUser     = "team-user"
 )
 
 type Team struct {

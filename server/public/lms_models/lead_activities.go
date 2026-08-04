@@ -19,17 +19,18 @@ import (
 	"github.com/aarondl/sqlboiler/v4/queries/qmhelper"
 	"github.com/aarondl/strmangle"
 	"github.com/friendsofgo/errors"
+	"github.com/iamleson98/sitename/server/public/utils"
 )
 
 // LeadActivity is an object representing the database table.
 type LeadActivity struct {
-	ID           string      `boil:"id" json:"id" toml:"id" yaml:"id"`
-	LeadID       string      `boil:"lead_id" json:"lead_id" toml:"lead_id" yaml:"lead_id"`
-	Type         string      `boil:"type" json:"type" toml:"type" yaml:"type"`
-	Content      null.String `boil:"content" json:"content,omitempty" toml:"content" yaml:"content,omitempty"`
-	NextFollowUp time.Time   `boil:"next_follow_up" json:"next_follow_up" toml:"next_follow_up" yaml:"next_follow_up"`
-	Createat     int64       `boil:"createat" json:"createat" toml:"createat" yaml:"createat"`
-	Updateat     int64       `boil:"updateat" json:"updateat" toml:"updateat" yaml:"updateat"`
+	ID           string       `boil:"id" json:"id" toml:"id" yaml:"id"`
+	LeadID       string       `boil:"lead_id" json:"lead_id" toml:"lead_id" yaml:"lead_id"`
+	Type         string       `boil:"type" json:"type" toml:"type" yaml:"type"`
+	Content      null.String  `boil:"content" json:"content,omitempty" toml:"content" yaml:"content,omitempty"`
+	NextFollowUp utils.VnTime `boil:"next_follow_up" json:"next_follow_up" toml:"next_follow_up" yaml:"next_follow_up"`
+	Createat     int64        `boil:"createat" json:"createat" toml:"createat" yaml:"createat"`
+	Updateat     int64        `boil:"updateat" json:"updateat" toml:"updateat" yaml:"updateat"`
 
 	R *leadActivityR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L leadActivityL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -78,7 +79,7 @@ var LeadActivityWhere = struct {
 	LeadID       whereHelperstring
 	Type         whereHelperstring
 	Content      whereHelpernull_String
-	NextFollowUp whereHelpertime_Time
+	NextFollowUp whereHelperutils_VnTime
 	Createat     whereHelperint64
 	Updateat     whereHelperint64
 }{
@@ -86,7 +87,7 @@ var LeadActivityWhere = struct {
 	LeadID:       whereHelperstring{field: "\"lead_activities\".\"lead_id\""},
 	Type:         whereHelperstring{field: "\"lead_activities\".\"type\""},
 	Content:      whereHelpernull_String{field: "\"lead_activities\".\"content\""},
-	NextFollowUp: whereHelpertime_Time{field: "\"lead_activities\".\"next_follow_up\""},
+	NextFollowUp: whereHelperutils_VnTime{field: "\"lead_activities\".\"next_follow_up\""},
 	Createat:     whereHelperint64{field: "\"lead_activities\".\"createat\""},
 	Updateat:     whereHelperint64{field: "\"lead_activities\".\"updateat\""},
 }

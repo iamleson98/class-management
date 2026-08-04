@@ -1,7 +1,0 @@
-﻿import keyMirror from 'mattermost-redux/utils/key_mirror';
-
-export default keyMirror({
-    SELF_HOSTED_PRODUCTS_REQUEST: null,
-    SELF_HOSTED_PRODUCTS_FAILED: null,
-    RECEIVED_SELF_HOSTED_PRODUCTS: null,
-});

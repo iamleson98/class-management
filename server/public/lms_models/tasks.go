@@ -19,21 +19,22 @@ import (
 	"github.com/aarondl/sqlboiler/v4/queries/qmhelper"
 	"github.com/aarondl/strmangle"
 	"github.com/friendsofgo/errors"
+	"github.com/iamleson98/sitename/server/public/utils"
 )
 
 // Task is an object representing the database table.
 type Task struct {
-	ID          string      `boil:"id" json:"id" toml:"id" yaml:"id"`
-	Title       string      `boil:"title" json:"title" toml:"title" yaml:"title"`
-	Description null.String `boil:"description" json:"description,omitempty" toml:"description" yaml:"description,omitempty"`
-	AssigneeID  string      `boil:"assignee_id" json:"assignee_id" toml:"assignee_id" yaml:"assignee_id"`
-	CreatorID   string      `boil:"creator_id" json:"creator_id" toml:"creator_id" yaml:"creator_id"`
-	Deadline    null.Time   `boil:"deadline" json:"deadline,omitempty" toml:"deadline" yaml:"deadline,omitempty"`
-	Priority    string      `boil:"priority" json:"priority" toml:"priority" yaml:"priority"`
-	Status      string      `boil:"status" json:"status" toml:"status" yaml:"status"`
-	Notes       null.String `boil:"notes" json:"notes,omitempty" toml:"notes" yaml:"notes,omitempty"`
-	Createat    int64       `boil:"createat" json:"createat" toml:"createat" yaml:"createat"`
-	Updateat    int64       `boil:"updateat" json:"updateat" toml:"updateat" yaml:"updateat"`
+	ID          string       `boil:"id" json:"id" toml:"id" yaml:"id"`
+	Title       string       `boil:"title" json:"title" toml:"title" yaml:"title"`
+	Description null.String  `boil:"description" json:"description,omitempty" toml:"description" yaml:"description,omitempty"`
+	AssigneeID  string       `boil:"assignee_id" json:"assignee_id" toml:"assignee_id" yaml:"assignee_id"`
+	CreatorID   string       `boil:"creator_id" json:"creator_id" toml:"creator_id" yaml:"creator_id"`
+	Deadline    utils.VnTime `boil:"deadline" json:"deadline,omitempty" toml:"deadline" yaml:"deadline,omitempty"`
+	Priority    string       `boil:"priority" json:"priority" toml:"priority" yaml:"priority"`
+	Status      string       `boil:"status" json:"status" toml:"status" yaml:"status"`
+	Notes       null.String  `boil:"notes" json:"notes,omitempty" toml:"notes" yaml:"notes,omitempty"`
+	Createat    int64        `boil:"createat" json:"createat" toml:"createat" yaml:"createat"`
+	Updateat    int64        `boil:"updateat" json:"updateat" toml:"updateat" yaml:"updateat"`
 
 	R *taskR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L taskL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -99,7 +100,7 @@ var TaskWhere = struct {
 	Description whereHelpernull_String
 	AssigneeID  whereHelperstring
 	CreatorID   whereHelperstring
-	Deadline    whereHelpernull_Time
+	Deadline    whereHelperutils_VnTime
 	Priority    whereHelperstring
 	Status      whereHelperstring
 	Notes       whereHelpernull_String
@@ -111,7 +112,7 @@ var TaskWhere = struct {
 	Description: whereHelpernull_String{field: "\"tasks\".\"description\""},
 	AssigneeID:  whereHelperstring{field: "\"tasks\".\"assignee_id\""},
 	CreatorID:   whereHelperstring{field: "\"tasks\".\"creator_id\""},
-	Deadline:    whereHelpernull_Time{field: "\"tasks\".\"deadline\""},
+	Deadline:    whereHelperutils_VnTime{field: "\"tasks\".\"deadline\""},
 	Priority:    whereHelperstring{field: "\"tasks\".\"priority\""},
 	Status:      whereHelperstring{field: "\"tasks\".\"status\""},
 	Notes:       whereHelpernull_String{field: "\"tasks\".\"notes\""},

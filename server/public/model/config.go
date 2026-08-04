@@ -3403,6 +3403,102 @@ func (s *CloudSettings) SetDefaults() {
 	}
 }
 
+// CallsSettings configures the realtime calls module.
+//
+// The live call state lives in-memory in the calls service and is fanned out
+// over websockets; rtcd is an external WebRTC SFU that owns the media plane.
+// Media never passes through the app server.
+type CallsSettings struct {
+	Enable *bool `access:"write_restrictable"`
+
+	// RTCDServiceURL is the URL of the external rtcd SFU control API
+	// (HTTP/WebSocket), e.g. "http://rtcd.internal:8045". When empty and no
+	// embedded RTC is configured, calls are disabled.
+	RTCDServiceURL *string `access:"write_restrictable"`
+	// RTCDClientID / RTCDAuthKey override rtcd client self-registration
+	// credentials. When empty, rtcd uses the instance diagnostic ID and a
+	// stored self-registered key.
+	RTCDClientID *string `access:"write_restrictable"`
+	RTCDAuthKey  *string `access:"write_restrictable"`
+
+	// ICE / TURN
+	ICEServers           *string `access:"write_restrictable"` // comma-separated stun:/turn: URLs
+	TURNStaticAuthSecret *string `access:"write_restrictable"`
+	ServerSideTURN       *bool   `access:"write_restrictable"`
+	ICEHostOverride      *string `access:"write_restrictable"`
+	ICEHostPortOverride  *int    `access:"write_restrictable"`
+	EnableIPv6           *bool   `access:"write_restrictable"`
+
+	// Limits / behavior
+	MaxCallParticipants *int  `access:"write_restrictable"` // 0 = unlimited
+	AllowScreenSharing  *bool `access:"write_restrictable"`
+	AllowRecording      *bool `access:"write_restrictable"`
+
+	// Presence fan-out tuning for large calls (lectures).
+	BatchMinMembers *int `access:"write_restrictable"` // engage batching above this member count (default 100)
+	BatchIntervalMs *int `access:"write_restrictable"` // coalescing window (default 1000)
+	BatchMaxSize    *int `access:"write_restrictable"` // per-batch cap (default 1000)
+
+	// StateShardCount is the number of sharded call-state registries in
+	// memory. Higher reduces lock contention at the cost of memory. Default 64.
+	StateShardCount *int `access:"write_restrictable"`
+}
+
+func (s *CallsSettings) SetDefaults() {
+	if s.Enable == nil {
+		s.Enable = new(false)
+	}
+	if s.RTCDServiceURL == nil {
+		s.RTCDServiceURL = new("")
+	}
+	if s.RTCDClientID == nil {
+		s.RTCDClientID = new("")
+	}
+	if s.RTCDAuthKey == nil {
+		s.RTCDAuthKey = new("")
+	}
+	if s.ICEServers == nil {
+		s.ICEServers = new("")
+	}
+	if s.TURNStaticAuthSecret == nil {
+		s.TURNStaticAuthSecret = new("")
+	}
+	if s.ServerSideTURN == nil {
+		s.ServerSideTURN = new(false)
+	}
+	if s.ICEHostOverride == nil {
+		s.ICEHostOverride = new("")
+	}
+	if s.ICEHostPortOverride == nil {
+		s.ICEHostPortOverride = new(0)
+	}
+	if s.EnableIPv6 == nil {
+		s.EnableIPv6 = new(false)
+	}
+	if s.MaxCallParticipants == nil {
+		s.MaxCallParticipants = new(0)
+	}
+	if s.AllowScreenSharing == nil {
+		s.AllowScreenSharing = new(true)
+	}
+	if s.AllowRecording == nil {
+		s.AllowRecording = new(false)
+	}
+	if s.BatchMinMembers == nil {
+		s.BatchMinMembers = new(100)
+	}
+	if s.BatchIntervalMs == nil {
+		s.BatchIntervalMs = new(1000)
+	}
+	if s.BatchMaxSize == nil {
+		s.BatchMaxSize = new(1000)
+	}
+	if s.StateShardCount == nil {
+		defaultShards := 64
+		s.StateShardCount = &defaultShards
+	}
+}
+
 type PluginState struct {
 	Enable bool
 }
@@ -3977,6 +4073,7 @@ type Config struct {
 	GuestAccountsSettings       GuestAccountsSettings
 	ImageProxySettings          ImageProxySettings
 	CloudSettings               CloudSettings  // telemetry: none
+	CallsSettings               CallsSettings  // telemetry: none
 	FeatureFlags                *FeatureFlags  `access:"*_read" json:",omitempty"`
 	ImportSettings              ImportSettings // telemetry: none
 	ExportSettings              ExportSettings
@@ -4122,6 +4219,7 @@ func (o *Config) SetDefaults() {
 	o.GuestAccountsSettings.SetDefaults()
 	o.ImageProxySettings.SetDefaults()
 	o.CloudSettings.SetDefaults()
+	o.CallsSettings.SetDefaults()
 	if o.FeatureFlags == nil {
 		o.FeatureFlags = &FeatureFlags{}
 		o.FeatureFlags.SetDefaults()

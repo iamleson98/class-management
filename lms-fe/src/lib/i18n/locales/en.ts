@@ -56,7 +56,6 @@ export default {
   'chat.purpose': 'Purpose',
   'chat.typing.one': '{user} is typing…',
   'chat.typing.many': '{users} and {last} are typing…',
-  'chat.reply': 'Reply',
   'chat.addReaction': 'Add reaction',
   'chat.forward': 'Forward',
   'chat.markUnread': 'Mark as unread',
@@ -108,10 +107,6 @@ export default {
   'chat.markAllRead': 'Mark all read',
   'chat.setStatus': 'Set status',
   'chat.settings': 'Channel settings',
-  'chat.header': 'Header',
-  'chat.membersSection': 'Members',
-  'chat.searchEmoji': 'Search emoji…',
-  'chat.noEmoji': 'No emoji found',
   'chat.keyboardShortcuts': 'Keyboard shortcuts',
   'chat.slashHint': 'Begin a message with / for a list of all slash commands.',
   'chat.findChannel': 'Find a channel…',
@@ -120,13 +115,11 @@ export default {
   'chat.bookmarkUrl': 'URL',
   'chat.bookmarkAddFailed': 'Could not add bookmark',
   'chat.forwardTitle': 'Forward message',
-  'chat.forward': 'Forward',
   'chat.forwarded': 'Forwarded',
   'chat.forwardFailed': 'Forward failed',
   'chat.forwardComment': 'Add a note (optional)…',
   'chat.searchChannel': 'Search channels…',
   'chat.edited': 'edited',
-  'chat.settings': 'Settings',
   'chat.tabDisplay': 'Display',
   'chat.tabSidebar': 'Sidebar',
   'chat.tabAdvanced': 'Advanced',
@@ -150,7 +143,6 @@ export default {
   'chat.commentsRoot': 'My threads only',
   'chat.commentsNever': 'Never',
   'chat.themeNote': 'Chat theme applies to accent colors.',
-  'common.close': 'Close',
 
   // ── Common ─────────────────────────────────────────────
   'common.save': 'Save',
@@ -1524,4 +1516,11 @@ export default {
   "upload.orBrowse": 'or',
   "upload.toChoose": 'to choose',
   "upload.uploading": 'Uploading...',
+
+  // ── Missing translations (auto-detected, fill in) ──
+  "common.username": 'Username',
+  "materials.fileId": 'File',
+  "materials.fileIdPlaceholder": 'File',
+  "settings.firstName": 'First name',
+  "settings.lastName": 'Last Name',
 } as const

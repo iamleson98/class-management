@@ -97,6 +97,12 @@ type Store struct {
 	NotificationStore  mocks.NotificationStore
 	MaterialStore      mocks.MaterialStore
 	DashboardStore     mocks.DashboardStore
+	// Calls stores
+	CallStore         mocks.CallStore
+	CallSessionStore  mocks.CallSessionStore
+	CallJobStore      mocks.CallJobStore
+	CallStatStore     mocks.CallStatStore
+	CallsChannelStore mocks.CallsChannelStore
 }
 
 func (s *Store) Logger() mlog.LoggerIFace                      { return s.logger }
@@ -231,6 +237,13 @@ func (s *Store) Banner() store.BannerStore               { return &s.BannerStore
 func (s *Store) Notification() store.NotificationStore   { return &s.NotificationStore }
 func (s *Store) Material() store.MaterialStore           { return &s.MaterialStore }
 func (s *Store) Dashboard() store.DashboardStore         { return &s.DashboardStore }
+
+// Calls store accessors
+func (s *Store) Call() store.CallStore                 { return &s.CallStore }
+func (s *Store) CallSession() store.CallSessionStore   { return &s.CallSessionStore }
+func (s *Store) CallJob() store.CallJobStore           { return &s.CallJobStore }
+func (s *Store) CallStat() store.CallStatStore         { return &s.CallStatStore }
+func (s *Store) CallsChannel() store.CallsChannelStore { return &s.CallsChannelStore }
 func (s *Store) GetSchemaDefinition() (*model.SupportPacketDatabaseSchema, error) {
 	return &model.SupportPacketDatabaseSchema{
 		Tables: []model.DatabaseTable{},
@@ -311,5 +324,11 @@ func (s *Store) AssertExpectations(t mock.TestingT) bool {
 		&s.NotificationStore,
 		&s.MaterialStore,
 		&s.DashboardStore,
+		// Calls stores
+		&s.CallStore,
+		&s.CallSessionStore,
+		&s.CallJobStore,
+		&s.CallStatStore,
+		&s.CallsChannelStore,
 	)
 }

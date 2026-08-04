@@ -25,10 +25,13 @@ func (a *LMSAPI) InitClasses() {
 }
 
 func getClasses(c *api4.Context, w http.ResponseWriter, r *http.Request) {
-	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageClasses) {
-		c.SetPermissionError(model.PermissionLmsManageClasses)
-		return
-	}
+	// if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageClasses) {
+	// 	c.SetPermissionError(model.PermissionLmsManageClasses)
+	// 	return
+	// }
+
+	// requesterId := c.AppContext.Session().UserId
+	// requestorRoles := c.AppContext.Session().Roles
 
 	var opts modelhelper.ClassFilterOpts
 	if err := json.NewDecoder(r.Body).Decode(&opts); err != nil {

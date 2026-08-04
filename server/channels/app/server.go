@@ -36,6 +36,7 @@ import (
 	"github.com/iamleson98/sitename/server/v8/channels/app/teams"
 	"github.com/iamleson98/sitename/server/v8/channels/app/users"
 	"github.com/iamleson98/sitename/server/v8/channels/audit"
+	"github.com/iamleson98/sitename/server/v8/channels/calls"
 	"github.com/iamleson98/sitename/server/v8/channels/jobs"
 	"github.com/iamleson98/sitename/server/v8/channels/jobs/active_users"
 	"github.com/iamleson98/sitename/server/v8/channels/jobs/cleanup_desktop_tokens"
@@ -130,6 +131,7 @@ type Server struct {
 	teamService           *teams.TeamService
 	propertyAccessService *PropertyAccessService
 	lmsApp                *lms.LMSApp
+	callsService          *calls.CallService
 	// booking               *booking.BookingService
 
 	serviceMux           sync.RWMutex
@@ -491,6 +493,26 @@ func NewServer(options ...Option) (*Server, error) {
 	// init lms app
 	s.lmsApp = lms.NewLMSApp(s.Store(), app)
 
+	// init calls service (realtime call control plane). The service is always
+	// constructed so the routes and API are available; it only activates when
+	// CallsSettings.Enable is true and an rtcd URL is configured.
+	callsService, err := calls.New(calls.ServiceConfig{
+		StoreFn: func() calls.StoreBridge { return calls.NewStoreBridge(s.Store()) },
+		ConfigFn: func() *model.Config {
+			return s.platform.Config()
+		},
+		Hub:      callsHubAdapter{ps: s.platform},
+		Cluster:  s.platform.Cluster(),
+		KVStore:  &callsKVAdapter{store: s.Store().Plugin(), log: s.Log().With(mlog.String("component", "calls"))},
+		ClientID: s.ServerId(),
+		Log:      s.Log().With(mlog.String("component", "calls")),
+		Metrics:  s.GetMetrics(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create calls service: %w", err)
+	}
+	s.callsService = callsService
+
 	return s, nil
 }
 
@@ -825,6 +847,14 @@ func (s *Server) Start() error {
 	if s.AutoTranslation != nil {
 		if err := s.AutoTranslation.Start(); err != nil {
 			return errors.Wrap(err, "Unable to start auto-translation service")
+		}
+	}
+
+	// Start the realtime calls service. Non-fatal: calls are optional, and a
+	// missing rtcd URL should not prevent server startup.
+	if s.callsService != nil {
+		if err := s.callsService.Start(); err != nil {
+			mlog.Error("Failed to start calls service; calls will be unavailable.", mlog.Err(err))
 		}
 	}
 

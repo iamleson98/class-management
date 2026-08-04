@@ -36,8 +36,8 @@ export default function ParentReviews() {
   const { t } = useTranslation()
 
   const dashboardQuery = useQuery({
-    queryKey: ['dashboard', 'PARENT', authUser?.id, 'reviews-child'],
-    queryFn: () => getDashboard('PARENT', authUser!.id),
+    queryKey: ['dashboard', 'lms_parent', authUser?.id, 'reviews-child'],
+    queryFn: () => getDashboard('lms_parent', authUser!.id),
     enabled: !!authUser?.id,
   })
 

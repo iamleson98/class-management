@@ -15,7 +15,7 @@ export const createUserSchema = z.object({
   email: emailField,
   // Username is optional: the server auto-derives it from the email's local
   // part when empty (see user.go createUser).
-  username: optionalString,
+  username: requiredString,
   password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự').optional().nullable().or(z.literal('')),
   phone: optionalPhoneField,
   // Single role token for create; the backend stores roles as a space-separated

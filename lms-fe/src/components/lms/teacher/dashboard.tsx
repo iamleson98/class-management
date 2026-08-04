@@ -13,15 +13,24 @@ import { useLMSStore } from '@/store/lms-store'
 import { getDashboard, getSessions, getClasses } from '@/lib/api'
 import { useTranslation } from '@/lib/i18n'
 
+
 export default function TeacherDashboard() {
   const { t } = useTranslation()
   const { authUser } = useLMSStore()
   const statsQuery = useQuery({
-    queryKey: ['dashboard', 'TEACHER', authUser?.id],
-    queryFn: () => getDashboard('TEACHER', authUser!.id),
+    queryKey: ['dashboard', authUser?.id],
+    queryFn: () => getDashboard('lms_teacher', authUser!.id),
   })
   const sessionsQuery = useQuery({ queryKey: ['sessions'], queryFn: () => getSessions() })
-  const classesQuery = useQuery({ queryKey: ['classes'], queryFn: () => getClasses() })
+  const classesQuery = useQuery({
+    queryKey: ['classes'], queryFn: () => getClasses({
+      where_ands: [{
+        column: 'classes.teacher_id',
+        operator: '=',
+        value: authUser?.id
+      }]
+    })
+  })
 
   if (statsQuery.isLoading || sessionsQuery.isLoading || classesQuery.isLoading) {
     return <LoadingState />
@@ -30,7 +39,8 @@ export default function TeacherDashboard() {
     return <ErrorState onRetry={() => statsQuery.refetch()} />
   }
 
-  const data = (statsQuery.data as any) || {}
+  const data = statsQuery.data || {}
+
   const mySessions = (sessionsQuery.data || [])
     .filter((s: any) => s.teacherId === authUser?.id && s.date >= new Date().toISOString().slice(0, 10))
     .sort((a: any, b: any) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))
@@ -40,13 +50,13 @@ export default function TeacherDashboard() {
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-      <PageHeader title={t('teacher.dashboard.title', 'Tổng quan')} description={t('teacher.dashboard.greeting', 'Xin chào, {name}', { name: authUser?.nickname || `${authUser?.firstname || ''} ${authUser?.lastname || ''}`.trim() })} icon={GraduationCap} accentColor="sky" />
+      <PageHeader title={t('teacher.dashboard.title', 'Tổng quan')} description={t('teacher.dashboard.greeting', 'Xin chào, {name}', { name: authUser?.nickname || `${authUser?.first_name || ''} ${authUser?.last_name || ''}`.trim() })} icon={GraduationCap} accentColor="sky" />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title={t('teacher.dashboard.myClasses', 'Lớp phụ trách')} value={data.myClasses ?? 0} icon={GraduationCap} iconColor="text-sky-600" iconBg="bg-sky-100 dark:bg-sky-950/40" />
-        <StatCard title={t('teacher.dashboard.todaySessions', 'Buổi hôm nay')} value={data.todaySessions ?? 0} icon={CalendarDays} iconColor="text-blue-600" iconBg="bg-blue-100 dark:bg-blue-950/40" />
-        <StatCard title={t('teacher.dashboard.totalStudents', 'Tổng học viên')} value={data.totalStudents ?? 0} icon={Users} iconColor="text-violet-600" iconBg="bg-violet-100 dark:bg-violet-950/40" />
-        <StatCard title={t('teacher.dashboard.attendanceRate', 'Tỷ lệ chuyên cần')} value={`${data.attendanceRate ?? 0}%`} icon={ClipboardCheck} iconColor="text-amber-600" iconBg="bg-amber-100 dark:bg-amber-950/40" />
+        <StatCard title={t('teacher.dashboard.myClasses', 'Lớp phụ trách')} value={data.totalClasses ?? 0} icon={GraduationCap} iconColor="text-sky-600" iconBg="bg-sky-100 dark:bg-sky-950/40" />
+        {/* <StatCard title={t('teacher.dashboard.todaySessions', 'Buổi hôm nay')} value={data.todaySessions ?? 0} icon={CalendarDays} iconColor="text-blue-600" iconBg="bg-blue-100 dark:bg-blue-950/40" /> */}
+        {/* <StatCard title={t('teacher.dashboard.totalStudents', 'Tổng học viên')} value={data.totalStudents ?? 0} icon={Users} iconColor="text-violet-600" iconBg="bg-violet-100 dark:bg-violet-950/40" /> */}
+        {/* <StatCard title={t('teacher.dashboard.attendanceRate', 'Tỷ lệ chuyên cần')} value={`${data.attendanceRate ?? 0}%`} icon={ClipboardCheck} iconColor="text-amber-600" iconBg="bg-amber-100 dark:bg-amber-950/40" /> */}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

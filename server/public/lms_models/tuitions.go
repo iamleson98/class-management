@@ -20,6 +20,7 @@ import (
 	"github.com/aarondl/sqlboiler/v4/types"
 	"github.com/aarondl/strmangle"
 	"github.com/friendsofgo/errors"
+	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/shopspring/decimal"
 )
 
@@ -34,7 +35,7 @@ type Tuition struct {
 	PaidAmount      decimal.Decimal   `boil:"paid_amount" json:"paid_amount" toml:"paid_amount" yaml:"paid_amount"`
 	RemainingAmount decimal.Decimal   `boil:"remaining_amount" json:"remaining_amount" toml:"remaining_amount" yaml:"remaining_amount"`
 	Status          string            `boil:"status" json:"status" toml:"status" yaml:"status"`
-	DueDate         null.Time         `boil:"due_date" json:"due_date,omitempty" toml:"due_date" yaml:"due_date,omitempty"`
+	DueDate         utils.VnTime      `boil:"due_date" json:"due_date,omitempty" toml:"due_date" yaml:"due_date,omitempty"`
 	Note            null.String       `boil:"note" json:"note,omitempty" toml:"note" yaml:"note,omitempty"`
 	PromotionalFee  types.NullDecimal `boil:"promotional_fee" json:"promotional_fee,omitempty" toml:"promotional_fee" yaml:"promotional_fee,omitempty"`
 	DiscountValue   types.NullDecimal `boil:"discount_value" json:"discount_value,omitempty" toml:"discount_value" yaml:"discount_value,omitempty"`
@@ -130,7 +131,7 @@ var TuitionWhere = struct {
 	PaidAmount      whereHelperdecimal_Decimal
 	RemainingAmount whereHelperdecimal_Decimal
 	Status          whereHelperstring
-	DueDate         whereHelpernull_Time
+	DueDate         whereHelperutils_VnTime
 	Note            whereHelpernull_String
 	PromotionalFee  whereHelpertypes_NullDecimal
 	DiscountValue   whereHelpertypes_NullDecimal
@@ -147,7 +148,7 @@ var TuitionWhere = struct {
 	PaidAmount:      whereHelperdecimal_Decimal{field: "\"tuitions\".\"paid_amount\""},
 	RemainingAmount: whereHelperdecimal_Decimal{field: "\"tuitions\".\"remaining_amount\""},
 	Status:          whereHelperstring{field: "\"tuitions\".\"status\""},
-	DueDate:         whereHelpernull_Time{field: "\"tuitions\".\"due_date\""},
+	DueDate:         whereHelperutils_VnTime{field: "\"tuitions\".\"due_date\""},
 	Note:            whereHelpernull_String{field: "\"tuitions\".\"note\""},
 	PromotionalFee:  whereHelpertypes_NullDecimal{field: "\"tuitions\".\"promotional_fee\""},
 	DiscountValue:   whereHelpertypes_NullDecimal{field: "\"tuitions\".\"discount_value\""},

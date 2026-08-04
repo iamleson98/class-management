@@ -15,8 +15,8 @@ import { useTranslation } from '@/lib/i18n'
 export default function AccountantDashboard() {
   const { t } = useTranslation()
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['dashboard', 'ACCOUNTANT'],
-    queryFn: () => getDashboard('ACCOUNTANT'),
+    queryKey: ['dashboard', 'lms_accountant'],
+    queryFn: () => getDashboard('lms_accountant'),
   })
 
   const stats = data || {}

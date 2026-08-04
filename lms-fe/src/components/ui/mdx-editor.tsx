@@ -133,7 +133,7 @@ export default function RichTextEditor({
 
       {/* Content */}
       {preview ? (
-        <div className="prose prose-sm dark:prose-invert max-w-none min-h-[300px] p-4">
+        <div className="prose prose-sm dark:prose-invert max-w-none min-h-75 p-4">
           <div className="whitespace-pre-wrap">{value}</div>
         </div>
       ) : (
@@ -141,7 +141,7 @@ export default function RichTextEditor({
           ref={textareaRef}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full min-h-[300px] p-4 bg-background text-sm font-mono resize-y focus:outline-none"
+          className="w-full min-h-75 p-4 bg-background text-sm font-mono resize-y focus:outline-none"
           placeholder={placeholder || 'Nhập nội dung bài viết... Sử dụng thanh công cụ để định dạng.'}
         />
       )}

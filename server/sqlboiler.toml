@@ -58,3 +58,35 @@ tag-ignore = "annotations"
     type = "decimal.Decimal"
   [types.imports]
     third_party = ['"github.com/shopspring/decimal"']
+
+# add vietnam time type
+# [[types]]
+#   [types.match]
+#     type = "time.Time"
+#     nullable = false
+#   [types.replace]
+#     type = "types.VnTime"
+#   [types.imports]
+#     all = ['"github.com/iamleson98/sitename/server/public/utils/sql/types"']
+
+# [[types]]
+#   [types.match]
+#     type = "null.Time"
+#     nullable = true
+#   [types.replace]
+#     type = "types.VnTime"
+#   [types.imports]
+#     all = ['"github.com/iamleson98/sitename/server/public/utils/sql/types"']
+
+
+[[types]]
+  match.type = "time.Time"
+  match.nullable = false
+  replace.type = "utils.VnTime"
+  imports.third_party = ['"github.com/iamleson98/sitename/server/public/utils"']
+
+[[types]]
+  match.type = "null.Time"
+  match.nullable = true
+  replace.type = "utils.VnTime"
+  imports.third_party = ['"github.com/iamleson98/sitename/server/public/utils"']

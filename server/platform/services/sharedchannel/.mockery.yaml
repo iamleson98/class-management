@@ -1,12 +1,13 @@
-with-expecter: false
+template: testify
+template-data:
+  unroll-variadic: true
 packages:
   github.com/iamleson98/sitename/server/v8/platform/services/sharedchannel:
     config:
-      dir: "platform/services/sharedchannel"
-      inpackage: true
+      dir: platform/services/sharedchannel
       filename: "mock_{{.InterfaceName}}_test.go"
-      outpkg: "sharedchannel"
-      note: "Regenerate this file using `make sharedchannel-mocks`."
+      structname: "Mock{{.InterfaceName}}"
+      pkgname: sharedchannel
     interfaces:
-      ServerIface:
-      AppIface:
+      AppIface: {}
+      ServerIface: {}

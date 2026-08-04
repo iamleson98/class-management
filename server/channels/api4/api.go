@@ -20,6 +20,8 @@ type Routes struct {
 
 	LMS *chi.Mux // 'api/v4/lms'
 
+	Calls *chi.Mux // 'api/v4/calls'
+
 	Users          *chi.Mux // 'api/v4/users'
 	User           *chi.Mux // 'api/v4/users/{user_id:[A-Za-z0-9]+}'
 	UserByUsername *chi.Mux // 'api/v4/users/username/{username:[A-Za-z0-9\\_\\-\\.]+}'
@@ -193,6 +195,10 @@ func Init(srv *app.Server) (*API, error) {
 	// api.BaseRoutes.LMS = api.BaseRoutes.APIRoot.PathPrefix("/lms").Subrouter()
 	api.BaseRoutes.LMS = chi.NewRouter()
 	api.BaseRoutes.APIRoot.Mount("/lms", api.BaseRoutes.LMS)
+
+	// api.BaseRoutes.Calls = api.BaseRoutes.APIRoot.PathPrefix("/calls").Subrouter()
+	api.BaseRoutes.Calls = chi.NewRouter()
+	api.BaseRoutes.APIRoot.Mount("/calls", api.BaseRoutes.Calls)
 
 	// api.BaseRoutes.Users = api.BaseRoutes.APIRoot.PathPrefix("/users").Subrouter()
 	api.BaseRoutes.Users = chi.NewRouter()
@@ -657,6 +663,11 @@ func Init(srv *app.Server) (*API, error) {
 		initLmsApiFunc(api)
 	}
 
+	// register calls api
+	if initCallsApiFunc != nil {
+		initCallsApiFunc(api)
+	}
+
 	// If we allow testing then listen for manual testing URL hits
 	if *srv.Config().ServiceSettings.EnableTesting {
 		// api.BaseRoutes.Root.Handle("/manualtest", api.APIHandler(manualtesting.ManualTest)).Methods(http.MethodGet)
@@ -920,4 +931,13 @@ var initLmsApiFunc func(api *API) error
 // RegisterInitLmsApiFunc allows the LMS API package to register its init function.
 func RegisterInitLmsApiFunc(f func(api *API) error) {
 	initLmsApiFunc = f
+}
+
+var initCallsApiFunc func(api *API) error
+
+// RegisterInitCallsApiFunc allows the calls API package to register its init
+// function. This breaks the import cycle: calls_api imports api4, so api4
+// cannot import calls_api directly.
+func RegisterInitCallsApiFunc(f func(api *API) error) {
+	initCallsApiFunc = f
 }

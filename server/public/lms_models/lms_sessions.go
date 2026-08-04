@@ -19,22 +19,23 @@ import (
 	"github.com/aarondl/sqlboiler/v4/queries/qmhelper"
 	"github.com/aarondl/strmangle"
 	"github.com/friendsofgo/errors"
+	"github.com/iamleson98/sitename/server/public/utils"
 )
 
 // LMSSession is an object representing the database table.
 type LMSSession struct {
-	ID        string      `boil:"id" json:"id" toml:"id" yaml:"id"`
-	Title     null.String `boil:"title" json:"title,omitempty" toml:"title" yaml:"title,omitempty"`
-	ClassID   string      `boil:"class_id" json:"class_id" toml:"class_id" yaml:"class_id"`
-	StartTime int64       `boil:"start_time" json:"start_time" toml:"start_time" yaml:"start_time"`
-	EndTime   int64       `boil:"end_time" json:"end_time" toml:"end_time" yaml:"end_time"`
-	Room      null.String `boil:"room" json:"room,omitempty" toml:"room" yaml:"room,omitempty"`
-	TeacherID string      `boil:"teacher_id" json:"teacher_id" toml:"teacher_id" yaml:"teacher_id"`
-	LessonID  string      `boil:"lesson_id" json:"lesson_id" toml:"lesson_id" yaml:"lesson_id"`
-	Status    string      `boil:"status" json:"status" toml:"status" yaml:"status"`
-	Date      time.Time   `boil:"date" json:"date" toml:"date" yaml:"date"`
-	Createat  int64       `boil:"createat" json:"createat" toml:"createat" yaml:"createat"`
-	Updateat  int64       `boil:"updateat" json:"updateat" toml:"updateat" yaml:"updateat"`
+	ID        string       `boil:"id" json:"id" toml:"id" yaml:"id"`
+	Title     null.String  `boil:"title" json:"title,omitempty" toml:"title" yaml:"title,omitempty"`
+	ClassID   string       `boil:"class_id" json:"class_id" toml:"class_id" yaml:"class_id"`
+	StartTime int64        `boil:"start_time" json:"start_time" toml:"start_time" yaml:"start_time"`
+	EndTime   int64        `boil:"end_time" json:"end_time" toml:"end_time" yaml:"end_time"`
+	Room      null.String  `boil:"room" json:"room,omitempty" toml:"room" yaml:"room,omitempty"`
+	TeacherID string       `boil:"teacher_id" json:"teacher_id" toml:"teacher_id" yaml:"teacher_id"`
+	LessonID  string       `boil:"lesson_id" json:"lesson_id" toml:"lesson_id" yaml:"lesson_id"`
+	Status    string       `boil:"status" json:"status" toml:"status" yaml:"status"`
+	Date      utils.VnTime `boil:"date" json:"date" toml:"date" yaml:"date"`
+	Createat  int64        `boil:"createat" json:"createat" toml:"createat" yaml:"createat"`
+	Updateat  int64        `boil:"updateat" json:"updateat" toml:"updateat" yaml:"updateat"`
 
 	R *lmsSessionR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L lmsSessionL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -108,7 +109,7 @@ var LMSSessionWhere = struct {
 	TeacherID whereHelperstring
 	LessonID  whereHelperstring
 	Status    whereHelperstring
-	Date      whereHelpertime_Time
+	Date      whereHelperutils_VnTime
 	Createat  whereHelperint64
 	Updateat  whereHelperint64
 }{
@@ -121,7 +122,7 @@ var LMSSessionWhere = struct {
 	TeacherID: whereHelperstring{field: "\"lms_sessions\".\"teacher_id\""},
 	LessonID:  whereHelperstring{field: "\"lms_sessions\".\"lesson_id\""},
 	Status:    whereHelperstring{field: "\"lms_sessions\".\"status\""},
-	Date:      whereHelpertime_Time{field: "\"lms_sessions\".\"date\""},
+	Date:      whereHelperutils_VnTime{field: "\"lms_sessions\".\"date\""},
 	Createat:  whereHelperint64{field: "\"lms_sessions\".\"createat\""},
 	Updateat:  whereHelperint64{field: "\"lms_sessions\".\"updateat\""},
 }

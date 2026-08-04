@@ -6,77 +6,45 @@ import (
 	"github.com/iamleson98/sitename/server/public/model"
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
 	"github.com/iamleson98/sitename/server/public/utils"
-	"github.com/iamleson98/sitename/server/v8/channels/store"
 )
 
 // DashboardStats holds aggregated statistics for the LMS dashboard.
 type DashboardStats struct {
-	TotalStudents int64  `json:"total_students"`
-	TotalTeachers int64  `json:"total_teachers"`
-	TotalClasses  int64  `json:"total_classes"`
-	TotalCourses  int64  `json:"total_courses"`
-	TotalLeads    int64  `json:"total_leads"`
-	TotalRevenue  string `json:"total_revenue"`
-}
-
-func (a *LMSApp) GetDashboardStats() (*DashboardStats, *model.AppError) {
-	stats := &DashboardStats{}
-
-	_, totalCount, err := a.store.Class().Search(modelhelper.ClassFilterOpts{SearchOpts: utils.SearchOpts[utils.ClassColumn]{CountTotal: true}})
-	if err != nil {
-		return nil, model.NewAppError("GetDashboardStats", "app.lms.dashboard.get_classes.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
-	}
-	stats.TotalClasses = totalCount
-
-	courses, err := a.store.Course().GetAll()
-	if err != nil {
-		return nil, model.NewAppError("GetDashboardStats", "app.lms.dashboard.get_courses.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
-	}
-	stats.TotalCourses = int64(len(courses))
-
-	_, leadCount, err := a.store.Lead().Search(modelhelper.LeadFilterOpts{SearchOpts: utils.SearchOpts[utils.LeadColumn]{CountTotal: true}})
-	if err != nil {
-		return nil, model.NewAppError("GetDashboardStats", "app.lms.dashboard.get_leads.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
-	}
-	stats.TotalLeads = leadCount
-
-	return stats, nil
+	TotalStudents          *int    `json:"total_students,omitempty"`
+	TotalTeachers          *int    `json:"total_teachers,omitempty"`
+	TotalClasses           *int    `json:"total_classes,omitempty"`
+	TotalCourses           *int    `json:"total_courses,omitempty"`
+	TotalLeads             *int    `json:"total_leads,omitempty"`
+	TotalRevenue           *string `json:"total_revenue,omitempty"`
+	TotalNewLeadsThisMonth *int    `json:"total_new_leads_this_month,omitempty"`
+	TotalChildren          *int    `json:"total_children,omitempty"`
+	TotalUpcomingSessions  *int    `json:"total_upcoming_sessions,omitempty"`
 }
 
 // GetDashboard returns role-based dashboard statistics for the given user.
-func (a *LMSApp) GetDashboard(role string, userID string) (map[string]any, *model.AppError) {
-	data := make(map[string]any)
-
+func (a *LMSApp) GetDashboard(role string, userID string) (*DashboardStats, *model.AppError) {
 	switch role {
-	case "ADMIN", "SUPER_ADMIN":
-		if err := a.getAdminDashboard(data); err != nil {
-			return nil, err
-		}
-	case "TEACHER":
-		if err := a.getTeacherDashboard(userID, data); err != nil {
-			return nil, err
-		}
-	case "PARENT":
-		if err := a.getParentDashboard(userID, data); err != nil {
-			return nil, err
-		}
-	case "STUDENT":
-		if err := a.getStudentDashboard(userID, data); err != nil {
-			return nil, err
-		}
+	case model.RoleLmsSuperAdminRoleId, model.RoleLmsAdminRoleId:
+		return a.getAdminDashboard()
+	case model.RoleLmsTeacherRoleId:
+		return a.getTeacherDashboard(userID)
+	case model.RoleLmsParentRoleId:
+		return a.getParentDashboard(userID)
+	case model.RoleLmsStudentRoleId:
+		return a.getStudentDashboard(userID)
 	default:
 		return nil, model.NewAppError("GetDashboard", "app.lms.dashboard.invalid_role.app_error", map[string]any{"Role": role}, "", http.StatusBadRequest)
 	}
-
-	return data, nil
 }
 
-func (a *LMSApp) getAdminDashboard(data map[string]any) *model.AppError {
+func (a *LMSApp) getAdminDashboard() (*DashboardStats, *model.AppError) {
+	res := &DashboardStats{}
+
 	totalStudents, err := a.store.Dashboard().CountStudents()
 	if err != nil {
-		return model.NewAppError("GetDashboard", "app.lms.dashboard.total_students.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		return nil, model.NewAppError("GetDashboard", "app.lms.dashboard.total_students.app_error", nil, err.Error(), http.StatusInternalServerError)
 	}
-	data["totalStudents"] = totalStudents
+	res.TotalStudents = new(int(totalStudents))
 
 	_, activeClasses, err := a.store.Class().Search(
 		modelhelper.ClassFilterOpts{
@@ -88,20 +56,22 @@ func (a *LMSApp) getAdminDashboard(data map[string]any) *model.AppError {
 			},
 		})
 	if err != nil {
-		return model.NewAppError("GetDashboard", "app.lms.dashboard.active_classes.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		return nil, model.NewAppError("GetDashboard", "app.lms.dashboard.active_classes.app_error", nil, err.Error(), http.StatusInternalServerError)
 	}
-	data["activeClasses"] = activeClasses
+	res.TotalClasses = new(int(activeClasses))
 
-	newLeads, err := a.store.Lead().CountNewThisMonth()
+	newLeads, err := a.store.Lead().CountNewThisMonth("")
 	if err != nil {
-		return model.NewAppError("GetDashboard", "app.lms.dashboard.new_leads.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		return nil, model.NewAppError("GetDashboard", "app.lms.dashboard.new_leads.app_error", nil, err.Error(), http.StatusInternalServerError)
 	}
-	data["newLeadsThisMonth"] = newLeads
+	res.TotalNewLeadsThisMonth = new(int(newLeads))
 
-	return nil
+	return res, nil
 }
 
-func (a *LMSApp) getTeacherDashboard(userID string, data map[string]any) *model.AppError {
+func (a *LMSApp) getTeacherDashboard(userID string) (*DashboardStats, *model.AppError) {
+	res := &DashboardStats{}
+
 	_, myClasses, err := a.store.Class().Search(
 		modelhelper.ClassFilterOpts{
 			SearchOpts: utils.SearchOpts[utils.ClassColumn]{
@@ -113,38 +83,39 @@ func (a *LMSApp) getTeacherDashboard(userID string, data map[string]any) *model.
 		},
 	)
 	if err != nil {
-		return model.NewAppError("GetDashboard", "app.lms.dashboard.my_classes.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		return nil, model.NewAppError("GetDashboard", "app.lms.dashboard.my_classes.app_error", nil, err.Error(), http.StatusInternalServerError)
 	}
-	data["myClasses"] = myClasses
+	res.TotalClasses = new(int(myClasses))
 
-	return nil
+	return res, nil
 }
 
-func (a *LMSApp) getParentDashboard(userID string, data map[string]any) *model.AppError {
+func (a *LMSApp) getParentDashboard(userID string) (*DashboardStats, *model.AppError) {
+	res := &DashboardStats{}
+
 	children, err := a.store.Dashboard().GetChildrenByParentID(userID)
 	if err != nil {
-		return model.NewAppError("GetDashboard", "app.lms.dashboard.child_info.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		return nil, model.NewAppError("GetDashboard", "app.lms.dashboard.child_info.app_error", nil, err.Error(), http.StatusInternalServerError)
 	}
-	data["children"] = children
+	res.TotalChildren = new(len(children))
 
-	return nil
+	return res, nil
 }
 
-func (a *LMSApp) getStudentDashboard(userID string, data map[string]any) *model.AppError {
+func (a *LMSApp) getStudentDashboard(userID string) (*DashboardStats, *model.AppError) {
+	res := &DashboardStats{}
+
 	myClasses, err := a.store.StudentClass().CountByStudent(userID, "ACTIVE")
 	if err != nil {
-		return model.NewAppError("GetDashboard", "app.lms.dashboard.student_classes.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		return nil, model.NewAppError("GetDashboard", "app.lms.dashboard.student_classes.app_error", nil, err.Error(), http.StatusInternalServerError)
 	}
-	data["myClasses"] = myClasses
+	res.TotalClasses = new(int(myClasses))
 
 	upcomingSessions, err := a.store.LMSSession().CountUpcomingByStudent(userID)
 	if err != nil {
-		return model.NewAppError("GetDashboard", "app.lms.dashboard.upcoming_sessions.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		return nil, model.NewAppError("GetDashboard", "app.lms.dashboard.upcoming_sessions.app_error", nil, err.Error(), http.StatusInternalServerError)
 	}
-	data["upcomingSessions"] = upcomingSessions
+	res.TotalUpcomingSessions = new(int(upcomingSessions))
 
-	return nil
+	return res, nil
 }
-
-// Ensure store.ErrNotFound is used for error matching.
-var _ error = (*store.ErrNotFound)(nil)
