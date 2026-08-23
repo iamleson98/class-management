@@ -1,0 +1,52 @@
+# rtcd configuration for the LMS Swarm deployment.
+#
+# Copy to config.toml next to this file and edit the marked values:
+#   cp config.toml.example config.toml
+#
+# The stack mounts it at /etc/rtcd/config.toml (see root README.md §4.1).
+# Full option reference: rtcd/config/config.sample.toml
+
+[api]
+# Control API (HTTP + WebSocket). Stays on the Swarm overlay network —
+# NEVER expose this port publicly.
+http.listen_address = ":8045"
+
+# lms-server self-registers as a client on first connect. Safe here because
+# the API is only reachable inside the overlay network. To use fixed
+# credentials instead, set this to false and embed them in the server's
+# MM_CALLSSETTINGS_RTCDSERVICEURL as http://clientID:authKey@rtcd:8045.
+security.allow_self_registration = true
+
+[rtc]
+# Media ports. Must match the ports published in stack.yml (host mode).
+ice_port_udp = 8443
+ice_port_tcp = 8443
+
+# ⚠️ EDIT ME: the video node's PUBLIC IP.
+# This is the address advertised to browsers in ICE candidates. Leave empty
+# only when rtcd can discover its public IP via STUN (ice_servers below) —
+# on a cloud VM with a NATed public IP you MUST set it explicitly.
+ice_host_override = "REPLACE_WITH_VIDEO_NODE_PUBLIC_IP"
+
+# Used (a) by rtcd to discover its own public IP when ice_host_override is
+# empty and (b) as the default STUN handed to callers. A public STUN is fine.
+ice_servers = [{urls = ["stun:stun.l.google.com:19302"]}]
+
+# Deploy coturn (TURN) and list it here + in MM_CALLSSETTINGS_ICESERVERS
+# when clients sit behind strict NATs/firewalls that block direct UDP:
+# ice_servers = [
+#   {urls = ["stun:stun.l.google.com:19302"]},
+#   {urls = ["turn:turn.example.com:3478"], username = "lms", credential = "REPLACE_ME"},
+# ]
+# turn.static_auth_secret only matters for short-lived TURN credentials.
+
+[store]
+# Registered client credentials persist here — keep it on a volume
+# (rtcd_data → /tmp/rtcd_db) so restarting the SFU doesn't orphan the server.
+data_source = "/tmp/rtcd_db"
+
+[logger]
+enable_console = true
+console_level = "INFO"
+console_json = false
+enable_file = false
