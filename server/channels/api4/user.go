@@ -1150,7 +1150,12 @@ func searchUsers2(c *Context, w http.ResponseWriter, r *http.Request) {
 		props.Limit = model.UserSearchDefaultLimit
 	}
 
-	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionEditOtherUsers) {
+	// LMS fork: this endpoint backs the LMS employee/staff pickers (employee_only
+	// filter, see modelhelper.UserFilterOpts). LMS staff roles hold
+	// lms_manage_users rather than the core edit_other_users permission, so
+	// accept either. System-level behavior is unchanged for core users.
+	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionEditOtherUsers) &&
+		!c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageUsers) {
 		c.SetPermissionError(model.PermissionEditOtherUsers)
 		return
 	}

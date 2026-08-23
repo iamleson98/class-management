@@ -11,7 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useLMSStore } from '@/store/lms-store'
 import { format, parseISO } from 'date-fns'
-import { getDashboard, getWeeklyReviews } from '@/lib/api'
+import { getWeeklyReviews } from '@/lib/api'
+import { useParentChildren } from '@/lib/parent'
 import { eq, and } from '@/lib/query'
 import { staggerContainer, staggerItem } from '@/components/lms/shared/animations'
 import { useTranslation } from '@/lib/i18n'
@@ -35,14 +36,10 @@ export default function ParentReviews() {
   const { authUser } = useLMSStore()
   const { t } = useTranslation()
 
-  const dashboardQuery = useQuery({
-    queryKey: ['dashboard', 'lms_parent', authUser?.id, 'reviews-child'],
-    queryFn: () => getDashboard('lms_parent', authUser!.id),
-    enabled: !!authUser?.id,
-  })
-
-  const child = (dashboardQuery.data?.child || dashboardQuery.data?.student || {}) as Record<string, unknown>
-  const childStudentId = (child?.id || child?.studentId) as string | undefined
+  // Children are students whose parent_id points at this user (lib/parent).
+  const childrenQuery = useParentChildren(authUser?.id)
+  const children = childrenQuery.data || []
+  const childStudentId = children[0]?.id
 
   const reviewsQuery = useQuery({
     queryKey: ['weekly-reviews', 'parent', childStudentId],
@@ -50,10 +47,10 @@ export default function ParentReviews() {
     enabled: !!childStudentId,
   })
 
-  if (dashboardQuery.isLoading || reviewsQuery.isLoading) return <LoadingState />
+  if (childrenQuery.isLoading || reviewsQuery.isLoading) return <LoadingState />
 
-  if (dashboardQuery.isError || reviewsQuery.isError) {
-    return <ErrorState onRetry={() => { dashboardQuery.refetch(); reviewsQuery.refetch() }} />
+  if (childrenQuery.isError || reviewsQuery.isError) {
+    return <ErrorState onRetry={() => { childrenQuery.refetch(); reviewsQuery.refetch() }} />
   }
 
   const reviews = reviewsQuery.data || []

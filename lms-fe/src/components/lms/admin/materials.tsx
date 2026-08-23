@@ -13,6 +13,7 @@ import { getMaterialsPaginated, createMaterial, getCourses } from '@/lib/api'
 import { eq, and, or, contains, paginate } from '@/lib/query'
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/lms/page-header'
+import { FileUpload } from '@/components/lms/shared/file-upload'
 import { EmptyState } from '@/components/lms/empty-state'
 import { ErrorState } from '@/components/lms/error-state'
 import { Button } from '@/components/ui/button'
@@ -43,6 +44,8 @@ export default function AdminMaterials() {
 
   const [search, setSearch] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
+  // Display label for the uploaded file backing the hidden fileId field.
+  const [fileNameLabel, setFileNameLabel] = useState('')
   const pagination = usePagination(10)
   // TODO: wire courseId / visibility filter UI; undefined drops the condition.
   const courseId: string | undefined = undefined
@@ -98,6 +101,7 @@ export default function AdminMaterials() {
 
   const openCreate = () => {
     form.reset({ ...emptyMaterialForm, uploadedById: authUser?.id || '' })
+    setFileNameLabel('')
     setDialogOpen(true)
   }
 
@@ -196,8 +200,17 @@ export default function AdminMaterials() {
               <div className="grid grid-cols-2 gap-4 items-start">
                 <FormField control={form.control} name="fileId" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('materials.fileId', 'File ID')}</FormLabel>
-                    <FormControl><Input {...field} value={field.value ?? ''} placeholder={t('materials.fileIdPlaceholder', 'ID của file đã upload')} /></FormControl>
+                    <FormLabel>{t('materials.file', 'Tài liệu')}</FormLabel>
+                    {/* Real upload via /api/v4/files — sets the fileId the
+                        backend requires (materials.file_id). */}
+                    <FileUpload
+                      value={field.value ? { fileName: fileNameLabel, fileType: '' } : null}
+                      onChange={(file) => {
+                        form.setValue('fileId', file?.fileId ?? '')
+                        setFileNameLabel(file?.fileName ?? '')
+                      }}
+                      label={t('materials.chooseFile', 'Chọn tài liệu')}
+                    />
                     <FormMessage />
                   </FormItem>
                 )} />

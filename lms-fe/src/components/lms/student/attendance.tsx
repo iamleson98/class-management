@@ -17,7 +17,7 @@ import { LoadingState } from '@/components/lms/loading-state'
 import { ErrorState } from '@/components/lms/error-state'
 import { useLMSStore } from '@/store/lms-store'
 import { format, parseISO } from 'date-fns'
-import { getDashboard, getSessions } from '@/lib/api'
+import { getDashboard, getSessions, getClasses } from '@/lib/api'
 import { staggerContainer, staggerItem } from '@/components/lms/shared/animations'
 import { useTranslation } from '@/lib/i18n'
 
@@ -48,28 +48,40 @@ export default function StudentAttendance() {
   })
 
   const dashboard = dashboardQuery.data
-  const enrollments = (dashboard?.enrollments || []) as any[]
-  const classIds = new Set(enrollments.map((e: any) => e.classId))
-
-  const allSessions = (sessionsQuery.data || []).filter((s: any) => classIds.has(s.classId))
-
-  // Collect all attendance from completed sessions
-  const attendanceRecords: any[] = []
-  allSessions.forEach((session: any) => {
-    if (session.attendances && session.attendances.length > 0) {
-      session.attendances.forEach((att: any) => {
-        if (att.studentId === authUser?.id) {
-          attendanceRecords.push({ ...att, session })
-        }
-      })
-    }
+  // NOTE: the dashboard endpoint returns counters only — there is no
+  // enrollments join and sessions carry no embedded attendance, so a
+  // student's personal attendance history requires a backend endpoint that
+  // does not exist yet. Until then this view shows the student's session
+  // schedule ("which sessions happened") without per-student statuses.
+  const classesQuery = useQuery({
+    queryKey: ['classes', 'student-attendance', authUser?.id],
+    queryFn: () => getClasses(),
+    enabled: !!authUser?.id,
   })
+  const myClassCode = (() => {
+    try {
+      const raw = (authUser?.props as Record<string, unknown> | undefined)?.student
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+      return ((parsed as Record<string, unknown>)?.vmg_class_code as string) ?? ''
+    } catch {
+      return ''
+    }
+  })()
+  const myClassIds = new Set(
+    myClassCode
+      ? (classesQuery.data || []).filter((c: any) => c.code === myClassCode).map((c: any) => c.id)
+      : [],
+  )
+  const allSessions = (sessionsQuery.data || []).filter((s: any) =>
+    myClassIds.size > 0 ? myClassIds.has(s.classId) : true,
+  )
 
-  const totalPresent = attendanceRecords.filter((a: any) => a.status === 'PRESENT').length
-  const totalAbsent = attendanceRecords.filter((a: any) => a.status === 'ABSENT_EXCUSED' || a.status === 'ABSENT_UNEXCUSED').length
-  const totalLate = attendanceRecords.filter((a: any) => a.status === 'LATE' || a.status === 'EARLY_LEAVE').length
-  const totalRecords = attendanceRecords.length
-  const attendanceRate = totalRecords > 0 ? Math.round((totalPresent / totalRecords) * 100) : 0
+  const attendanceRecords: any[] = []
+  const totalPresent = 0
+  const totalAbsent = 0
+  const totalLate = 0
+  const totalRecords = 0
+  const attendanceRate = 0
 
   if (dashboardQuery.isLoading || sessionsQuery.isLoading) return <LoadingState />
 

@@ -179,7 +179,7 @@ export default function AdminCRM() {
   })
 
   const convertMutation = useMutation({
-    mutationFn: ({ leadId, data }: { leadId: string; data: any }) => convertLeadToStudent(leadId, data),
+    mutationFn: ({ leadId }: { leadId: string }) => convertLeadToStudent(leadId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leads'] })
       toast({ title: t('crm.convertSuccess', 'Chuyển đổi thành học viên thành công') })
@@ -242,10 +242,8 @@ export default function AdminCRM() {
 
   const handleConvert = () => {
     if (!selectedLead) return
-    convertMutation.mutate({
-      leadId: selectedLead.id,
-      data: { name: selectedLead.name, phone: selectedLead.phone, email: selectedLead.email },
-    })
+    // No body needed — the server builds the student from the stored lead.
+    convertMutation.mutate({ leadId: selectedLead.id })
   }
 
   if (isLoading) {

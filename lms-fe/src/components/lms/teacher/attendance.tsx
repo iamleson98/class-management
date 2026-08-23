@@ -1,12 +1,12 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ClipboardCheck, Save } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { motion } from 'framer-motion'
 import { PageHeader } from '@/components/lms/page-header'
 import { useLMSStore } from '@/store/lms-store'
-import { getSessions, getSessionAttendance, saveAttendance } from '@/lib/api'
+import { getSessions, getSessionAttendance, saveAttendance, getStudents } from '@/lib/api'
 import { useTranslation } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -39,34 +39,48 @@ export default function TeacherAttendance() {
   const queryClient = useQueryClient()
   const { authUser } = useLMSStore()
   const [selectedSession, setSelectedSession] = useState('')
-  const [attendanceMap, setAttendanceMap] = useState<Record<string, string>>({})
+  const [attendanceOverrides, setAttendanceOverrides] = useState<Record<string, string>>({})
 
   const { data: sessions, isLoading: isLoadingSessions, isError: isSessionsError, refetch: refetchSessions } = useQuery({ queryKey: ['sessions'], queryFn: () => getSessions() })
-  const mySessions = (sessions || []).filter((s: any) => s.teacherId === authUser?.id)
+  const mySessions = useMemo(
+    () => (sessions || []).filter((s: any) => s.teacherId === authUser?.id),
+    [sessions, authUser?.id],
+  )
+  const selectedSessionData = mySessions.find((s: any) => s.id === selectedSession)
+
+  // Roster: students enrolled in the selected session's class. The attendance
+  // API returns flat records WITHOUT student objects, so we join client-side.
+  const { data: roster = [], isLoading: isLoadingRoster } = useQuery({
+    queryKey: ['class-roster', selectedSessionData?.classId],
+    queryFn: () => getStudents({ class_id: selectedSessionData!.classId }),
+    enabled: !!selectedSessionData?.classId,
+  })
 
   const { data: attendanceData, isLoading, isError: isAttendanceError, refetch: refetchAttendance } = useQuery({
     queryKey: ['session-attendance', selectedSession],
     queryFn: () => getSessionAttendance(selectedSession),
     enabled: !!selectedSession,
   })
+  // The backend returns a bare [Attendance] array.
+  const existing = (attendanceData || []) as Array<{ studentId: string; status: string }>
 
-  // Initialize attendance map when data loads
-  const students = (attendanceData as any)?.students || []
-  const existing = (attendanceData as any)?.attendance || []
-
-  useEffect(() => {
-    if (!selectedSession || !students.length) return
+  // Base map: saved statuses when any exist, otherwise default the whole
+  // roster to PRESENT (the POST is a full replace — omitting a student would
+  // delete their row). Local edits layer on top as overrides.
+  const baseMap = useMemo(() => {
+    const map: Record<string, string> = {}
     if (existing.length > 0) {
-      const map: Record<string, string> = {}
-      existing.forEach((a: any) => { map[a.studentId] = a.status })
-      setAttendanceMap(map)
+      existing.forEach((a) => { map[a.studentId] = a.status })
     } else {
-      const map: Record<string, string> = {}
-      students.forEach((s: any) => { map[s.id] = 'PRESENT' })
-      setAttendanceMap(map)
+      roster.forEach((s: any) => { map[s.userId ?? s.id] = 'PRESENT' })
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSession, students.length, existing.length])
+    return map
+  }, [existing, roster])
+
+  const attendanceMap = useMemo(
+    () => ({ ...baseMap, ...attendanceOverrides }),
+    [baseMap, attendanceOverrides],
+  )
 
   const saveMutation = useMutation({
     mutationFn: (data: any[]) => saveAttendance(selectedSession, data),
@@ -80,10 +94,8 @@ export default function TeacherAttendance() {
   }
 
   const setAttendance = (studentId: string, status: string) => {
-    setAttendanceMap(prev => ({ ...prev, [studentId]: status }))
+    setAttendanceOverrides(prev => ({ ...prev, [studentId]: status }))
   }
-
-  const selectedSessionData = mySessions.find((s: any) => s.id === selectedSession)
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
@@ -94,7 +106,7 @@ export default function TeacherAttendance() {
         <CardContent className="p-4">
           <div className="flex items-center gap-3">
             <Label className="text-sm font-medium shrink-0">{t('teacher.attendance.selectSession', 'Chọn buổi học')}:</Label>
-            <Select value={selectedSession} onValueChange={setSelectedSession}>
+            <Select value={selectedSession} onValueChange={(v) => { setSelectedSession(v); setAttendanceOverrides({}) }}>
               <SelectTrigger className="max-w-md"><SelectValue placeholder={t('teacher.attendance.selectSessionPlaceholder', 'Chọn buổi học...')} /></SelectTrigger>
               <SelectContent>
                 {isLoadingSessions ? (
@@ -119,13 +131,15 @@ export default function TeacherAttendance() {
         <Card className="rounded-xl border">
           <CardHeader className="pb-3"><CardTitle className="text-sm">
             {selectedSessionData?.date} | {selectedSessionData?.startTime}-{selectedSessionData?.endTime}
-            <span className="ml-2 text-xs text-muted-foreground">{students.length} {t('teacher.attendance.students', 'học viên')}</span>
+            <span className="ml-2 text-xs text-muted-foreground">{roster.length} {t('teacher.attendance.students', 'học viên')}</span>
           </CardTitle></CardHeader>
           <CardContent>
-            {isLoading ? (
+            {isLoading || isLoadingRoster ? (
               <div className="flex justify-center py-8"><div className="h-6 w-6 border-2 border-teal-200 border-t-teal-600 rounded-full animate-spin" /></div>
             ) : isAttendanceError ? (
               <ErrorState onRetry={() => refetchAttendance()} />
+            ) : roster.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">{t('teacher.attendance.noStudents', 'Lớp này chưa có học viên nào')}</p>
             ) : (
               <div className="space-y-3">
                 {/* Header */}
@@ -137,25 +151,29 @@ export default function TeacherAttendance() {
                     </div>
                   ))}
                 </div>
-                {/* Rows */}
-                {students.map((student: any) => (
-                  <div key={student.id} className="flex items-center gap-2">
-                    <div className="w-40 shrink-0 text-sm font-medium truncate">{student.name}</div>
+                {/* Rows — students are users; the attendance key is the user id. */}
+                {roster.map((student: any) => {
+                  const studentUserId = student.userId ?? student.id
+                  return (
+                  <div key={studentUserId} className="flex items-center gap-2">
+                    <div className="w-40 shrink-0 text-sm font-medium truncate">{student.name || student.username}</div>
                     {ATTENDANCE_OPTIONS.map(opt => (
                       <div key={opt.value} className="flex-1 flex justify-center">
                         <button
-                          onClick={() => setAttendance(student.id, opt.value)}
+                          title={t(...ATTENDANCE_LABEL_KEYS[opt.value])}
+                          onClick={() => setAttendance(studentUserId, opt.value)}
                           className={cn(
                             'w-8 h-8 rounded-lg border text-xs font-medium transition-all',
-                            attendanceMap[student.id] === opt.value ? opt.color + ' ring-2 ring-offset-1 ring-current scale-105' : 'border-transparent bg-transparent hover:bg-muted/50'
+                            attendanceMap[studentUserId] === opt.value ? opt.color + ' ring-2 ring-offset-1 ring-current scale-105' : 'border-transparent bg-transparent hover:bg-muted/50'
                           )}
                         >
-                          {t(...ATTENDANCE_LABEL_KEYS[opt.value])[0]}
+                          {t(...ATTENDANCE_LABEL_KEYS[opt.value]).charAt(0)}
                         </button>
                       </div>
                     ))}
                   </div>
-                ))}
+                  )
+                })}
               </div>
             )}
             <div className="mt-4 flex justify-end">

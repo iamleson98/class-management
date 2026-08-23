@@ -1,7 +1,7 @@
 import type {
   User, Branch, BranchListItem, Student, Course, Class,
-  SessionListItem, Attendance, AttendanceResponse,
-  Lead, LeadListItem, LeadActivity,
+  SessionListItem, Attendance,
+  Lead, LeadListItem, LeadActivity, StudentEnrollment,
   FeePackage, FeePackageListItem, Tuition, TuitionListItem,
   Payment, PaymentWithUser, Material, MaterialListItem,
   Task, TaskListItem, Post, PostListItem, PostCategory, PostCategoryWithCount,
@@ -522,7 +522,7 @@ export const getPublicCourses = (): Promise<Course[]> =>
 export const getPublicPosts = (): Promise<PostListItem[]> =>
   fetch(`${PUBLIC_BASE}/posts`, { credentials: 'include' })
     .then((r) => r.json())
-    .then((json) => toCamel<PostListItem[]>(json.data ?? json))
+    .then((json) => toCamel<PostListItem[]>(extractItems(json)))
 
 export const submitRegistration = (data: Record<string, unknown>) =>
   publicJson('/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: jsonBody(data) }, 'Đăng ký thất bại')
@@ -552,23 +552,20 @@ export interface GetUsersParams {
   staffOnly?: boolean
 }
 
-// export type UserSearch = {
-//   term: string;
-//   team_id: string;
-//   not_in_team_id: string;
-//   in_channel_id: string;
-//   not_in_channel_id: string;
-//   in_group_id: string;
-//   group_constrained: boolean;
-//   allow_inactive: boolean;
-//   without_team: boolean;
-//   limit: number;
-//   role: string;
-//   roles: string[];
-//   channel_roles: string[];
-//   team_roles: string[];
-//   not_in_group_id: string;
-// };
+/**
+ * Best-effort display name for a Mattermost UserProfile.
+ *
+ * The backend serializes names as `firstname`/`lastname` (lowercase, no
+ * underscore — see model.User json tags), while @mattermost/types declares
+ * `first_name`/`last_name`. Read both spellings and fall back to username.
+ */
+export function getUserDisplayName(user: Partial<UserProfile> | null | undefined): string {
+  if (!user) return ''
+  const anyUser = user as Record<string, unknown>
+  const first = (anyUser.firstname as string) ?? (anyUser.first_name as string) ?? ''
+  const last = (anyUser.lastname as string) ?? (anyUser.last_name as string) ?? ''
+  return [first, last].filter(Boolean).join(' ').trim() || user.username || ''
+}
 
 
 export const getUsers = (params: GetUsersParams = {}) => {
@@ -662,8 +659,8 @@ export const createClass = (data: CreateClassInput): Promise<Class> => apiPost<C
 export const updateClass = (id: string, data: UpdateClassInput): Promise<Class> => apiPut<Class>(`/lms/classes/${id}`, data)
 export const deleteClass = (id: string): Promise<void> => apiDelete<void>(`/lms/classes/${id}`)
 export const getClassDetail = (id: string): Promise<any> => apiGet(`/lms/classes/${id}`)
-export const enrollStudents = (classId: string, studentIds: string[]): Promise<Class> =>
-  apiPost<Class>(`/lms/classes/${classId}/enroll`, { studentIds })
+export const enrollStudents = (classId: string, studentIds: string[]): Promise<StudentEnrollment[]> =>
+  apiPost<StudentEnrollment[]>(`/lms/classes/${classId}/enroll`, { studentIds })
 
 // ─── Sessions ───────────────────────────────────────────────────────
 
@@ -689,16 +686,18 @@ export const deleteSession = (id: string): Promise<void> =>
 
 // ─── Attendance ────────────────────────────────────────────────────
 //
-// POST /lms/sessions/{id}/attendance expects a BARE JSON ARRAY of attendance
-// records (the handler decodes into []*lms_models.Attendance), NOT an object
-// wrapped in { records }. The session id is taken from the URL and overwrites
-// any session_id in the body (full-replace semantics: existing records are
-// deleted, then the provided ones are inserted).
+// Both endpoints are session-scoped by the path id and exchange a BARE JSON
+// ARRAY of attendance records (the handlers decode/encode []*Attendance):
+//   GET  /lms/sessions/{id}/attendance → [Attendance]   (after {data} unwrap)
+//   POST /lms/sessions/{id}/attendance → [Attendance]   (full-replace upsert;
+//        session_id is forced from the path over any body value)
+// There are NO embedded student/session objects — callers join the roster
+// client-side via getStudents({ class_id }) (see the attendance views).
 
-export const getSessionAttendance = (sessionId: string): Promise<AttendanceResponse> =>
-  apiFetch<AttendanceResponse>(`/lms/sessions/${sessionId}/attendance`)
-export const saveAttendance = (sessionId: string, records: AttendanceInput[]): Promise<{ count: number; records: Attendance[] }> =>
-  apiFetch<{ count: number; records: Attendance[] }>(
+export const getSessionAttendance = (sessionId: string): Promise<Attendance[]> =>
+  apiFetch<Attendance[]>(`/lms/sessions/${sessionId}/attendance`)
+export const saveAttendance = (sessionId: string, records: AttendanceInput[]): Promise<Attendance[]> =>
+  apiFetch<Attendance[]>(
     `/lms/sessions/${sessionId}/attendance`,
     { method: 'POST', body: JSON.stringify(toSnake(records)) },
   )
@@ -715,8 +714,10 @@ export const deleteLead = (id: string): Promise<void> => apiDelete<void>(`/lms/l
 export const getLeadActivities = (leadId: string): Promise<LeadActivity[]> => apiFetch<LeadActivity[]>(`/lms/leads/${leadId}/activities`)
 export const createLeadActivity = (leadId: string, data: LeadActivityInput): Promise<LeadActivity> =>
   apiPost<LeadActivity>(`/lms/leads/${leadId}/activities`, data)
-export const convertLeadToStudent = (leadId: string, data: Record<string, unknown>): Promise<Lead> =>
-  apiPost<Lead>(`/lms/leads/${leadId}/convert`, data)
+// The convert endpoint takes no body — the server builds the student from the
+// stored lead (default password Student@123) and marks it ENROLLED.
+export const convertLeadToStudent = (leadId: string): Promise<{ user: UserProfile; lead: Lead }> =>
+  apiPost<{ user: UserProfile; lead: Lead }>(`/lms/leads/${leadId}/convert`, {})
 
 // ─── Tuitions ──────────────────────────────────────────────────────
 
@@ -726,6 +727,11 @@ export const getTuitionsPaginated = (opts: SearchOpts = {}): Promise<PaginatedLi
   apiSearchPaginated<TuitionListItem>('/lms/tuitions', opts)
 export const createTuition = (data: CreateTuitionInput): Promise<Tuition> => apiPost<Tuition>('/lms/tuitions/create', data)
 export const getTuitionPayments = (tuitionId: string): Promise<PaymentWithUser[]> => apiFetch<PaymentWithUser[]>(`/lms/tuitions/${tuitionId}/payments`)
+/** Search payments (POST /lms/payments — PaymentFilterOpts body). */
+export const getPayments = (opts: SearchOpts = {}): Promise<PaymentWithUser[]> =>
+  apiSearchList<PaymentWithUser>('/lms/payments', opts)
+export const getPaymentsPaginated = (opts: SearchOpts = {}): Promise<PaginatedList<PaymentWithUser>> =>
+  apiSearchPaginated<PaymentWithUser>('/lms/payments', opts)
 export const createPayment = (tuitionId: string, data: PaymentInput): Promise<Payment> =>
   apiPost<Payment>(`/lms/tuitions/${tuitionId}/payments`, data)
 
@@ -833,12 +839,31 @@ export function getHomeworkSubmissions(homeworkId: string) {
   return apiGet<HomeworkSubmission[]>(`/lms/homeworks/${homeworkId}/submissions`)
 }
 
-export function submitHomework(data: Record<string, unknown>) {
-  return apiPost(`/lms/homeworks/${data.homeworkId}/submissions`, data)
+/** Payload for creating/replacing a homework submission (lms_models.Submission). */
+export interface SubmitHomeworkInput {
+  studentId: string
+  /** Student's note accompanying the submission. */
+  description?: string
+  /** Uploaded file id (see lib/file-upload.ts uploadLmsFile). */
+  fileId?: string
 }
 
-export function gradeHomework(homeworkId: string, data: Record<string, unknown>) {
-  return apiPut(`/lms/homeworks/${homeworkId}/submissions`, data)
+/**
+ * Submit (or re-submit) a homework. The backend upserts by
+ * homework_id + student_id — student_id is REQUIRED.
+ */
+export function submitHomework(homeworkId: string, data: SubmitHomeworkInput) {
+  return apiPost<HomeworkSubmission>(`/lms/homeworks/${homeworkId}/submissions`, data)
+}
+
+/**
+ * Upsert a homework submission (same endpoint as submitHomework). Used by the
+ * grading UI: pass the EXISTING submission with `feedback` merged in — the
+ * upsert replaces the whole row, so partial payloads would wipe the student's
+ * file/description.
+ */
+export function upsertHomeworkSubmission(homeworkId: string, submission: Partial<HomeworkSubmission> & Pick<HomeworkSubmission, 'studentId'>) {
+  return apiPost<HomeworkSubmission>(`/lms/homeworks/${homeworkId}/submissions`, submission)
 }
 
 // ─── Weekly Reviews ──────────────────────────────────────────────────

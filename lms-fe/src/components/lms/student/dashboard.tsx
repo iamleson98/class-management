@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import { format, parseISO, isToday, isFuture } from 'date-fns'
 import { useLMSStore } from '@/store/lms-store'
-import { getDashboard, getSessions, getMaterials } from '@/lib/api'
+import { getDashboard, getSessions, getMaterials, getClasses } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { motion } from 'framer-motion'
 import { useTranslation } from '@/lib/i18n'
@@ -46,6 +46,11 @@ function StudentDashboardInner() {
     queryFn: () => getMaterials(),
     enabled: !!authUser?.id,
   })
+  const classesQuery = useQuery({
+    queryKey: ['classes', 'student-dashboard', authUser?.id],
+    queryFn: () => getClasses(),
+    enabled: !!authUser?.id,
+  })
 
   if (dashboardQuery.isLoading || sessionsQuery.isLoading || materialsQuery.isLoading) return <LoadingState />
 
@@ -68,18 +73,32 @@ function StudentDashboardInner() {
   const studentName = authUser?.nickname || `${authUser?.first_name || ''} ${authUser?.last_name || ''}`.trim() || t('student.dashboard.defaultName', 'Hoc vien')
   const initials = studentName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
 
-  // My classes
-  const enrollments = (dashboard?.enrollments || []) as any[]
-  const classIds = new Set(enrollments.map((e: any) => e.classId))
-  const myClasses = enrollments.length
+  // The dashboard endpoint returns counters only — there is no enrollments
+  // join exposed. Derive "my classes" from the student's stored
+  // vmg_class_code prop (set on the student record) matched against the
+  // class list; when absent, fall back to showing all visible sessions.
+  const myClassCode = (() => {
+    try {
+      const raw = (authUser?.props as Record<string, unknown> | undefined)?.student
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+      return ((parsed as Record<string, unknown>)?.vmg_class_code as string) ?? ''
+    } catch {
+      return ''
+    }
+  })()
+  const myClassesList = myClassCode
+    ? (classesQuery.data || []).filter((c: any) => c.code === myClassCode)
+    : []
+  const classIds = new Set(myClassesList.map((c: any) => c.id))
+  const myClasses = myClassesList.length
 
   // My sessions
   const mySessions = classIds.size > 0
     ? sessions.filter((s: any) => classIds.has(s.classId))
     : sessions
 
-  // Attendance
-  const attendanceRate = Number(stats.attendanceRate ?? 0)
+  // Upcoming count from the backend-computed dashboard stat.
+  const attendanceRate = Number((dashboard as any)?.attendanceRate ?? 0)
 
   // Today and upcoming
   const todaySessions = mySessions
@@ -91,9 +110,12 @@ function StudentDashboardInner() {
     .sort((a: any, b: any) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))
     .slice(0, 6)
 
-  // Recent materials
-  const courseIds = new Set(enrollments.map((e: any) => e.courseId))
-  const myMaterials = materials.filter((m: any) => courseIds.has(m.courseId)).slice(0, 4)
+  // Recent materials — filtered to my classes' courses when known.
+  const courseIds = new Set(myClassesList.map((c: any) => c.courseId))
+  const myMaterials = (courseIds.size > 0
+    ? materials.filter((m: any) => courseIds.has(m.courseId))
+    : materials
+  ).slice(0, 4)
 
   return (
     <div className="space-y-6">
@@ -314,9 +336,9 @@ function StudentDashboardInner() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {enrollments.map((enrollment: any, idx: number) => (
+              {myClassesList.map((cls: any, idx: number) => (
                 <div
-                  key={enrollment.classId || idx}
+                  key={cls.id || idx}
                   className={cn(
                     'flex items-center gap-3 p-4 rounded-xl border-l-4 border hover:transition-all group',
                     CLASS_COLORS[idx % CLASS_COLORS.length],
@@ -326,15 +348,10 @@ function StudentDashboardInner() {
                     <BookOpen className="h-5 w-5 text-sky-600" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold truncate">{enrollment.className || enrollment.class?.name}</p>
+                    <p className="text-sm font-semibold truncate">{cls.name}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {enrollment.courseName || enrollment.class?.course?.name}
+                      {cls.code}
                     </p>
-                    {enrollment.teacherName && (
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {t('student.dashboard.teacherAbbr', 'GV')}: {enrollment.teacherName}
-                      </p>
-                    )}
                   </div>
                 </div>
               ))}

@@ -47,7 +47,7 @@ const resetPasswordSchema = z
 
 type ResetPasswordInput = z.infer<typeof resetPasswordSchema>
 
-type TokenStatus = 'loading' | 'valid' | 'invalid' | 'expired'
+type TokenStatus = 'loading' | 'valid' | 'invalid'
 
 function ResetPasswordContent() {
   const searchParams = useSearchParams()
@@ -113,7 +113,8 @@ function ResetPasswordContent() {
               </div>
             )}
 
-            {/* Invalid token */}
+            {/* Invalid OR expired token — the backend verify-token endpoint only
+                reports {valid: boolean}, so both cases share this block. */}
             {tokenStatus === 'invalid' && !isError && (
               <div className="text-center py-4 space-y-4">
                 <div className="p-4 bg-red-100 dark:bg-red-900/30 rounded-full w-fit mx-auto">
@@ -147,26 +148,6 @@ function ResetPasswordContent() {
                   <Button variant="outline" onClick={() => refetch()}>
                     {t('common.retry', 'Thử lại')}
                   </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Expired token */}
-            {tokenStatus === 'expired' && (
-              <div className="text-center py-4 space-y-4">
-                <div className="p-4 bg-amber-100 dark:bg-amber-900/30 rounded-full w-fit mx-auto">
-                  <AlertTriangle className="h-12 w-12 text-amber-600" />
-                </div>
-                <h2 className="text-2xl font-bold">{t('resetPassword.expiredLink', 'Liên kết đã hết hạn')}</h2>
-                <p className="text-muted-foreground">
-                  {t('resetPassword.expiredLinkDesc', 'Liên kết đặt lại mật khẩu đã hết hạn. Vui lòng yêu cầu lại liên kết mới.')}
-                </p>
-                <div className="pt-2">
-                  <Link href="/forgot-password">
-                    <Button className="rounded-lg bg-sky-600 hover:bg-sky-700 text-white">
-                      {t('auth.forgotPassword', 'Quên mật khẩu?')}
-                    </Button>
-                  </Link>
                 </div>
               </div>
             )}

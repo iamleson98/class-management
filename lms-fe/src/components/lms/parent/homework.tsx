@@ -11,7 +11,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useLMSStore } from '@/store/lms-store'
 import { format, parseISO, isPast } from 'date-fns'
-import { getDashboard, getHomework } from '@/lib/api'
+import { getHomework } from '@/lib/api'
+import { useParentChildren } from '@/lib/parent'
 import { staggerContainer, staggerItem } from '@/components/lms/shared/animations'
 import { useTranslation } from '@/lib/i18n'
 
@@ -44,14 +45,10 @@ export default function ParentHomework() {
   const { authUser } = useLMSStore()
   const { t } = useTranslation()
 
-  const dashboardQuery = useQuery({
-    queryKey: ['dashboard', 'lms_parent', authUser?.id, 'homework-child'],
-    queryFn: () => getDashboard('lms_parent', authUser!.id),
-    enabled: !!authUser?.id,
-  })
-
-  const child = (dashboardQuery.data?.child || dashboardQuery.data?.student || {}) as Record<string, unknown>
-  const childStudentId = (child?.id || child?.studentId) as string | undefined
+  // Children are students whose parent_id points at this user (see lib/parent).
+  const childrenQuery = useParentChildren(authUser?.id)
+  const children = childrenQuery.data || []
+  const childStudentId = children[0]?.id
 
   const homeworkQuery = useQuery({
     queryKey: ['homework', 'parent', childStudentId],
@@ -62,10 +59,10 @@ export default function ParentHomework() {
     enabled: !!childStudentId,
   })
 
-  if (dashboardQuery.isLoading || homeworkQuery.isLoading) return <LoadingState />
+  if (childrenQuery.isLoading || homeworkQuery.isLoading) return <LoadingState />
 
-  if (dashboardQuery.isError || homeworkQuery.isError) {
-    return <ErrorState onRetry={() => { dashboardQuery.refetch(); homeworkQuery.refetch() }} />
+  if (childrenQuery.isError || homeworkQuery.isError) {
+    return <ErrorState onRetry={() => { childrenQuery.refetch(); homeworkQuery.refetch() }} />
   }
 
   const homework = homeworkQuery.data || []

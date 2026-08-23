@@ -8,7 +8,7 @@ import {
   Clock, DollarSign, TrendingUp, UserPlus, Plus, School, Contact,
   ArrowRight, Zap, CreditCard, Target,
 } from 'lucide-react'
-import { formatVND, getDashboard, getSessions } from '@/lib/api'
+import { formatVND, getDashboard, getSessions, getReport, getTuitions } from '@/lib/api'
 import { PageHeader } from '@/components/lms/page-header'
 import { EmptyState } from '@/components/lms/empty-state'
 import { ErrorState } from '@/components/lms/error-state'
@@ -37,6 +37,21 @@ export default function AdminDashboard() {
     queryFn: () => getDashboard('lms_admin'),
   })
 
+  // Stats the backend dashboard doesn't compute are aggregated from the
+  // report + tuition endpoints (both permitted for lms_admin).
+  const revenueReportQuery = useQuery({
+    queryKey: ['dashboard', 'lms_admin', 'report-revenue'],
+    queryFn: () => getReport('revenue'),
+  })
+  const attendanceReportQuery = useQuery({
+    queryKey: ['dashboard', 'lms_admin', 'report-attendance'],
+    queryFn: () => getReport('attendance'),
+  })
+  const tuitionsQuery = useQuery({
+    queryKey: ['dashboard', 'lms_admin', 'tuitions'],
+    queryFn: () => getTuitions({ limit: 1000 }),
+  })
+
   const sessionsQuery = useQuery({
     queryKey: ['sessions', 'admin-recent', currentMonth],
     // The sessions table has no `month` column, so we fetch all and filter
@@ -58,6 +73,14 @@ export default function AdminDashboard() {
 
   const dashboard = dashboardQuery.data || {}
   const stats = dashboard
+  // Derived stats (real data from permitted endpoints).
+  const revenue = Number((revenueReportQuery.data as any)?.totalRevenue ?? 0)
+  const totalDebt = (tuitionsQuery.data || []).reduce(
+    (sum: number, tu: any) => sum + Number(tu.remainingAmount ?? 0), 0,
+  )
+  const present = Number((attendanceReportQuery.data as any)?.present ?? 0)
+  const absent = Number((attendanceReportQuery.data as any)?.absent ?? 0)
+  const attendanceRate = present + absent > 0 ? Math.round((present / (present + absent)) * 100) : 0
   const sessions = (sessionsQuery.data || []).filter((s: any) => (s.date || '').startsWith(currentMonth))
 
   const todaySessions = sessions
@@ -91,7 +114,7 @@ export default function AdminDashboard() {
         <motion.div variants={staggerItem}>
           <StatCard
             title={t('dashboard.newLeadsThisMonth', 'Leads mới tháng')}
-            value={stats.newLeadsThisMonth ?? 0}
+            value={stats.totalNewLeadsThisMonth ?? 0}
             icon={Target}
             iconColor="text-blue-600 dark:text-blue-400"
             iconBg="bg-blue-50 dark:bg-blue-950/30"
@@ -99,8 +122,8 @@ export default function AdminDashboard() {
         </motion.div>
         <motion.div variants={staggerItem}>
           <StatCard
-            title={t('dashboard.activeClasses', 'Lớp đang hoạt động')}
-            value={stats.activeClasses ?? 0}
+            title={t('dashboard.totalClasses', 'Tổng lớp học')}
+            value={stats.totalClasses ?? 0}
             icon={CalendarDays}
             iconColor="text-amber-600 dark:text-amber-400"
             iconBg="bg-amber-50 dark:bg-amber-950/30"
@@ -118,7 +141,7 @@ export default function AdminDashboard() {
         <motion.div variants={staggerItem}>
           <StatCard
             title={t('dashboard.totalRevenue', 'Tổng doanh thu')}
-            value={formatVND(Number(stats.totalRevenue ?? 0))}
+            value={formatVND(revenue)}
             icon={DollarSign}
             iconColor="text-sky-600 dark:text-sky-400"
             iconBg="bg-sky-50 dark:bg-sky-950/30"
@@ -127,7 +150,7 @@ export default function AdminDashboard() {
         <motion.div variants={staggerItem}>
           <StatCard
             title={t('dashboard.totalDebt', 'Tổng công nợ')}
-            value={formatVND(Number(stats.totalDebt ?? 0))}
+            value={formatVND(totalDebt)}
             icon={CreditCard}
             iconColor="text-rose-600 dark:text-rose-400"
             iconBg="bg-rose-50 dark:bg-rose-950/30"
@@ -136,7 +159,7 @@ export default function AdminDashboard() {
         <motion.div variants={staggerItem}>
           <StatCard
             title={t('dashboard.attendanceRate', 'Tỷ lệ điểm danh')}
-            value={`${stats.attendanceRate ?? 0}%`}
+            value={`${attendanceRate}%`}
             icon={TrendingUp}
             iconColor="text-teal-600 dark:text-teal-400"
             iconBg="bg-teal-50 dark:bg-teal-950/30"

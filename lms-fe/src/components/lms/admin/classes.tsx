@@ -1,16 +1,18 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod/v4'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { School, Plus, Pencil, Trash2, UserPlus, Users, Eye, Camera, Calendar, Play } from 'lucide-react'
+import { School, Plus, Pencil, Trash2, UserPlus, Users, Eye, Camera, Calendar, Play, Upload } from 'lucide-react'
 import { createClassSchema, type CreateClassInput, type UpdateClassInput } from '@/lib/schemas'
 import { getClassesPaginated, createClass, updateClass, deleteClass, enrollStudents, getStudents, getClassDetail, getClassMedia, createClassMedia, deleteClassMedia, getSessions } from '@/lib/api'
+import { uploadLmsFile } from '@/lib/file-upload'
 import { eq, and, paginate } from '@/lib/query'
 import { useToast } from '@/hooks/use-toast'
+import { useLMSStore } from '@/store/lms-store'
 import { PageHeader } from '@/components/lms/page-header'
 import { EmptyState } from '@/components/lms/empty-state'
 import { ErrorState } from '@/components/lms/error-state'
@@ -64,11 +66,15 @@ function ClassMediaTab({ media, classId, onDelete, isAuthenticated }: {
   const { t } = useTranslation()
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  const { authUser } = useLMSStore()
   const [selectedMedia, setSelectedMedia] = useState<any>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [uploadUrl, setUploadUrl] = useState('')
   const [uploadTitle, setUploadTitle] = useState('')
   const [uploadType, setUploadType] = useState<'PHOTO' | 'VIDEO'>('PHOTO')
+  const [uploadFileId, setUploadFileId] = useState('')
+  const [isFileUploading, setIsFileUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const uploadMutation = useMutation({
     mutationFn: (data: Record<string, unknown>) => createClassMedia(data),
@@ -76,18 +82,41 @@ function ClassMediaTab({ media, classId, onDelete, isAuthenticated }: {
       queryClient.invalidateQueries({ queryKey: ['class-media'] })
       setUploadUrl('')
       setUploadTitle('')
+      setUploadFileId('')
       toast({ title: t('classes.uploadSuccess', 'Tải lên thành công') })
     },
     onError: (err: unknown) => toast({ title: (err as Error)?.message || t('classes.uploadFail', 'Tải lên thất bại'), variant: 'destructive' }),
   })
 
+  /** Upload a local file via /api/v4/files and fill URL + file_id. */
+  async function handleFilePicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsFileUploading(true)
+    try {
+      const uploaded = await uploadLmsFile(file)
+      setUploadUrl(uploaded.fileUrl)
+      setUploadFileId(uploaded.fileId)
+      setUploadType(uploaded.fileType === 'video' ? 'VIDEO' : 'PHOTO')
+      if (!uploadTitle) setUploadTitle(uploaded.fileName)
+    } catch (err) {
+      toast({ title: (err as Error)?.message || t('classes.uploadFail', 'Tải lên thất bại'), variant: 'destructive' })
+    } finally {
+      setIsFileUploading(false)
+      e.target.value = ''
+    }
+  }
+
   function handleUpload() {
-    if (!uploadUrl) return
+    if (!uploadUrl || !authUser?.id) return
+    // uploaded_by_id is required for audit (who uploaded the media).
     uploadMutation.mutate({
       classId,
       title: uploadTitle || undefined,
       fileUrl: uploadUrl,
       fileType: uploadType,
+      fileId: uploadFileId || undefined,
+      uploadedById: authUser.id,
     })
   }
 
@@ -99,10 +128,26 @@ function ClassMediaTab({ media, classId, onDelete, isAuthenticated }: {
           <div className="space-y-3">
             <p className="text-sm font-medium">{t('classes.uploadNewMedia', 'Tải lên hình ảnh/video mới')}</p>
             <div className="flex gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,video/*"
+                className="hidden"
+                onChange={handleFilePicked}
+              />
+              <Button
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isFileUploading}
+                className="shrink-0"
+              >
+                <Upload className="h-4 w-4 mr-1.5" />
+                {isFileUploading ? t('common.loading', 'Đang tải...') : t('classes.chooseFile', 'Chọn file')}
+              </Button>
               <Input
                 placeholder={t('classes.uploadUrlPlaceholder', 'Dán URL hình ảnh hoặc video...')}
                 value={uploadUrl}
-                onChange={(e) => setUploadUrl(e.target.value)}
+                onChange={(e) => { setUploadUrl(e.target.value); setUploadFileId('') }}
                 className="flex-1"
               />
               <Input

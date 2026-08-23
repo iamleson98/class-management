@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"slices"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/iamleson98/sitename/server/public/model"
@@ -469,11 +470,14 @@ func (s *Server) doPlaybooksRolesCreationMigration() error {
 
 func (s *Server) doLMSRolesCreationMigration() error {
 	var nfErr *store.ErrNotFound
-	if _, err := s.Store().System().GetByName(model.LMSRolesCreationMigrationKey); err == nil {
-		return nil
-	} else if !errors.As(err, &nfErr) {
+	if _, err := s.Store().System().GetByName(model.LMSRolesCreationMigrationKey); err != nil && !errors.As(err, &nfErr) {
 		return fmt.Errorf("could not query migration: %w", err)
 	}
+	// NOTE: this migration intentionally re-runs on every startup (no early
+	// return on the completion key). The loop below is idempotent: it only
+	// writes when a built-in LMS role is missing or its permission set differs
+	// from MakeDefaultLMSRoles(), so permission changes ship to existing
+	// installations while admins' scheme roles remain untouched.
 
 	roles := model.MakeDefaultLMSRoles()
 	var multiErr *multierror.Error
@@ -485,6 +489,17 @@ func (s *Server) doLMSRolesCreationMigration() error {
 			continue
 		}
 		if existing != nil {
+			// Sync permissions for existing built-in LMS roles so permission
+			// changes in MakeDefaultLMSRoles reach already-provisioned
+			// installations (these roles are not admin-editable via the system
+			// console, so overwriting is safe and keeps them in sync).
+			if !slices.Equal(existing.Permissions, role.Permissions) {
+				existing.Permissions = role.Permissions
+				existing.UpdateAt = model.GetMillis()
+				if _, err := s.Store().Role().Save(existing); err != nil {
+					multiErr = multierror.Append(multiErr, fmt.Errorf("failed to update LMS role %q: %w", roleID, err))
+				}
+			}
 			continue
 		}
 		if _, err := s.Store().Role().Save(role); err != nil {

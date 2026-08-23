@@ -13,6 +13,7 @@ import {
 } from '@/lib/api'
 import { eq, contains, and, or, paginate } from '@/lib/query'
 import { useToast } from '@/hooks/use-toast'
+import { useLMSStore } from '@/store/lms-store'
 import { PageHeader } from '@/components/lms/page-header'
 import { EmptyState } from '@/components/lms/empty-state'
 import { ErrorState } from '@/components/lms/error-state'
@@ -101,6 +102,7 @@ function StarRating({
 // ── Component ────────────────────────────────────────────────────────
 export default function AdminReviews() {
   const { toast } = useToast()
+  const { authUser } = useLMSStore()
   const { t } = useTranslation()
   const queryClient = useQueryClient()
 
@@ -167,7 +169,12 @@ export default function AdminReviews() {
 
   // ── Mutations ──────────────────────────────────────────────────
   const createMutation = useMutation({
-    mutationFn: (data: ReviewFormValues) => createWeeklyReview(data as any),
+    // createdBy (the reviewing teacher/admin) is an audit column on
+    // weekly_reviews — fill it from the logged-in user.
+    mutationFn: (data: ReviewFormValues) => createWeeklyReview({
+      ...data,
+      createdBy: authUser?.id || '',
+    } as any),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['weekly-reviews'] })
       toast({ title: t('reviews.createSuccess', 'Viết nhận xét thành công') })

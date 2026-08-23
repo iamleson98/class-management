@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import RichTextEditor from '@/components/ui/mdx-editor'
-import { uploadFile } from '@/lib/file-upload'
+import { uploadLmsFile } from '@/lib/file-upload'
 import { Textarea } from '@/components/ui/textarea'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { getPosts, createPost, updatePost } from '@/lib/api'
@@ -98,7 +98,7 @@ export default function MarketingCMSPage() {
 
   const handleImageUpload = async (file: File): Promise<string> => {
     try {
-      const result = await uploadFile(file, 'posts')
+      const result = await uploadLmsFile(file)
       return result.fileUrl
     } catch (err) {
       console.error('Upload failed:', err)

@@ -13,8 +13,9 @@ import {
 import {
   getHomeworkPaginated, createHomework, deleteHomework,
   bulkAssignHomework, getHomeworkSubmissions, getClasses, getStudents,
+  upsertHomeworkSubmission,
 } from '@/lib/api'
-import { gradeHomework } from '@/lib/api'
+import { uploadLmsFile } from '@/lib/file-upload'
 import { eq, contains, and, or, paginate } from '@/lib/query'
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/lms/page-header'
@@ -233,10 +234,18 @@ export default function AdminHomework() {
   })
 
   const gradeMutation = useMutation({
-    // The submissions table has NO grade column — only feedback is writable.
-    // The grade input is kept for local display only.
-    mutationFn: ({ homeworkId, studentId, feedback }: { homeworkId: string; studentId: string; grade: string; feedback: string }) =>
-      gradeHomework(homeworkId, { studentId, feedback }),
+    // The submissions table has NO grade column — only feedback is persisted.
+    // The backend upsert REPLACES the whole row, so merge the feedback onto
+    // the EXISTING submission (otherwise the student's file/description
+    // would be wiped by the update).
+    mutationFn: ({ homeworkId, submission, feedback }: { homeworkId: string; submission: any; feedback: string }) =>
+      upsertHomeworkSubmission(homeworkId, {
+        studentId: submission.studentId,
+        title: submission.title ?? '',
+        description: submission.description ?? '',
+        fileId: submission.fileId ?? '',
+        feedback,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['homework-submissions'] })
       queryClient.invalidateQueries({ queryKey: ['homework'] })
@@ -276,17 +285,26 @@ export default function AdminHomework() {
     setDeleteDialogOpen(true)
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, isBulk: boolean) => {
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, isBulk: boolean) => {
     const file = e.target.files?.[0]
-    if (file) {
-      // NOTE: a real upload (uploadFile → fileId) is not wired here. We only
-      // capture the picked filename for the display label; fileId stays empty
-      // until an upload flow is added.
+    if (!file) return
+    // Upload immediately via /api/v4/files; the returned FileInfo id fills the
+    // hidden fileId field the backend requires.
+    setUploadingFile(true)
+    try {
+      const uploaded = await uploadLmsFile(file)
       if (isBulk) {
-        setBulkFileName(file.name)
+        bulkForm.setValue('fileId', uploaded.fileId)
+        setBulkFileName(uploaded.fileName)
       } else {
-        setFileName(file.name)
+        form.setValue('fileId', uploaded.fileId)
+        setFileName(uploaded.fileName)
       }
+    } catch (err) {
+      toast({ title: (err as Error)?.message || t('homework.uploadFailed', 'Tải lên thất bại'), variant: 'destructive' })
+    } finally {
+      setUploadingFile(false)
     }
   }
 
@@ -298,11 +316,12 @@ export default function AdminHomework() {
   }
 
   const handleGradeSubmit = (studentId: string) => {
+    const submission = submissions.find((s: any) => s.studentId === studentId)
+    if (!submission) return
     const gv = gradeValues[studentId] || { grade: '', feedback: '' }
     gradeMutation.mutate({
       homeworkId: selectedHomework.id,
-      studentId,
-      grade: gv.grade,
+      submission,
       feedback: gv.feedback,
     })
   }
@@ -788,31 +807,26 @@ export default function AdminHomework() {
                           <div className="space-y-1">
                             <p className="text-sm font-medium">{sub.student?.name || sub.studentName || '-'}</p>
                             <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                              <span>{t('homework.submitted', 'Nộp')}: {sub.createat ? new Date(sub.createat).toLocaleDateString('vi-VN') : '-'}</span>
+                              <span>{t('homework.submitted', 'Nộp')}: {sub.createdAt ? new Date(sub.createdAt).toLocaleDateString('vi-VN') : '-'}</span>
                               {sub.fileId && (
-                                <span className="text-sky-600 font-mono">{t('homework.file', 'File')}: {sub.fileId}</span>
+                                <a
+                                  href={`/api/v4/files/${sub.fileId}/info`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-sky-600 hover:underline font-mono inline-flex items-center gap-1"
+                                >
+                                  <Upload className="h-3 w-3" />
+                                  {t('homework.file', 'File')}
+                                </a>
                               )}
                             </div>
                           </div>
-                          {sub.grade && (
-                            <Badge className="rounded-full text-xs bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
-                              {sub.grade}
-                            </Badge>
-                          )}
                         </div>
 
-                        {/* Grade controls */}
+                        {/* Feedback controls — the submissions table has no
+                            grade column; only feedback is persisted. */}
                         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end pt-2 border-t">
-                          <div className="space-y-1 w-full sm:w-32">
-                            <label className="text-xs text-muted-foreground">{t('homework.grade', 'Điểm')}</label>
-                            <Input
-                              placeholder={t('homework.gradePlaceholder', 'VD: 8.5')}
-                              value={gradeValues[sub.studentId]?.grade ?? sub.grade ?? ''}
-                              onChange={(e) => handleGradeChange(sub.studentId, 'grade', e.target.value)}
-                              className="h-8 text-sm"
-                            />
-                          </div>
-                          <div className="space-y-1 flex-1">
+                          <div className="space-y-1 flex-1 w-full">
                             <label className="text-xs text-muted-foreground">{t('homework.feedback', 'Nhận xét')}</label>
                             <Textarea
                               placeholder={t('homework.feedbackPlaceholder', 'Nhận xét...')}

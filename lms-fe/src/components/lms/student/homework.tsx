@@ -24,37 +24,13 @@ import { EmptyState } from '@/components/lms/empty-state'
 import { LoadingState } from '@/components/lms/loading-state'
 import { ErrorState } from '@/components/lms/error-state'
 import { useLMSStore } from '@/store/lms-store'
-import { getHomework, submitHomework } from '@/lib/api'
+import { getHomework, getHomeworkSubmissions, submitHomework } from '@/lib/api'
+import { uploadLmsFile } from '@/lib/file-upload'
+import { useToast } from '@/hooks/use-toast'
 import { format, parseISO } from 'date-fns'
 import { staggerContainer, staggerItem } from '@/components/lms/shared/animations'
 import { useTranslation } from '@/lib/i18n'
 
-
-function getStatusConfig(status: string) {
-  switch (status) {
-    case 'SUBMITTED':
-      return {
-        label: 'Đã nộp',
-        bg: 'bg-sky-100 dark:bg-sky-950/30',
-        text: 'text-sky-700 dark:text-sky-400',
-        hover: 'hover:bg-sky-100',
-      }
-    case 'GRADED':
-      return {
-        label: 'Đã chấm',
-        bg: 'bg-green-100 dark:bg-green-950/30',
-        text: 'text-green-700 dark:text-green-400',
-        hover: 'hover:bg-green-100',
-      }
-    default:
-      return {
-        label: 'Chờ nộp',
-        bg: 'bg-yellow-100 dark:bg-yellow-950/30',
-        text: 'text-yellow-700 dark:text-yellow-400',
-        hover: 'hover:bg-yellow-100',
-      }
-  }
-}
 
 function isOverdue(deadline: string): boolean {
   try {
@@ -67,6 +43,7 @@ function isOverdue(deadline: string): boolean {
 export default function StudentHomework() {
   const { authUser } = useLMSStore()
   const { t } = useTranslation()
+  const { toast } = useToast()
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedHomework, setSelectedHomework] = useState<any>(null)
@@ -84,22 +61,55 @@ export default function StudentHomework() {
     enabled: !!authUser?.id,
   })
 
+  const homeworkIds = ((homework || []) as Array<any>).map((hw) => hw.id)
+
+  // The homework list has no per-student state — fetch MY submission for each
+  // homework (small N; cached under the same key as the list so it refreshes
+  // after a successful submit).
+  const { data: mySubmissions = [] } = useQuery({
+    queryKey: ['homework', 'student-submissions', authUser?.id, homeworkIds.join(',')],
+    queryFn: async () => {
+      if (!homeworkIds.length) return []
+      const results = await Promise.all(
+        homeworkIds.map((id) => getHomeworkSubmissions(id).catch(() => [])),
+      )
+      // Flatten and keep only this student's rows → map homeworkId → submission.
+      const mine = results
+        .flat()
+        .filter((s: any) => s.studentId === authUser?.id)
+      return mine
+    },
+    enabled: !!authUser?.id && homeworkIds.length > 0,
+  })
+
+  /** This student's submission for a homework, if any. */
+  const submissionFor = (homeworkId: string) =>
+    (mySubmissions as Array<any>).find((s) => s.homeworkId === homeworkId) || null
+
   const handleSubmit = async () => {
-    if (!selectedHomework || !selectedFile) return
+    if (!selectedHomework || !selectedFile || !authUser?.id) return
     setSubmitting(true)
     try {
-      await submitHomework({
-        homeworkId: selectedHomework.id,
-        file: selectedFile,
-        note,
+      // 1. Upload the file via /api/v4/files (returns the FileInfo id).
+      const uploaded = await uploadLmsFile(selectedFile)
+      // 2. Upsert the submission — student_id is required by the backend.
+      await submitHomework(selectedHomework.id, {
+        studentId: authUser.id,
+        description: note || undefined,
+        fileId: uploaded.fileId,
       })
       queryClient.invalidateQueries({ queryKey: ['homework', 'student', authUser?.id] })
+      queryClient.invalidateQueries({ queryKey: ['homework', 'student-submissions'] })
       setDialogOpen(false)
       setSelectedHomework(null)
       setSelectedFile(null)
       setNote('')
+      toast({ title: t('student.homework.submitSuccess', 'Nộp bài thành công') })
     } catch (err) {
-      console.error('Submit homework failed:', err)
+      toast({
+        title: (err as Error)?.message || t('student.homework.submitFailed', 'Nộp bài thất bại'),
+        variant: 'destructive',
+      })
     } finally {
       setSubmitting(false)
     }
@@ -145,8 +155,21 @@ export default function StudentHomework() {
           className="space-y-3"
         >
           {items.map((hw: any, idx: number) => {
-            const statusConfig = getStatusConfig(hw.status)
-            const overdue = hw.status === 'PENDING' && hw.deadline && isOverdue(hw.deadline)
+            // Real submission state from the backend (no status column on
+            // homework — submitted/graded is derived from my submission row;
+            // "graded" = teacher left feedback).
+            const submission = submissionFor(hw.id)
+            const submitted = !!submission
+            const graded = submitted && !!submission.feedback
+            const overdue = !submitted && hw.deadline && isOverdue(hw.deadline)
+
+            const statusBadge = graded
+              ? { label: t('student.homework.graded', 'Đã chấm'), bg: 'bg-green-100 dark:bg-green-950/30', text: 'text-green-700 dark:text-green-400' }
+              : submitted
+                ? { label: t('student.homework.submitted', 'Đã nộp'), bg: 'bg-sky-100 dark:bg-sky-950/30', text: 'text-sky-700 dark:text-sky-400' }
+                : overdue
+                  ? { label: t('student.homework.overdue', 'Quá hạn'), bg: 'bg-red-100 dark:bg-red-950/30', text: 'text-red-700 dark:text-red-400' }
+                  : { label: t('student.homework.pending', 'Chờ nộp'), bg: 'bg-yellow-100 dark:bg-yellow-950/30', text: 'text-yellow-700 dark:text-yellow-400' }
 
             return (
               <motion.div key={hw.id || idx} variants={staggerItem}>
@@ -161,21 +184,14 @@ export default function StudentHomework() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="font-semibold text-sm truncate">{hw.title}</h3>
-                            <Badge
-                              className={`rounded-full text-[10px] font-medium ${statusConfig.bg} ${statusConfig.text} ${statusConfig.hover}`}
-                            >
-                              {overdue ? (
+                            <Badge className={`rounded-full text-[10px] font-medium ${statusBadge.bg} ${statusBadge.text}`}>
+                              {graded || overdue ? (
                                 <>
-                                  <AlertCircle className="h-3 w-3 mr-0.5" />
-                                  {t('student.homework.overdue', 'Quá hạn')}
-                                </>
-                              ) : hw.status === 'GRADED' ? (
-                                <>
-                                  <CheckCircle2 className="h-3 w-3 mr-0.5" />
-                                  {statusConfig.label}
+                                  {overdue ? <AlertCircle className="h-3 w-3 mr-0.5" /> : <CheckCircle2 className="h-3 w-3 mr-0.5" />}
+                                  {statusBadge.label}
                                 </>
                               ) : (
-                                statusConfig.label
+                                statusBadge.label
                               )}
                             </Badge>
                           </div>
@@ -184,10 +200,6 @@ export default function StudentHomework() {
                             <span className="flex items-center gap-1">
                               <GraduationCap className="h-3 w-3" />
                               {hw.className || hw.class?.name || '—'}
-                            </span>
-                            <span className="text-border">|</span>
-                            <span className="flex items-center gap-1">
-                              {hw.teacherName || hw.teacher?.name || '—'}
                             </span>
                             <span className="text-border">|</span>
                             <span className={`flex items-center gap-1 ${overdue ? 'text-red-500 font-medium' : ''}`}>
@@ -203,29 +215,22 @@ export default function StudentHomework() {
                             </p>
                           )}
 
-                          {/* Grade & Feedback */}
-                          {hw.status === 'GRADED' && (
+                          {/* Teacher feedback (from my graded submission) */}
+                          {graded && (
                             <div className="mt-3 p-3 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-100 dark:border-green-900/30">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-semibold text-green-700 dark:text-green-400">
-                                  {t('student.homework.grade', 'Điểm')}: {hw.grade != null ? hw.grade : '—'}
-                                </span>
-                              </div>
-                              {hw.feedback && (
-                                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                                  {t('student.homework.feedback', 'Nhận xét')}: {hw.feedback}
-                                </p>
-                              )}
+                              <p className="text-xs text-green-600 dark:text-green-400">
+                                {t('student.homework.feedback', 'Nhận xét')}: {submission.feedback}
+                              </p>
                             </div>
                           )}
 
                           {/* Submitted info */}
-                          {hw.status === 'SUBMITTED' && (
+                          {submitted && (
                             <div className="mt-3 p-3 rounded-lg bg-sky-50 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900/30">
                               <div className="flex items-center gap-1.5">
                                 <CheckCircle2 className="h-3 w-3 text-sky-600" />
                                 <span className="text-xs text-sky-700 dark:text-sky-400">
-                                  {t('student.homework.submitted', 'Đã nộp')}{hw.submittedAt ? ` ${t('student.homework.on', 'vào')} ${format(parseISO(hw.submittedAt), 'dd/MM/yyyy')}` : ''}
+                                  {t('student.homework.submitted', 'Đã nộp')}{submission.createdAt ? ` ${t('student.homework.on', 'vào')} ${format(new Date(submission.createdAt), 'dd/MM/yyyy')}` : ''}
                                 </span>
                               </div>
                             </div>
@@ -233,17 +238,17 @@ export default function StudentHomework() {
                         </div>
                       </div>
 
-                      {/* Submit button */}
-                      {hw.status === 'PENDING' && (
-                        <Button
-                          size="sm"
-                          onClick={() => openUploadDialog(hw)}
-                          className="shrink-0 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-xs gap-1.5"
-                        >
-                          <Upload className="h-3.5 w-3.5" />
-                          {t('student.homework.submit', 'Nộp bài')}
-                        </Button>
-                      )}
+                      {/* Submit button — always available; the backend upserts
+                          (re-submission replaces the previous file). */}
+                      <Button
+                        size="sm"
+                        onClick={() => openUploadDialog(hw)}
+                        variant={submitted ? 'outline' : 'default'}
+                        className="shrink-0 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-xs gap-1.5"
+                      >
+                        <Upload className="h-3.5 w-3.5" />
+                        {submitted ? t('student.homework.resubmit', 'Nộp lại') : t('student.homework.submit', 'Nộp bài')}
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>

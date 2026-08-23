@@ -14,6 +14,7 @@ import {
   Sheet, SheetContent, SheetTitle, SheetTrigger
 } from '@/components/ui/sheet'
 import { useLMSStore } from '@/store/lms-store'
+import { getUserDisplayName } from '@/lib/api'
 import { LanguageProvider } from '@/lib/i18n'
 import { LocaleToggle } from '@/components/lms/locale-toggle'
 import { useTranslation } from '@/lib/i18n'
@@ -205,7 +206,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
                     {t('auth.logout', 'Đăng xuất')}
                   </Button>
                   <span className="text-sm font-medium text-sky-600 dark:text-sky-400">
-                    {authUser.nickname || `${authUser.firstname || ''} ${authUser.lastname || ''}`.trim()}
+                    {authUser.nickname || getUserDisplayName(authUser)}
                   </span>
                 </>
               ) : mounted && !isHydrating ? (

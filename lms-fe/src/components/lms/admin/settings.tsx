@@ -70,7 +70,7 @@ function withRole(rolesStr: string, newRole: string): string {
   return Array.from(new Set(kept)).join(' ')
 }
 
-export default function AdminSettings() {
+export default function AdminSettings({ mode = 'full' }: { mode?: 'full' | 'banners' }) {
   const { toast } = useToast()
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -93,11 +93,14 @@ export default function AdminSettings() {
   const { data: branches = [], isLoading: branchesLoading, isError: isBranchesError, refetch: refetchBranches } = useQuery({
     queryKey: ['branches'],
     queryFn: () => getBranches(),
+    // Marketing only manages banners — skip branch/user sections entirely.
+    enabled: mode === 'full',
   })
 
   const { data: users, isLoading: usersLoading, isError: isUsersError, refetch: refetchUsers } = useQuery({
     queryKey: ['users', includeInactive],
     queryFn: () => getUsers({ staffOnly: true, includeInactive }),
+    enabled: mode === 'full',
   })
 
   const { data: banners = [], isLoading: bannersLoading, isError: isBannersError, refetch: refetchBanners } = useQuery({
@@ -141,6 +144,7 @@ export default function AdminSettings() {
         accentColor="sky"
       />
 
+{mode === 'full' && (<>
       {/* Branches Section */}
       <motion.div variants={staggerContainer} initial="initial" animate="animate">
         <Card className="rounded-xl">
@@ -193,7 +197,9 @@ export default function AdminSettings() {
           </CardContent>
         </Card>
       </motion.div>
+</>)}
 
+{mode === 'full' && (<>
       {/* Users Section */}
       <motion.div variants={staggerContainer} initial="initial" animate="animate">
         <Card className="rounded-xl">
@@ -309,6 +315,7 @@ export default function AdminSettings() {
           </CardContent>
         </Card>
       </motion.div>
+</>)}
 
       {/* Banners Section */}
       <motion.div variants={staggerContainer} initial="initial" animate="animate">

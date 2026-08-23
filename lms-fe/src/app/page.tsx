@@ -21,6 +21,7 @@ import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { getInitials } from '@/components/lms/shared/avatar'
+import { getUserDisplayName } from '@/lib/api'
 import { motion, AnimatePresence } from 'framer-motion'
 import dynamic from 'next/dynamic'
 
@@ -322,7 +323,9 @@ function renderView(role: string, view: ActiveView) {
     switch (view) {
       case 'dashboard': return <MarketingDashboard />
       case 'cms': return <MarketingCMS />
-      case 'banners': return <AdminSettings />
+      // Marketing only manages banners — the branch/employee sections require
+      // permissions marketing lacks (banners-only mode skips those queries).
+      case 'banners': return <AdminSettings mode="banners" />
       case 'reports-marketing': return <AdminReports />
       case 'chat': return <ChatView />
     }
@@ -557,9 +560,9 @@ function AppContent() {
 
             <div className="flex items-center gap-2 pl-2 border-l">
               <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white ${roleColor.avatarBg}`}>
-                {getInitials(authUser.nickname || `${authUser.firstname} ${authUser.lastname}`)}
+                {getInitials(authUser.nickname || getUserDisplayName(authUser))}
               </div>
-              <span className="hidden sm:block text-sm font-medium max-w-30 truncate">{authUser.nickname || `${authUser.firstname} ${authUser.lastname}`}</span>
+              <span className="hidden sm:block text-sm font-medium max-w-30 truncate">{authUser.nickname || getUserDisplayName(authUser)}</span>
             </div>
           </div>
         </header>

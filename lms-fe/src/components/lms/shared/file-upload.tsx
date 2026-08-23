@@ -8,11 +8,12 @@ import { cn } from '@/lib/utils'
 import { FileTypeIcon } from '@/components/lms/file-type-icon'
 
 interface FileUploadProps {
-  value: { fileName: string; fileType: string; fileUrl?: string } | null
-  onChange: (file: { fileName: string; fileType: string; fileUrl?: string } | null) => void
+  value: { fileName: string; fileType: string; fileId?: string; fileUrl?: string } | null
+  onChange: (file: { fileName: string; fileType: string; fileId?: string; fileUrl?: string } | null) => void
   onUploadStart?: () => void
   onUploadEnd?: () => void
   accept?: string
+  /** @deprecated Unused — uploads no longer use per-folder paths. */
   folder?: string
   className?: string
   label?: string
@@ -40,11 +41,12 @@ export function FileUpload({
     onUploadStart?.()
 
     try {
-      const { uploadFile } = await import('@/lib/file-upload') as any
-      const result = await uploadFile(file, folder)
+      const { uploadLmsFile } = await import('@/lib/file-upload')
+      const result = await uploadLmsFile(file)
       onChange({
         fileName: result.fileName,
         fileType: result.fileType,
+        fileId: result.fileId,
         fileUrl: result.fileUrl,
       })
     } catch (err: any) {
@@ -53,7 +55,7 @@ export function FileUpload({
       setIsUploading(false)
       onUploadEnd?.()
     }
-  }, [folder, onChange, onUploadStart, onUploadEnd])
+  }, [onChange, onUploadStart, onUploadEnd, t])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()

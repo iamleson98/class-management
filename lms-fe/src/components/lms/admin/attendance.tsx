@@ -4,8 +4,8 @@ import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { ClipboardCheck, Check, X, Clock, LogOut, RotateCcw, Save } from 'lucide-react'
-import { getClasses, getSessions, getSessionAttendance, saveAttendance } from '@/lib/api'
-import { eq, and } from '@/lib/query'
+import { getClasses, getSessions, getSessionAttendance, saveAttendance, getStudents } from '@/lib/api'
+import { eq, and, in_ } from '@/lib/query'
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/lms/page-header'
 import { EmptyState } from '@/components/lms/empty-state'
@@ -62,7 +62,9 @@ export default function AdminAttendance() {
 
   const { data: classes = [], isLoading: classesLoading, isError: isClassesError, refetch: refetchClasses } = useQuery({
     queryKey: ['classes', 'active'],
-    queryFn: () => getClasses({ where_ands: and(eq('classes.status', 'ACTIVE')) }),
+    // Newly created classes default to OPEN — include both OPEN and ACTIVE so
+    // fresh classes are selectable for attendance.
+    queryFn: () => getClasses({ where_ands: and(in_('classes.status', ['OPEN', 'ACTIVE'])) }),
   })
 
   const { data: sessions = [], isLoading: isLoadingSessions, isError: isSessionsError } = useQuery({
@@ -73,25 +75,43 @@ export default function AdminAttendance() {
 
   const activeSession = sessions.find((s) => s.classId === selectedClassId) || sessions[0]
 
-  const { data: attendanceData, isLoading: attendanceLoading } = useQuery({
-    queryKey: ['attendance', activeSession?.id],
-    queryFn: () => activeSession ? getSessionAttendance(activeSession.id) : Promise.resolve(null),
-    enabled: !!activeSession?.id,
+  // The attendance API returns flat records WITHOUT student objects — the
+  // roster comes from the class enrollment (POST /lms/students with class_id).
+  const { data: roster = [] } = useQuery({
+    queryKey: ['class-roster', activeSession?.classId],
+    queryFn: () => getStudents({ class_id: activeSession!.classId }),
+    enabled: !!activeSession?.classId,
   })
 
-  const students = useMemo(() => {
-    if (attendanceData?.records && attendanceData.records.length > 0) return attendanceData.records.map((a) => a.student)
-    return []
-  }, [attendanceData])
+  const { data: attendanceData, isLoading: attendanceLoading } = useQuery({
+    queryKey: ['attendance', activeSession?.id],
+    queryFn: () => activeSession ? getSessionAttendance(activeSession.id) : Promise.resolve([]),
+    enabled: !!activeSession?.id,
+  })
+  // The backend returns a bare [Attendance] array.
+  const attendanceRecords = (attendanceData || []) as Array<{ studentId: string; status: string }>
+
+  // Roster rows joined with any saved attendance; the map key is the USER id.
+  const students = useMemo(
+    () => roster.map((s: any) => {
+      const uid = s.userId ?? s.id
+      const record = attendanceRecords.find((a) => a.studentId === uid)
+      return { ...s, id: uid, savedStatus: record?.status }
+    }),
+    [roster, attendanceRecords],
+  )
 
   const attendanceMap = useMemo(() => {
     const initial: Record<string, string> = {}
-    attendanceData?.records?.forEach((a) => {
+    // Default everyone to PRESENT so a first save records the full roster
+    // (the POST is a full replace — omitting a student would delete their row).
+    students.forEach((s: any) => { initial[s.id] = s.savedStatus || 'PRESENT' })
+    attendanceRecords.forEach((a) => {
       if (a.studentId && a.status) initial[a.studentId] = a.status
     })
 
     return { ...initial, ...attendanceOverrides }
-  }, [attendanceData, attendanceOverrides])
+  }, [students, attendanceRecords, attendanceOverrides])
 
   const saveMutation = useMutation({
     mutationFn: () => {
@@ -232,7 +252,7 @@ export default function AdminAttendance() {
                 return (
                   <motion.tr key={student.id} variants={staggerItem} className="hover:bg-muted/30">
                     <TableCell className="text-sm text-muted-foreground">{idx + 1}</TableCell>
-                    <TableCell className="font-medium text-sm">{student.name}</TableCell>
+                    <TableCell className="font-medium text-sm">{student.name || student.username}</TableCell>
                     <TableCell className="hidden md:table-cell">
                       {currentStatus ? (
                         <Badge className={cn('rounded-full text-xs', STATUS_BADGE[currentStatus] || 'bg-muted text-muted-foreground')}>

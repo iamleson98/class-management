@@ -14,8 +14,9 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useLMSStore } from '@/store/lms-store'
 import { format, parseISO } from 'date-fns'
-import { getDashboard, getClassMedia } from '@/lib/api'
-import { eq, and } from '@/lib/query'
+import { getTuitions, getClassMedia } from '@/lib/api'
+import { in_, and } from '@/lib/query'
+import { useParentChildren } from '@/lib/parent'
 import { staggerContainer, staggerItem } from '@/components/lms/shared/animations'
 import { useTranslation } from '@/lib/i18n'
 
@@ -25,25 +26,30 @@ export default function ParentMedia() {
   const [selectedMedia, setSelectedMedia] = useState<any>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
 
-  const dashboardQuery = useQuery({
-    queryKey: ['dashboard', 'lms_parent', authUser?.id, 'media-child'],
-    queryFn: () => getDashboard('lms_parent', authUser!.id),
-    enabled: !!authUser?.id,
-  })
+  // Children are students whose parent_id points at this user (lib/parent).
+  // Their classes are derived from tuitions (a tuition exists only for an
+  // enrolled class) — the honest link available via the current API.
+  const childrenQuery = useParentChildren(authUser?.id)
+  const children = childrenQuery.data || []
+  const childIds = children.map((c) => c.id)
 
-  const child = (dashboardQuery.data?.child || dashboardQuery.data?.student || {}) as Record<string, any>
-  const classId = child?.classId || child?.class?.id as string | undefined
+  const tuitionsQuery = useQuery({
+    queryKey: ['parent', 'tuitions', childIds.join(',')],
+    queryFn: () => getTuitions({ where_ands: and(in_('tuitions.student_id', childIds)) }),
+    enabled: childIds.length > 0,
+  })
+  const classIds = [...new Set(((tuitionsQuery.data || []) as any[]).map((tu) => tu.classId))]
 
   const mediaQuery = useQuery({
-    queryKey: ['class-media', 'parent', classId],
-    queryFn: () => getClassMedia({ where_ands: and(eq('class_media.class_id', classId)) }),
-    enabled: !!classId,
+    queryKey: ['class-media', 'parent', classIds.join(',')],
+    queryFn: () => getClassMedia({ where_ands: and(in_('class_media.class_id', classIds)) }),
+    enabled: classIds.length > 0,
   })
 
-  if (dashboardQuery.isLoading || mediaQuery.isLoading) return <LoadingState />
+  if (childrenQuery.isLoading || tuitionsQuery.isLoading || mediaQuery.isLoading) return <LoadingState />
 
-  if (dashboardQuery.isError || mediaQuery.isError) {
-    return <ErrorState onRetry={() => { dashboardQuery.refetch(); mediaQuery.refetch() }} />
+  if (childrenQuery.isError || mediaQuery.isError) {
+    return <ErrorState onRetry={() => { childrenQuery.refetch(); mediaQuery.refetch() }} />
   }
 
   const media = (mediaQuery.data || []) as Array<any>

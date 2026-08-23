@@ -8,23 +8,46 @@ import { ErrorState } from '@/components/lms/error-state'
 import { StatCard } from '@/components/lms/stat-card'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { getDashboard } from '@/lib/api'
+import { getLeadsPaginated, getPosts } from '@/lib/api'
+import { desc } from '@/lib/query'
 import { useTranslation } from '@/lib/i18n'
 
+/**
+ * Marketing overview. The backend dashboard endpoint only serves
+ * admin/teacher/parent/student/counselor roles, so marketing stats are
+ * aggregated client-side from endpoints the lms_marketing role can access:
+ *   - leads   (POST /lms/leads)   → funnel + conversion rate
+ *   - posts   (POST /lms/posts)   → content stats + latest posts
+ */
 export default function MarketingDashboard() {
   const { t } = useTranslation()
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['dashboard', 'lms_marketing'],
-    queryFn: () => getDashboard('lms_marketing'),
+
+  const leadsQuery = useQuery({
+    queryKey: ['dashboard', 'marketing', 'leads'],
+    queryFn: () => getLeadsPaginated({ count_total: true, limit: 1000 }),
+  })
+  const postsQuery = useQuery({
+    queryKey: ['dashboard', 'marketing', 'posts'],
+    queryFn: () => getPosts({ orderings: [desc('blog_posts.published_at')], limit: 5 }),
+  })
+  const publishedPostsQuery = useQuery({
+    queryKey: ['dashboard', 'marketing', 'posts-published'],
+    queryFn: () => getPosts({ where_ands: [{ column: 'blog_posts.status', operator: '=', value: 'PUBLISHED' }], limit: 1000 }),
   })
 
-  const stats = data || {}
+  const isLoading = leadsQuery.isLoading || postsQuery.isLoading
+  const isError = leadsQuery.isError || postsQuery.isError
+  const refetch = () => { leadsQuery.refetch(); postsQuery.refetch() }
 
-  const topPosts = (data?.topPosts || data?.posts || []) as any[]
-  const recentLeads = (data?.recentLeads || data?.leads || []) as any[]
+  const leads = leadsQuery.data?.items || []
+  const convertedLeads = leads.filter((l: any) => l.status === 'ENROLLED').length
+  const conversionRate = leads.length > 0 ? Math.round((convertedLeads / leads.length) * 100) : 0
+  const totalPosts = (publishedPostsQuery.data || []).length
+  const topPosts = (postsQuery.data || []).slice(0, 5)
+  const recentLeads = leads.slice(0, 5)
 
   if (isError) {
-    return <ErrorState onRetry={() => refetch()} />
+    return <ErrorState onRetry={refetch} />
   }
 
   return (
@@ -39,28 +62,28 @@ export default function MarketingDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard
           title={t('marketing.dashboard.totalPosts', 'Tổng bài viết')}
-          value={String(stats.totalPosts ?? '—')}
+          value={String(totalPosts)}
           icon={<Newspaper className="h-5 w-5" />}
           iconColor="text-blue-600"
           iconBg="bg-blue-100"
         />
         <StatCard
           title={t('marketing.dashboard.totalLeads', 'Tổng leads')}
-          value={String(stats.totalLeads ?? '—')}
+          value={String(leadsQuery.data?.totalCount ?? leads.length)}
           icon={<Users className="h-5 w-5" />}
           iconColor="text-purple-600"
           iconBg="bg-purple-100"
         />
         <StatCard
           title={t('marketing.dashboard.convertedLeads', 'Leads chuyển đổi')}
-          value={String(stats.convertedLeads ?? '—')}
+          value={String(convertedLeads)}
           icon={<TrendingUp className="h-5 w-5" />}
           iconColor="text-green-600"
           iconBg="bg-green-100"
         />
         <StatCard
           title={t('marketing.dashboard.conversionRate', 'Tỷ lệ chuyển đổi')}
-          value={stats.conversionRate != null ? `${stats.conversionRate}%` : '—'}
+          value={`${conversionRate}%`}
           icon={<MousePointerClick className="h-5 w-5" />}
           iconColor="text-orange-600"
           iconBg="bg-orange-100"
@@ -93,7 +116,7 @@ export default function MarketingDashboard() {
                     </div>
                     <div className="flex items-center gap-2 ml-2">
                       <Eye className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">{post.views || 0}</span>
+                      <span className="text-xs text-muted-foreground">{post.publishedAt ? new Date(post.publishedAt).toLocaleDateString('vi-VN') : '—'}</span>
                     </div>
                   </div>
                 ))}

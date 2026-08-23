@@ -9,7 +9,7 @@ import { motion } from 'framer-motion'
 import { Newspaper, Plus, Pencil, Trash2, Eye } from 'lucide-react'
 import { createPostSchema, updatePostSchema, postCategorySchema, type CreatePostInput, type UpdatePostInput, type PostCategoryInput } from '@/lib/schemas'
 import { useLMSStore } from '@/store/lms-store'
-import { getPostsPaginated, createPost, updatePost, deletePost, getPostCategories, createPostCategory, updatePostCategory, deletePostCategory } from '@/lib/api'
+import { getPostsPaginated, createPost, updatePost, deletePost, getPostCategories, createPostCategory, updatePostCategory, deletePostCategory, getUserDisplayName } from '@/lib/api'
 import { paginate } from '@/lib/query'
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/lms/page-header'
@@ -30,7 +30,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import RichTextEditor from '@/components/ui/mdx-editor'
-import { uploadFile } from '@/lib/file-upload'
+import { uploadLmsFile } from '@/lib/file-upload'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -221,7 +221,7 @@ export default function AdminCMS() {
 
   const handleImageUpload = async (file: File): Promise<string> => {
     try {
-      const result = await uploadFile(file, 'posts')
+      const result = await uploadLmsFile(file)
       return result.fileUrl
     } catch (err) {
       console.error('Upload failed:', err)
@@ -297,7 +297,7 @@ export default function AdminCMS() {
                         <motion.tr key={post.id} variants={staggerItem} className="hover:bg-muted/30">
                           <TableCell className="font-medium text-sm">{post.title}</TableCell>
                           <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{catName}</TableCell>
-                          <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{post.authorName || post.author?.nickname || post.author?.name || authUser?.nickname || authUser?.name || '-'}</TableCell>
+                          <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{post.authorName || post.author?.nickname || getUserDisplayName(post.author) || getUserDisplayName(authUser) || '-'}</TableCell>
                           <TableCell>
                             <Badge className={cn('rounded-full text-xs', status.className)}>{status.label}</Badge>
                           </TableCell>

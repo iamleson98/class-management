@@ -132,6 +132,20 @@ export interface Course {
 
 // ─── Class ───────────────────────────────────────────────────────
 
+// ─── Student Enrollment — matches lms_models.StudentClass ──────────
+// `studentId` stores the Mattermost USER id (students are users, and
+// student_classes links them to classes).
+
+export interface StudentEnrollment {
+  id: string
+  studentId: string
+  classId: string
+  enrollmentAt: UnixMs
+  status: string
+  createat: UnixMs
+  updateat: UnixMs
+}
+
 export interface Class {
   id: string
   code: string
@@ -191,19 +205,9 @@ export interface Attendance {
   updateat: UnixMs
 }
 
-export interface AttendanceRecord {
-  studentId: string
-  student: Student
-  status: string
-  note: string | null
-  locked: boolean
-  attendanceId: string | null
-}
-
-export interface AttendanceResponse {
-  session: Session
-  records: AttendanceRecord[]
-}
+// NOTE: the attendance endpoints exchange a bare [Attendance] array — there
+// is no {session, records} envelope and no embedded student object. Callers
+// join the class roster client-side via getStudents({ class_id }).
 
 // ─── Student ───────────────────────────────────────────────────────
 //
