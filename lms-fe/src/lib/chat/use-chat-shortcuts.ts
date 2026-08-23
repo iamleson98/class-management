@@ -9,7 +9,7 @@
  */
 
 import { useEffect } from 'react'
-import { cmdOrCtrlPressed, isKeyPressed } from '@/components/lms/chat/keyboard-shortcuts-modal'
+import { cmdOrCtrlPressed, isKeyPressed } from '@/features/chat/keyboard-shortcuts-modal'
 
 const KEY_CODES = {
   FORWARD_SLASH: ['/', 191] as [string, number],

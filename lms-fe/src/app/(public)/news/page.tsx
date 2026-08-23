@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { useTranslation } from '@/lib/i18n'
 import { getPublicPosts } from '@/lib/api'
-import { ErrorState } from '@/components/lms/error-state'
+import { ErrorState } from '@/components/shared/error-state'
 
 export default function NewsPage() {
   const [search, setSearch] = useState('')

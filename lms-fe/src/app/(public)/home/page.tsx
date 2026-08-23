@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { ErrorState } from '@/components/lms/error-state'
+import { ErrorState } from '@/components/shared/error-state'
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form'
 
 

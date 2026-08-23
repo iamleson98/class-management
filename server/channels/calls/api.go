@@ -153,15 +153,16 @@ func (s *CallService) GetCallState(callID string) (*CallStateView, error) {
 	if !ok {
 		return nil, ErrCallNotFound
 	}
-	views, _ := cs.snapshot()
+	views, hostSessionID := cs.snapshot()
 	return &CallStateView{
-		CallID:       cs.callID,
-		ChannelID:    cs.channelID,
-		StartAt:      cs.startAt,
-		EndAt:        cs.endAt,
-		RTCDHost:     cs.rtcdHost,
-		Sessions:     views,
-		Participants: len(views),
+		CallID:        cs.callID,
+		ChannelID:     cs.channelID,
+		StartAt:       cs.startAt,
+		EndAt:         cs.endAt,
+		RTCDHost:      cs.rtcdHost,
+		Sessions:      views,
+		Participants:  len(views),
+		HostSessionID: hostSessionID,
 	}, nil
 }
 
@@ -178,18 +179,13 @@ func CallIDForChannel(channelID string) string {
 	return callIDForChannel(channelID)
 }
 
-// broadcast publishes an event through the shared websocket hub, prefixed with
-// the calls product namespace so the frontend can dispatch it.
+// broadcast publishes an event through the shared websocket hub. The hub
+// adapter (callsHubAdapter → PlatformService.PublishWebSocketEvent) adds the
+// "custom_calls_" product prefix, so the event name here is the bare form
+// (e.g. "call_start" → clients receive "custom_calls_call_start").
 func (s *CallService) broadcast(event string, data map[string]any, bcast *model.WebsocketBroadcast) {
 	if s.hub == nil {
 		return
 	}
-	s.hub.Publish(callsEvent(event), data, bcast)
-}
-
-// callsEvent prefixes an event name with the calls product namespace, matching
-// the server's "custom_<productID>_<event>" convention (see
-// PlatformService.PublishWebSocketEvent).
-func callsEvent(event string) string {
-	return "calls_" + event
+	s.hub.Publish(event, data, bcast)
 }

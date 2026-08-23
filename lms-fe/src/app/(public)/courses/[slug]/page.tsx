@@ -9,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatVND, getPublicCourses } from '@/lib/api'
 import { useTranslation } from '@/lib/i18n'
-import { ErrorState } from '@/components/lms/error-state'
+import { ErrorState } from '@/components/shared/error-state'
 
 export default function CourseDetailPage() {
   const params = useParams()

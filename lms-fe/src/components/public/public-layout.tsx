@@ -16,7 +16,7 @@ import {
 import { useLMSStore } from '@/store/lms-store'
 import { getUserDisplayName } from '@/lib/api'
 import { LanguageProvider } from '@/lib/i18n'
-import { LocaleToggle } from '@/components/lms/locale-toggle'
+import { LocaleToggle } from '@/components/shared/locale-toggle'
 import { useTranslation } from '@/lib/i18n'
 
 /* ------------------------------------------------------------------ */

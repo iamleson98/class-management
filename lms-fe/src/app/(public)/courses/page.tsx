@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { formatVND, getPublicCourses } from '@/lib/api'
 import { useTranslation } from '@/lib/i18n'
-import { ErrorState } from '@/components/lms/error-state'
+import { ErrorState } from '@/components/shared/error-state'
 
 export default function CoursesPage() {
   const [filter, setFilter] = useState('all')

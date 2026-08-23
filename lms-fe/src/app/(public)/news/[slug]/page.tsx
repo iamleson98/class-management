@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useTranslation } from '@/lib/i18n'
 import { getPublicPosts } from '@/lib/api'
-import { ErrorState } from '@/components/lms/error-state'
+import { ErrorState } from '@/components/shared/error-state'
 
 export default function NewsDetailPage() {
   const params = useParams()

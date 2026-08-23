@@ -19,10 +19,10 @@ import (
 //
 // Routes (all session-required):
 //
-//	POST   /calls/channels/{channel_id}              start (or reuse) a call
-//	GET    /calls/channels/{channel_id}              get active call for channel
-//	GET    /calls/{call_id}                          get call state
-//	DELETE /calls/{call_id}                          end a call
+//      POST   /calls/channels/{channel_id}              start (or reuse) a call
+//      GET    /calls/channels/{channel_id}              get active call for channel
+//      GET    /calls/{call_id}                          get call state
+//      DELETE /calls/{call_id}                          end a call
 func (a *CallsAPI) InitCalls() {
 	r := a.api
 	base := a.routes.Calls
@@ -31,6 +31,9 @@ func (a *CallsAPI) InitCalls() {
 	base.Method(http.MethodGet, "/channels/{channel_id:[A-Za-z0-9]+}", r.APISessionRequired(getCallByChannel))
 	base.Method(http.MethodGet, "/{call_id:[A-Za-z0-9]+}", r.APISessionRequired(getCall))
 	base.Method(http.MethodDelete, "/{call_id:[A-Za-z0-9]+}", r.APISessionRequired(endCall))
+
+	// Host controls (make host / mute / screen off / lower hand / remove / end)
+	a.InitHostControls()
 }
 
 // startCallRequest is the body for POST /calls/channels/{channel_id}.

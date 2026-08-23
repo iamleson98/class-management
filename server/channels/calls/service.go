@@ -81,7 +81,7 @@ func (s *CallService) Start() error {
 	}
 
 	if url := s.callsConfig().rtcdURL(); url != "" {
-		mgr, err := newRTCDClientManager(url, s.log, s.cfg.KVStore, s.newRTCDClient)
+		mgr, err := newRTCDClientManager(url, s.log, s.cfg.KVStore, s.newRTCDClient, s.handleRTCDMessage)
 		if err != nil {
 			return fmt.Errorf("calls: failed to init rtcd client manager: %w", err)
 		}

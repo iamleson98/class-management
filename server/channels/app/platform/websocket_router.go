@@ -20,6 +20,15 @@ func (wr *WebSocketRouter) Handle(action string, handler webSocketHandler) {
 	wr.handlers[action] = handler
 }
 
+// HasHandler reports whether a handler is registered for the exact action.
+// Used by the web conn to decide whether a product-namespaced message
+// (custom_*) should also be served by the native router in addition to the
+// plugin fan-out path.
+func (wr *WebSocketRouter) HasHandler(action string) bool {
+	_, ok := wr.handlers[action]
+	return ok
+}
+
 func (wr *WebSocketRouter) ServeWebSocket(conn *WebConn, r *model.WebSocketRequest) {
 	if r.Action == "" {
 		err := model.NewAppError("ServeWebSocket", "api.web_socket_router.no_action.app_error", nil, "", http.StatusBadRequest)

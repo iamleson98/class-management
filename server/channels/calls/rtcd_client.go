@@ -83,6 +83,11 @@ type rtcdClientManager struct {
 	// inject a fake without touching the network.
 	newClient func(rtcdURL, host string) (RTCDClient, error)
 
+	// onMessage, when set, receives every message every rtcd host sends back
+	// (SDP answers/ICE, VAD voice events, session closes). Set once at
+	// construction; read-only afterwards.
+	onMessage func(host string, msg rtcd.ClientMessage)
+
 	mut     sync.RWMutex
 	closeCh chan struct{}
 }
@@ -130,7 +135,9 @@ func (s *rtcdConfigStore) load() (rtcd.ClientConfig, bool) {
 }
 
 // newRTCDClientManager resolves the rtcd URL and stands up a client per host.
-func newRTCDClientManager(rtcdURL string, log mlog.LoggerIFace, kv KVStore, newClient func(rtcdURL, host string) (RTCDClient, error)) (*rtcdClientManager, error) {
+// onMessage (optional) is the inbound relay handler for messages produced by
+// the rtcd hosts (see rtcd_relay.go).
+func newRTCDClientManager(rtcdURL string, log mlog.LoggerIFace, kv KVStore, newClient func(rtcdURL, host string) (RTCDClient, error), onMessage func(host string, msg rtcd.ClientMessage)) (*rtcdClientManager, error) {
 	m := &rtcdClientManager{
 		log:       log,
 		store:     kv,
@@ -138,6 +145,7 @@ func newRTCDClientManager(rtcdURL string, log mlog.LoggerIFace, kv KVStore, newC
 		hosts:     map[string]*rtcdHost{},
 		closeCh:   make(chan struct{}),
 		newClient: newClient,
+		onMessage: onMessage,
 	}
 
 	ips, port, err := resolveURL(rtcdURL, resolveTimeout)
@@ -226,6 +234,15 @@ func (m *rtcdClientManager) addHost(ip string, client RTCDClient) error {
 		return fmt.Errorf("host already exists: %s", ip)
 	}
 	m.hosts[ip] = &rtcdHost{ip: ip, client: client}
+	// Pump every message this host sends back into the relay handler. The
+	// goroutine exits when the client is closed (ReceiveCh is closed).
+	go func() {
+		for msg := range client.ReceiveCh() {
+			if m.onMessage != nil {
+				m.onMessage(ip, msg)
+			}
+		}
+	}()
 	return nil
 }
 

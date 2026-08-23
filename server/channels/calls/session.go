@@ -13,11 +13,23 @@ import (
 // written to the CallSessionStore. Transient fields (unmuted, screenOn,
 // videoOn, voiceOn) are fanned out as presence events and kept here for fast
 // reads and call-state snapshots.
+//
+// Identity model (matches the plugin/SFU contract):
+//   - sessionID is the websocket connection id issued when the participant
+//     joined and is STABLE for the life of the call participation, even across
+//     websocket reconnects. It is the key used everywhere (event payloads,
+//     SFU rtc messages, host controls).
+//   - connID is the participant's CURRENT websocket connection id and is used
+//     only to target unicast events. It is re-pointed on reconnect.
 type session struct {
 	userID    string
 	channelID string
 	callID    string
-	connID    string
+
+	// sessionID: stable identity (original connID at join time).
+	sessionID string
+	// connID: current websocket connection (unicast target).
+	connID string
 
 	// Transient presence (not persisted).
 	unmuted  bool
@@ -25,7 +37,7 @@ type session struct {
 	videoOn  bool
 	voiceOn  bool // updated from rtcd VAD callbacks
 
-	// Raised hand ordering; lower index = earlier.
+	// Raised hand timestamp (unix ms); 0 when lowered.
 	raisedHandAt int64
 
 	startAt int64
@@ -65,9 +77,9 @@ type SessionView struct {
 	IsHost     bool   `json:"is_host,omitempty"`
 }
 
-func (s *session) view(id string, isHost bool) SessionView {
+func (s *session) view(isHost bool) SessionView {
 	return SessionView{
-		ID:         id,
+		ID:         s.sessionID,
 		UserID:     s.userID,
 		ChannelID:  s.channelID,
 		Unmuted:    s.unmuted,

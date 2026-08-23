@@ -480,9 +480,13 @@ func (wc *WebConn) readPump() {
 			return
 		}
 
-		// Messages which actions are prefixed with the plugin prefix
-		// should only be dispatched to the plugins
-		if !strings.HasPrefix(req.Action, websocketMessagePluginPrefix) {
+		// Messages which actions are prefixed with the plugin prefix are
+		// dispatched to the plugins. Additionally, when a native handler is
+		// registered for the exact action (e.g. the native calls product's
+		// custom_calls_* actions, see wsapi.InitCalls), the message is also
+		// served through the native router.
+		if !strings.HasPrefix(req.Action, websocketMessagePluginPrefix) ||
+			wc.Platform.WebSocketRouter.HasHandler(req.Action) {
 			wc.Platform.WebSocketRouter.ServeWebSocket(wc, &req)
 		}
 
