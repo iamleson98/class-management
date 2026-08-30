@@ -154,3 +154,195 @@ func TestGetConfig(t *testing.T) {
 	_, err := json.Marshal(cfg)
 	assert.NoError(t, err)
 }
+// ─── Round 2: per-channel enable/disable, states feed, dismiss sync ─────
+
+// fakeCallsChannelStore is an in-memory CallsChannelStore.
+type fakeCallsChannelStore struct {
+	rows map[string]*model.CallsChannel
+}
+
+func (f *fakeCallsChannelStore) Get(channelID string) (*model.CallsChannel, error) {
+	if cc, ok := f.rows[channelID]; ok {
+		return cc, nil
+	}
+	return nil, store.NewErrNotFound("CallsChannel", channelID)
+}
+
+func (f *fakeCallsChannelStore) Save(cc *model.CallsChannel) (*model.CallsChannel, error) {
+	if f.rows == nil {
+		f.rows = map[string]*model.CallsChannel{}
+	}
+	saved := *cc
+	f.rows[cc.ChannelID] = &saved
+	return &saved, nil
+}
+
+func (f *fakeCallsChannelStore) Delete(channelID string) error {
+	delete(f.rows, channelID)
+	return nil
+}
+
+// errSessionStore satisfies CallSessionStore with not-found responses so the
+// persistence paths in removeSession/EndCall skip safely during tests.
+type errSessionStore struct{}
+
+func (errSessionStore) Get(string) (*model.CallSession, error) {
+	return nil, store.NewErrNotFound("CallSession", "")
+}
+
+func (errSessionStore) GetByCall(string) ([]*model.CallSession, error) {
+	return nil, nil
+}
+
+func (errSessionStore) GetByCallAndUser(string, string) (*model.CallSession, error) {
+	return nil, store.NewErrNotFound("CallSession", "")
+}
+
+func (errSessionStore) Save(s *model.CallSession) (*model.CallSession, error) { return s, nil }
+
+func (errSessionStore) Update(s *model.CallSession) (*model.CallSession, error) {
+	return s, nil
+}
+
+func (errSessionStore) Delete(string) error { return nil }
+
+// bridgeWithCallsChannel wraps nilStoreBridge with working CallsChannel and
+// CallSession stores.
+type bridgeWithCallsChannel struct {
+	nilStoreBridge
+	callsChannel store.CallsChannelStore
+}
+
+func (b bridgeWithCallsChannel) CallsChannel() store.CallsChannelStore { return b.callsChannel }
+func (b bridgeWithCallsChannel) CallSession() store.CallSessionStore  { return errSessionStore{} }
+
+func newTestServiceWithChannels(t *testing.T, cc store.CallsChannelStore) (*CallService, *recordingHub) {
+	t.Helper()
+	enable := true
+	cfg := &model.Config{}
+	cfg.CallsSettings.Enable = &enable
+
+	hub := &recordingHub{}
+	svc, err := New(ServiceConfig{
+		StoreFn:  func() StoreBridge { return bridgeWithCallsChannel{callsChannel: cc} },
+		ConfigFn: func() *model.Config { return cfg },
+		Hub:      hub,
+		Log:      mlog.CreateTestLogger(),
+	})
+	require.NoError(t, err)
+	return svc, hub
+}
+
+func TestGetCallsChannelDefaultsEnabled(t *testing.T) {
+	s, _ := newTestServiceWithChannels(t, &fakeCallsChannelStore{})
+	view := s.GetCallsChannel("chan1")
+	assert.True(t, view.Enabled, "channels without a row default to enabled")
+	assert.Equal(t, "chan1", view.ChannelID)
+}
+
+func TestSetCallsChannelEnabledPersistsAndBroadcasts(t *testing.T) {
+	cc := &fakeCallsChannelStore{}
+	s, hub := newTestServiceWithChannels(t, cc)
+
+	require.NoError(t, s.SetCallsChannelEnabled("chan1", false, "admin1"))
+	assert.False(t, s.GetCallsChannel("chan1").Enabled)
+	require.Len(t, hub.events, 1)
+	assert.Equal(t, eventChannelDisableVoice, hub.events[0].name)
+	assert.Equal(t, "chan1", hub.events[0].data["channel_id"])
+
+	require.NoError(t, s.SetCallsChannelEnabled("chan1", true, "admin1"))
+	assert.True(t, s.GetCallsChannel("chan1").Enabled)
+	assert.Equal(t, eventChannelEnableVoice, hub.events[1].name)
+
+	// The join path honors the disabled preference.
+	err := s.handleJoin("conn1", "u1", map[string]any{"channelID": "chan1"})
+	assert.ErrorIs(t, err, ErrChannelCallsDisabled)
+}
+
+func TestDismissNotificationBroadcastsToUser(t *testing.T) {
+	s, hub := newTestServiceWithChannels(t, &fakeCallsChannelStore{})
+
+	require.NoError(t, s.DismissNotification("chan1", "u9"))
+	require.Len(t, hub.events, 1)
+	ev := hub.events[0]
+	assert.Equal(t, eventUserDismissedNotification, ev.name)
+	assert.Equal(t, "chan1", ev.data["channel_id"])
+	assert.Equal(t, "u9", ev.data["user_id"])
+	assert.Equal(t, "u9", ev.bcast.UserId, "dismissal is scoped to the dismissing user")
+
+	assert.Error(t, s.DismissNotification("", "u9"))
+	assert.Error(t, s.DismissNotification("chan1", ""))
+}
+
+func TestGetCallStatesListsInProgressCalls(t *testing.T) {
+	s, _ := newTestServiceWithChannels(t, &fakeCallsChannelStore{})
+	seedCall(s, "call1", "ch1", "u1", "conn1")
+	seedCall(s, "call2", "ch2", "u2", "conn2")
+
+	states := s.GetCallStates()
+	require.Len(t, states, 2)
+	ids := []string{states[0].CallID, states[1].CallID}
+	assert.Contains(t, ids, "call1")
+	assert.Contains(t, ids, "call2")
+	for _, st := range states {
+		assert.Equal(t, 1, st.Participants)
+		assert.NotEmpty(t, st.Sessions)
+	}
+}
+
+func TestHostRemoveBroadcastsUserRemoved(t *testing.T) {
+	s, hub := newTestServiceWithChannels(t, &fakeCallsChannelStore{})
+	cs := seedCall(s, "call1", "ch1", "host", "connHost")
+	sess := &session{
+		userID:    "victim",
+		channelID: "ch1",
+		callID:    "call1",
+		sessionID: "connVictim",
+		connID:    "connVictim",
+		unmuted:   true,
+		startAt:   model.GetMillis(),
+	}
+	cs.addSession("connVictim", sess)
+
+	// The SFU close is logged-only when no rtcd host exists; the presence
+	// broadcasts must still fire.
+	hub.events = nil
+	err := s.RemoveSession("call1", "host", "connVictim")
+	assert.NoError(t, err, "removal succeeds even when the SFU close is logged-only")
+
+	var sawRemoved bool
+	for _, ev := range hub.events {
+		if ev.name == eventUserRemoved {
+			sawRemoved = true
+			assert.Equal(t, "victim", ev.data["user_id"])
+			assert.Equal(t, "host", ev.data["host_id"])
+		}
+	}
+	assert.True(t, sawRemoved, "user_removed should broadcast on host removal")
+}
+
+func TestLowerHandNoticeCarriesHostID(t *testing.T) {
+	s, hub := newTestServiceWithChannels(t, &fakeCallsChannelStore{})
+	cs := seedCall(s, "call1", "ch1", "host", "connHost")
+	sess := &session{
+		userID:    "u2",
+		channelID: "ch1",
+		callID:    "call1",
+		sessionID: "conn2",
+		connID:    "conn2",
+		unmuted:   true,
+		startAt:   model.GetMillis(),
+	}
+	cs.addSession("conn2", sess)
+
+	hub.events = nil
+	err := s.LowerHand("call1", "host", "conn2")
+	require.NoError(t, err)
+	require.NotEmpty(t, hub.events)
+
+	for _, ev := range hub.events {
+		if ev.name == eventHostLowerHand {
+			assert.Equal(t, "host", ev.data["host_id"], "lower-hand notice carries the acting host id")
+		}
+	}
+}

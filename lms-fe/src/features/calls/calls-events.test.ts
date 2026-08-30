@@ -7,7 +7,11 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
-type Listener = (msg: { event: string; data?: Record<string, unknown> }) => void
+type Listener = (msg: {
+        event: string
+        data?: Record<string, unknown>
+        broadcast?: { channel_id?: string; user_id?: string }
+}) => void
 let messageListener: Listener | undefined
 let reconnectListener: (() => void) | undefined
 
@@ -38,8 +42,13 @@ import { bindCallsWebSocket } from './calls-events'
 import { callsClient } from './calls-client'
 import { useCallsStore } from './calls-store'
 
-const emit = (event: string, data: Record<string, unknown>) =>
-        messageListener?.({ event, data })
+/**
+ * Emit an event. Presence broadcasts carry the channel in
+ * `broadcast.channel_id` (the server's wire shape); the second arg overrides
+ * it (e.g. to simulate another channel's call).
+ */
+const emit = (event: string, data: Record<string, unknown>, broadcastChannel = 'ch') =>
+        messageListener?.({ event, data, broadcast: { channel_id: broadcastChannel } })
 
 const store = () => useCallsStore.getState()
 
@@ -47,6 +56,9 @@ describe('calls event dispatcher', () => {
         beforeEach(() => {
                 vi.clearAllMocks()
                 store().reset()
+                // Presence events are channel-gated: act as if we joined the call
+                // in channel 'ch'.
+                store().setChannel('ch')
                 bindCallsWebSocket()
         })
 
@@ -136,7 +148,9 @@ describe('calls event dispatcher', () => {
                 expect(store().status).toBe('error')
         })
 
-        it('host controls act on the local client', () => {
+        it('host controls act on the local client (session-gated)', () => {
+                store().setMySessionId('s')
+
                 emit('custom_calls_host_mute', { channel_id: 'ch', session_id: 's' })
                 expect(callsClient.mute).toHaveBeenCalled()
 
@@ -145,6 +159,48 @@ describe('calls event dispatcher', () => {
 
                 emit('custom_calls_host_removed', { channel_id: 'ch', session_id: 's' })
                 expect(callsClient.leave).toHaveBeenCalled()
+        })
+
+        it('host controls for ANOTHER session are ignored (stale-event guard)', () => {
+                store().setMySessionId('s')
+                emit('custom_calls_host_mute', { channel_id: 'ch', session_id: 'someone-else' })
+                expect(callsClient.mute).not.toHaveBeenCalled()
+        })
+
+        it('presence events from ANOTHER channel do not pollute the roster', () => {
+                emit('custom_calls_user_joined', { user_id: 'stranger', session_id: 'sx' }, 'other-channel')
+                expect(store().sessions.sx).toBeUndefined()
+
+                emit('custom_calls_user_muted', { userID: 'stranger', session_id: 'sx' }, 'other-channel')
+                expect(store().sessions.sx).toBeUndefined()
+        })
+
+        it('own user_left tears the call down locally', () => {
+                store().setMySessionId('s1')
+                emit('custom_calls_user_joined', { user_id: 'u1', session_id: 's1' })
+                emit('custom_calls_user_left', { user_id: 'u1', session_id: 's1' })
+                expect(callsClient.leave).toHaveBeenCalled()
+        })
+
+        it('user_removed (someone else) adds a notice for others', () => {
+                store().setMySessionId('s1')
+                emit('custom_calls_user_joined', { user_id: 'u1', session_id: 's1' })
+                emit('custom_calls_user_joined', { user_id: 'u2', session_id: 's2' })
+                emit('custom_calls_user_removed', { user_id: 'u2', session_id: 's2', host_id: 'u1' })
+                expect(store().notices.some((n) => n.kind === 'removed' && n.actorUserId === 'u2')).toBe(true)
+        })
+
+        it('channel voice events toggle per-channel enablement', () => {
+                emit('custom_calls_channel_disable_voice', { channel_id: 'ch' })
+                expect(store().channelsEnabled.ch).toBe(false)
+                emit('custom_calls_channel_enable_voice', { channel_id: 'ch' })
+                expect(store().channelsEnabled.ch).toBe(true)
+        })
+
+        it('user_dismissed_notification removes the incoming call for that channel', () => {
+                store().addIncomingCall({ callId: 'c1', channelId: 'ch', callerId: 'u9', startAt: 1 })
+                emit('custom_calls_user_dismissed_notification', { channel_id: 'ch', user_id: 'me' })
+                expect(store().incomingCalls.some((c) => c.callId === 'c1')).toBe(false)
         })
 
         it('a websocket reconnect re-registers the session', () => {

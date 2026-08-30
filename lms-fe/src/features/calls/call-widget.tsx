@@ -22,8 +22,10 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-	Users, AlertTriangle, Signal, Maximize2, Hand, UserMinus, Crown, PhoneIncoming,
+	Users, AlertTriangle, Signal, Maximize2, Minimize2, Hand, UserMinus, Crown, Mic, MicOff, Phone, PhoneOff, MonitorX,
 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { useTranslation } from '@/lib/i18n'
 import { useLMSStore } from '@/store/lms-store'
 import { useChatStore } from '@/lib/chat/store'
@@ -34,6 +36,9 @@ import { CallTimer } from './call-timer'
 import { CallTile } from './call-tile'
 import { CallControls } from './call-controls'
 import { bindCallsWebSocket } from './calls-events'
+import { CallAlertBanners, JoinNotification, RecentlyJoinedToasts } from './call-alerts'
+import { UserAvatar } from './user-avatar'
+import { userDisplayName } from '@/lib/chat/types'
 import { ReactionStream } from './reaction-stream'
 import { ParticipantsPanel } from './participants-panel'
 import { CallChatPanel } from './call-chat-panel'
@@ -73,6 +78,10 @@ export function CallWidget({ channelId }: { channelId: string }) {
 	const quality = useCallsStore((s) => s.quality)
 	const qualityAlert = useCallsStore((s) => s.qualityAlert)
 	const viewMode = useCallsStore((s) => s.viewMode)
+	const minimized = useCallsStore((s) => s.minimized)
+	const setMinimized = useCallsStore((s) => s.setMinimized)
+	const mirrorVideo = useCallsStore((s) => s.mirrorVideo)
+	const screenSharing = useCallsStore((s) => s.screenSharing)
 	const participantsOpen = useCallsStore((s) => s.participantsOpen)
 	const chatOpen = useCallsStore((s) => s.chatOpen)
 	const micEnabled = useCallsStore((s) => s.micEnabled)
@@ -155,13 +164,7 @@ export function CallWidget({ channelId }: { channelId: string }) {
 		[sessionOrder, sessions],
 	)
 
-	const nameFor = (userId: string): string => {
-		const u = users[userId] as Record<string, any> | undefined
-		if (!u) return ''
-		const first = u.firstname ?? u.first_name ?? ''
-		const last = u.lastname ?? u.last_name ?? ''
-		return `${first} ${last}`.trim() || u.username || ''
-	}
+	const nameFor = (userId: string): string => userDisplayName(users[userId] as never)
 
 	const connecting = status === 'connecting' || status === 'reconnecting'
 
@@ -176,11 +179,19 @@ export function CallWidget({ channelId }: { channelId: string }) {
 	const showSpeakerView = viewMode === 'speaker' && !screenStream && videoParticipants.length > 0 && participants.length > 1
 	const thumbs = showSpeakerView ? videoParticipants.filter((s) => s.sessionId !== activeSpeaker?.sessionId) : []
 
+	// Current speaker readout (plugin parity: "X is talking…").
+	const currentSpeaker = participants.find((s) => s.voice) ?? null
+	const speakerName = currentSpeaker && currentSpeaker.userId !== authUserId ? nameFor(currentSpeaker.userId) : ''
+
 	const toggleFullscreen = () => {
 		const el = stageRef.current
 		if (!el) return
 		if (document.fullscreenElement) void document.exitFullscreen()
 		else void el.requestFullscreen?.().catch(() => void 0)
+	}
+
+	if (minimized) {
+		return <CompactCallBar onExpand={() => setMinimized(false)} nameFor={nameFor} />
 	}
 
 	return (
@@ -201,6 +212,11 @@ export function CallWidget({ channelId }: { channelId: string }) {
 									{status === 'connecting' ? t('chat.connecting', 'Đang kết nối…') : t('chat.reconnecting', 'Đang kết nối lại…')}
 								</span>
 							)}
+							{speakerName && !connecting && (
+								<span className="ml-1 max-w-[220px] truncate text-xs text-emerald-300">
+									{t('chat.speaking', '{name} đang nói…', { name: speakerName })}
+								</span>
+							)}
 						</div>
 						{error && (
 							<span className="flex items-center gap-1 text-xs text-red-400 truncate max-w-[40%]">
@@ -208,7 +224,21 @@ export function CallWidget({ channelId }: { channelId: string }) {
 								<span className="truncate">{error.message}</span>
 							</span>
 						)}
+						<div className="flex items-center gap-1 shrink-0">
+							<button
+								type="button"
+								onClick={() => setMinimized(true)}
+								aria-label={t('chat.minimizeCall', 'Thu nhỏ cuộc gọi')}
+								title={t('chat.minimizeCall', 'Thu nhỏ cuộc gọi')}
+								className="h-8 w-8 rounded-md flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+							>
+								<Minimize2 className="h-4 w-4" />
+							</button>
+						</div>
 					</div>
+
+					{/* Device/permission alert banners */}
+					<CallAlertBanners />
 
 					{/* Degraded quality banner */}
 					{qualityAlert && (
@@ -238,7 +268,9 @@ export function CallWidget({ channelId }: { channelId: string }) {
 								/>
 								<div className="absolute top-3 left-3 flex items-center gap-2">
 									<span className="bg-black/60 text-white text-xs px-2 py-1 rounded backdrop-blur-sm max-w-[60%] truncate">
-										{t('chat.screenShareBy', 'Màn hình của')} {nameFor(sessions[screenStream.sessionId]?.userId ?? '') || '?'}
+										{screenSharing && screenStream.sessionId === useCallsStore.getState().mySessionId
+												? t('chat.sharingYourScreen', 'Bạn đang chia sẻ màn hình')
+												: `${t('chat.screenShareBy', 'Màn hình của')} ${nameFor(sessions[screenStream.sessionId]?.userId ?? '') || '?'}`}
 									</span>
 									<button
 										type="button"
@@ -248,6 +280,16 @@ export function CallWidget({ channelId }: { channelId: string }) {
 									>
 										<Maximize2 className="h-3.5 w-3.5" />
 									</button>
+									{screenSharing && (
+										<button
+											type="button"
+											onClick={() => callsClient.stopScreenShare()}
+											className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-red-500/90 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-500 transition-colors"
+										>
+											<MonitorX className="h-3.5 w-3.5" />
+											{t('chat.stopSharing', 'Dừng chia sẻ')}
+										</button>
+									)}
 								</div>
 							</div>
 						)}
@@ -260,7 +302,7 @@ export function CallWidget({ channelId }: { channelId: string }) {
 										session={activeSpeaker}
 										displayName={nameFor(activeSpeaker.userId)}
 										isSelf={activeSpeaker.userId === authUserId}
-										mirror={activeSpeaker.userId === authUserId}
+										mirror={activeSpeaker.userId === authUserId && mirrorVideo}
 										stream={activeSpeaker.userId === authUserId ? undefined : videoStreams[activeSpeaker.sessionId]}
 										selfStream={activeSpeaker.userId === authUserId ? localStream : undefined}
 									/>
@@ -273,7 +315,7 @@ export function CallWidget({ channelId }: { channelId: string }) {
 													session={s}
 													displayName={nameFor(s.userId)}
 													isSelf={s.userId === authUserId}
-													mirror={s.userId === authUserId}
+													mirror={s.userId === authUserId && mirrorVideo}
 													stream={s.userId === authUserId ? undefined : videoStreams[s.sessionId]}
 													selfStream={s.userId === authUserId ? localStream : undefined}
 												/>
@@ -316,7 +358,7 @@ export function CallWidget({ channelId }: { channelId: string }) {
 												session={s}
 												displayName={nameFor(s.userId)}
 												isSelf={s.userId === authUserId}
-												mirror={s.userId === authUserId}
+												mirror={s.userId === authUserId && mirrorVideo}
 												stream={s.userId === authUserId ? undefined : videoStreams[s.sessionId]}
 												selfStream={s.userId === authUserId ? localStream : undefined}
 											/>
@@ -326,6 +368,8 @@ export function CallWidget({ channelId }: { channelId: string }) {
 						</div>
 
 						{/* Overlays */}
+						<JoinNotification />
+						<RecentlyJoinedToasts />
 						<HostNotices />
 						<ReactionStream />
 					</div>
@@ -359,13 +403,7 @@ function HostNotices() {
 
 	if (notices.length === 0) return null
 
-	const nameFor = (userId: string): string => {
-		const u = users[userId] as Record<string, any> | undefined
-		if (!u) return ''
-		const first = u.firstname ?? u.first_name ?? ''
-		const last = u.lastname ?? u.last_name ?? ''
-		return `${first} ${last}`.trim() || u.username || ''
-	}
+	const nameFor = (userId: string): string => userDisplayName(users[userId] as never)
 
 	return (
 		<div className="pointer-events-none absolute right-4 top-4 z-30 flex flex-col items-end gap-1.5">
@@ -397,7 +435,90 @@ function HostNotices() {
 			})}
 			{/* hostUserId referenced to re-render on host changes */}
 			<span className="hidden">{hostUserId}</span>
-			<PhoneIncoming className="hidden" />
+		</div>
+	)
+}
+
+/**
+ * CompactCallBar — the minimized call UI (plugin parity: the call_widget's
+ * collapsed state). A floating bar at the bottom-left with the current
+ * speaker's avatar + name, the call timer, mic toggle, expand, and leave, so
+ * the user can browse the app while staying in the call.
+ */
+function CompactCallBar({ onExpand, nameFor }: { onExpand: () => void; nameFor: (userId: string) => string }) {
+	const { t } = useTranslation()
+	const sessions = useCallsStore((s) => s.sessions)
+	const sessionOrder = useCallsStore((s) => s.sessionOrder)
+	const startAt = useCallsStore((s) => s.startAt)
+	const micEnabled = useCallsStore((s) => s.micEnabled)
+	const status = useCallsStore((s) => s.status)
+	const quality = useCallsStore((s) => s.quality)
+	const screenStream = useCallsStore((s) => s.screenStream)
+	const authUserId = useLMSStore((s) => s.authUser?.id)
+	const users = useChatStore((s) => s.users)
+	void users
+
+	const participants = sessionOrder.map((id) => sessions[id]).filter((s): s is NonNullable<typeof s> => !!s)
+	const speaker = participants.find((s) => s.voice) ?? participants.find((s) => s.userId !== authUserId) ?? participants[0]
+	const speakerName = speaker ? nameFor(speaker.userId) : ''
+	const connecting = status === 'connecting' || status === 'reconnecting'
+
+	return (
+		<div className="fixed bottom-6 left-6 z-50 flex items-center gap-2.5 rounded-2xl border border-white/15 bg-neutral-950/95 px-3 py-2.5 shadow-2xl backdrop-blur">
+			{speaker && (
+				<UserAvatar
+					userId={speaker.userId}
+					displayName={speakerName || '?'}
+					size="md"
+					ringClassName={cn('rounded-full', speaker.voice ? 'ring-2 ring-emerald-500 rounded-full' : '')}
+				/>
+			)}
+			<div className="min-w-0">
+				<div className="flex items-center gap-2">
+					<span className="max-w-[180px] truncate text-sm font-medium text-white/90">
+						{connecting
+							? t('chat.connecting', 'Đang kết nối…')
+							: speaker
+								? t('chat.callWith', 'Cuộc gọi với {name}', { name: speakerName || '?' })
+								: t('chat.callInProgress', 'Cuộc gọi')}
+					</span>
+					{screenStream && <MonitorX className="hidden h-3.5 w-3.5" aria-hidden />}
+				</div>
+				<div className="flex items-center gap-2 text-xs text-white/50">
+					<CallTimer startAt={startAt} />
+					<span>{participants.length}</span>
+					<QualityBadge quality={quality} />
+				</div>
+			</div>
+			<div className="flex items-center gap-1">
+				<Button
+					variant="ghost"
+					size="icon"
+					aria-label={micEnabled ? t('chat.mute', 'Tắt tiếng') : t('chat.unmute', 'Bật tiếng')}
+					onClick={() => (micEnabled ? callsClient.mute() : callsClient.unmute())}
+					className="h-9 w-9 rounded-full text-white/80 hover:bg-white/10 hover:text-white"
+				>
+					{micEnabled ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4 text-amber-400" />}
+				</Button>
+				<Button
+					variant="ghost"
+					size="icon"
+					aria-label={t('chat.expandCall', 'Mở rộng cuộc gọi')}
+					onClick={onExpand}
+					className="h-9 w-9 rounded-full text-white/80 hover:bg-white/10 hover:text-white"
+				>
+					<Maximize2 className="h-4 w-4" />
+				</Button>
+				<Button
+					variant="ghost"
+					size="icon"
+					aria-label={t('chat.leaveCall', 'Rời cuộc gọi')}
+					onClick={() => callsClient.leave()}
+					className="h-9 w-9 rounded-full text-red-400 hover:bg-red-500/15 hover:text-red-300"
+				>
+					<PhoneOff className="h-4 w-4" />
+				</Button>
+			</div>
 		</div>
 	)
 }

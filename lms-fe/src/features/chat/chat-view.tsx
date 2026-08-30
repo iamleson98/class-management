@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
-import { Hash, Lock, Search, Info, ArrowLeft, Bookmark, Pin, AtSign, CheckCheck, PenSquare, Users, MessageSquare, MoreVertical, Link2, Bell, BellOff, UserPlus, Star } from 'lucide-react'
+import { Hash, Lock, Search, Info, ArrowLeft, Bookmark, Pin, AtSign, CheckCheck, PenSquare, Users, MessageSquare, MoreVertical, Link2, Bell, BellOff, UserPlus, Star, Phone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -51,6 +51,7 @@ import { SwitchCallModal, type SwitchCallTarget } from '@/features/calls/switch-
 import { IncomingCallStack } from '@/features/calls/incoming-call-card'
 import { ChannelCallToast } from '@/features/calls/channel-call-toast'
 import { callsClient } from '@/features/calls/calls-client'
+import { selectChannelCallsEnabled } from '@/features/calls/calls-store'
 import { useChatShortcuts } from '@/lib/chat/use-chat-shortcuts'
 import { useCallsStore } from '@/features/calls/calls-store'
 import { useQuery } from '@tanstack/react-query'
@@ -98,32 +99,62 @@ export default function ChatView() {
     window.addEventListener('calls:join-channel', onJoin as EventListener)
     return () => window.removeEventListener('calls:join-channel', onJoin as EventListener)
   }, [])
+
+  // ?join_call=true deep link (plugin parity: JoinCallWatcher) — joining a
+  // shared call URL joins the call in that channel once the channel is open.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    if (url.searchParams.get('join_call') !== 'true') return
+    if (!activeChannelId) return
+    url.searchParams.delete('join_call')
+    window.history.replaceState({}, '', url.toString())
+    window.dispatchEvent(new CustomEvent('calls:join-channel', { detail: { channelId: activeChannelId } }))
+  }, [activeChannelId])
+
+  // Global "join call" shortcut: ctrl/cmd+alt+S joins the current channel's
+  // call from anywhere in the app (plugin parity: SHORTCUTS_JOIN_CALL).
+  useEffect(() => {
+    const onKeyDown = (ev: KeyboardEvent) => {
+      const el = ev.target as HTMLElement | null
+      const isTyping = !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
+      if (isTyping) return
+      if ((ev.ctrlKey || ev.metaKey) && ev.altKey && ev.key.toLowerCase() === 's') {
+        ev.preventDefault()
+        const s = useCallsStore.getState()
+        if (!activeChannelId || s.channelId === activeChannelId) return
+        if (!s.activeCalls[activeChannelId]) return
+        window.dispatchEvent(new CustomEvent('calls:join-channel', { detail: { channelId: activeChannelId } }))
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [activeChannelId])
   const markActiveCall = useCallsStore((s) => s.markActiveCall)
-  // Seed join-button state for channels with in-progress calls (native REST).
+  // Seed join-button state for channels with in-progress calls: ONE batched
+  // request (GET /calls/channels) instead of per-channel polling, plus
+  // per-channel calls enablement.
   useQuery({
     queryKey: ['calls', 'active'],
     queryFn: async () => {
-      // Best-effort: the native API exposes per-channel lookups; query the
-      // channels we know about. Failures (calls disabled) just yield none.
-      const results = await Promise.all(
-        Object.keys(useChatStore.getState().channels).map(async (cid) => {
-          try {
-            const res = await fetch(`/api/v4/calls/channels/${cid}`, {
-              credentials: 'include',
-              headers: { 'X-Requested-With': 'XMLHttpRequest' },
-            })
-            if (!res.ok) return null
-            const call = await res.json()
-            if (call && call.call_id && !call.end_at) {
-              return { channelId: cid, callId: call.call_id, startAt: call.start_at ?? Date.now() }
-            }
-            return null
-          } catch {
-            return null
-          }
-        }),
-      )
-      return results.filter((r): r is { channelId: string; callId: string; startAt: number } => !!r)
+      try {
+        const res = await fetch('/api/v4/calls/channels', {
+          credentials: 'include',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        })
+        if (!res.ok) return []
+        const states = (await res.json()) as Array<{
+          call_id?: string
+          channel_id?: string
+          start_at?: number
+          end_at?: number
+        }>
+        return states
+          .filter((c) => c.call_id && c.channel_id && !c.end_at)
+          .map((c) => ({ channelId: c.channel_id as string, callId: c.call_id as string, startAt: c.start_at ?? Date.now() }))
+      } catch {
+        return []
+      }
     },
     staleTime: 15_000,
     retry: false,
@@ -351,6 +382,7 @@ export default function ChatView() {
         {/* Calls overlays: incoming stack, error modal, switch-call confirm */}
         <CallErrorModal />
         <IncomingCallStack
+          onOpenChannel={(channelId) => { setActiveChannel(channelId) }}
           onJoinRequested={(channelId) => {
             const s = useCallsStore.getState()
             const inCall = s.channelId != null && s.status !== 'disconnected' && s.status !== 'error'
@@ -419,6 +451,10 @@ function ChannelActionsMenu({ channel, teamId, userId, onOpenSettings }: {
   const [showAddMembers, setShowAddMembers] = useState(false)
   const toggleFavorite = useToggleFavorite(userId)
   const updateNotifyProps = useUpdateChannelNotifyProps()
+  const callsEnabledGlobally = useCallsStore((s) => s.config.enabled)
+  const callsChannelEnabled = useCallsStore((s) => selectChannelCallsEnabled(s, channel.id))
+  const setChannelEnabled = useCallsStore((s) => s.setChannelEnabled)
+  const { toast } = useToast()
 
   // Favorite state from the categories store.
   const isFavorite = useChatStore((s) => {
@@ -448,6 +484,24 @@ function ChannelActionsMenu({ channel, teamId, userId, onOpenSettings }: {
     toggleFavorite.mutate({ channelId: channel.id, teamId, favorite: !isFavorite })
   }
 
+  const onToggleCalls = async () => {
+    const next = !callsChannelEnabled
+    // Optimistic update; the WS event reconciles.
+    setChannelEnabled(channel.id, next)
+    try {
+      const res = await fetch(`/api/v4/calls/channels/${channel.id}/enabled`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify({ enabled: next }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    } catch (e) {
+      setChannelEnabled(channel.id, !next)
+      toast({ title: t('chat.call.error', 'Lỗi cuộc gọi'), description: (e as Error).message, variant: 'destructive' })
+    }
+  }
+
   return (
     <>
       <Popover open={open} onOpenChange={setOpen}>
@@ -466,6 +520,13 @@ function ChannelActionsMenu({ channel, teamId, userId, onOpenSettings }: {
           <MenuRow icon={<Star className={`h-3.5 w-3.5 ${isFavorite ? 'fill-current text-amber-500' : ''}`} />} label={isFavorite ? t('chat.unfavorite', 'Bỏ yêu thích') : t('chat.favorite', 'Yêu thích')} onClick={() => { onFav(); setOpen(false) }} />
           <MenuRow icon={isMuted ? <Bell className="h-3.5 w-3.5" /> : <BellOff className="h-3.5 w-3.5" />} label={isMuted ? t('chat.unmute', 'Bỏ tắt thông báo') : t('chat.mute', 'Tắt thông báo')} onClick={() => { onMute(); setOpen(false) }} />
           <MenuRow icon={<Link2 className="h-3.5 w-3.5" />} label={t('chat.copyLink', 'Sao chép liên kết')} onClick={() => { copyLink(); setOpen(false) }} />
+          {callsEnabledGlobally && (
+            <MenuRow
+              icon={<Phone className={`h-3.5 w-3.5 ${callsChannelEnabled ? 'text-emerald-600' : ''}`} />}
+              label={callsChannelEnabled ? t('chat.disableCalls', 'Tắt cuộc gọi ở kênh này') : t('chat.enableCalls', 'Bật cuộc gọi ở kênh này')}
+              onClick={() => { void onToggleCalls(); setOpen(false) }}
+            />
+          )}
           {!isDM && (
             <MenuRow icon={<UserPlus className="h-3.5 w-3.5" />} label={t('chat.addMembers', 'Thêm thành viên')} onClick={() => { setOpen(false); setShowAddMembers(true) }} />
           )}

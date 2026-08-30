@@ -30,13 +30,13 @@ func (a *CallsAPI) InitHostControls() {
 	r := a.api
 	base := a.routes.Calls
 
-	base.Method(http.MethodPost, "/{call_id:[A-Za-z0-9]+}/host/make", r.APISessionRequired(hostMake))
-	base.Method(http.MethodPost, "/{call_id:[A-Za-z0-9]+}/host/mute", r.APISessionRequired(hostMute))
-	base.Method(http.MethodPost, "/{call_id:[A-Za-z0-9]+}/host/mute-others", r.APISessionRequired(hostMuteOthers))
-	base.Method(http.MethodPost, "/{call_id:[A-Za-z0-9]+}/host/screen-off", r.APISessionRequired(hostScreenOff))
-	base.Method(http.MethodPost, "/{call_id:[A-Za-z0-9]+}/host/lower-hand", r.APISessionRequired(hostLowerHand))
-	base.Method(http.MethodPost, "/{call_id:[A-Za-z0-9]+}/host/remove", r.APISessionRequired(hostRemove))
-	base.Method(http.MethodPost, "/{call_id:[A-Za-z0-9]+}/host/end", r.APISessionRequired(hostEnd))
+	base.Method(http.MethodPost, "/{call_id:[A-Za-z0-9:]+}/host/make", r.APISessionRequired(hostMake))
+	base.Method(http.MethodPost, "/{call_id:[A-Za-z0-9:]+}/host/mute", r.APISessionRequired(hostMute))
+	base.Method(http.MethodPost, "/{call_id:[A-Za-z0-9:]+}/host/mute-others", r.APISessionRequired(hostMuteOthers))
+	base.Method(http.MethodPost, "/{call_id:[A-Za-z0-9:]+}/host/screen-off", r.APISessionRequired(hostScreenOff))
+	base.Method(http.MethodPost, "/{call_id:[A-Za-z0-9:]+}/host/lower-hand", r.APISessionRequired(hostLowerHand))
+	base.Method(http.MethodPost, "/{call_id:[A-Za-z0-9:]+}/host/remove", r.APISessionRequired(hostRemove))
+	base.Method(http.MethodPost, "/{call_id:[A-Za-z0-9:]+}/host/end", r.APISessionRequired(hostEnd))
 }
 
 // hostControlRequest is the shared body for host-control actions.
@@ -49,7 +49,7 @@ type hostControlRequest struct {
 // enforced by the service (current host) — with a system-admin bypass
 // resolved via requesterFor below.
 func resolveHostAction(c *api4.Context, r *http.Request) (string, hostControlRequest, bool) {
-	callID := c.RequireParam("call_id", web.RequireValidId)
+	callID := c.RequireParam("call_id", requireCallID)
 	if c.Err != nil {
 		return "", hostControlRequest{}, false
 	}

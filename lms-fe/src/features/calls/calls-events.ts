@@ -14,19 +14,28 @@
  *   - join ack carries `connID` + `iceServers`
  *   - call_state carries `call` as a JSON STRING
  *
+ * Scoping (plugin parity): presence broadcasts carry the channel in
+ * `broadcast.channel_id` (NOT in `data`), so every presence handler is gated
+ * on that channel matching the call we are actually in — otherwise a call in
+ * channel B pollutes the roster while we view channel A.
+ *
  * Additionally ports the plugin webapp's side effects:
- *   - join/leave sounds (with the participant threshold for join_user)
+ *   - join/leave sounds (participant threshold for join_user, in-call only)
+ *   - "X has joined" transient chips (recentlyJoinedUsers)
  *   - host-control notices (host changed / lowered hand / removed)
- *   - incoming-call tracking for DM/GM channels (ringing + toasts)
+ *   - incoming-call tracking for DM/GM channels (ringing + toasts + REST
+ *     hydration of unknown channels/callers)
  *   - reaction stream with client-side expiry
+ *   - per-channel calls enable/disable + cross-device dismissal sync
  */
 
 import type { WebSocketMessage } from '@mattermost/client'
-import { wsClient } from '@/lib/chat/client'
+import { wsClient, client4 } from '@/lib/chat/client'
 import { useChatStore } from '@/lib/chat/store'
+import type { ChatUser } from '@/lib/chat/types'
 import { useLMSStore } from '@/store/lms-store'
 import { callsClient } from './calls-client'
-import { useCallsStore, type CallStateSessionPayload, REACTION_TIMEOUT_MS, NOTICE_TIMEOUT_MS } from './calls-store'
+import { useCallsStore, type CallStateSessionPayload, REACTION_TIMEOUT_MS, NOTICE_TIMEOUT_MS, USER_JOINED_TIMEOUT_MS } from './calls-store'
 import { playCallSound, JOIN_SOUND_PARTICIPANTS_THRESHOLD } from './calls-sounds'
 
 // Server event names (surfaced by the hub as custom_calls_<name>).
@@ -40,6 +49,7 @@ const EVT = {
         CallHostChanged: 'custom_calls_call_host_changed',
         UserJoined: 'custom_calls_user_joined',
         UserLeft: 'custom_calls_user_left',
+        UserRemoved: 'custom_calls_user_removed',
         UserMuted: 'custom_calls_user_muted',
         UserUnmuted: 'custom_calls_user_unmuted',
         UserVoiceOn: 'custom_calls_user_voice_on',
@@ -51,6 +61,9 @@ const EVT = {
         UserRaiseHand: 'custom_calls_user_raise_hand',
         UserUnraiseHand: 'custom_calls_user_unraise_hand',
         UserReacted: 'custom_calls_user_reacted',
+        UserDismissedNotification: 'custom_calls_user_dismissed_notification',
+        ChannelEnableVoice: 'custom_calls_channel_enable_voice',
+        ChannelDisableVoice: 'custom_calls_channel_disable_voice',
         HostMute: 'custom_calls_host_mute',
         HostScreenOff: 'custom_calls_host_screen_off',
         HostLowerHand: 'custom_calls_host_lower_hand',
@@ -64,6 +77,13 @@ let reconnectBound = false
 let reactionTimerBound = false
 /** Expire notices after NOTICE_TIMEOUT_MS. */
 let noticeTimerBound = false
+/** Expire recently-joined chips after USER_JOINED_TIMEOUT_MS. */
+let joinedTimerBound = false
+
+/** Calls we already rang for (ring once per call, forever — plugin parity). */
+const didRingForCalls = new Set<string>()
+/** Calls we already fired a desktop notification for. */
+const didNotifyForCalls = new Set<string>()
 
 /**
  * Register the calls event listener on the shared WebSocket. Idempotent —
@@ -85,12 +105,43 @@ export function bindCallsWebSocket(): () => void {
         return () => {}
 }
 
+/** Test hook: forget ring/notify dedupe state. */
+export function __resetIncomingCallDedupe(): void {
+        didRingForCalls.clear()
+        didNotifyForCalls.clear()
+}
+
+/** Whether the ring/notification for this call already fired. */
+export function markRangFor(callId: string): void {
+        didRingForCalls.add(callId)
+}
+
+export function shouldRingFor(callId: string): boolean {
+        return !didRingForCalls.has(callId)
+}
+
+export function markNotifiedFor(callId: string): void {
+        didNotifyForCalls.add(callId)
+}
+
+export function shouldNotifyFor(callId: string): boolean {
+        return !didNotifyForCalls.has(callId)
+}
+
 /** The single dispatch function for calls events. */
 function handleCallEvent(msg: WebSocketMessage): void {
         const data = (msg.data ?? {}) as Record<string, unknown>
+        // Channel-scoped broadcasts (presence, lifecycle) carry the channel in
+        // `broadcast.channel_id` — the presence payloads themselves do NOT.
+        const eventChannel = msg.broadcast?.channel_id ?? ''
 
-        // The vendored @mattermost/types event union does not include plugin/
-        // custom events, so compare on a widened string.
+        // The channel id of the call the local user is in.
+        const myCallChannel = useCallsStore.getState().channelId
+        // Presence events only apply when they target OUR call's channel.
+        const forMyCall = !!myCallChannel && eventChannel === myCallChannel
+
+        // The current call event name (widened: the vendored types union lacks
+        // plugin/custom events).
         const eventName = String(msg.event)
         switch (eventName) {
                 // ── Signaling (unicast to this connection) ──────────────────
@@ -113,16 +164,18 @@ function handleCallEvent(msg: WebSocketMessage): void {
                 case EVT.Error: {
                         const message = typeof data.data === 'string' ? data.data : 'call error'
                         // Classify common server errors for the error modal.
-                        let kind: 'generic' | 'max-participants' | 'disabled' = 'generic'
+                        let kind: 'generic' | 'max-participants' | 'disabled' | 'channel-disabled' = 'generic'
                         if (/maximum participants/i.test(message)) kind = 'max-participants'
+                        else if (/disabled for this channel/i.test(message)) kind = 'channel-disabled'
                         else if (/feature is disabled|not configured/i.test(message)) kind = 'disabled'
-                        useCallsStore.getState().setError({ message, kind })
+                        useCallsStore.getState().setError({ message, kind: kind === 'channel-disabled' ? 'disabled' : kind })
+                        callsClient.leave()
                         break
                 }
 
                 // ── Call lifecycle (channel-scoped broadcasts) ──────────────
                 case EVT.CallStart: {
-                        const channelId = data.channel_id as string | undefined
+                        const channelId = (data.channel_id as string | undefined) ?? eventChannel
                         const callId = data.call_id as string | undefined
                         const startAt = (data.start_at as number | undefined) ?? Date.now()
                         if (channelId && callId) {
@@ -135,17 +188,20 @@ function handleCallEvent(msg: WebSocketMessage): void {
                                 if (useCallsStore.getState().channelId === channelId) {
                                         useCallsStore.getState().setCallMeta(callId, startAt)
                                 } else {
-                                        maybeTrackIncomingCall(channelId, callId, startAt, data.owner_id as string | undefined)
+                                        void maybeTrackIncomingCall(channelId, callId, startAt, data.owner_id as string | undefined)
                                 }
                         }
                         break
                 }
 
                 case EVT.CallEnd: {
-                        const channelId = data.channel_id as string | undefined
+                        const channelId = (data.channel_id as string | undefined) ?? eventChannel
                         const callId = data.call_id as string | undefined
                         if (channelId) useCallsStore.getState().markActiveCall(channelId, null)
-                        if (callId) useCallsStore.getState().removeIncomingCall(callId)
+                        if (callId) {
+                                useCallsStore.getState().removeIncomingCall(callId)
+                                didRingForCalls.delete(callId)
+                        }
                         // Leaving is idempotent: if we were in this call, tear down.
                         if (useCallsStore.getState().channelId === channelId) {
                                 playCallSound('ended')
@@ -172,6 +228,11 @@ function handleCallEvent(msg: WebSocketMessage): void {
                                         hostSessionId: call.host_session_id,
                                         sessions: call.sessions,
                                 })
+                                // Hydrate profiles for participants we haven't seen yet.
+                                const missing = (call.sessions ?? [])
+                                        .map((s) => s.user_id)
+                                        .filter((uid) => uid && !useChatStore.getState().users[uid])
+                                if (missing.length > 0) void fetchProfiles(missing)
                                 if (call.call_id) {
                                         const channelId = useCallsStore.getState().channelId
                                         if (channelId) useCallsStore.getState().markActiveCall(channelId, { callId: call.call_id, startAt: call.start_at ?? Date.now() })
@@ -202,8 +263,13 @@ function handleCallEvent(msg: WebSocketMessage): void {
                         break
                 }
 
-                // ── Presence (participant broadcasts) ───────────────────────
+                // ── Presence (participant broadcasts, channel-gated) ────────
                 case EVT.UserJoined: {
+                        if (!forMyCall) {
+                                // A call started elsewhere still matters for channel toasts —
+                                // markActiveCall was already handled by call_start/user events.
+                                break
+                        }
                         const sessionId = data.session_id as string | undefined
                         const userId = data.user_id as string | undefined
                         if (sessionId && userId) {
@@ -219,15 +285,22 @@ function handleCallEvent(msg: WebSocketMessage): void {
                                         screenOn: false,
                                         isHost: false,
                                 })
-                                // Join sounds (plugin parity): always for self; for others
-                                // only under the participant threshold.
+                                // Join sounds (plugin parity): always for self; for others only
+                                // under the participant threshold, and only while in the call
+                                // (the channel gate above already ensures that).
                                 const count = s.sessionOrder.length
                                 if (isSelf) playCallSound('join_self')
                                 else if (count < JOIN_SOUND_PARTICIPANTS_THRESHOLD) playCallSound('join_user')
-                                // If I'm joining someone's ringing call, clear the incoming card.
+                                // "X has joined the call." transient chip.
+                                if (!isSelf) {
+                                        s.addRecentlyJoined(userId)
+                                        scheduleJoinedExpiry()
+                                        if (!useChatStore.getState().users[userId]) void fetchProfiles([userId])
+                                }
+                                // Joining any call stops every ring (plugin parity).
                                 if (isSelf) {
                                         for (const c of [...s.incomingCalls]) {
-                                                if (c.channelId === s.channelId) s.dismissIncomingCall(c.callId)
+                                                s.dismissIncomingCall(c.callId)
                                         }
                                 }
                         }
@@ -235,46 +308,70 @@ function handleCallEvent(msg: WebSocketMessage): void {
                 }
 
                 case EVT.UserLeft: {
-                        useCallsStore.getState().removeSession(data.session_id as string)
+                        if (!forMyCall) break
+                        const sessionId = data.session_id as string | undefined
+                        const s = useCallsStore.getState()
+                        // Our own session dropping without a call_end means the SFU or the
+                        // server removed us (peer timeout / rtcd restart): tear the call UI
+                        // down cleanly like the plugin's clientStateReducer.
+                        if (sessionId && sessionId === s.mySessionId) {
+                                callsClient.leave()
+                                break
+                        }
+                        s.removeSession(sessionId ?? '')
+                        break
+                }
+
+                case EVT.UserRemoved: {
+                        // Broadcast when the host removes someone. The victim also gets the
+                        // unicast host_removed (below); everyone else sees this notice.
+                        if (!forMyCall) break
+                        const removedUserId = data.user_id as string | undefined
+                        const myUserId = myUserIdOrNull()
+                        if (removedUserId && removedUserId !== myUserId) {
+                                const s = useCallsStore.getState()
+                                s.addNotice({ kind: 'removed', actorUserId: removedUserId, mine: false })
+                                expireNoticeSoon()
+                        }
                         break
                 }
 
                 case EVT.UserMuted:
-                        useCallsStore.getState().setSessionUnmuted(data.session_id as string, false)
+                        if (forMyCall) useCallsStore.getState().setSessionUnmuted(data.session_id as string, false)
                         break
                 case EVT.UserUnmuted:
-                        useCallsStore.getState().setSessionUnmuted(data.session_id as string, true)
+                        if (forMyCall) useCallsStore.getState().setSessionUnmuted(data.session_id as string, true)
                         break
                 case EVT.UserVoiceOn:
-                        useCallsStore.getState().setSessionVoice(data.session_id as string, true)
+                        if (forMyCall) useCallsStore.getState().setSessionVoice(data.session_id as string, true)
                         break
                 case EVT.UserVoiceOff:
-                        useCallsStore.getState().setSessionVoice(data.session_id as string, false)
+                        if (forMyCall) useCallsStore.getState().setSessionVoice(data.session_id as string, false)
                         break
                 case EVT.UserScreenOn:
-                        useCallsStore.getState().setSessionScreen(data.session_id as string, true)
+                        if (forMyCall) useCallsStore.getState().setSessionScreen(data.session_id as string, true)
                         break
                 case EVT.UserScreenOff:
-                        useCallsStore.getState().setSessionScreen(data.session_id as string, false)
+                        if (forMyCall) useCallsStore.getState().setSessionScreen(data.session_id as string, false)
                         break
                 case EVT.UserVideoOn:
-                        useCallsStore.getState().setSessionVideo(data.session_id as string, true)
+                        if (forMyCall) useCallsStore.getState().setSessionVideo(data.session_id as string, true)
                         break
                 case EVT.UserVideoOff:
-                        useCallsStore.getState().setSessionVideo(data.session_id as string, false)
+                        if (forMyCall) useCallsStore.getState().setSessionVideo(data.session_id as string, false)
                         break
                 case EVT.UserRaiseHand:
-                        useCallsStore.getState().setSessionHand(data.session_id as string, (data.raised_hand as number) || Date.now())
+                        if (forMyCall) useCallsStore.getState().setSessionHand(data.session_id as string, (data.raised_hand as number) || Date.now())
                         break
                 case EVT.UserUnraiseHand:
-                        useCallsStore.getState().setSessionHand(data.session_id as string, 0)
+                        if (forMyCall) useCallsStore.getState().setSessionHand(data.session_id as string, 0)
                         break
 
                 // ── Reactions (channel-scoped broadcast) ─────────────────────
                 case EVT.UserReacted: {
                         const s = useCallsStore.getState()
                         // Only stream reactions for the call we're in.
-                        if (!s.channelId) break
+                        if (!s.channelId || !forMyCall) break
                         const sessionId = data.session_id as string | undefined
                         const userId = data.user_id as string | undefined
                         const emoji = data.emoji as { name?: string; literal?: string; unified?: string } | undefined
@@ -290,26 +387,55 @@ function handleCallEvent(msg: WebSocketMessage): void {
                         break
                 }
 
+                // ── Per-channel enable/disable + dismissal sync ──────────────
+                case EVT.ChannelEnableVoice: {
+                        const channelId = (data.channel_id as string | undefined) ?? eventChannel
+                        if (channelId) useCallsStore.getState().setChannelEnabled(channelId, true)
+                        break
+                }
+                case EVT.ChannelDisableVoice: {
+                        const channelId = (data.channel_id as string | undefined) ?? eventChannel
+                        if (channelId) useCallsStore.getState().setChannelEnabled(channelId, false)
+                        break
+                }
+
+                case EVT.UserDismissedNotification: {
+                        // Another device of OUR user dismissed the incoming call: stop
+                        // ringing here too.
+                        const dismissedUser = data.user_id as string | undefined
+                        if (dismissedUser !== myUserIdOrNull()) break
+                        const channelId = (data.channel_id as string | undefined) ?? eventChannel
+                        const s = useCallsStore.getState()
+                        for (const c of [...s.incomingCalls]) {
+                                if (c.channelId === channelId) s.removeIncomingCall(c.callId)
+                        }
+                        break
+                }
+
                 // ── Host controls (unicast to the target user) ──────────────
-                case EVT.HostMute:
-                        callsClient.mute()
+                case EVT.HostMute: {
+                        // Only act when the target is the local session (stale-event guard).
+                        if (data.session_id === useCallsStore.getState().mySessionId) callsClient.mute()
                         break
-                case EVT.HostScreenOff:
-                        callsClient.stopScreenShare()
+                }
+                case EVT.HostScreenOff: {
+                        if (data.session_id === useCallsStore.getState().mySessionId) callsClient.stopScreenShare()
                         break
+                }
                 case EVT.HostLowerHand: {
+                        if (data.session_id !== useCallsStore.getState().mySessionId) break
                         // Local state mirrors the server's unraise broadcast; just make
                         // sure our flag is down.
                         const s = useCallsStore.getState()
                         if (s.handRaised) s.toggleHand()
-                        // Notice: "the host lowered your hand".
-                        s.addNotice({ kind: 'lower-hand', actorUserId: '', mine: true })
+                        // Notice: "the host lowered your hand" (with the host's name).
+                        s.addNotice({ kind: 'lower-hand', actorUserId: (data.host_id as string | undefined) ?? '', mine: true })
                         expireNoticeSoon()
                         break
                 }
                 case EVT.HostRemoved: {
                         // The removed user sees the error modal via the leave path; others
-                        // get a transient notice through user_left.
+                        // get the transient user_removed notice above.
                         callsClient.leave()
                         useCallsStore.getState().setError({
                                 message: 'host-removed',
@@ -328,15 +454,35 @@ function myUserIdOrNull(): string | null {
         return useLMSStore.getState().authUser?.id ?? null
 }
 
+/** Hydrate missing user profiles through the chat REST client. */
+async function fetchProfiles(userIds: string[]): Promise<void> {
+        try {
+                const users = (await client4.getProfilesByIds(userIds)) as unknown as ChatUser[]
+                if (Array.isArray(users) && users.length > 0) {
+                        useChatStore.getState().upsertUsers(users)
+                }
+        } catch {
+                // best-effort: names resolve on the next snapshot
+        }
+}
+
 /** Track incoming calls: DM/GM channels only, not my own start, not in-call. */
-function maybeTrackIncomingCall(channelId: string, callId: string, startAt: number, ownerId?: string): void {
+async function maybeTrackIncomingCall(channelId: string, callId: string, startAt: number, ownerId?: string): Promise<void> {
         const s = useCallsStore.getState()
         if (!s.config.ringingEnabled) return
-        const chat = useChatStore.getState()
-        const channel = chat.channels[channelId]
-        if (!channel) return
+        let chat = useChatStore.getState()
+        let channel = chat.channels[channelId] as { type?: string } | undefined
+        // Hydrate an unknown channel (e.g. a DM the store hasn't loaded yet).
+        if (!channel) {
+                try {
+                        const fetched = (await client4.getChannel(channelId)) as unknown as { type?: string }
+                        channel = fetched
+                } catch {
+                        return
+                }
+        }
         // DM/GM only (matching the plugin's incoming-call gating).
-        const type = (channel as { type?: string }).type
+        const type = channel?.type
         if (type !== 'D' && type !== 'G') return
         // The owner is ringing themselves.
         const myId = useLMSStore.getState().authUser?.id ?? ''
@@ -344,9 +490,12 @@ function maybeTrackIncomingCall(channelId: string, callId: string, startAt: numb
         // Already dismissed / already ringing.
         if (s.dismissedCalls[callId]) return
         if (s.incomingCalls.some((c) => c.callId === callId)) return
+        // Hydrate the caller's profile so the card shows their name.
+        chat = useChatStore.getState()
+        if (ownerId && !chat.users[ownerId]) void fetchProfiles([ownerId])
         // In a different call already? The incoming stack still shows (switch
         // modal handles joining), like the plugin.
-        s.addIncomingCall({ callId, channelId, callerId: ownerId ?? '', startAt })
+        useCallsStore.getState().addIncomingCall({ callId, channelId, callerId: ownerId ?? '', startAt })
 }
 
 /** Expire the oldest reaction after REACTION_TIMEOUT_MS. */
@@ -377,6 +526,17 @@ function expireNoticeSoon(): void {
         }, NOTICE_TIMEOUT_MS + 50)
 }
 
+/** Expire "X has joined" chips after USER_JOINED_TIMEOUT_MS. */
+function scheduleJoinedExpiry(): void {
+        if (joinedTimerBound) return
+        joinedTimerBound = true
+        window.setTimeout(() => {
+                joinedTimerBound = false
+                useCallsStore.getState().expireRecentlyJoined()
+                if (useCallsStore.getState().recentlyJoined.length > 0) scheduleJoinedExpiry()
+        }, USER_JOINED_TIMEOUT_MS + 50)
+}
+
 /** Best-effort emoji literal from a unified codepoint string ("1f44d"). */
 function emojiLiteralFromUnified(unified?: string): string {
         if (!unified) return ''
@@ -395,4 +555,5 @@ function emojiLiteralFromUnified(unified?: string): string {
 export function __resetCallsEventTimers(): void {
         reactionTimerBound = false
         noticeTimerBound = false
+        joinedTimerBound = false
 }

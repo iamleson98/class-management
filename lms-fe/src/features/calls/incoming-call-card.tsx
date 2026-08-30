@@ -11,7 +11,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Phone, PhoneOff } from 'lucide-react'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/lib/i18n'
 import { useLMSStore } from '@/store/lms-store'
@@ -19,8 +18,15 @@ import { useChatStore } from '@/lib/chat/store'
 import { callsClient } from './calls-client'
 import { useCallsStore, type IncomingCall } from './calls-store'
 import { startRinging, type RingHandle } from './calls-sounds'
+import { shouldRingFor, markRangFor, shouldNotifyFor, markNotifiedFor } from './calls-events'
+import { UserAvatar } from './user-avatar'
+import { userDisplayName } from '@/lib/chat/types'
 
-export function IncomingCallStack({ onJoinRequested }: { onJoinRequested: (channelId: string) => void }) {
+export function IncomingCallStack({ onJoinRequested, onOpenChannel }: {
+        onJoinRequested: (channelId: string) => void
+        /** Navigate to the channel (card click / notification deep-link). */
+        onOpenChannel: (channelId: string) => void
+}) {
         const { t } = useTranslation()
         const incomingCalls = useCallsStore((s) => s.incomingCalls)
         const dismissIncomingCall = useCallsStore((s) => s.dismissIncomingCall)
@@ -37,6 +43,7 @@ export function IncomingCallStack({ onJoinRequested }: { onJoinRequested: (chann
                                 expanded
                                 onJoin={(ch) => { onJoinRequested(ch); dismissIncomingCall(newest.callId) }}
                                 onIgnore={() => dismissIncomingCall(newest.callId)}
+                                onOpenChannel={onOpenChannel}
                         />
                         {rest.map((c) => (
                                 <IncomingCallCondensed
@@ -44,6 +51,7 @@ export function IncomingCallStack({ onJoinRequested }: { onJoinRequested: (chann
                                         call={c}
                                         onJoin={(ch) => { onJoinRequested(ch); dismissIncomingCall(c.callId) }}
                                         onIgnore={() => dismissIncomingCall(c.callId)}
+                                        onOpenChannel={onOpenChannel}
                                 />
                         ))}
                 </div>
@@ -54,6 +62,10 @@ function useRing(call: IncomingCall | null, enabled: boolean): void {
         const ringRef = useRef<RingHandle | null>(null)
         useEffect(() => {
                 if (!call || !enabled) return
+                // Ring once per call, forever (plugin parity: DID_RING_FOR_CALL) —
+                // a remount or a re-broadcast must not restart the 30s loop.
+                if (!shouldRingFor(call.callId)) return
+                markRangFor(call.callId)
                 ringRef.current = startRinging()
                 return () => {
                         ringRef.current?.stop()
@@ -62,19 +74,19 @@ function useRing(call: IncomingCall | null, enabled: boolean): void {
         }, [call?.callId, enabled])
 }
 
-function useDesktopNotification(call: IncomingCall | null, enabled: boolean, callerName: string): void {
-        const notifiedRef = useRef<string>('')
+function useDesktopNotification(call: IncomingCall | null, enabled: boolean, callerName: string, onOpenChannel: (channelId: string) => void): void {
         useEffect(() => {
-                if (!call || !enabled || notifiedRef.current === call.callId) return
+                if (!call || !enabled) return
+                if (!shouldNotifyFor(call.callId)) return
                 if (typeof document !== 'undefined' && document.visibilityState !== 'hidden') return
-                notifiedRef.current = call.callId
+                markNotifiedFor(call.callId)
                 try {
                         if ('Notification' in window && Notification.permission === 'default') {
                                 void Notification.requestPermission()
                         }
                         if ('Notification' in window && Notification.permission === 'granted') {
-                                const n = new Notification('Cuộc gọi đến', { body: `${callerName} đang mời bạn gọi` })
-                                n.onclick = () => { window.focus(); n.close() }
+                                const n = new Notification(callerName || 'Cuộc gọi đến', { body: `${callerName} đang mời bạn gọi` })
+                                n.onclick = () => { window.focus(); onOpenChannel(call.channelId); n.close() }
                                 setTimeout(() => { try { n.close() } catch { /* ignore */ } }, 6000)
                         }
                 } catch {
@@ -83,11 +95,12 @@ function useDesktopNotification(call: IncomingCall | null, enabled: boolean, cal
         }, [call?.callId, enabled, callerName])
 }
 
-function IncomingCallCard({ call, expanded, onJoin, onIgnore }: {
+function IncomingCallCard({ call, expanded, onJoin, onIgnore, onOpenChannel }: {
         call: IncomingCall
         expanded?: boolean
         onJoin: (channelId: string) => void
         onIgnore: () => void
+        onOpenChannel: (channelId: string) => void
 }) {
         const { t } = useTranslation()
         const users = useChatStore((s) => s.users)
@@ -95,31 +108,31 @@ function IncomingCallCard({ call, expanded, onJoin, onIgnore }: {
         const inCall = useCallsStore((s) => s.status !== 'disconnected' && s.status !== 'error')
         const ringingEnabled = useCallsStore((s) => s.config.ringingEnabled)
 
-        const caller = users[call.callerId] as Record<string, any> | undefined
-        const callerName = caller
-                ? `${caller.firstname ?? caller.first_name ?? ''} ${caller.lastname ?? caller.last_name ?? ''}`.trim() || caller.username
-                : t('chat.incoming.someone', 'Ai đó')
+        const caller = users[call.callerId]
+        const callerName = caller ? userDisplayName(caller as never) : t('chat.incoming.someone', 'Ai đó')
+        const channel = useChatStore.getState().channels[call.channelId] as { type?: string } | undefined
+        const isGroup = channel?.type === 'G'
 
         useRing(call, !!expanded && ringingEnabled && !inCall)
-        useDesktopNotification(call, !!expanded && ringingEnabled, callerName)
+        useDesktopNotification(call, !!expanded && ringingEnabled, callerName, onOpenChannel)
 
-        const initials = callerName.slice(0, 2).toUpperCase() || '?'
 
         return (
                 <div
-                        className="w-[280px] rounded-xl bg-emerald-600 text-white p-3 shadow-2xl ring-1 ring-emerald-400/50"
+                        className="w-[280px] cursor-pointer rounded-xl bg-emerald-600 text-white p-3 shadow-2xl ring-1 ring-emerald-400/50 hover:bg-emerald-500"
                         role="alert"
                         aria-live="assertive"
+                        onClick={() => onOpenChannel(call.channelId)}
                 >
                         <div className="flex items-center gap-2.5">
-                                <Avatar className="h-9 w-9 border border-white/30">
-                                        <AvatarFallback className="bg-emerald-800/60 text-white">{initials}</AvatarFallback>
-                                </Avatar>
+                                <UserAvatar userId={call.callerId} displayName={callerName} size="md" className="border border-white/30" />
                                 <div className="min-w-0 flex-1">
                                         <div className="text-sm font-medium truncate">
                                                 {t('chat.incoming.inviting', '{name} đang mời bạn gọi', { name: callerName })}
                                         </div>
-                                        <div className="text-xs text-emerald-100/90">{t('chat.incoming.joinNow', 'Tham gia ngay')}</div>
+                                        <div className="text-xs text-emerald-100/90">
+                                                {isGroup ? t('chat.incoming.groupHint', 'Cuộc gọi nhóm') : t('chat.incoming.joinNow', 'Tham gia ngay')}
+                                        </div>
                                 </div>
                         </div>
                         <div className="mt-2.5 flex gap-2">
@@ -146,29 +159,26 @@ function IncomingCallCard({ call, expanded, onJoin, onIgnore }: {
         )
 }
 
-function IncomingCallCondensed({ call, onJoin, onIgnore }: {
+function IncomingCallCondensed({ call, onJoin, onIgnore, onOpenChannel }: {
         call: IncomingCall
         onJoin: (channelId: string) => void
         onIgnore: () => void
+        onOpenChannel: (channelId: string) => void
 }) {
         const { t } = useTranslation()
         const users = useChatStore((s) => s.users)
-        const caller = users[call.callerId] as Record<string, any> | undefined
-        const callerName = caller
-                ? `${caller.firstname ?? caller.first_name ?? ''} ${caller.lastname ?? caller.last_name ?? ''}`.trim() || caller.username
-                : t('chat.incoming.someone', 'Ai đó')
-        const initials = callerName.slice(0, 2).toUpperCase() || '?'
+        const caller = users[call.callerId]
+        const callerName = caller ? userDisplayName(caller as never) : t('chat.incoming.someone', 'Ai đó')
         const [hover, setHover] = useState(false)
 
         return (
                 <div
-                        className="flex w-[280px] items-center gap-2 rounded-lg bg-emerald-700/90 text-white px-2.5 py-2 shadow-lg"
+                        className="flex w-[280px] cursor-pointer items-center gap-2 rounded-lg bg-emerald-700/90 text-white px-2.5 py-2 shadow-lg hover:bg-emerald-600"
                         onMouseEnter={() => setHover(true)}
                         onMouseLeave={() => setHover(false)}
+                        onClick={() => onOpenChannel(call.channelId)}
                 >
-                        <Avatar className="h-7 w-7">
-                                <AvatarFallback className="bg-emerald-800/60 text-white text-xs">{initials}</AvatarFallback>
-                        </Avatar>
+                        <UserAvatar userId={call.callerId} displayName={callerName} size="sm" />
                         <span className="min-w-0 flex-1 text-xs truncate">
                                 {t('chat.incoming.from', 'Cuộc gọi từ {name}', { name: callerName })}
                         </span>

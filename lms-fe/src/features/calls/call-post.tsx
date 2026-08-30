@@ -16,12 +16,13 @@
 import { useEffect, useState } from 'react'
 import { PhoneCall, PhoneOff, Loader2 } from 'lucide-react'
 import { Avatar } from '@/components/shared/avatar'
-import { Avatar as UiAvatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/lib/i18n'
 import { useChatStore } from '@/lib/chat/store'
 import { useCallsStore } from './calls-store'
 import { callsClient } from './calls-client'
+import { UserAvatar } from './user-avatar'
+import { userDisplayName } from '@/lib/chat/types'
 
 interface CallPostCardProps {
         post: {
@@ -58,10 +59,8 @@ export function CallPostCard({ post }: CallPostCardProps) {
         const inThisCall = myChannel === post.channel_id && status !== 'disconnected' && status !== 'error'
         const atLimit = maxParticipants > 0 && participantIds.length >= maxParticipants
 
-        const author = users[post.user_id] as Record<string, any> | undefined
-        const authorName = author
-                ? `${author.firstname ?? author.first_name ?? ''} ${author.lastname ?? author.last_name ?? ''}`.trim() || author.username
-                : t('chat.call.someone', 'Ai đó')
+        const author = users[post.user_id]
+        const authorName = author ? userDisplayName(author as never) : t('chat.call.someone', 'Ai đó')
 
         const avatars = participantIds
 
@@ -88,14 +87,17 @@ export function CallPostCard({ post }: CallPostCardProps) {
                                                 <span className="font-medium">
                                                         {endAt
                                                                 ? t('chat.callPost.ended', 'Cuộc gọi đã kết thúc')
-                                                                : t('chat.callPost.started', 'Đã bắt đầu một cuộc gọi')}
+                                                                : t('chat.callPost.startedBy', 'Đã bắt đầu một cuộc gọi')}
+                                                </span>
+                                                <span className="text-xs opacity-70">
+                                                        {t('chat.callPost.by', 'bởi')} {authorName}
                                                 </span>
                                                 {!endAt && activeCall?.startAt && (
                                                         <span className="text-xs opacity-70">{relative(activeCall.startAt)}</span>
                                                 )}
                                                 {endAt && duration && (
                                                         <span className="text-xs opacity-80">
-                                                                {t('chat.callPost.lasted', 'Kéo dài')} {duration}
+                                                                {t('chat.callPost.endedAt', 'Kết thúc lúc')} {formatClock(endAt)} · {t('chat.callPost.lasted', 'kéo dài')} {duration}
                                                         </span>
                                                 )}
                                         </div>
@@ -107,9 +109,7 @@ export function CallPostCard({ post }: CallPostCardProps) {
                                                                         ? `${u.firstname ?? u.first_name ?? ''} ${u.lastname ?? u.last_name ?? ''}`.trim() || u.username
                                                                         : '?'
                                                                 return (
-                                                                        <UiAvatar key={uid} className="h-5 w-5">
-                                                                                <AvatarFallback className="text-[9px]">{name.slice(0, 1).toUpperCase()}</AvatarFallback>
-                                                                        </UiAvatar>
+                                                                        <UserAvatar key={uid} userId={uid} displayName={name || '?'} size="xs" />
                                                                 )
                                                         })}
                                                         {avatars.length > 3 && (
@@ -171,4 +171,13 @@ function relative(startAt: number): string {
         if (mins < 1) return 'vừa bắt đầu'
         if (mins < 60) return `${mins} phút trước`
         return `${Math.floor(mins / 60)} giờ trước`
+}
+
+/** "14:35" clock-time formatting for ended calls. */
+function formatClock(at: number): string {
+        try {
+                return new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        } catch {
+                return ''
+        }
 }

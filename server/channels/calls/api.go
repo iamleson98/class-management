@@ -205,12 +205,12 @@ func (s *CallService) GetConfig() *ConfigView {
 		Enabled:             s.Enabled() && s.HasRTCD(),
 		MaxCallParticipants: cfg.maxParticipants(),
 		AllowScreenSharing:  cfg.allowScreenSharing(),
-		AllowRecording:      false, // phase 4 (rtcd recording is not wired yet)
-		EnableRinging:       true,
-		HostControlsAllowed: true,
-		GroupCallsAllowed:   true,
-		EnableVideo:         true,
-		EnableReactions:     true,
+		AllowRecording:      cfg.allowRecording(), // phase 4 (rtcd recording is not wired yet)
+		EnableRinging:       cfg.enableRinging(),
+		HostControlsAllowed: cfg.hostControlsAllowed(),
+		GroupCallsAllowed:   cfg.groupCallsAllowed(),
+		EnableVideo:         cfg.enableVideo(),
+		EnableReactions:     cfg.enableReactions(),
 		ICEServers:          s.iceServersForHost(""),
 	}
 	return view

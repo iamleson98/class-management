@@ -3432,7 +3432,15 @@ type CallsSettings struct {
 	// Limits / behavior
 	MaxCallParticipants *int  `access:"write_restrictable"` // 0 = unlimited
 	AllowScreenSharing  *bool `access:"write_restrictable"`
-	AllowRecording      *bool `access:"write_restrictable"`
+	AllowRecording      *bool `access:"write_restrictable"` // reserved for phase 4 (recording jobs)
+
+	// Feature toggles surfaced to clients via GET /calls/config. All default
+	// on, matching the Calls plugin defaults.
+	EnableRinging       *bool `access:"write_restrictable"` // incoming-call ringing for DM/GM
+	EnableVideo         *bool `access:"write_restrictable"` // camera UI
+	EnableReactions     *bool `access:"write_restrictable"` // in-call reaction stream
+	HostControlsAllowed *bool `access:"write_restrictable"` // host mute/remove/lower-hand menus
+	GroupCallsAllowed   *bool `access:"write_restrictable"` // calls in non-DM channels
 
 	// Presence fan-out tuning for large calls (lectures).
 	BatchMinMembers *int `access:"write_restrictable"` // engage batching above this member count (default 100)
@@ -3483,6 +3491,21 @@ func (s *CallsSettings) SetDefaults() {
 	}
 	if s.AllowRecording == nil {
 		s.AllowRecording = new(false)
+	}
+	if s.EnableRinging == nil {
+		s.EnableRinging = new(true)
+	}
+	if s.EnableVideo == nil {
+		s.EnableVideo = new(true)
+	}
+	if s.EnableReactions == nil {
+		s.EnableReactions = new(true)
+	}
+	if s.HostControlsAllowed == nil {
+		s.HostControlsAllowed = new(true)
+	}
+	if s.GroupCallsAllowed == nil {
+		s.GroupCallsAllowed = new(true)
 	}
 	if s.BatchMinMembers == nil {
 		s.BatchMinMembers = new(100)

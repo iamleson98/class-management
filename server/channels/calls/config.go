@@ -67,6 +67,45 @@ func (c config) allowScreenSharing() bool {
 	return *c.AllowScreenSharing
 }
 
+func (c config) allowRecording() bool {
+	return c.AllowRecording != nil && *c.AllowRecording
+}
+
+func (c config) enableRinging() bool {
+	if c.EnableRinging == nil {
+		return true
+	}
+	return *c.EnableRinging
+}
+
+func (c config) enableVideo() bool {
+	if c.EnableVideo == nil {
+		return true
+	}
+	return *c.EnableVideo
+}
+
+func (c config) enableReactions() bool {
+	if c.EnableReactions == nil {
+		return true
+	}
+	return *c.EnableReactions
+}
+
+func (c config) hostControlsAllowed() bool {
+	if c.HostControlsAllowed == nil {
+		return true
+	}
+	return *c.HostControlsAllowed
+}
+
+func (c config) groupCallsAllowed() bool {
+	if c.GroupCallsAllowed == nil {
+		return true
+	}
+	return *c.GroupCallsAllowed
+}
+
 // shardCountFor returns the configured shard count, defaulting to
 // defaultShardCount when unset/invalid. Free function so it can be used before
 // a service/config exists (e.g. in New).

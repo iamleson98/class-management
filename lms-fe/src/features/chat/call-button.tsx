@@ -13,13 +13,17 @@
  * while connecting.
  */
 
+import { useEffect } from 'react'
 import { Loader2, Phone, PhoneCall } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useTranslation } from '@/lib/i18n'
 import { useCallsConfig } from '@/features/calls/calls-config'
 import { callsClient } from '@/features/calls/calls-client'
-import { useCallsStore } from '@/features/calls/calls-store'
+import { useCallsStore, selectChannelCallsEnabled } from '@/features/calls/calls-store'
+
+/** Channels whose enablement was already fetched this session. */
+const fetchedChannels = new Set<string>()
 
 export function CallButton({
 	channelId,
@@ -43,9 +47,28 @@ export function CallButton({
 	const status = useCallsStore((s) => s.status)
 
 	const isDM = channelType === 'D' || channelType === 'G'
+	const channelEnabled = useCallsStore((s) => selectChannelCallsEnabled(s, channelId))
+	// Seed this channel's enablement once (WS events keep it fresh afterwards).
+	useEffect(() => {
+		if (typeof window === 'undefined' || !channelId || fetchedChannels.has(channelId)) return
+		fetchedChannels.add(channelId)
+		void fetch(`/api/v4/calls/channels/${channelId}/enabled`, {
+			credentials: 'include',
+			headers: { 'X-Requested-With': 'XMLHttpRequest' },
+		})
+			.then((res) => (res.ok ? res.json() : null))
+			.then((cfg: { enabled?: boolean } | null) => {
+				if (cfg && typeof cfg.enabled === 'boolean') {
+					useCallsStore.getState().setChannelEnabled(channelId, cfg.enabled)
+				}
+			})
+			.catch(() => void 0)
+	}, [channelId])
 	if (!enabled) return null
 	// Group-calls disabled: only DM/GM channels may call.
 	if (!groupCallsAllowed && !isDM) return null
+	// Channel-level preference (channel_enable/disable_voice events).
+	if (!channelEnabled) return null
 
 	const connectingHere = !inCall && (status === 'connecting' || status === 'reconnecting')
 	// Limit gating applies when joining an existing call (the count is only

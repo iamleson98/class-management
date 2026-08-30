@@ -166,6 +166,11 @@ func (s *CallService) handleJoin(connID, userID string, data map[string]any) err
 		return errors.New("calls: rtcd service is not configured")
 	}
 
+	// Per-channel preference: a channel admin may have turned calls off.
+	if !s.callsEnabledForChannel(channelID) {
+		return ErrChannelCallsDisabled
+	}
+
 	callID := callIDForChannel(channelID)
 
 	if max := s.callsConfig().maxParticipants(); max > 0 {

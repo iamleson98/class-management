@@ -62,6 +62,19 @@ const BROWSER: ShortcutDef[] = [
   { id: 'browserNewline', descKey: 'shortcut.newline', desc: 'Xuống dòng', keys: [[SHIFT, 'Enter']] },
 ]
 
+// Calls shortcuts (plugin parity: shortcuts.ts — all scoped to an active call
+// except the global join).
+const CALLS: ShortcutDef[] = [
+  { id: 'callJoin', descKey: 'shortcut.call.join', desc: 'Tham gia cuộc gọi (kênh hiện tại)', keys: [[MOD, ALT, 'S']] },
+  { id: 'callMute', descKey: 'shortcut.call.mute', desc: 'Bật/tắt tiếng', keys: [[MOD, SHIFT, 'Space']] },
+  { id: 'callPushToTalk', descKey: 'shortcut.call.ptt', desc: 'Nói khi giữ (đang tắt tiếng)', keys: [['Space']] },
+  { id: 'callHand', descKey: 'shortcut.call.hand', desc: 'Giơ/hạ tay', keys: [[MOD, SHIFT, 'Y']] },
+  { id: 'callScreen', descKey: 'shortcut.call.screen', desc: 'Bật/tắt chia sẻ màn hình', keys: [[MOD, SHIFT, 'E']] },
+  { id: 'callReact', descKey: 'shortcut.call.react', desc: 'Bày tỏ cảm xúc', keys: [[MOD, SHIFT, 'X']] },
+  { id: 'callParticipants', descKey: 'shortcut.call.participants', desc: 'Danh sách thành viên', keys: [[ALT, 'P']] },
+  { id: 'callLeave', descKey: 'shortcut.call.leave', desc: 'Rời cuộc gọi', keys: [[MOD, SHIFT, 'L']] },
+]
+
 interface ColumnProps {
   titleKey: string
   title: string
@@ -115,6 +128,7 @@ export function KeyboardShortcutsModal({ onClose }: KeyboardShortcutsModalProps)
             <ShortcutColumn titleKey="shortcut.navHeader" title="Điều hướng" shortcuts={NAVIGATION} />
             <ShortcutColumn titleKey="shortcut.msgHeader" title="Tin nhắn" shortcuts={MESSAGES} />
             <ShortcutColumn titleKey="shortcut.browserHeader" title="Trình duyệt" shortcuts={BROWSER} />
+            <ShortcutColumn titleKey="shortcut.callsHeader" title="Cuộc gọi" shortcuts={CALLS} />
           </div>
         </ScrollArea>
         <div className="px-4 py-2.5 border-t text-xs text-muted-foreground">

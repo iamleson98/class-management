@@ -43,6 +43,7 @@
 import { wsClient } from '@/lib/chat/client'
 import { useCallsStore, type CallDevice } from './calls-store'
 import { RTCQualityMonitor, type QualitySample } from './calls-quality'
+import { playCallSound } from './calls-sounds'
 
 // ─── Constants ──────────────────────────────────────────────────────
 
@@ -135,6 +136,19 @@ export function setShareAudioWithScreen(on: boolean): void {
 	}
 }
 
+// ─── Error sentinels (plugin parity: consumed by the error modal) ────
+
+export const AudioInputPermissionsError = new Error('missing audio input permissions')
+export const AudioInputMissingError = new Error('no audio input available')
+export const VideoInputPermissionsError = new Error('missing video input permissions')
+export const VideoInputMissingError = new Error('no video input available')
+export const rtcPeerTimeoutErr = new Error('timed out waiting for rtc connection')
+export const rtcPeerCloseErr = new Error('rtc peer close')
+export const insecureContextErr = new Error('insecure context')
+
+/** sessionStorage key for the last call's client stats (/call stats). */
+const LS_CLIENT_STATS = 'calls_client_stats'
+
 // ─── Audio playback ─────────────────────────────────────────────────
 
 /** Detached <audio> elements for remote voice tracks, keyed by track id. */
@@ -213,6 +227,12 @@ class CallsClient {
 	private lastQualityAlertAt = 0
 	private unloadBound = false
 
+	// RTC failure watchdogs.
+	private connectTimer: number | null = null
+	private failTimer: number | null = null
+	private joinedAt = 0
+	private reportedICEState = ''
+
 	// ─── Lifecycle ──────────────────────────────────────────────────
 
 	/** Expose the local camera stream for the self-preview <video>. */
@@ -244,13 +264,22 @@ class CallsClient {
 		this.bindDeviceListener()
 		this.bindBeforeUnload()
 
+		// isSecureContext === false (explicitly) marks http:// pages; some
+		// embedded runtimes (jsdom) leave it undefined and are trusted.
+		if (typeof window !== 'undefined' && window.isSecureContext === false) {
+			this.connecting = false
+			useCallsStore.getState().setError({ message: insecureContextErr.message, kind: 'insecure-context' })
+			return
+		}
+
 		try {
 			// Acquire local media BEFORE joining so the very first offer
 			// carries the tracks (the SFU keys tracks by session id).
 			await this.initLocalMedia(opts.enableVideo ?? false)
 		} catch (err) {
-			// Media failure is non-fatal: join voice-only; devices can be
-			// enabled later from the widget.
+			// Media failure is non-fatal: join voice-only with an alert
+			// banner; devices can be enabled later from the widget.
+			this.classifyMediaError(err)
 			console.warn('[calls] failed to acquire local media, joining voice-only', err)
 		}
 
@@ -273,17 +302,99 @@ class CallsClient {
 		this.createPeerConnection()
 		this.joined = true
 		this.connecting = false
+		this.joinedAt = Date.now()
 
+		this.startConnectTimeout()
 		this.startQualityMonitor()
+	}
+
+	/** Abort the join when the RTC connection never establishes (plugin parity). */
+	private startConnectTimeout(): void {
+		this.clearConnectTimeout()
+		this.connectTimer = window.setTimeout(() => {
+			if (this.pc && this.pc.connectionState !== 'connected' && this.joined) {
+				this.disconnect(rtcPeerTimeoutErr, 'rtc-timeout')
+			}
+		}, 30_000)
+	}
+
+	private clearConnectTimeout(): void {
+		if (this.connectTimer !== null) {
+			window.clearTimeout(this.connectTimer)
+			this.connectTimer = null
+		}
+	}
+
+	private clearFailTimer(): void {
+		if (this.failTimer !== null) {
+			window.clearTimeout(this.failTimer)
+			this.failTimer = null
+		}
+	}
+
+	/**
+	 * Fatal teardown: leave the call and surface the error modal. Used for
+	 * RTC timeouts and unrecoverable peer failures.
+	 */
+	private disconnect(err: Error, kind: 'rtc-timeout' | 'rtc-failed'): void {
+		this.leave()
+		useCallsStore.getState().setError({ message: err.message, kind })
 	}
 
 	/** Leave the current call and release all resources. */
 	leave(): void {
+		const wasJoined = this.joined
 		if (this.channelId) {
 			sendAction('leave', { channelID: this.channelId })
 		}
+		void this.persistStatsSnapshot()
 		this.teardown()
 		useCallsStore.getState().reset()
+		if (wasJoined) playCallSound('leave_self')
+	}
+
+	/** Persist a client stats snapshot for post-call diagnostics (/call stats). */
+	private async persistStatsSnapshot(): Promise<void> {
+		const pc = this.pc
+		if (!pc || !this.joinedAt) return
+		try {
+			const stats = await pc.getStats()
+			let rtt: number | null = null
+			let jitter: number | null = null
+			let loss: number | null = null
+			stats.forEach((report) => {
+				const r = report as unknown as Record<string, unknown>
+				if (r.type === 'candidate-pair' && (r.selected === true || r.nominated === true)) {
+					if (typeof r.currentRoundTripTime === 'number') rtt = r.currentRoundTripTime * 1000
+				}
+				if (r.type === 'inbound-rtp') {
+					if (typeof r.jitter === 'number') jitter = r.jitter * 1000
+					const lost = (r.packetsLost as number | undefined) ?? 0
+					const recv = (r.packetsReceived as number | undefined) ?? 0
+					if (recv + lost > 0) loss = lost / (recv + lost)
+				}
+			})
+			const snapshot = {
+				at: Date.now(),
+				durationMs: Date.now() - this.joinedAt,
+				rtt,
+				jitter,
+				loss,
+				quality: useCallsStore.getState().quality,
+			}
+			sessionStorage.setItem(LS_CLIENT_STATS, JSON.stringify(snapshot))
+		} catch {
+			// stats are best-effort diagnostics
+		}
+	}
+
+	/** Read the last call's stats snapshot (for /call stats). */
+	readStatsSnapshot(): string | null {
+		try {
+			return sessionStorage.getItem(LS_CLIENT_STATS)
+		} catch {
+			return null
+		}
 	}
 
 	/**
@@ -302,6 +413,10 @@ class CallsClient {
 	/** Tear down the peer connection and media tracks. */
 	private teardown(): void {
 		this.stopQualityMonitor()
+		this.clearConnectTimeout()
+		this.clearFailTimer()
+		this.reportedICEState = ''
+		this.joinedAt = 0
 		this.localStream?.getTracks().forEach((t) => t.stop())
 		this.screenStream?.getTracks().forEach((t) => t.stop())
 		this.screenAudioTrack?.stop()
@@ -338,8 +453,22 @@ class CallsClient {
 	/** Video getUserMedia constraints honoring the selected camera. */
 	private videoConstraints(): MediaTrackConstraints {
 		const deviceId = useCallsStore.getState().selectedDevices.videoInput
-		if (deviceId) return { facingMode: 'user', deviceId: { exact: deviceId } }
-		return { facingMode: 'user' }
+		// Plugin parity: 640x360@30 ideal keeps CPU/bandwidth sane on
+		// classroom hardware (DefaultVideoTrackOptions).
+		const quality = { frameRate: { ideal: 30 }, width: { ideal: 640 }, height: { ideal: 360 } }
+		if (deviceId) return { ...quality, facingMode: 'user', deviceId: { exact: deviceId } }
+		return { ...quality, facingMode: 'user' }
+	}
+
+	/** Map a getUserMedia failure to the right alert banner kind. */
+	private classifyMediaError(err: unknown): void {
+		const name = (err as { name?: string })?.name ?? ''
+		const msg = String((err as Error)?.message ?? '')
+		if (name === 'NotAllowedError' || /permission|denied/i.test(msg)) {
+			useCallsStore.getState().addAlert({ kind: 'audio-input-permissions' })
+		} else {
+			useCallsStore.getState().addAlert({ kind: 'audio-input-missing' })
+		}
 	}
 
 	private async initLocalMedia(enableVideo: boolean): Promise<void> {
@@ -377,45 +506,70 @@ class CallsClient {
 		}
 	}
 
+	/** Resolve a stored selection against the device list by id OR label. */
+	private resolveStoredDevice(stored: CallDevice | null, devices: CallDevice[]): CallDevice | null {
+		if (!stored) return null
+		if (devices.some((d) => d.deviceId === stored.deviceId)) return stored
+		// Browsers rotate device ids (e.g. per-origin): fall back to a
+		// unique label match like the plugin's getSelectedAudioDevice.
+		if (stored.label) {
+			const byLabel = devices.filter((d) => d.label === stored.label)
+			if (byLabel.length === 1) return byLabel[0]
+		}
+		return null
+	}
+
 	/**
-	 * Device fallback (plugin parity): when the selected input device vanished
-	 * (unplugged), fall back to the first available one; when the stored
-	 * selection returns, switch back to it.
+	 * Device fallback (plugin parity): when the selected device vanished
+	 * (unplugged), fall back to the first available one (with an alert
+	 * banner); when the stored selection returns, switch back to it.
+	 * Covers audio input, video input AND audio output.
 	 */
 	private handleDeviceFallback(): void {
 		const store = useCallsStore.getState()
-		const { audioInputs, videoInputs } = store.devices
+		const { audioInputs, audioOutputs, videoInputs } = store.devices
 
 		const apply = (kind: 'audioInput' | 'videoInput', devices: CallDevice[], lsKey: string) => {
 			const selected = store.selectedDevices[kind]
 			if (!selected) return
-			const stillThere = devices.some((d) => d.deviceId === selected)
-			if (stillThere) return
+			if (devices.some((d) => d.deviceId === selected)) return
 			// Selected device vanished: fall back to the first available.
 			const fallback = devices[0]
 			if (fallback) {
-				store.setSelectedDevice(kind, fallback.deviceId)
+				useCallsStore.getState().addAlert({
+					kind: kind === 'audioInput' ? 'audio-input-fallback' : 'video-input-permissions',
+					deviceLabel: fallback.label,
+				})
 				if (kind === 'audioInput') void this.setAudioInputDevice(fallback, false)
 				else void this.setVideoInputDevice(fallback)
 			} else {
+				useCallsStore.getState().addAlert({
+					kind: kind === 'audioInput' ? 'audio-input-missing' : 'video-input-missing',
+				})
 				store.setSelectedDevice(kind, '')
 			}
-			// Remember the stored selection so we can return to it on hotplug.
-			const stored = readStoredDevice(lsKey)
-			if (stored && !devices.some((d) => d.deviceId === stored.deviceId)) {
-				// keep the persisted preference for the return-switch below
-			}
-			return
 		}
 		apply('audioInput', audioInputs, LS_AUDIO_INPUT)
 		apply('videoInput', videoInputs, LS_VIDEO_INPUT)
 
+		// Output fallback: the selected speaker vanished → system default.
+		const selectedOut = store.selectedDevices.audioOutput
+		if (selectedOut && !audioOutputs.some((d) => d.deviceId === selectedOut)) {
+			const fallbackOut = audioOutputs[0]
+			useCallsStore.getState().addAlert({
+				kind: 'audio-output-fallback',
+				deviceLabel: fallbackOut?.label ?? '',
+			})
+			if (fallbackOut) void this.setAudioOutputDevice(fallbackOut, false)
+			else store.setSelectedDevice('audioOutput', '')
+		}
+
 		// Return-to-preference: stored selection exists again → switch back.
-		const storedAudio = readStoredDevice(LS_AUDIO_INPUT)
+		const storedAudio = this.resolveStoredDevice(readStoredDevice(LS_AUDIO_INPUT), audioInputs)
 		if (
 			storedAudio &&
-			audioInputs.some((d) => d.deviceId === storedAudio.deviceId) &&
-			store.selectedDevices.audioInput !== storedAudio.deviceId
+			storedAudio.deviceId !== store.selectedDevices.audioInput &&
+			!store.selectedDevices.audioInput
 		) {
 			void this.setAudioInputDevice(storedAudio, false)
 		}
@@ -581,12 +735,28 @@ class CallsClient {
 		const state = this.pc?.connectionState
 		const store = useCallsStore.getState()
 		if (state === 'connected') {
+			this.clearConnectTimeout()
+			this.clearFailTimer()
 			store.setStatus('connected')
-			this.sendICEPairMetric('succeeded')
-		} else if (state === 'disconnected' || state === 'failed') {
-			// The websocket path is still alive; only the media path dropped.
+			void this.sendICEPairMetric('succeeded')
+		} else if (state === 'disconnected') {
+			// The websocket path is still alive; only the media path
+			// dropped — transient (WiFi blip). ICE restart on failure below.
 			if (this.joined) store.setStatus('reconnecting')
-			if (state === 'failed') this.pc?.restartIce()
+		} else if (state === 'failed') {
+			if (!this.joined) return
+			store.setStatus('reconnecting')
+			this.pc?.restartIce()
+			// Grace period: if ICE restart doesn't recover the media
+			// path, tear the call down with the rtc-failed modal.
+			this.clearFailTimer()
+			this.failTimer = window.setTimeout(() => {
+				if (this.joined && this.pc && this.pc.connectionState !== 'connected') {
+					this.disconnect(rtcPeerCloseErr, 'rtc-failed')
+				}
+			}, 10_000)
+		} else if (state === 'closed') {
+			if (this.joined) this.disconnect(rtcPeerCloseErr, 'rtc-failed')
 		}
 	}
 
@@ -638,14 +808,38 @@ class CallsClient {
 		sendAction('sdp', { data: JSON.stringify({ type: desc.type, sdp: desc.sdp }) })
 	}
 
-	/** Report an ICE candidate-pair metric to the server (diagnostics). */
-	private sendICEPairMetric(state: string): void {
-		if (!this.joined) return
+	/**
+	 * Report an ICE candidate-pair metric to the server (diagnostics). Reads
+	 * the REAL selected pair + candidate types from getStats, one report per
+	 * state transition (plugin parity: collectICEStats transitions).
+	 */
+	private async sendICEPairMetric(state: string): Promise<void> {
+		if (!this.joined || !this.pc || this.reportedICEState === state) return
+		this.reportedICEState = state
 		try {
+			let localType = 'unknown'
+			let remoteType = 'unknown'
+			const stats = await this.pc.getStats()
+			let localId = ''
+			let remoteId = ''
+			stats.forEach((report) => {
+				const r = report as unknown as Record<string, unknown>
+				if (r.type === 'candidate-pair' && (r.selected === true || (r.nominated === true && r.state === 'succeeded'))) {
+					localId = String(r.localCandidateId ?? '')
+					remoteId = String(r.remoteCandidateId ?? '')
+				}
+			})
+			if (localId || remoteId) {
+				stats.forEach((report) => {
+					const r = report as unknown as Record<string, unknown>
+					if (r.id === localId) localType = String(r.candidateType ?? 'unknown')
+					if (r.id === remoteId) remoteType = String(r.candidateType ?? 'unknown')
+				})
+			}
 			sendAction('metric', {
 				data: JSON.stringify({
 					metric_name: 'client_ice_candidate_pair',
-					data: JSON.stringify({ state, local: { type: 'host' }, remote: { type: 'prflx' } }),
+					data: JSON.stringify({ state, local: { type: localType }, remote: { type: remoteType } }),
 				}),
 			})
 		} catch {
@@ -724,15 +918,45 @@ class CallsClient {
 	mute(): void {
 		const track = this.localStream?.getAudioTracks()[0]
 		if (track) track.enabled = false
+		// Detach the track so RTP actually stops (plugin parity): the SFU
+		// keeps the m-line, bandwidth drops, and VAD goes quiet.
+		this.audioSender?.replaceTrack(null).catch(() => void 0)
 		useCallsStore.getState().setMic(false)
 		sendAction('mute', {})
 	}
 
 	unmute(): void {
 		const track = this.localStream?.getAudioTracks()[0]
-		if (track) track.enabled = true
+		if (track) {
+			track.enabled = true
+			this.audioSender?.replaceTrack(track).catch(() => void 0)
+		} else {
+			// The mic vanished mid-call (hotplug): re-acquire it.
+			void this.reinitAudioTrack()
+			return
+		}
 		useCallsStore.getState().setMic(true)
+		this.qualityMonitor?.resetDeltas()
 		sendAction('unmute', {})
+	}
+
+	/** Re-acquire the microphone after the device disappeared mid-call. */
+	private async reinitAudioTrack(): Promise<void> {
+		try {
+			const stream = await navigator.mediaDevices.getUserMedia({ audio: this.audioConstraints() })
+			const track = stream.getAudioTracks()[0]
+			if (!track) throw AudioInputMissingError
+			if (!this.localStream) this.localStream = new MediaStream()
+			this.localStream.addTrack(track)
+			if (this.audioSender) await this.audioSender.replaceTrack(track)
+			else if (this.pc) this.audioSender = this.pc.addTrack(track, this.localStream)
+			useCallsStore.getState().setMic(true)
+			this.qualityMonitor?.resetDeltas()
+			sendAction('unmute', {})
+		} catch (err) {
+			useCallsStore.getState().addAlert({ kind: 'audio-input-missing' })
+			console.warn('[calls] failed to re-acquire audio input', err)
+		}
 	}
 
 	/** Push-to-talk: temporarily unmute while held (no presence broadcast). */
@@ -742,17 +966,26 @@ class CallsClient {
 		// Only meaningful while muted.
 		if (down && !useCallsStore.getState().micEnabled) {
 			track.enabled = true
+			this.audioSender?.replaceTrack(track).catch(() => void 0)
 		} else if (!down && !useCallsStore.getState().micEnabled) {
 			track.enabled = false
+			this.audioSender?.replaceTrack(null).catch(() => void 0)
 		}
 	}
 
 	async startVideo(): Promise<void> {
 		let track = this.localStream?.getVideoTracks()[0]
-		if (!track) {
-			// Re-acquire the camera (it wasn't opened at join time).
+		if (!track || !track.enabled === false || track.readyState === 'ended') {
+			// (Re-)acquire the camera: it was either never opened or has
+			// since been stopped/released.
 			const cam = await navigator.mediaDevices.getUserMedia({ video: this.videoConstraints() })
 			track = cam.getVideoTracks()[0]
+			if (!track) throw VideoInputMissingError
+			const old = this.localStream?.getVideoTracks()[0]
+			if (old) {
+				old.stop()
+				this.localStream?.removeTrack(old)
+			}
 			if (!this.localStream) this.localStream = new MediaStream()
 			this.localStream.addTrack(track)
 		}
@@ -763,13 +996,19 @@ class CallsClient {
 			this.videoSender = t.sender
 		}
 		useCallsStore.getState().setCamera(true)
+		this.qualityMonitor?.resetDeltas()
 		// The SFU records the stream id to label the forwarded track.
 		sendAction('video_on', { data: JSON.stringify({ videoStreamID: this.localStream?.id ?? track.id }) })
 	}
 
 	stopVideo(): void {
 		const track = this.localStream?.getVideoTracks()[0]
-		if (track) track.enabled = false
+		// Actually stop the track so the camera hardware releases (the
+		// in-use LED goes off — MM-68796) and startVideo re-acquires.
+		if (track) {
+			track.stop()
+			this.localStream?.removeTrack(track)
+		}
 		// Keep the sender (replaceTrack(null)) to avoid renegotiation.
 		this.videoSender?.replaceTrack(null).catch(() => void 0)
 		useCallsStore.getState().setCamera(false)
@@ -778,10 +1017,21 @@ class CallsClient {
 
 	async startScreenShare(): Promise<void> {
 		const withAudio = shareAudioWithScreen()
-		const stream = await navigator.mediaDevices.getDisplayMedia({
-			video: true,
-			audio: withAudio,
-		})
+		let stream: MediaStream
+		try {
+			stream = await navigator.mediaDevices.getDisplayMedia({
+				video: true,
+				audio: withAudio,
+			})
+		} catch (err) {
+			// Cancelled picker or denied permission: surface the
+			// missingScreenPermissions alert (plugin parity).
+			const name = (err as { name?: string })?.name ?? ''
+			if (name === 'NotAllowedError') {
+				useCallsStore.getState().addAlert({ kind: 'screen-permissions' })
+			}
+			throw err
+		}
 		this.screenStream = stream
 		const track = stream.getVideoTracks()[0]
 		if (this.pc) {

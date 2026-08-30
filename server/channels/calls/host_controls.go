@@ -164,6 +164,7 @@ func (s *CallService) LowerHand(callID, requesterUserID, sessionID string) error
 	s.publishTo(eventHostLowerHand, map[string]any{
 		"channel_id": cs.channelID,
 		"session_id": sessionID,
+		"host_id":    requesterUserID,
 	}, sess.connID)
 
 	s.publishChannel(cs.channelID, eventUserUnraiseHand, map[string]any{
@@ -194,6 +195,14 @@ func (s *CallService) RemoveSession(callID, requesterUserID, sessionID string) e
 		"channel_id": cs.channelID,
 		"session_id": sessionID,
 	}, sess.connID)
+
+	// Tell everyone else who was removed so they see the notice (the shared
+	// teardown below also fans out user_left).
+	s.publishChannel(cs.channelID, eventUserRemoved, map[string]any{
+		"user_id":    sess.userID,
+		"session_id": sessionID,
+		"host_id":    requesterUserID,
+	})
 
 	s.removeSession(cs, sess, "removed")
 	return nil

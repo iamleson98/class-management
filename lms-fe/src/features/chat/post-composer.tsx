@@ -26,6 +26,8 @@ import { Avatar } from '@/components/shared/avatar'
 import { useToast } from '@/hooks/use-toast'
 import { useSendPost, useUploadFile, useTypingSender, useCurrentUserId, MAX_POST_CHARS } from '@/lib/chat/hooks'
 import { useChatStore } from '@/lib/chat/store'
+import { callsClient } from '@/features/calls/calls-client'
+import { useCallsStore } from '@/features/calls/calls-store'
 import { client4 } from '@/lib/chat/client'
 import { enterShouldSend, profileMatchesPrefix, displayUsername } from '@/lib/chat/utils'
 import { useAutosizeTextarea } from '@/lib/chat/use-autosize-textarea'
@@ -440,6 +442,47 @@ export function PostComposer({ channelId, rootId, teamId, onSent, placeholder, o
     }
   }
 
+  /** /call command handling (plugin parity: slash_commands). */
+  const handleCallCommand = (sub: string, channelId: string): string => {
+    const s = useCallsStore.getState()
+    const inThisCall = s.channelId === channelId && s.status !== 'disconnected' && s.status !== 'error'
+    switch (sub) {
+      case '':
+      case 'join':
+      case 'start': {
+        if (inThisCall) return t('chat.callCmd.already', 'Bạn đã ở trong cuộc gọi.')
+        window.dispatchEvent(new CustomEvent('calls:join-channel', { detail: { channelId } }))
+        return t('chat.callCmd.joining', 'Đang tham gia cuộc gọi…')
+      }
+      case 'leave': {
+        if (!inThisCall) return t('chat.callCmd.notInCall', 'Bạn không đang ở trong cuộc gọi.')
+        callsClient.leave()
+        return t('chat.callCmd.left', 'Đã rời cuộc gọi.')
+      }
+      case 'end': {
+        const callId = s.activeCalls[channelId]?.callId ?? s.callId ?? ''
+        if (!callId) return t('chat.callCmd.noCall', 'Không có cuộc gọi đang diễn ra.')
+        void fetch(`/api/v4/calls/${encodeURIComponent(callId)}/host/end`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        })
+        return t('chat.callCmd.ending', 'Đang kết thúc cuộc gọi cho tất cả…')
+      }
+      case 'link': {
+        const url = `${window.location.origin}/?join_call=true&channel=${channelId}`
+        void navigator.clipboard?.writeText(url)
+        return t('chat.callCmd.linkCopied', 'Đã sao chép liên kết tham gia cuộc gọi.')
+      }
+      case 'stats': {
+        const stats = callsClient.readStatsSnapshot?.()
+        return stats ?? t('chat.callCmd.noStats', 'Chưa có thống kê cuộc gọi.')
+      }
+      default:
+        return t('chat.callCmd.usage', 'Cách dùng: /call [join|leave|end|link|stats]')
+    }
+  }
+
   const send = async (overrideMessage?: string) => {
     const trimmed = (overrideMessage ?? message).trim()
     if (!trimmed && attachments.length === 0) return
@@ -452,6 +495,7 @@ export function PostComposer({ channelId, rootId, teamId, onSent, placeholder, o
           onOpenSettings: () => {/* parent opens settings */},
           onOpenShortcuts: () => {/* parent opens shortcuts */},
           onLeaveChannel: () => {/* parent leaves channel */},
+          onCallCommand: handleCallCommand,
         })
         if (result.error) toast({ title: result.error, variant: 'destructive' })
         else if (result.message) toast({ title: result.message })

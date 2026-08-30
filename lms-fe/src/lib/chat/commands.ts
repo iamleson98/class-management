@@ -28,7 +28,7 @@ export interface CommandResult {
 }
 
 /** The client-side commands that never hit the server (verbatim from command.ts). */
-const FRONTEND_COMMANDS = new Set(['/search', '/shortcuts', '/leave', '/settings', '/marketplace', '/collapse', '/expand'])
+const FRONTEND_COMMANDS = new Set(['/search', '/shortcuts', '/leave', '/settings', '/marketplace', '/collapse', '/expand', '/call'])
 
 /**
  * Execute a slash command. Returns the result; the caller decides how to render
@@ -45,6 +45,7 @@ export async function executeCommand(
     onLeaveChannel?: (channelId: string) => void
     onCollapsePreviews?: () => void
     onExpandPreviews?: () => void
+    onCallCommand?: (sub: string, channelId: string) => string | void
   } = {},
 ): Promise<CommandResult> {
   const msg = rawMessage.trim()
@@ -76,6 +77,12 @@ export async function executeCommand(
     case '/expand':
       handlers.onExpandPreviews?.()
       return { frontendHandled: true }
+    case '/call': {
+      // /call [join|start] · /call leave · /call end · /call link · /call stats
+      const sub = rest.split(' ')[0]?.toLowerCase() ?? ''
+      const message = handlers.onCallCommand?.(sub, args.channel_id)
+      return { frontendHandled: true, message: typeof message === 'string' ? message : undefined }
+    }
   }
 
   // ── Server commands ──

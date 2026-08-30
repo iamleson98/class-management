@@ -8,7 +8,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 const sendMock = vi.fn()
-let capturedListener: ((msg: { event: string; data?: Record<string, unknown> }) => void) | undefined
+let capturedListener: ((msg: { event: string; data?: Record<string, unknown>; broadcast?: { channel_id?: string } }) => void) | undefined
 let capturedReconnect: (() => void) | undefined
 
 vi.mock('@/lib/chat/client', () => ({
@@ -51,8 +51,8 @@ import {
 	DEFAULT_CALLS_CONFIG,
 } from './calls-store'
 
-const emit = (event: string, data: Record<string, unknown>) =>
-	capturedListener?.({ event, data })
+const emit = (event: string, data: Record<string, unknown>, broadcastChannel = 'ch') =>
+	capturedListener?.({ event, data, broadcast: { channel_id: broadcastChannel } })
 
 // ── Store: reactions ────────────────────────────────────────────────
 
@@ -203,7 +203,7 @@ describe('calls event parity features', () => {
 			session_id: 's1',
 			emoji: { name: 'tada', unified: '1f389', literal: '🎉' },
 			timestamp: 123,
-		})
+		}, 'ch1')
 		const reactions = useCallsStore.getState().reactions
 		expect(reactions.length).toBe(1)
 		expect(reactions[0].emoji).toBe('🎉')
@@ -217,7 +217,7 @@ describe('calls event parity features', () => {
 			session_id: 's2',
 			emoji: { name: 'thumbsup', unified: '1f44d' },
 			timestamp: 123,
-		})
+		}, 'ch1')
 		expect(useCallsStore.getState().reactions[0]?.emoji).toBe('👍')
 	})
 
@@ -238,9 +238,10 @@ describe('calls event parity features', () => {
 	})
 
 	it('host_lower_hand clears the local flag and adds a notice', () => {
+		useCallsStore.getState().setMySessionId('s')
 		useCallsStore.getState().toggleHand()
 		expect(useCallsStore.getState().handRaised).toBe(true)
-		emit('custom_calls_host_lower_hand', { channel_id: 'ch', session_id: 's' })
+		emit('custom_calls_host_lower_hand', { channel_id: 'ch', session_id: 's', host_id: 'u1' })
 		expect(useCallsStore.getState().handRaised).toBe(false)
 		expect(useCallsStore.getState().notices.some((n) => n.kind === 'lower-hand')).toBe(true)
 	})

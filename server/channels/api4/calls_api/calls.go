@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/iamleson98/sitename/server/public/model"
 	"github.com/iamleson98/sitename/server/public/shared/mlog"
@@ -29,10 +30,14 @@ func (a *CallsAPI) InitCalls() {
 	base := a.routes.Calls
 
 	base.Method(http.MethodGet, "/config", r.APISessionRequired(getCallsConfig))
+	base.Method(http.MethodGet, "/channels", r.APISessionRequired(getCallStates))
 	base.Method(http.MethodPost, "/channels/{channel_id:[A-Za-z0-9]+}", r.APISessionRequired(startCall))
 	base.Method(http.MethodGet, "/channels/{channel_id:[A-Za-z0-9]+}", r.APISessionRequired(getCallByChannel))
-	base.Method(http.MethodGet, "/{call_id:[A-Za-z0-9]+}", r.APISessionRequired(getCall))
-	base.Method(http.MethodDelete, "/{call_id:[A-Za-z0-9]+}", r.APISessionRequired(endCall))
+	base.Method(http.MethodGet, "/channels/{channel_id:[A-Za-z0-9]+}/enabled", r.APISessionRequired(getCallsChannelEnabled))
+	base.Method(http.MethodPost, "/channels/{channel_id:[A-Za-z0-9]+}/enabled", r.APISessionRequired(setCallsChannelEnabled))
+	base.Method(http.MethodPost, "/channels/{channel_id:[A-Za-z0-9]+}/dismiss-notification", r.APISessionRequired(dismissNotification))
+	base.Method(http.MethodGet, "/{call_id:[A-Za-z0-9:]+}", r.APISessionRequired(getCall))
+	base.Method(http.MethodDelete, "/{call_id:[A-Za-z0-9:]+}", r.APISessionRequired(endCall))
 
 	// Host controls (make host / mute / screen off / lower hand / remove / end)
 	a.InitHostControls()
@@ -51,6 +56,34 @@ type startCallRequest struct {
 	PostID string `json:"post_id,omitempty"`
 }
 
+// requireCallID validates the {call_id} route param. Call ids are
+// "ch:"-prefixed channel ids (see calls.CallIDForChannel), NOT 26-char
+// Mattermost ids — a plain RequireValidId here would reject every real call
+// id and make the host-control surface unreachable.
+var requireCallID web.RequireFunc[string] = func(value any) (string, bool) {
+	strValue, ok := web.RequireString(value)
+	if !ok {
+		return "", false
+	}
+	// "ch:" + a valid channel id.
+	if !strings.HasPrefix(strValue, "ch:") || !model.IsValidId(strings.TrimPrefix(strValue, "ch:")) {
+		return "", false
+	}
+	return strValue, true
+}
+
+// getCallStates returns every in-progress call (one request seeds the webapp's
+// join buttons and toasts for all channels).
+func getCallStates(c *api4.Context, w http.ResponseWriter, r *http.Request) {
+	states := c.App.Calls().GetCallStates()
+	if states == nil {
+		states = []calls.CallStateView{}
+	}
+	if err := json.NewEncoder(w).Encode(states); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
+}
+
 func startCall(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 	channelID := c.RequireParam("channel_id", web.RequireValidId)
 	if c.Err != nil {
@@ -59,6 +92,12 @@ func startCall(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 
 	if ok, _ := c.App.SessionHasPermissionToChannel(c.AppContext, *c.AppContext.Session(), channelID, model.PermissionReadChannel); !ok {
 		c.SetPermissionError(model.PermissionReadChannel)
+		return
+	}
+
+	// Per-channel preference: respect a channel-admin's calls off toggle.
+	if !c.App.Calls().GetCallsChannel(channelID).Enabled {
+		c.Err = callsToAppError(calls.ErrChannelCallsDisabled)
 		return
 	}
 
@@ -106,7 +145,7 @@ func getCallByChannel(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func getCall(c *api4.Context, w http.ResponseWriter, r *http.Request) {
-	callID := c.RequireParam("call_id", web.RequireValidId)
+	callID := c.RequireParam("call_id", requireCallID)
 	if c.Err != nil {
 		return
 	}
@@ -128,21 +167,41 @@ func getCall(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func endCall(c *api4.Context, w http.ResponseWriter, r *http.Request) {
-	callID := c.RequireParam("call_id", web.RequireValidId)
+	callID := c.RequireParam("call_id", requireCallID)
 	if c.Err != nil {
 		return
 	}
 
-	// Resolve the channel to check the caller may end the call. Channel members
-	// can end; in production you may restrict this to the call owner/host.
 	state, err := c.App.Calls().GetCallState(callID)
 	if err != nil {
 		c.Err = callsToAppError(err)
 		return
 	}
-	if ok, _ := c.App.SessionHasPermissionToChannel(c.AppContext, *c.AppContext.Session(), state.ChannelID, model.PermissionReadChannel); !ok {
-		c.SetPermissionError(model.PermissionReadChannel)
+
+	// Ending a call is restricted to the current host (or a sysadmin).
+	// Fallback: when no host session exists (e.g. the host dropped and the
+	// call lingers), any channel member may clean it up.
+	requester := c.AppContext.Session().UserId
+	isAdmin := c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionManageSystem)
+	isHost := false
+	if state.HostSessionID != "" {
+		for _, sess := range state.Sessions {
+			if sess.ID == state.HostSessionID && sess.UserID == requester {
+				isHost = true
+				break
+			}
+		}
+	}
+	if !isAdmin && !isHost && state.Participants > 0 {
+		c.Err = callsToAppError(calls.ErrNotCallHost)
 		return
+	}
+	if !isAdmin && !isHost {
+		// No host and no participants: require channel membership to clean up.
+		if ok, _ := c.App.SessionHasPermissionToChannel(c.AppContext, *c.AppContext.Session(), state.ChannelID, model.PermissionReadChannel); !ok {
+			c.SetPermissionError(model.PermissionReadChannel)
+			return
+		}
 	}
 
 	if err := c.App.Calls().EndCall(callID); err != nil {
@@ -151,6 +210,86 @@ func endCall(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	api4.ReturnStatusOK(w)
+}
+
+// getCallsChannelEnabled returns the per-channel calls configuration.
+func getCallsChannelEnabled(c *api4.Context, w http.ResponseWriter, r *http.Request) {
+	channelID := c.RequireParam("channel_id", web.RequireValidId)
+	if c.Err != nil {
+		return
+	}
+	if ok, _ := c.App.SessionHasPermissionToChannel(c.AppContext, *c.AppContext.Session(), channelID, model.PermissionReadChannel); !ok {
+		c.SetPermissionError(model.PermissionReadChannel)
+		return
+	}
+	if err := json.NewEncoder(w).Encode(c.App.Calls().GetCallsChannel(channelID)); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
+}
+
+// setCallsChannelEnabledRequest is the body for POST /calls/channels/{id}/enabled.
+type setCallsChannelEnabledRequest struct {
+	Enabled bool `json:"enabled"`
+}
+
+// setCallsChannelEnabled enables/disables calls for one channel. Requires
+// channel-management permission for public/private channels; DM/GM members
+// may always toggle their own channel.
+func setCallsChannelEnabled(c *api4.Context, w http.ResponseWriter, r *http.Request) {
+	channelID := c.RequireParam("channel_id", web.RequireValidId)
+	if c.Err != nil {
+		return
+	}
+
+	session := *c.AppContext.Session()
+	ch, appErr := c.App.GetChannel(c.AppContext, channelID)
+	if appErr != nil {
+		c.Err = appErr
+		return
+	}
+	if ch.Type != model.ChannelTypeDirect && ch.Type != model.ChannelTypeGroup {
+		hasManage := false
+		for _, perm := range []*model.Permission{model.PermissionManagePublicChannelMembers, model.PermissionManagePrivateChannelMembers} {
+			if ok, _ := c.App.SessionHasPermissionToChannel(c.AppContext, session, channelID, perm); ok {
+				hasManage = true
+				break
+			}
+		}
+		if !hasManage && !c.App.SessionHasPermissionTo(session, model.PermissionManageSystem) {
+			c.SetPermissionError(model.PermissionManagePublicChannelMembers)
+			return
+		}
+	} else {
+		if ok, _ := c.App.SessionHasPermissionToChannel(c.AppContext, session, channelID, model.PermissionReadChannel); !ok {
+			c.SetPermissionError(model.PermissionReadChannel)
+			return
+		}
+	}
+
+	var body setCallsChannelEnabledRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		body.Enabled = true
+	}
+
+	if err := c.App.Calls().SetCallsChannelEnabled(channelID, body.Enabled, session.UserId); err != nil {
+		c.Err = callsToAppError(err)
+		return
+	}
+	returnStatusOK(w, c)
+}
+
+// dismissNotification syncs an incoming-call dismissal to the user's other
+// connected devices (user_dismissed_notification broadcast).
+func dismissNotification(c *api4.Context, w http.ResponseWriter, r *http.Request) {
+	channelID := c.RequireParam("channel_id", web.RequireValidId)
+	if c.Err != nil {
+		return
+	}
+	if err := c.App.Calls().DismissNotification(channelID, c.AppContext.Session().UserId); err != nil {
+		c.Err = callsToAppError(err)
+		return
+	}
+	returnStatusOK(w, c)
 }
 
 // callsToAppError maps a calls service error to an AppError with an
@@ -167,6 +306,10 @@ func callsToAppError(err error) *model.AppError {
 		return model.NewAppError("calls", "app.calls.ended.app_error", nil, err.Error(), http.StatusBadRequest)
 	case errors.Is(err, calls.ErrMaxParticipants):
 		return model.NewAppError("calls", "app.calls.max_participants.app_error", nil, err.Error(), http.StatusForbidden)
+	case errors.Is(err, calls.ErrChannelCallsDisabled):
+		return model.NewAppError("calls", "app.calls.channel_disabled.app_error", nil, err.Error(), http.StatusForbidden)
+	case errors.Is(err, calls.ErrNotCallHost):
+		return model.NewAppError("calls", "app.calls.not_host.app_error", nil, err.Error(), http.StatusForbidden)
 	case errors.Is(err, calls.ErrNoSFUHost):
 		return model.NewAppError("calls", "app.calls.no_sfu_host.app_error", nil, err.Error(), http.StatusServiceUnavailable)
 	default:

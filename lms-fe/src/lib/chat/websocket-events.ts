@@ -14,6 +14,7 @@ import { wsClient, client4 } from './client'
 import { useChatStore } from './store'
 import { notifyIfNeeded, resolveAuthorName } from './notifications'
 import { useLMSStore } from '@/store/lms-store'
+import { useCallsStore } from '@/features/calls/calls-store'
 import type { ChatPost, ChatReaction, PresenceStatus } from './types'
 
 // WebSocket event names — string literals (the WebSocketEvents const enum
@@ -112,6 +113,26 @@ function handleEvent(msg: WebSocketMessage): void {
         // Desktop notification + sound (ports notification_actions). Fires only
         // when the channel is inactive / window unfocused (gated internally).
         const state = useChatStore.getState()
+
+        // Calls notification suppression (plugin parity: desktop_notifications):
+        // the custom_calls start post in a DM/GM is replaced by the incoming-call
+        // card + ring; and posts in the channel of a call we're IN only notify
+        // when directly mentioned.
+        {
+          const calls = useCallsStore.getState()
+          const chType = (channelId ? (state.channels[channelId] as { type?: string } | undefined)?.type : undefined) ?? ''
+          const postType = (post as { type?: string }).type ?? ''
+          const isInCallChannel = calls.channelId === channelId && calls.status !== 'disconnected' && calls.status !== 'error'
+          const isCallStartPost = postType === 'custom_calls'
+          const dmOrGM = chType === 'D' || chType === 'G'
+          if (isCallStartPost && dmOrGM && calls.config.ringingEnabled) {
+            break
+          }
+          if (isInCallChannel && !isCallStartPost && mentionIds.length === 0) {
+            break
+          }
+        }
+
         notifyIfNeeded({
           post,
           channel: channelId ? state.channels[channelId] : undefined,

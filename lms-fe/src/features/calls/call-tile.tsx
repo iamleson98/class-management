@@ -12,10 +12,10 @@
 
 import { useEffect, useRef } from 'react'
 import { Hand, MicOff, Star } from 'lucide-react'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
 import { useTranslation } from '@/lib/i18n'
 import type { CallSession } from './calls-store'
+import { UserAvatar } from './user-avatar'
 
 export function CallTile({
 	session,
@@ -45,7 +45,6 @@ export function CallTile({
 		}
 	}, [activeStream])
 
-	const initials = displayName.slice(0, 2).toUpperCase() || '?'
 	const showVideo = !!activeStream && (isSelf || session.video)
 
 	return (
@@ -65,9 +64,7 @@ export function CallTile({
 					className={cn('w-full h-full object-cover', mirror && 'scale-x-[-1]')}
 				/>
 			) : (
-				<Avatar className="h-16 w-16">
-					<AvatarFallback className="bg-white/10 text-white text-lg">{initials}</AvatarFallback>
-				</Avatar>
+				<UserAvatar userId={session.userId} displayName={displayName || '?'} size="2xl" />
 			)}
 
 			{/* Overlays */}

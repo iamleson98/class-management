@@ -15,17 +15,19 @@ import { useState } from 'react'
 import {
         Hand, Mic, MicOff, Monitor, MonitorOff, PhoneOff, Video, VideoOff,
         Crown, UserMinus, VolumeX, MonitorX, LogOut, MoreVertical, Users,
-        MessageSquare, LayoutGrid, GalleryVerticalEnd, Settings2, Check,
+        MessageSquare, LayoutGrid, GalleryVerticalEnd, Settings2, Check, ChevronDown,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useTranslation } from '@/lib/i18n'
 import { useLMSStore } from '@/store/lms-store'
 import { useChatStore } from '@/lib/chat/store'
 import { callsClient, shareAudioWithScreen, setShareAudioWithScreen } from './calls-client'
 import { useCallsStore, type CallSession, type CallDevice } from './calls-store'
 import { ReactionButton } from './reaction-stream'
+import { userDisplayName } from '@/lib/chat/types'
 
 /** POST a host-control action against the native calls REST API. */
 async function hostAction(callId: string, action: string, body?: Record<string, unknown>): Promise<void> {
@@ -42,7 +44,7 @@ async function hostAction(callId: string, action: string, body?: Record<string, 
 }
 
 function ControlButton({
-        active, onClick, on, off, label, destructive,
+        active, onClick, on, off, label, destructive, disabled,
 }: {
         active: boolean
         onClick: () => void
@@ -50,6 +52,7 @@ function ControlButton({
         off: React.ReactNode
         label: string
         destructive?: boolean
+        disabled?: boolean
 }) {
         return (
                 <Tooltip>
@@ -60,6 +63,7 @@ function ControlButton({
                                         aria-pressed={active}
                                         aria-label={label}
                                         onClick={onClick}
+                                        disabled={disabled}
                                         className={`h-11 w-11 rounded-full transition-colors ${
                                                 active
                                                         ? 'bg-white/15 text-white hover:bg-white/25'
@@ -138,6 +142,13 @@ export function CallControls() {
 
         const [menuOpen, setMenuOpen] = useState(false)
         const [settingsOpen, setSettingsOpen] = useState(false)
+        const [confirmRemove, setConfirmRemove] = useState<(CallSession & { displayName: string }) | null>(null)
+        const [leaveMenuOpen, setLeaveMenuOpen] = useState(false)
+        const mirrorVideo = useCallsStore((s) => s.mirrorVideo)
+        const setMirrorVideo = useCallsStore((s) => s.setMirrorVideo)
+        const callChannelId = useCallsStore((s) => s.channelId)
+        const chatUnread = useChatStore((s) => (callChannelId ? s.unreadByChannel[callChannelId] ?? 0 : 0))
+        const chatMentions = useChatStore((s) => (callChannelId ? s.mentionByChannel[callChannelId] ?? 0 : 0))
         // Lazy initializer: reads the persisted preference once (client component).
         const [shareAudio, setShareAudio] = useState(() => shareAudioWithScreen())
 
@@ -154,15 +165,10 @@ export function CallControls() {
         /** Other participants (host menu targets), with resolved display names. */
         const others: Array<CallSession & { displayName: string }> = Object.values(sessions)
                 .filter((s) => s.userId !== authUserId)
-                .map((s) => {
-                        const u = users[s.userId] as Record<string, any> | undefined
-                        const first = u ? (u.firstname ?? u.first_name ?? '') : ''
-                        const last = u ? (u.lastname ?? u.last_name ?? '') : ''
-                        return {
-                                ...s,
-                                displayName: u ? `${first} ${last}`.trim() || u.username : s.sessionId.slice(0, 8),
-                        }
-                })
+                .map((s) => ({
+                        ...s,
+                        displayName: userDisplayName(users[s.userId] as never) || s.sessionId.slice(0, 8),
+                }))
 
         const onToggleMute = () => (micEnabled ? callsClient.mute() : callsClient.unmute())
         const onToggleVideo = () => {
@@ -215,6 +221,7 @@ export function CallControls() {
                         {config.allowScreenSharing && (
                                 <ControlButton
                                         active={screenSharing}
+                                        disabled={!screenSharing && someoneElseSharing}
                                         onClick={onToggleScreen}
                                         on={<Monitor className="h-5 w-5" />}
                                         off={<MonitorOff className="h-5 w-5" />}
@@ -274,6 +281,11 @@ export function CallControls() {
                                                 }`}
                                         >
                                                 <MessageSquare className="h-5 w-5" />
+                                                {chatOpen || (chatUnread === 0 && chatMentions === 0) ? null : (
+                                                        <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-sky-500 text-white text-[9px] font-semibold leading-4">
+                                                                {chatMentions > 0 ? (chatMentions > 99 ? '99+' : chatMentions) : chatUnread > 99 ? '99+' : chatUnread}
+                                                        </span>
+                                                )}
                                         </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>{t('chat.showChat', 'Xem trò chuyện')}</TooltipContent>
@@ -355,7 +367,16 @@ export function CallControls() {
                                                                 ))}
                                                         </>
                                                 )}
-                                                {config.allowScreenSharing && (
+                                                <label className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-md text-sm cursor-pointer hover:bg-muted/60">
+                                                                        <span>{t('chat.mirrorVideo', 'Lật ảnh camera của bạn')}</span>
+                                                                        <input
+                                                                                type="checkbox"
+                                                                                checked={mirrorVideo}
+                                                                                onChange={(e) => setMirrorVideo(e.target.checked)}
+                                                                                className="h-4 w-4 accent-emerald-600"
+                                                                        />
+                                                                </label>
+                                                                {config.allowScreenSharing && (
                                                         <>
                                                                 <div className="my-1 h-px bg-border" />
                                                                 <label className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-md text-sm cursor-pointer hover:bg-muted/60">
@@ -445,9 +466,14 @@ export function CallControls() {
                                                                                                                 <Hand className="h-3.5 w-3.5" />
                                                                                                         </RowButton>
                                                                                                 )}
-                                                                                                <RowButton label={t('chat.remove', 'Mời ra')} onClick={() => runHost('remove', { sessionID: o.sessionId })}>
-                                                                                                        <UserMinus className="h-3.5 w-3.5" />
-                                                                                                </RowButton>
+                                                                                                																																	{o.screenOn && (
+																																		<RowButton label={t('chat.stopShare', 'Dừng chia sẻ')} onClick={() => runHost('screen-off', { sessionID: o.sessionId })}>
+																																			<MonitorX className="h-3.5 w-3.5" />
+																																		</RowButton>
+																																	)}
+																																	<RowButton label={t('chat.remove', 'Mời ra')} onClick={() => setConfirmRemove(o)}>
+																																		<UserMinus className="h-3.5 w-3.5" />
+																																	</RowButton>
                                                                                                 <RowButton label={t('chat.makeHost', 'Chuyển chủ trì')} onClick={() => runHost('make', { newHostID: o.userId })}>
                                                                                                         <Crown className="h-3.5 w-3.5" />
                                                                                                 </RowButton>
@@ -474,20 +500,88 @@ export function CallControls() {
                                 </PopoverContent>
                         </Popover>
 
-                        <Tooltip>
-                                <TooltipTrigger asChild>
+                        <Popover open={leaveMenuOpen} onOpenChange={setLeaveMenuOpen}>
+                                <Tooltip>
+                                        <TooltipTrigger asChild>
+                                                <PopoverTrigger asChild>
+                                                        <Button
+                                                                variant="destructive"
+                                                                size="icon"
+                                                                className="h-11 w-11 rounded-full ml-2"
+                                                                aria-label={t('chat.leaveCall', 'Rời cuộc gọi')}
+                                                        >
+                                                                <PhoneOff className="h-5 w-5" />
+                                                        </Button>
+                                                </PopoverTrigger>
+                                        </TooltipTrigger>
+                                        <TooltipContent>{t('chat.leaveCall', 'Rời cuộc gọi')} (Ctrl+Shift+L)</TooltipContent>
+                                </Tooltip>
+                                <PopoverContent align="end" className="w-56 p-1">
+                                        <button
+                                                type="button"
+                                                onClick={() => { setLeaveMenuOpen(false); callsClient.leave() }}
+                                                className="w-full flex items-center gap-2 px-2 py-2 rounded-md text-sm hover:bg-muted/60 transition-colors"
+                                        >
+                                                <LogOut className="h-4 w-4" />
+                                                {t('chat.leaveCall', 'Rời cuộc gọi')}
+                                        </button>
+                                        {isHost && config.hostControlsAllowed && (
+                                                <button
+                                                        type="button"
+                                                        onClick={() => { setLeaveMenuOpen(false); runHost('end') }}
+                                                        className="w-full flex items-center gap-2 px-2 py-2 rounded-md text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                                                >
+                                                        <PhoneOff className="h-4 w-4" />
+                                                        {t('chat.endForAll', 'Kết thúc cho tất cả')}
+                                                </button>
+                                        )}
+                                </PopoverContent>
+                        </Popover>
+
+                        <ConfirmRemoveDialog
+                                target={confirmRemove}
+                                onCancel={() => setConfirmRemove(null)}
+                                onConfirm={() => confirmRemove && runHost('remove', { sessionID: confirmRemove.sessionId })}
+                        />
+                </div>
+        )
+}
+
+/** Confirmation for removing a participant (plugin parity: remove_confirmation). */
+export function ConfirmRemoveDialog({
+        target,
+        onCancel,
+        onConfirm,
+}: {
+        target: (CallSession & { displayName: string }) | null
+        onCancel: () => void
+        onConfirm: () => void
+}) {
+        const { t } = useTranslation()
+        if (!target) return null
+        return (
+                <Dialog open onOpenChange={(open) => { if (!open) onCancel() }}>
+                        <DialogContent className="max-w-sm">
+                                <DialogHeader>
+                                        <DialogTitle>
+                                                {t('chat.removeConfirm.title', 'Mời {name} ra khỏi cuộc gọi?', { name: target.displayName })}
+                                        </DialogTitle>
+                                </DialogHeader>
+                                <p className="text-sm text-muted-foreground">
+                                        {t('chat.removeConfirm.body', 'Họ có thể tham gia lại nếu được mời.')}
+                                </p>
+                                <DialogFooter className="mt-2 gap-2">
+                                        <Button variant="outline" onClick={onCancel}>
+                                                {t('common.cancel', 'Hủy')}
+                                        </Button>
                                         <Button
                                                 variant="destructive"
-                                                size="icon"
-                                                className="h-11 w-11 rounded-full ml-2"
-                                                onClick={() => callsClient.leave()}
-                                                aria-label={t('chat.leaveCall', 'Rời cuộc gọi')}
+                                                onClick={() => { onConfirm(); onCancel() }}
                                         >
-                                                <PhoneOff className="h-5 w-5" />
+                                                {t('chat.removeConfirm.yes', 'Mời ra')}
                                         </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>{t('chat.leaveCall', 'Rời cuộc gọi')} (Ctrl+Shift+L)</TooltipContent>
-                        </Tooltip>
-                </div>
+                                </DialogFooter>
+                        </DialogContent>
+                </Dialog>
         )
 }

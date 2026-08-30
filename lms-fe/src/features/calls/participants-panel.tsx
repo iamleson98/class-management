@@ -8,8 +8,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Crown, Hand, MicOff, UserMinus, VolumeX, Star } from 'lucide-react'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Crown, Hand, MicOff, UserMinus, VolumeX, Star, MonitorX } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useTranslation } from '@/lib/i18n'
@@ -17,6 +16,9 @@ import { useLMSStore } from '@/store/lms-store'
 import { useChatStore } from '@/lib/chat/store'
 import { useToast } from '@/hooks/use-toast'
 import { useCallsStore, type CallSession } from './calls-store'
+import { userDisplayName } from '@/lib/chat/types'
+import { UserAvatar } from './user-avatar'
+import { ConfirmRemoveDialog } from './call-controls'
 
 /** POST a host-control action against the native calls REST API. */
 async function hostAction(callId: string, action: string, body?: Record<string, unknown>): Promise<void> {
@@ -46,15 +48,10 @@ export function ParticipantsPanel() {
 	const setParticipantsOpen = useCallsStore((s) => s.setParticipantsOpen)
 
 	const [busy, setBusy] = useState<string | null>(null)
+	const [confirmRemove, setConfirmRemove] = useState<CallSession | null>(null)
 	const isHost = !!authUserId && hostUserId === authUserId && hostControlsAllowed
 
-	const nameFor = (userId: string): string => {
-		const u = users[userId] as Record<string, any> | undefined
-		if (!u) return ''
-		const first = u.firstname ?? u.first_name ?? ''
-		const last = u.lastname ?? u.last_name ?? ''
-		return `${first} ${last}`.trim() || u.username || ''
-	}
+	const nameFor = (userId: string): string => userDisplayName(users[userId] as never)
 
 	const runHost = async (action: string, key: string, body?: Record<string, unknown>) => {
 		if (!callId) return
@@ -73,23 +70,20 @@ export function ParticipantsPanel() {
 	const renderRow = (s: CallSession) => {
 		const isSelf = s.userId === authUserId
 		const name = nameFor(s.userId) || (isSelf ? t('chat.you', 'Bạn') : s.sessionId.slice(0, 8))
-		const initials = name.slice(0, 2).toUpperCase() || '?'
 		return (
 			<div
 				key={s.sessionId}
 				className="group flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-white/5 transition-colors"
 			>
-				<div className="relative shrink-0">
-					<Avatar className="h-8 w-8">
-						<AvatarFallback className="bg-white/10 text-white text-xs">{initials}</AvatarFallback>
-					</Avatar>
+									<div className="relative shrink-0">
+					<UserAvatar userId={s.userId} displayName={name} size="sm" />
 					{s.voice && (
 						<span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-neutral-950" />
 					)}
-				</div>
+					</div>
 				<div className="min-w-0 flex-1">
 					<div className="flex items-center gap-1.5 text-sm text-white/90 truncate">
-						<span className="truncate">{name}</span>
+						<span className="truncate">{name}{isSelf ? ` (${t('chat.you', 'Bạn')})` : ''}</span>
 						{s.isHost && <Star className="h-3 w-3 text-amber-400 fill-amber-400 shrink-0" aria-label={t('chat.host', 'chủ trì')} />}
 					</div>
 					<div className="flex items-center gap-1.5 text-[11px] text-white/50">
@@ -105,7 +99,8 @@ export function ParticipantsPanel() {
 								{t('chat.handRaised', 'Giơ tay')}
 							</span>
 						)}
-						{s.screenOn && <span>{t('chat.sharingScreen', 'Đang chia sẻ')}</span>}
+						{s.video && <span>{t('chat.cameraOn', 'Đang bật camera')}</span>}
+					{s.screenOn && <span>{t('chat.sharingScreen', 'Đang chia sẻ')}</span>}
 					</div>
 				</div>
 				{isHost && !isSelf && (
@@ -117,6 +112,15 @@ export function ParticipantsPanel() {
 						>
 							<MicOff className="h-3.5 w-3.5" />
 						</IconButton>
+						{s.screenOn && (
+							<IconButton
+								label={t('chat.stopShare', 'Dừng chia sẻ')}
+								busy={busy === `screen-${s.sessionId}`}
+								onClick={() => runHost('screen-off', `screen-${s.sessionId}`, { sessionID: s.sessionId })}
+							>
+								<MonitorX className="h-3.5 w-3.5" />
+							</IconButton>
+						)}
 						{s.raisedHand > 0 && (
 							<IconButton
 								label={t('chat.lowerHand', 'Hạ tay')}
@@ -136,7 +140,7 @@ export function ParticipantsPanel() {
 						<IconButton
 							label={t('chat.remove', 'Mời ra')}
 							busy={busy === `rm-${s.sessionId}`}
-							onClick={() => runHost('remove', `rm-${s.sessionId}`, { sessionID: s.sessionId })}
+							onClick={() => setConfirmRemove(s)}
 						>
 							<UserMinus className="h-3.5 w-3.5" />
 						</IconButton>
@@ -176,7 +180,12 @@ export function ParticipantsPanel() {
 					</Button>
 				</div>
 			)}
-		</aside>
+						<ConfirmRemoveDialog
+					target={confirmRemove ? { ...confirmRemove, displayName: nameFor(confirmRemove.userId) || confirmRemove.sessionId.slice(0, 8) } : null}
+					onCancel={() => setConfirmRemove(null)}
+					onConfirm={() => confirmRemove && runHost('remove', `rm-${confirmRemove.sessionId}`, { sessionID: confirmRemove.sessionId })}
+				/>
+</aside>
 	)
 }
 

@@ -38,6 +38,19 @@ const (
 	eventHostScreenOff   = "host_screen_off"
 	eventHostLowerHand   = "host_lower_hand"
 	eventHostRemoved     = "host_removed"
+
+	// eventUserRemoved is broadcast to the channel when the host removes a
+	// participant (in addition to user_left) so other clients can show the
+	// "X was removed" notice.
+	eventUserRemoved = "user_removed"
+
+	// Per-channel enable/disable events (the plugin's channel voice events).
+	eventChannelEnableVoice  = "channel_enable_voice"
+	eventChannelDisableVoice = "channel_disable_voice"
+
+	// eventUserDismissedNotification syncs incoming-call dismissal across
+	// the dismissing user's devices.
+	eventUserDismissedNotification = "user_dismissed_notification"
 )
 
 // Incoming client message types — the actions a browser sends over its
