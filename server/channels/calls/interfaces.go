@@ -10,12 +10,6 @@ import (
 	"github.com/iamleson98/sitename/server/v8/einterfaces"
 )
 
-// defaultShardCount is the number of sharded call-state registries when
-// CallsSettings.StateShardCount is unset. Sharding by callID keeps a busy
-// call from contending with unrelated calls (the plugin used one global mutex,
-// which is the ceiling this design removes).
-const defaultShardCount = 64
-
 // StoreBridge exposes only the calls-related sub-stores to the service. The
 // full store.Store is injected via ServiceConfig; this is the narrowed view.
 type StoreBridge interface {

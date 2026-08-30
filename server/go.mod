@@ -6,14 +6,10 @@ replace (
 	// Use the fork's local public module.
 	github.com/iamleson98/sitename/server/public => ./public
 
-	// Alias the upstream Mattermost public module to the same ./public
-	// directory, so the rtcd SFU client — which imports
-	// github.com/mattermost/mattermost/server/public/... — resolves to the
-	// same types the server already uses. Without this, rtcd's mlog/model
-	// would be a distinct, incompatible set of packages.
-	github.com/mattermost/mattermost/server/public => ./public
-
-	// Use the local rtcd source (sibling directory) for the SFU control client.
+	// Use the local rtcd source (sibling directory) for the SFU control
+	// client. The vendored rtcd imports the fork's public module directly
+	// (github.com/iamleson98/sitename/server/public/...), so its mlog/model
+	// types are the same packages the server itself uses.
 	github.com/mattermost/rtcd => ../rtcd
 
 	// Pion forks required by rtcd's RTC layer.
@@ -57,7 +53,7 @@ require (
 	github.com/hako/durafmt v0.0.0-20210608085754-5c1018a4e16b
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/memberlist v0.5.4
-	github.com/iamleson98/sitename/server/public v0.0.0-00010101000000-000000000000
+	github.com/iamleson98/sitename/server/public v0.0.0
 	github.com/icrowley/fake v0.0.0-20240710202011-f797eb4a99c0
 	github.com/isacikgoz/prompt v0.1.0
 	github.com/jmoiron/sqlx v1.4.0
@@ -69,7 +65,6 @@ require (
 	github.com/mattermost/ldap v3.0.4+incompatible
 	github.com/mattermost/logr/v2 v2.0.22
 	github.com/mattermost/mattermost-plugin-agents v1.14.1-0.20260519141957-379b06b188d9
-	github.com/mattermost/mattermost/server/public v0.3.1-0.20260402155910-d9d71af83e3f
 	github.com/mattermost/morph v1.1.0
 	github.com/mattermost/rsc v0.0.0-20160330161541-bbaefb05eaa0
 	github.com/mattermost/rtcd v1.2.6
@@ -210,6 +205,7 @@ require (
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
 	github.com/levigross/exp-html v0.0.0-20120902181939-8df60c69a8f5 // indirect
+	github.com/mattermost/mattermost/server/public v0.3.1-0.20260402155910-d9d71af83e3f // indirect
 	github.com/mattermost/xml-roundtrip-validator v0.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.22 // indirect

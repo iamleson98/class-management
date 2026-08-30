@@ -6,6 +6,7 @@ package callsapi
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 
@@ -20,11 +21,11 @@ import (
 //
 // Routes (all session-required):
 //
-//      GET    /calls/config                                client calls config
-//      POST   /calls/channels/{channel_id}              start (or reuse) a call
-//      GET    /calls/channels/{channel_id}              get active call for channel
-//      GET    /calls/{call_id}                          get call state
-//      DELETE /calls/{call_id}                          end a call
+//	GET    /calls/config                                client calls config
+//	POST   /calls/channels/{channel_id}              start (or reuse) a call
+//	GET    /calls/channels/{channel_id}              get active call for channel
+//	GET    /calls/{call_id}                          get call state
+//	DELETE /calls/{call_id}                          end a call
 func (a *CallsAPI) InitCalls() {
 	r := a.api
 	base := a.routes.Calls
@@ -102,7 +103,10 @@ func startCall(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	var body startCallRequest
-	_ = json.NewDecoder(r.Body).Decode(&body) // body optional
+	if err := decodeOptionalJSON(r, &body); err != nil {
+		c.Err = model.NewAppError("startCall", "api.calls.invalid_body.app_error", nil, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	res, err := c.App.Calls().StartCall(calls.StartCallOpts{
 		ChannelID: channelID,
@@ -292,6 +296,20 @@ func dismissNotification(c *api4.Context, w http.ResponseWriter, r *http.Request
 	returnStatusOK(w, c)
 }
 
+// decodeOptionalJSON decodes an optional JSON request body into v. An empty
+// body (or none at all) leaves v untouched; malformed JSON is an error so
+// callers never act on silently-swallowed input.
+func decodeOptionalJSON(r *http.Request, v any) error {
+	if r.Body == nil {
+		return nil
+	}
+	dec := json.NewDecoder(r.Body)
+	if err := dec.Decode(v); err != nil && !errors.Is(err, io.EOF) {
+		return err
+	}
+	return nil
+}
+
 // callsToAppError maps a calls service error to an AppError with an
 // appropriate HTTP status.
 func callsToAppError(err error) *model.AppError {
@@ -302,6 +320,8 @@ func callsToAppError(err error) *model.AppError {
 		return model.NewAppError("calls", "app.calls.disabled.app_error", nil, err.Error(), http.StatusForbidden)
 	case errors.Is(err, calls.ErrCallNotFound):
 		return model.NewAppError("calls", "app.calls.not_found.app_error", nil, err.Error(), http.StatusNotFound)
+	case errors.Is(err, calls.ErrSessionNotFound):
+		return model.NewAppError("calls", "app.calls.session_not_found.app_error", nil, err.Error(), http.StatusNotFound)
 	case errors.Is(err, calls.ErrCallEnded):
 		return model.NewAppError("calls", "app.calls.ended.app_error", nil, err.Error(), http.StatusBadRequest)
 	case errors.Is(err, calls.ErrMaxParticipants):
@@ -312,6 +332,8 @@ func callsToAppError(err error) *model.AppError {
 		return model.NewAppError("calls", "app.calls.not_host.app_error", nil, err.Error(), http.StatusForbidden)
 	case errors.Is(err, calls.ErrNoSFUHost):
 		return model.NewAppError("calls", "app.calls.no_sfu_host.app_error", nil, err.Error(), http.StatusServiceUnavailable)
+	case errors.Is(err, calls.ErrNotCallHost):
+		return model.NewAppError("calls", "app.calls.not_host.app_error", nil, err.Error(), http.StatusForbidden)
 	default:
 		return model.NewAppError("calls", "app.calls.internal_error", nil, err.Error(), http.StatusInternalServerError)
 	}

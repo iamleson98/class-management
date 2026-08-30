@@ -9,7 +9,7 @@ import (
 
 	"github.com/prometheus/procfs"
 
-	"github.com/mattermost/mattermost/server/public/shared/mlog"
+	"github.com/iamleson98/sitename/server/public/shared/mlog"
 )
 
 type SystemInfo struct {

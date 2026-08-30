@@ -102,7 +102,7 @@ func (s *CallService) publishChannel(channelID, event string, data map[string]an
 // sendCallState unicasts the full call state to one connection. The `call`
 // payload is a JSON string, matching the plugin webapp contract.
 func (s *CallService) sendCallState(cs *callState, connID string) {
-	views, _ := cs.snapshot()
+	views, hostSessionID := cs.snapshot()
 	state := &CallStateView{
 		CallID:        cs.callID,
 		ChannelID:     cs.channelID,
@@ -110,13 +110,13 @@ func (s *CallService) sendCallState(cs *callState, connID string) {
 		RTCDHost:      cs.rtcdHost,
 		Sessions:      views,
 		Participants:  len(views),
-	}
-	if hs, hostID := cs.hostSession(); hs != nil {
-		state.HostSessionID = hostID
+		HostSessionID: hostSessionID,
 	}
 	encoded, err := json.Marshal(state)
 	if err != nil {
-		s.log.Error("calls: failed to encode call state", mlog.Err(err))
+		// CallStateView contains only JSON-safe primitives; a marshal failure
+		// would indicate memory corruption. Log loudly and drop the update.
+		s.log.Error("calls: failed to encode call state", mlog.String("callID", cs.callID), mlog.Err(err))
 		return
 	}
 	s.publishTo(eventCallState, map[string]any{"call": string(encoded)}, connID)
@@ -156,39 +156,28 @@ func (s *CallService) handleJoin(connID, userID string, data map[string]any) err
 		return errors.New("calls: channelID is required")
 	}
 	if !s.Enabled() {
-		return errors.New("calls: feature is disabled")
+		return ErrCallsDisabled
 	}
 
-	s.mut.RLock()
-	hasRTCD := s.rtcd != nil
-	s.mut.RUnlock()
-	if !hasRTCD {
-		return errors.New("calls: rtcd service is not configured")
-	}
-
-	// Per-channel preference: a channel admin may have turned calls off.
+	// Per-channel preference: a channel admin may have turned calls off. This
+	// check precedes the rtcd check — a channel-level configuration error is
+	// more specific and needs no SFU to be meaningful.
 	if !s.callsEnabledForChannel(channelID) {
 		return ErrChannelCallsDisabled
+	}
+	if s.rtcdManager() == nil {
+		return errors.New("calls: rtcd service is not configured")
 	}
 
 	callID := callIDForChannel(channelID)
 
-	if max := s.callsConfig().maxParticipants(); max > 0 {
+	// Fast-path limit rejection (the limit is enforced again atomically at
+	// addSession, closing the check-then-act race).
+	max := s.callsConfig().maxParticipants()
+	if max > 0 {
 		if existing, ok := s.shards.get(callID); ok && existing.participants() >= max {
 			return ErrMaxParticipants
 		}
-	}
-
-	// Reuse the in-progress call or start one (idempotent per channel).
-	res, err := s.StartCall(StartCallOpts{ChannelID: channelID, OwnerID: userID})
-	if err != nil {
-		return err
-	}
-	callID = res.CallID
-
-	cs, ok := s.shards.get(callID)
-	if !ok {
-		return ErrCallNotFound
 	}
 
 	// Register the participant. sessionID = the connection id at join time and
@@ -203,7 +192,51 @@ func (s *CallService) handleJoin(connID, userID string, data map[string]any) err
 		unmuted:   true,
 		startAt:   now,
 	}
-	cs.addSession(connID, sess)
+
+	// Reuse the in-progress call or start one (idempotent per channel), then
+	// insert the session ATOMICALLY with the liveness check (shard write
+	// lock). A call whose last participant leaves mid-join would otherwise
+	// race the insert: the joiner could resurrect an already-torn-down state.
+	// On that race addSessionIfLive reports ErrCallNotFound and the loop
+	// transparently starts the next generation.
+	var (
+		cs   *callState
+		prev *session
+	)
+	for attempt := 0; attempt < 3; attempt++ {
+		res, err := s.StartCall(StartCallOpts{ChannelID: channelID, OwnerID: userID})
+		if err != nil {
+			return err
+		}
+		callID = res.CallID
+
+		var addErr error
+		cs, prev, addErr = s.shards.shardFor(callID).addSessionIfLive(callID, sess.sessionID, sess, max)
+		if errors.Is(addErr, ErrCallNotFound) {
+			continue // generation ended mid-join; retry onto a new one
+		}
+		if addErr != nil {
+			return addErr // e.g. participant limit reached
+		}
+		break
+	}
+	if cs == nil {
+		return ErrCallNotFound
+	}
+
+	// Index the session after the insert but BEFORE the SFU Join goes out:
+	// the SFU cannot message a session it has not registered, so any inbound
+	// relay traffic necessarily follows the registration (see
+	// sessionRegistry's consistency notes).
+	s.index.link(sess.sessionID, sess.connID, cs)
+
+	if prev != nil {
+		// Same connection joined twice (e.g. a retried join): the previous
+		// session object is replaced; the SFU re-registers the same
+		// sessionID on the Join below, so nothing leaks.
+		s.log.Debug("calls: session re-joined, replacing prior state",
+			mlog.String("sessionID", sess.sessionID), mlog.String("userID", userID))
+	}
 
 	// Persist the join boundary.
 	if _, serr := s.store.CallSession().Save(&model.CallSession{
@@ -215,7 +248,10 @@ func (s *CallService) handleJoin(connID, userID string, data map[string]any) err
 		CreateAt: now,
 		UpdateAt: now,
 	}); serr != nil {
-		s.log.Warn("calls: failed to persist call session", mlog.Err(serr))
+		// The call stays live — presence is in-memory — but the boundary is
+		// lost for reporting; surface it.
+		s.log.Warn("calls: failed to persist call session",
+			mlog.String("callID", callID), mlog.String("userID", userID), mlog.Err(serr))
 	}
 
 	// Register the SFU session (rtcd InitSession).
@@ -230,7 +266,8 @@ func (s *CallService) handleJoin(connID, userID string, data map[string]any) err
 			"dcSignaling": false,
 		},
 	}); serr != nil {
-		s.log.Error("calls: failed to register SFU session", mlog.Err(serr))
+		s.log.Error("calls: failed to register SFU session",
+			mlog.String("callID", callID), mlog.String("sessionID", connID), mlog.Err(serr))
 	}
 
 	// Join ack (unicast) — carries the ICE servers for the browser's
@@ -270,7 +307,7 @@ func (s *CallService) handleLeave(connID, userID string, data map[string]any) er
 		return nil
 	}
 
-	s.removeSession(cs, sess, "left")
+	s.teardownSession(cs, sess, reasonLeft)
 	return nil
 }
 
@@ -289,19 +326,22 @@ func (s *CallService) handleReconnect(connID, userID string, data map[string]any
 	}
 	sess, ok := cs.get(originalConnID)
 	if !ok || sess.userID != userID {
-		return errors.New("calls: session not found for reconnect")
+		return ErrSessionNotFound
 	}
 
-	cs.mut.Lock()
-	sess.connID = connID
-	cs.mut.Unlock()
+	if !cs.setConn(sess.sessionID, connID) {
+		// The session was torn down between the get and the update.
+		return ErrSessionNotFound
+	}
+	s.index.repoint(sess.sessionID, originalConnID, connID, cs)
 
 	// Keep the SFU's connection map pointed at the new server connection.
 	if err := s.sendToHost(cs, rtcd.ClientMessage{
 		Type: rtcd.ClientMessageReconnect,
 		Data: map[string]string{"sessionID": originalConnID},
 	}); err != nil {
-		s.log.Warn("calls: failed to reconnect SFU session", mlog.Err(err))
+		s.log.Warn("calls: failed to reconnect SFU session",
+			mlog.String("sessionID", originalConnID), mlog.Err(err))
 	}
 
 	// Resync the reconnecting client with the full state.
@@ -309,29 +349,40 @@ func (s *CallService) handleReconnect(connID, userID string, data map[string]any
 	return nil
 }
 
-// removeSession performs the shared teardown for leave/host-remove/SFU-close:
-// state removal, SFU close message, persistence, presence events, and call end
-// when the last participant is gone.
-func (s *CallService) removeSession(cs *callState, sess *session, reason string) {
-	if prev := cs.removeSession(sess.sessionID); prev == nil {
+// teardownSession performs the shared teardown for leave/host-remove/SFU-close:
+// state removal, index cleanup, SFU close message, persistence, presence
+// events, and call end when the last participant is gone.
+func (s *CallService) teardownSession(cs *callState, sess *session, reason string) {
+	removed, lastConnID := cs.removeSession(sess.sessionID)
+	if removed == nil {
 		return
 	}
-	sess.markLeft()
+
+	// Remove from the global index (after the call-state removal; see the
+	// sessionRegistry consistency notes).
+	s.index.unlink(sess.sessionID, lastConnID)
 
 	// Close the SFU session.
 	if err := s.sendToHost(cs, rtcd.ClientMessage{
 		Type: rtcd.ClientMessageLeave,
 		Data: map[string]string{"sessionID": sess.sessionID},
 	}); err != nil {
-		s.log.Warn("calls: failed to close SFU session", mlog.Err(err))
+		s.log.Warn("calls: failed to close SFU session",
+			mlog.String("sessionID", sess.sessionID), mlog.String("reason", reason), mlog.Err(err))
 	}
 
-	// Persist the leave boundary (best effort).
-	if stored, err := s.store.CallSession().GetByCallAndUser(sess.callID, sess.userID); err == nil && stored != nil && stored.EndAt == 0 {
+	// Persist the leave boundary (best effort, but never silent).
+	stored, err := s.store.CallSession().GetByCallAndUser(sess.callID, sess.userID)
+	switch {
+	case err != nil:
+		s.log.Warn("calls: failed to load call session for end persistence",
+			mlog.String("callID", sess.callID), mlog.String("userID", sess.userID), mlog.Err(err))
+	case stored != nil && stored.EndAt == 0:
 		stored.EndAt = model.GetMillis()
 		stored.UpdateAt = stored.EndAt
 		if _, err := s.store.CallSession().Update(stored); err != nil {
-			s.log.Warn("calls: failed to persist session end", mlog.Err(err))
+			s.log.Warn("calls: failed to persist session end",
+				mlog.String("callID", sess.callID), mlog.String("userID", sess.userID), mlog.Err(err))
 		}
 	}
 
@@ -341,10 +392,13 @@ func (s *CallService) removeSession(cs *callState, sess *session, reason string)
 		"session_id": sess.sessionID,
 	})
 
-	// End the call when the last participant leaves.
+	// End the call when the last participant leaves. The registry identity
+	// check inside endCallState keeps a new call generation on this channel
+	// alive if it started while this teardown was in flight.
 	if cs.participants() == 0 {
-		if err := s.EndCall(cs.callID); err != nil && !errors.Is(err, ErrCallEnded) {
-			s.log.Warn("calls: failed to end call", mlog.Err(err))
+		if err := s.endCallState(cs, model.GetMillis()); err != nil && !errors.Is(err, ErrCallEnded) {
+			s.log.Warn("calls: failed to end call",
+				mlog.String("callID", cs.callID), mlog.String("reason", reason), mlog.Err(err))
 		}
 	}
 }
@@ -376,42 +430,19 @@ func (s *CallService) handleRTCRelay(connID, userID string, msgType rtc.MessageT
 }
 
 // sessionByConn resolves the call state + session for a current connection.
+// One index hit + one call-local map hit — no scanning.
 func (s *CallService) sessionByConn(connID string) (*session, *callState, error) {
-	// Calls are keyed by channel; scan shards via the registry is not
-	// practical, so the connection carries its channel through the message.
-	// For robustness fall back to a scan of live calls (cheap: few calls).
-	for _, cs := range s.allCallStates() {
+	if cs := s.index.byConnID(connID); cs != nil {
 		if sess, ok := cs.findByConn(connID); ok {
 			return sess, cs, nil
 		}
 	}
-	return nil, nil, errors.New("calls: no session found for connection")
-}
-
-// allCallStates returns a snapshot of every live call state. Used only by the
-// connection→session fallback lookup; the join path always knows its channel.
-func (s *CallService) allCallStates() []*callState {
-	var out []*callState
-	seen := map[string]bool{}
-	for i := range s.shards {
-		sh := s.shards[i]
-		sh.mut.RLock()
-		for id, cs := range sh.states {
-			if !seen[id] {
-				seen[id] = true
-				out = append(out, cs)
-			}
-		}
-		sh.mut.RUnlock()
-	}
-	return out
+	return nil, nil, ErrSessionNotFound
 }
 
 // sendToHost sends a control message to the rtcd host owning the call.
 func (s *CallService) sendToHost(cs *callState, msg rtcd.ClientMessage) error {
-	s.mut.RLock()
-	mgr := s.rtcd
-	s.mut.RUnlock()
+	mgr := s.rtcdManager()
 	if mgr == nil || cs.rtcdHost == "" {
 		return ErrNoSFUHost
 	}
@@ -465,14 +496,9 @@ func (s *CallService) handleScreenToggle(connID, userID string, on bool, data ma
 
 	var raw []byte
 	if on {
-		payload, _ := data["data"]
-		switch v := payload.(type) {
-		case string:
-			raw = []byte(v)
-		default:
-			if encoded, jerr := json.Marshal(payload); jerr == nil {
-				raw = encoded
-			}
+		raw, err = rtcPayload(data)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -505,14 +531,9 @@ func (s *CallService) handleVideoToggle(connID, userID string, on bool, data map
 
 	var raw []byte
 	if on {
-		payload, _ := data["data"]
-		switch v := payload.(type) {
-		case string:
-			raw = []byte(v)
-		default:
-			if encoded, jerr := json.Marshal(payload); jerr == nil {
-				raw = encoded
-			}
+		raw, err = rtcPayload(data)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -629,4 +650,23 @@ func (s *CallService) handleCallStateRequest(connID, userID string, data map[str
 	}
 	s.sendCallState(cs, connID)
 	return nil
+}
+
+// rtcPayload extracts the raw signaling payload a browser attached under the
+// "data" key. The plugin protocol sends SDP/ICE blobs as JSON strings; other
+// shapes are re-encoded.
+func rtcPayload(data map[string]any) ([]byte, error) {
+	payload, _ := data["data"]
+	switch v := payload.(type) {
+	case nil:
+		return nil, nil
+	case string:
+		return []byte(v), nil
+	default:
+		encoded, err := json.Marshal(payload)
+		if err != nil {
+			return nil, fmt.Errorf("calls: failed to encode rtc payload: %w", err)
+		}
+		return encoded, nil
+	}
 }

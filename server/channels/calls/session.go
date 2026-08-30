@@ -14,6 +14,11 @@ import (
 // videoOn, voiceOn) are fanned out as presence events and kept here for fast
 // reads and call-state snapshots.
 //
+// Concurrency: all mutable fields are accessed ONLY while holding the owning
+// callState's lock (see state.go accessors — connIDFor, mutate, snapshot).
+// The atomic flags below gate cross-cutting teardown transitions that must
+// fire exactly once even when several sources race.
+//
 // Identity model (matches the plugin/SFU contract):
 //   - sessionID is the websocket connection id issued when the participant
 //     joined and is STABLE for the life of the call participation, even across
@@ -42,9 +47,9 @@ type session struct {
 
 	startAt int64
 
-	// Lifecycle signaling.
+	// Lifecycle signaling: markRTCclosed and markRemoved are compare-and-
+	// swaps so the corresponding teardown runs exactly once.
 	rtcClosed int32
-	left      int32
 	removed   int32
 }
 
@@ -54,10 +59,8 @@ func (s *session) markRTCclosed() bool {
 	return atomic.CompareAndSwapInt32(&s.rtcClosed, 0, 1)
 }
 
-func (s *session) hasLeft() bool { return atomic.LoadInt32(&s.left) != 0 }
-func (s *session) markLeft()     { atomic.StoreInt32(&s.left, 1) }
-
-func (s *session) isRemoved() bool { return atomic.LoadInt32(&s.removed) != 0 }
+// markRemoved atomically marks the session host-removed. Returns true only
+// for the first caller so the removal teardown is not repeated.
 func (s *session) markRemoved() bool {
 	return atomic.CompareAndSwapInt32(&s.removed, 0, 1)
 }

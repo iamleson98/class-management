@@ -18,7 +18,7 @@ import (
 	"github.com/mattermost/rtcd/service/store"
 	"github.com/mattermost/rtcd/service/ws"
 
-	"github.com/mattermost/mattermost/server/public/shared/mlog"
+	"github.com/iamleson98/sitename/server/public/shared/mlog"
 
 	godeltaprof "github.com/grafana/pyroscope-go/godeltaprof/http/pprof"
 	"github.com/prometheus/procfs"

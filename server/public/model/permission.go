@@ -2806,7 +2806,7 @@ func initializePermissions() {
 	AllPermissions = append(AllPermissions, PlaybookScopedPermissions...)
 	AllPermissions = append(AllPermissions, RunScopedPermissions...)
 
-	LearningSystemScopedPermissions := []*Permission{
+	LearningSystemScopedPermissions = []*Permission{
 		PermissionLmsManageBranches,
 		PermissionLmsManageCourses,
 		PermissionLmsManageClasses,
@@ -2861,6 +2861,9 @@ func initializePermissions() {
 	for _, mbp := range ModeratedBookmarkPermissions {
 		ChannelModeratedPermissionsMap[mbp.Id] = ChannelModeratedPermissions[4]
 	}
+	// LearningSystemScopedPermissions (the package-level set, declared in
+	// role.go) is populated above alongside the other scoped permission sets.
+
 }
 
 func init() {

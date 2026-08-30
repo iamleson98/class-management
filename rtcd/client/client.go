@@ -14,7 +14,7 @@ import (
 
 	"github.com/mattermost/rtcd/service/ws"
 
-	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/iamleson98/sitename/server/public/model"
 
 	"github.com/pion/webrtc/v4"
 )

@@ -92,7 +92,3 @@ var validMsgTypes = map[string]bool{
 }
 
 func isValidMsgType(t string) bool { return validMsgTypes[t] }
-
-// wsReconnectionTimeout is how long a client may be transiently disconnected
-// before its session is torn down.
-const wsReconnectionTimeout = 10 // seconds; matches the plugin's constant

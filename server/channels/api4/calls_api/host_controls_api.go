@@ -10,8 +10,6 @@ import (
 	"github.com/iamleson98/sitename/server/public/model"
 	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"github.com/iamleson98/sitename/server/v8/channels/api4"
-	"github.com/iamleson98/sitename/server/v8/channels/calls"
-	"github.com/iamleson98/sitename/server/v8/channels/web"
 )
 
 // InitHostControls registers the host-control routes on the Calls route group.
@@ -19,13 +17,13 @@ import (
 // Routes (all session-required; the requester must be the current call host
 // or a system admin):
 //
-//      POST /calls/{call_id}/host/make         {new_host_id}  transfer host role
-//      POST /calls/{call_id}/host/mute         {session_id}   mute a participant
-//      POST /calls/{call_id}/host/mute-others                 mute everyone else
-//      POST /calls/{call_id}/host/screen-off   {session_id}   stop a screen share
-//      POST /calls/{call_id}/host/lower-hand   {session_id}   lower a raised hand
-//      POST /calls/{call_id}/host/remove       {session_id}   remove a participant
-//      POST /calls/{call_id}/host/end                         end call for all
+//	POST /calls/{call_id}/host/make         {new_host_id}  transfer host role
+//	POST /calls/{call_id}/host/mute         {session_id}   mute a participant
+//	POST /calls/{call_id}/host/mute-others                 mute everyone else
+//	POST /calls/{call_id}/host/screen-off   {session_id}   stop a screen share
+//	POST /calls/{call_id}/host/lower-hand   {session_id}   lower a raised hand
+//	POST /calls/{call_id}/host/remove       {session_id}   remove a participant
+//	POST /calls/{call_id}/host/end                         end call for all
 func (a *CallsAPI) InitHostControls() {
 	r := a.api
 	base := a.routes.Calls
@@ -47,7 +45,7 @@ type hostControlRequest struct {
 
 // resolveHostAction parses the call id and optional body. Authorization is
 // enforced by the service (current host) — with a system-admin bypass
-// resolved via requesterFor below.
+// resolved via requesterFor below. A malformed body is rejected.
 func resolveHostAction(c *api4.Context, r *http.Request) (string, hostControlRequest, bool) {
 	callID := c.RequireParam("call_id", requireCallID)
 	if c.Err != nil {
@@ -55,8 +53,9 @@ func resolveHostAction(c *api4.Context, r *http.Request) (string, hostControlReq
 	}
 
 	var body hostControlRequest
-	if r.Body != nil {
-		_ = json.NewDecoder(r.Body).Decode(&body) // body optional
+	if err := decodeOptionalJSON(r, &body); err != nil {
+		c.Err = model.NewAppError("resolveHostAction", "api.calls.invalid_body.app_error", nil, err.Error(), http.StatusBadRequest)
+		return "", hostControlRequest{}, false
 	}
 	return callID, body, true
 }

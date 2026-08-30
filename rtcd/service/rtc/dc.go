@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/mattermost/mattermost/server/public/shared/mlog"
+	"github.com/iamleson98/sitename/server/public/model"
+	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"github.com/mattermost/rtcd/service/rtc/dc"
 	"github.com/pion/webrtc/v4"
 )

@@ -7,7 +7,9 @@ import (
 	"strings"
 
 	"github.com/iamleson98/sitename/server/public/model"
+	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"github.com/iamleson98/sitename/server/public/shared/request"
+	"github.com/iamleson98/sitename/server/v8/channels/app"
 	"github.com/iamleson98/sitename/server/v8/channels/app/platform"
 )
 
@@ -31,7 +33,7 @@ const callsActionPrefix = "custom_calls_"
 // callsWSHandler serves one custom_calls_* action with full connection
 // context (implements platform's unexported webSocketHandler interface).
 type callsWSHandler struct {
-	app *App
+	app *app.App
 	fn  func(conn *platform.WebConn, req *model.WebSocketRequest)
 }
 
@@ -67,19 +69,29 @@ func (api *API) InitCalls() {
 	register("metric", api.callsForward)  // client diagnostics, logged by the service
 }
 
+// callsSession resolves the authenticated session behind a websocket
+// connection. Returns nil when the connection carries no user identity, in
+// which case calls actions are silently dropped (matching the plugin's
+// behavior for unauthenticated connections).
+func (api *API) callsSession(conn *platform.WebConn) *model.Session {
+	if session := conn.GetSession(); session != nil {
+		return session
+	}
+	// Fall back to resolving via the connection's auth token.
+	session, err := api.App.GetSession(conn.GetSessionToken())
+	if err != nil {
+		api.App.Log().Debug("wsapi.calls: failed to resolve session for connection",
+			mlog.String("connID", conn.GetConnectionID()), mlog.Err(err))
+		return nil
+	}
+	return session
+}
+
 // callsForward resolves the connection's session and forwards the message to
 // the native calls service with the custom_calls_ prefix stripped.
 func (api *API) callsForward(conn *platform.WebConn, req *model.WebSocketRequest) {
-	session := conn.GetSession()
-	if session == nil {
-		// Fall back to resolving via the connection's auth token.
-		s, err := api.App.GetSession(conn.GetSessionToken())
-		if err != nil {
-			return
-		}
-		session = s
-	}
-	if session.UserId == "" {
+	session := api.callsSession(conn)
+	if session == nil || session.UserId == "" {
 		return
 	}
 
@@ -93,26 +105,26 @@ func (api *API) callsForward(conn *platform.WebConn, req *model.WebSocketRequest
 }
 
 // callsWithChannelPermission wraps a handler with a channel-membership check
-// (the action's data carries channelID).
+// (the action's data carries channelID). On lookup errors access is denied —
+// fail closed.
 func (api *API) callsWithChannelPermission(next func(conn *platform.WebConn, req *model.WebSocketRequest)) func(conn *platform.WebConn, req *model.WebSocketRequest) {
 	return func(conn *platform.WebConn, req *model.WebSocketRequest) {
 		channelID, _ := req.Data["channelID"].(string)
 		if channelID == "" {
 			return
 		}
-		session := conn.GetSession()
-		if session == nil {
-			s, err := api.App.GetSession(conn.GetSessionToken())
-			if err != nil {
-				return
-			}
-			session = s
-		}
-		if session.UserId == "" {
+		session := api.callsSession(conn)
+		if session == nil || session.UserId == "" {
 			return
 		}
 		rctx := request.EmptyContext(api.App.Log())
-		if hasPermission, _ := api.App.SessionHasPermissionToChannel(rctx, *session, channelID, model.PermissionCreatePost); !hasPermission {
+		hasPermission, isMember := api.App.SessionHasPermissionToChannel(rctx, *session, channelID, model.PermissionCreatePost)
+		if !isMember {
+			api.App.Log().Debug("wsapi.calls: caller is not a member of the channel",
+				mlog.String("channelID", channelID))
+			return
+		}
+		if !hasPermission {
 			return
 		}
 		next(conn, req)

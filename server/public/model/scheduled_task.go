@@ -65,7 +65,7 @@ func createTaskWithContext(ctx context.Context, name string, function TaskFunc, 
 		defer cancelFunc()
 
 		var firstTick <-chan time.Time
-		var ticker *time.Ticker
+		var tickerCh <-chan time.Time
 
 		if fromNextIntervalTime {
 			curr := time.Now()
@@ -75,7 +75,8 @@ func createTaskWithContext(ctx context.Context, name string, function TaskFunc, 
 			}
 			firstTick = time.After(time.Until(first))
 		} else {
-			ticker = time.NewTicker(interval)
+			ticker := time.NewTicker(interval)
+			tickerCh = ticker.C
 			defer ticker.Stop()
 		}
 
@@ -83,12 +84,13 @@ func createTaskWithContext(ctx context.Context, name string, function TaskFunc, 
 			select {
 			case <-firstTick:
 				firstTick = nil
-				if ticker == nil {
-					ticker = time.NewTicker(interval)
+				if tickerCh == nil {
+					ticker := time.NewTicker(interval)
+					tickerCh = ticker.C
 					defer ticker.Stop()
 				}
 				safeRun(function, name)
-			case <-ticker.C:
+			case <-tickerCh:
 				safeRun(function, name)
 			case <-taskCtx.Done():
 				return

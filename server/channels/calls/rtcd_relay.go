@@ -26,38 +26,29 @@ func (s *CallService) handleRTCDMessage(host string, msg rtcd.ClientMessage) {
 	case rtcd.ClientMessageRTC:
 		rtcMsg, ok := cm.Data.(rtc.Message)
 		if !ok {
-			s.log.Error("calls: unexpected rtc message data type", mlog.Any("type", fmt.Sprintf("%T", cm.Data)))
+			s.log.Error("calls: unexpected rtc message data type",
+				mlog.String("host", host), mlog.String("type", fmt.Sprintf("%T", cm.Data)))
 			return
 		}
 		s.relayRTCMessage(rtcMsg)
 
 	case rtcd.ClientMessageClose:
-		data, ok := cm.Data.(map[string]string)
+		data, ok := closeMessageData(cm.Data)
 		if !ok {
-			// msgpack-decoded typed maps may surface as map[string]interface{}.
-			if anyData, alt := cm.Data.(map[string]any); alt {
-				data = map[string]string{}
-				for k, v := range anyData {
-					if sv, isStr := v.(string); isStr {
-						data[k] = sv
-					}
-				}
-				ok = true
-			}
-		}
-		if !ok {
-			s.log.Error("calls: unexpected close message data type", mlog.Any("type", fmt.Sprintf("%T", cm.Data)))
+			s.log.Error("calls: unexpected close message data type",
+				mlog.String("host", host), mlog.String("type", fmt.Sprintf("%T", cm.Data)))
 			return
 		}
 		sessionID := data["sessionID"]
 		if sessionID == "" {
 			return
 		}
-		s.log.Debug("calls: rtcd closed session", mlog.String("sessionID", sessionID))
-		if cs := s.callStateForSession(sessionID); cs != nil {
+		s.log.Debug("calls: rtcd closed session",
+			mlog.String("host", host), mlog.String("sessionID", sessionID))
+		if cs := s.index.bySessionID(sessionID); cs != nil {
 			if sess, found := cs.get(sessionID); found {
 				if sess.markRTCclosed() {
-					s.removeSession(cs, sess, "rtc_closed")
+					s.teardownSession(cs, sess, reasonRTCClosed)
 				}
 			}
 		}
@@ -65,7 +56,28 @@ func (s *CallService) handleRTCDMessage(host string, msg rtcd.ClientMessage) {
 	case rtcd.ClientMessageHello, rtcd.ClientMessageJoin, rtcd.ClientMessageReconnect, rtcd.ClientMessageLeave:
 		// Control-plane acknowledgements; nothing to relay to browsers.
 	default:
-		s.log.Debug("calls: ignoring unexpected rtcd message", mlog.String("type", cm.Type))
+		s.log.Debug("calls: ignoring unexpected rtcd message",
+			mlog.String("host", host), mlog.String("type", cm.Type))
+	}
+}
+
+// closeMessageData extracts the sessionID map from a ClientMessageClose
+// payload. Depending on the codec path the map arrives typed
+// (map[string]string) or generic (map[string]any, e.g. msgpack-decoded).
+func closeMessageData(data any) (map[string]string, bool) {
+	switch v := data.(type) {
+	case map[string]string:
+		return v, true
+	case map[string]any:
+		out := make(map[string]string, len(v))
+		for k, val := range v {
+			if sv, isStr := val.(string); isStr {
+				out[k] = sv
+			}
+		}
+		return out, true
+	default:
+		return nil, false
 	}
 }
 
@@ -73,7 +85,7 @@ func (s *CallService) handleRTCDMessage(host string, msg rtcd.ClientMessage) {
 func (s *CallService) relayRTCMessage(rtcMsg rtc.Message) {
 	switch rtcMsg.Type {
 	case rtc.VoiceOnMessage, rtc.VoiceOffMessage:
-		cs := s.callStateForSession(rtcMsg.SessionID)
+		cs := s.index.bySessionID(rtcMsg.SessionID)
 		if cs == nil {
 			return
 		}
@@ -89,33 +101,18 @@ func (s *CallService) relayRTCMessage(rtcMsg rtc.Message) {
 		})
 	default:
 		// SDP answers / ICE candidates from the SFU: unicast to the session's
-		// current connection as a `signal` event.
-		cs := s.callStateForSession(rtcMsg.SessionID)
+		// current connection as a `signal` event (payload keys match the
+		// plugin contract: data blob + originating connID).
+		cs := s.index.bySessionID(rtcMsg.SessionID)
 		if cs == nil {
 			return
 		}
-		sess, ok := cs.get(rtcMsg.SessionID)
-		if !ok {
-			return
-		}
-		data := rtcMsg.Data
-		if data == nil {
+		if rtcMsg.Data == nil {
 			return
 		}
 		s.publishTo(eventSignal, map[string]any{
-			"data": string(data),
-		}, sess.connID)
+			"data":   string(rtcMsg.Data),
+			"connID": rtcMsg.SessionID,
+		}, cs.connIDFor(rtcMsg.SessionID))
 	}
-}
-
-// callStateForSession resolves the live call state owning a sessionID. Session
-// ids are globally unique (websocket connection ids), so a reverse scan over
-// live calls is correct; the live-call count per node is small.
-func (s *CallService) callStateForSession(sessionID string) *callState {
-	for _, cs := range s.allCallStates() {
-		if _, ok := cs.get(sessionID); ok {
-			return cs
-		}
-	}
-	return nil
 }

@@ -14,6 +14,7 @@ import (
 
 // CallService is the singleton realtime call control plane. It owns:
 //   - the sharded in-memory call-state registry (hot path),
+//   - the global session index (connID/sessionID -> call, hot path),
 //   - the rtcd client manager (external SFU, DNS-discovered pool),
 //   - the persistence bridge (durable boundaries only),
 //   - the realtime hub (presence + signaling fan-out).
@@ -25,12 +26,15 @@ type CallService struct {
 	log mlog.LoggerIFace
 
 	shards shardRegistry
+	index  *sessionRegistry
 	rtcd   *rtcdClientManager
 	store  StoreBridge
 	hub    HubBroadcaster
 
+	// mut guards the lifecycle fields below (started, rtcd). It is held only
+	// for pointer swaps and flag flips — never across network I/O — so the
+	// signaling hot path (sendToHost takes mut.RLock) is never blocked.
 	mut     sync.RWMutex
-	stopCh  chan struct{}
 	started bool
 }
 
@@ -60,58 +64,86 @@ func New(cfg ServiceConfig) (*CallService, error) {
 		return nil, errors.New("calls: Hub is required")
 	}
 
+	storeBridgeInstance := cfg.StoreFn()
+	if storeBridgeInstance == nil {
+		return nil, errors.New("calls: StoreFn returned a nil store")
+	}
+	cfgSnapshot := cfg.ConfigFn()
+	if cfgSnapshot == nil {
+		return nil, errors.New("calls: ConfigFn returned a nil config")
+	}
+
 	s := &CallService{
 		cfg:    cfg,
 		log:    cfg.Log,
-		store:  cfg.StoreFn(),
+		store:  storeBridgeInstance,
 		hub:    cfg.Hub,
-		shards: newShardRegistry(shardCountFor(&cfg.ConfigFn().CallsSettings)),
-		stopCh: make(chan struct{}),
+		shards: newShardRegistry(shardCountFor(&cfgSnapshot.CallsSettings)),
+		index:  newSessionRegistry(),
 	}
 	return s, nil
 }
 
 // Start brings up the rtcd client manager (if configured) and registers cluster
-// handlers. It is idempotent.
+// handlers. It is idempotent. The manager construction (DNS resolution plus
+// one control WebSocket per discovered host) happens OUTSIDE the service lock
+// so signaling on an already-running service is never blocked by startup I/O.
 func (s *CallService) Start() error {
-	s.mut.Lock()
-	defer s.mut.Unlock()
-	if s.started {
+	if s.startedFast() {
 		return nil
 	}
 
+	var mgr *rtcdClientManager
 	if url := s.callsConfig().rtcdURL(); url != "" {
-		mgr, err := newRTCDClientManager(url, s.log, s.cfg.KVStore, s.newRTCDClient, s.handleRTCDMessage)
+		m, err := newRTCDClientManager(url, s.log, s.cfg.KVStore, s.newRTCDClient, s.handleRTCDMessage)
 		if err != nil {
 			return fmt.Errorf("calls: failed to init rtcd client manager: %w", err)
 		}
-		s.rtcd = mgr
-		s.log.Info("calls: rtcd client manager started", mlog.String("url", url))
+		mgr = m
 	} else {
 		s.log.Warn("calls: rtcd service URL not set; calls media is unavailable until configured")
+	}
+
+	s.mut.Lock()
+	if s.started {
+		// A concurrent Start() won the race and already owns the manager.
+		s.mut.Unlock()
+		if mgr != nil {
+			if err := mgr.Close(); err != nil {
+				s.log.Warn("calls: closed duplicate rtcd manager", mlog.Err(err))
+			}
+		}
+		return nil
+	}
+	s.rtcd = mgr
+	s.started = true
+	s.mut.Unlock()
+
+	if mgr != nil {
+		s.log.Info("calls: rtcd client manager started", mlog.String("url", s.callsConfig().rtcdURL()))
 	}
 
 	if s.cfg.Cluster != nil {
 		s.registerClusterHandlers()
 	}
-
-	s.started = true
 	return nil
 }
 
-// Stop tears down the rtcd manager and releases resources.
+// Stop tears down the rtcd manager and releases resources. Idempotent.
 func (s *CallService) Stop() error {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 	if !s.started {
 		return nil
 	}
-	close(s.stopCh)
-	if s.rtcd != nil {
-		_ = s.rtcd.Close()
-		s.rtcd = nil
-	}
+	mgr := s.rtcd
+	s.rtcd = nil
 	s.started = false
+	if mgr != nil {
+		if err := mgr.Close(); err != nil {
+			return fmt.Errorf("calls: failed to close rtcd client manager: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -122,25 +154,44 @@ func (s *CallService) Enabled() bool {
 
 // HasRTCD reports whether an external rtcd SFU pool is configured and connected.
 func (s *CallService) HasRTCD() bool {
+	return s.rtcdManager() != nil
+}
+
+// rtcdManager returns the live rtcd client manager, or nil when calls run
+// without an external SFU (rtcd URL not configured). The read is lock-guarded
+// so Stop() can never race a concurrent send into a nil dereference.
+func (s *CallService) rtcdManager() *rtcdClientManager {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
-	return s.rtcd != nil
+	return s.rtcd
+}
+
+func (s *CallService) startedFast() bool {
+	s.mut.RLock()
+	defer s.mut.RUnlock()
+	return s.started
 }
 
 // newRTCDClient is the factory passed to the rtcd manager: it resolves the
 // client config for this server, builds an adapter pinned to a specific host,
 // and brings up the control WebSocket (Register + Connect). One call per host.
 func (s *CallService) newRTCDClient(rtcdURL, host string) (RTCDClient, error) {
-	cfg, err := s.rtcd.resolveClientConfig(rtcdURL, s.cfg.ClientID)
+	mgr := s.rtcdManager()
+	if mgr == nil {
+		return nil, errors.New("calls: rtcd client manager is not running")
+	}
+	cfg, err := mgr.resolveClientConfig(rtcdURL, s.cfg.ClientID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve rtcd client config: %w", err)
 	}
-	adapter, err := newRTCDClientAdapter(cfg, dialFuncForHost(host, s.rtcd.rtcdPort), s.log)
+	adapter, err := newRTCDClientAdapter(cfg, dialFuncForHost(host, mgr.rtcdPort), s.log)
 	if err != nil {
 		return nil, err
 	}
 	if err := adapter.Connect(); err != nil {
-		adapter.Close()
+		if cerr := adapter.Close(); cerr != nil {
+			s.log.Debug("calls: error closing failed rtcd adapter", mlog.Err(cerr))
+		}
 		return nil, err
 	}
 	return adapter, nil

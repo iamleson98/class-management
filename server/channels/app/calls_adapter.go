@@ -4,6 +4,8 @@
 package app
 
 import (
+	"fmt"
+
 	"github.com/iamleson98/sitename/server/public/model"
 	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"github.com/iamleson98/sitename/server/public/shared/request"
@@ -134,8 +136,12 @@ func (a callsPostAdapter) UpdateCallPostEnded(postID string, props map[string]an
 		return err
 	}
 
+	postJSON, jsonErr := post.ToJSON()
+	if jsonErr != nil {
+		return fmt.Errorf("failed to encode post to JSON: %w", jsonErr)
+	}
 	msg := model.NewWebSocketEvent(model.WebsocketEventPostEdited, "", post.ChannelId, "", nil, "")
-	msg.Add("post", post.ToJson())
+	msg.Add("post", postJSON)
 	app.Publish(msg)
 	return nil
 }

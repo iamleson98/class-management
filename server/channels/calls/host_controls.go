@@ -4,10 +4,8 @@
 package calls
 
 import (
-	"errors"
 	"fmt"
 
-	rtcd "github.com/mattermost/rtcd/service"
 	"github.com/mattermost/rtcd/service/rtc"
 
 	"github.com/iamleson98/sitename/server/public/shared/mlog"
@@ -18,11 +16,6 @@ import (
 // may invoke them. Effects are fanned out as the plugin's host_* events so a
 // stock webapp client reacts identically.
 
-var (
-	ErrNotCallHost    = errors.New("calls: only the host can perform this action")
-	ErrSessionNotFound = errors.New("calls: session not found")
-)
-
 // callForHostAction resolves the call state and verifies the requester is the
 // current host.
 func (s *CallService) callForHostAction(callID, requesterUserID string) (*callState, error) {
@@ -30,8 +23,7 @@ func (s *CallService) callForHostAction(callID, requesterUserID string) (*callSt
 	if !ok {
 		return nil, ErrCallNotFound
 	}
-	host, _ := cs.hostSession()
-	if host == nil || host.userID != requesterUserID {
+	if cs.hostUserID() != requesterUserID {
 		return nil, ErrNotCallHost
 	}
 	return cs, nil
@@ -45,17 +37,7 @@ func (s *CallService) MakeHost(callID, requesterUserID, newHostUserID string) er
 		return err
 	}
 
-	var target *session
-	cs.mut.Lock()
-	for id, sess := range cs.sessions {
-		if sess.userID == newHostUserID {
-			cs.hostConn = id
-			target = sess
-			break
-		}
-	}
-	cs.mut.Unlock()
-	if target == nil {
+	if !cs.setHostByUser(newHostUserID) {
 		return ErrSessionNotFound
 	}
 
@@ -73,12 +55,18 @@ func (s *CallService) MuteSession(callID, requesterUserID, sessionID string) err
 	if err != nil {
 		return err
 	}
+	return s.muteOne(cs, sessionID)
+}
+
+// muteOne mutes one session of an already-authorized call (used by
+// MuteSession and the MuteOthers loop).
+func (s *CallService) muteOne(cs *callState, sessionID string) error {
 	sess, ok := cs.get(sessionID)
 	if !ok {
 		return ErrSessionNotFound
 	}
 
-	if err := s.sendToHost(cs, rtcEnvelope(sess.sessionID, cs.callID, sess.userID, rtc.MuteMessage, nil)); err != nil {
+	if err := s.sendToHost(cs, rtcEnvelope(sessionID, cs.callID, sess.userID, rtc.MuteMessage, nil)); err != nil {
 		return fmt.Errorf("calls: failed to mute SFU session: %w", err)
 	}
 
@@ -87,7 +75,7 @@ func (s *CallService) MuteSession(callID, requesterUserID, sessionID string) err
 	s.publishTo(eventHostMute, map[string]any{
 		"channel_id": cs.channelID,
 		"session_id": sessionID,
-	}, sess.connID)
+	}, cs.connIDFor(sessionID))
 
 	s.publishChannel(cs.channelID, eventUserMuted, map[string]any{
 		"userID":     sess.userID,
@@ -96,15 +84,13 @@ func (s *CallService) MuteSession(callID, requesterUserID, sessionID string) err
 	return nil
 }
 
-// MuteOthers host-mutes every other participant.
+// MuteOthers host-mutes every other participant. Authorization is resolved
+// once; per-session failures (e.g. a participant leaving mid-loop) are logged
+// and skipped so one missing session cannot abort the sweep.
 func (s *CallService) MuteOthers(callID, requesterUserID string) error {
 	cs, err := s.callForHostAction(callID, requesterUserID)
 	if err != nil {
 		return err
-	}
-	host, _ := cs.hostSession()
-	if host == nil {
-		return ErrSessionNotFound
 	}
 
 	views, _ := cs.snapshot()
@@ -112,8 +98,9 @@ func (s *CallService) MuteOthers(callID, requesterUserID string) error {
 		if !v.Unmuted || v.UserID == requesterUserID {
 			continue
 		}
-		if err := s.MuteSession(callID, requesterUserID, v.ID); err != nil {
-			s.log.Warn("calls: mute-others failed for session", mlog.String("sessionID", v.ID), mlog.Err(err))
+		if err := s.muteOne(cs, v.ID); err != nil {
+			s.log.Warn("calls: mute-others failed for session",
+				mlog.String("sessionID", v.ID), mlog.Err(err))
 		}
 	}
 	return nil
@@ -130,7 +117,7 @@ func (s *CallService) ScreenOff(callID, requesterUserID, sessionID string) error
 		return ErrSessionNotFound
 	}
 
-	if err := s.sendToHost(cs, rtcEnvelope(sess.sessionID, cs.callID, sess.userID, rtc.ScreenOffMessage, nil)); err != nil {
+	if err := s.sendToHost(cs, rtcEnvelope(sessionID, cs.callID, sess.userID, rtc.ScreenOffMessage, nil)); err != nil {
 		return fmt.Errorf("calls: failed to stop screen on SFU: %w", err)
 	}
 
@@ -139,7 +126,7 @@ func (s *CallService) ScreenOff(callID, requesterUserID, sessionID string) error
 	s.publishTo(eventHostScreenOff, map[string]any{
 		"channel_id": cs.channelID,
 		"session_id": sessionID,
-	}, sess.connID)
+	}, cs.connIDFor(sessionID))
 
 	s.publishChannel(cs.channelID, eventUserScreenOff, map[string]any{
 		"userID":     sess.userID,
@@ -165,7 +152,7 @@ func (s *CallService) LowerHand(callID, requesterUserID, sessionID string) error
 		"channel_id": cs.channelID,
 		"session_id": sessionID,
 		"host_id":    requesterUserID,
-	}, sess.connID)
+	}, cs.connIDFor(sessionID))
 
 	s.publishChannel(cs.channelID, eventUserUnraiseHand, map[string]any{
 		"userID":      sess.userID,
@@ -194,7 +181,7 @@ func (s *CallService) RemoveSession(callID, requesterUserID, sessionID string) e
 	s.publishTo(eventHostRemoved, map[string]any{
 		"channel_id": cs.channelID,
 		"session_id": sessionID,
-	}, sess.connID)
+	}, cs.connIDFor(sessionID))
 
 	// Tell everyone else who was removed so they see the notice (the shared
 	// teardown below also fans out user_left).
@@ -204,7 +191,7 @@ func (s *CallService) RemoveSession(callID, requesterUserID, sessionID string) e
 		"host_id":    requesterUserID,
 	})
 
-	s.removeSession(cs, sess, "removed")
+	s.teardownSession(cs, sess, reasonRemoved)
 	return nil
 }
 
@@ -214,12 +201,4 @@ func (s *CallService) EndCallByHost(callID, requesterUserID string) error {
 		return err
 	}
 	return s.EndCall(callID)
-}
-
-// sendLeaveToHost is a tiny helper kept for future cluster relay paths.
-func (s *CallService) sendLeaveToHost(cs *callState, sessionID string) error {
-	return s.sendToHost(cs, rtcd.ClientMessage{
-		Type: rtcd.ClientMessageLeave,
-		Data: map[string]string{"sessionID": sessionID},
-	})
 }

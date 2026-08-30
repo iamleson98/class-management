@@ -12,14 +12,22 @@ import (
 )
 
 // Common errors returned by the service. These map to model.AppError at the
-// API layer.
+// API layer (see api4/calls_api/callsToAppError).
 var (
-	ErrCallsDisabled    = errors.New("calls: feature is disabled")
-	ErrNoSFUHost        = errors.New("calls: no rtcd host available")
-	ErrCallNotFound     = errors.New("calls: call not found")
-	ErrCallEnded        = errors.New("calls: call has ended")
-	ErrMaxParticipants  = errors.New("calls: maximum participants reached")
-	ErrAlreadyConnected = errors.New("calls: session is already connected")
+	ErrCallsDisabled   = errors.New("calls: feature is disabled")
+	ErrNoSFUHost       = errors.New("calls: no rtcd host available")
+	ErrCallNotFound    = errors.New("calls: call not found")
+	ErrCallEnded       = errors.New("calls: call has ended")
+	ErrMaxParticipants = errors.New("calls: maximum participants reached")
+	ErrSessionNotFound = errors.New("calls: session not found")
+	ErrNotCallHost     = errors.New("calls: only the host can perform this action")
+)
+
+// Teardown reasons, used for log context on the shared session teardown path.
+const (
+	reasonLeft      = "left"
+	reasonRemoved   = "removed"
+	reasonRTCClosed = "rtc_closed"
 )
 
 // StartCallOpts are the parameters for starting a new call in a channel.
@@ -58,9 +66,10 @@ func (s *CallService) StartCall(opts StartCallOpts) (*StartResult, error) {
 	}
 
 	// Assign an rtcd host for this call's media.
+	mgr := s.rtcdManager()
 	var rtcdHost string
-	if s.rtcd != nil {
-		h, err := s.rtcd.GetHostForNewCall()
+	if mgr != nil {
+		h, err := mgr.GetHostForNewCall()
 		if err != nil {
 			return nil, fmt.Errorf("%w: %v", ErrNoSFUHost, err)
 		}
@@ -69,14 +78,19 @@ func (s *CallService) StartCall(opts StartCallOpts) (*StartResult, error) {
 
 	now := model.GetMillis()
 
-	cs := newCallState(callID, opts.ChannelID, opts.OwnerID, rtcdHost)
 	shard := s.shards.shardFor(callID)
-	if _, created := shard.getOrCreate(callID, func() *callState { return cs }); !created {
-		// A concurrent start won the race; reuse its state.
-		cs, _ = shard.get(callID)
+	cs := newCallState(callID, opts.ChannelID, rtcdHost)
+	state, created := shard.getOrCreateLive(callID, func() *callState { return cs })
+	if !created {
+		// A concurrent start won the race (or the previous generation's
+		// teardown was still in flight); reuse the live state instead of
+		// persisting and announcing a duplicate call_start.
+		return &StartResult{CallID: state.callID, RTCDHost: state.rtcdHost, StartAt: state.startAt}, nil
 	}
 
-	// Persist the call record (durable boundary: call start).
+	// Persist the call record (durable boundary: call start). Roll back the
+	// in-memory state ONLY for the state this call created — a lost racer
+	// must never delete the winner's registry entry.
 	call := &model.Call{
 		ID:        callID,
 		ChannelID: opts.ChannelID,
@@ -86,8 +100,7 @@ func (s *CallService) StartCall(opts StartCallOpts) (*StartResult, error) {
 		CreateAt:  now,
 	}
 	if _, err := s.store.Call().Save(call); err != nil {
-		// Roll back the in-memory state on persistence failure.
-		shard.delete(callID)
+		shard.deleteIf(callID, state)
 		return nil, fmt.Errorf("calls: failed to persist call: %w", err)
 	}
 
@@ -116,38 +129,63 @@ func (s *CallService) StartCall(opts StartCallOpts) (*StartResult, error) {
 
 // EndCall terminates an in-progress call: marks it ended, persists the end
 // boundary and stats, removes the in-memory state, and broadcasts call_end.
+//
+// It is idempotent per call generation: concurrent enders (the last two
+// participants leaving at once, a host ending while the last participant
+// leaves) produce exactly one persisted end boundary, one stats row, and one
+// call_end broadcast.
 func (s *CallService) EndCall(callID string) error {
 	cs, ok := s.shards.get(callID)
 	if !ok {
 		return ErrCallNotFound
 	}
-	if cs.ended() {
+	return s.endCallState(cs, model.GetMillis())
+}
+
+// endCallState tears down a specific call generation. Callers that already
+// hold the callState (e.g. the last participant leaving) pass it directly so
+// the generation check in the shard is exact.
+func (s *CallService) endCallState(cs *callState, now int64) error {
+	// First ender wins; everyone else gets ErrCallEnded.
+	if !cs.markEnded(now) {
 		return ErrCallEnded
 	}
 
-	now := model.GetMillis()
 	views, _ := cs.snapshot()
 	participantCount := len(views)
+	sessionIDs := cs.sessionIDs()
+	peakParticipants := cs.peak()
 
-	// Remove from registry.
-	s.shards.delete(callID)
+	// Remove from the registry only if it still maps to THIS generation. If a
+	// new call already started on the channel, leave its state alone.
+	owned := s.shards.deleteIf(cs.callID, cs)
 
-	// Persist the end boundary.
-	call, err := s.store.Call().Get(callID)
-	if err == nil {
+	// Persist the end boundary and stats regardless of registry ownership:
+	// this generation's call record owes its EndAt either way.
+	call, err := s.store.Call().Get(cs.callID)
+	if err != nil {
+		s.log.Error("calls: failed to load call for end persistence",
+			mlog.String("callID", cs.callID), mlog.Err(err))
+	} else {
 		call.EndAt = now
-		_, _ = s.store.Call().Update(call)
+		if _, err := s.store.Call().Update(call); err != nil {
+			s.log.Error("calls: failed to persist call end",
+				mlog.String("callID", cs.callID), mlog.Err(err))
+		}
 
 		// Record aggregate stats (cheap; one row per call).
-		_, _ = s.store.CallStat().Save(&model.CallStat{
+		if _, err := s.store.CallStat().Save(&model.CallStat{
 			ID:               model.NewId(),
-			CallID:           callID,
+			CallID:           cs.callID,
 			ChannelID:        cs.channelID,
 			Participants:     participantCount,
-			PeakParticipants: cs.peakParticipants,
+			PeakParticipants: peakParticipants,
 			DurationSeconds:  int((now - cs.startAt) / 1000),
 			CreateAt:         now,
-		})
+		}); err != nil {
+			s.log.Error("calls: failed to persist call stats",
+				mlog.String("callID", cs.callID), mlog.Err(err))
+		}
 	}
 
 	// Update the call's announcement post (end_at + participant list).
@@ -159,15 +197,23 @@ func (s *CallService) EndCall(callID string) error {
 	if call != nil {
 		postID = call.PostID
 	}
-	s.endCallPost(callID, postID, participants)
+	s.endCallPost(cs.callID, postID, participants)
 
-	// Announce the end to channel members.
-	s.broadcast(eventCallEnd, map[string]any{
-		"channel_id": cs.channelID,
-		"call_id":    callID,
-		"end_at":     now,
-	}, &model.WebsocketBroadcast{ChannelId: cs.channelID})
+	// Drop every session of this generation from the global index.
+	for _, id := range sessionIDs {
+		s.index.unlink(id, cs.connIDFor(id))
+	}
 
+	// Announce the end to channel members — but never when a newer
+	// generation is already live on the channel (its participants must not
+	// receive a call_end for a call they just joined).
+	if owned {
+		s.broadcast(eventCallEnd, map[string]any{
+			"channel_id": cs.channelID,
+			"call_id":    cs.callID,
+			"end_at":     now,
+		}, &model.WebsocketBroadcast{ChannelId: cs.channelID})
+	}
 	return nil
 }
 
@@ -227,7 +273,7 @@ func (s *CallService) GetCallState(callID string) (*CallStateView, error) {
 		CallID:        cs.callID,
 		ChannelID:     cs.channelID,
 		StartAt:       cs.startAt,
-		EndAt:         cs.endAt,
+		EndAt:         cs.endedAt(),
 		RTCDHost:      cs.rtcdHost,
 		Sessions:      views,
 		Participants:  len(views),

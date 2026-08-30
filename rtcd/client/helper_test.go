@@ -15,7 +15,7 @@ import (
 
 	"github.com/mattermost/rtcd/service/random"
 
-	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/iamleson98/sitename/server/public/model"
 
 	"github.com/pion/rtp"
 	"github.com/pion/rtp/codecs"

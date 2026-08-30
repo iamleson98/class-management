@@ -5,6 +5,7 @@ package calls
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -96,6 +97,11 @@ func (a *rtcdClientAdapter) clientOrConnect() (*rtcd.Client, error) {
 	}
 	a.mut.RLock()
 	defer a.mut.RUnlock()
+	// Connect succeeded but Close() may have run concurrently; never hand out
+	// a nil client to a caller that would dereference it.
+	if a.client == nil {
+		return nil, errors.New("rtcd: client closed during connect")
+	}
 	return a.client, nil
 }
 

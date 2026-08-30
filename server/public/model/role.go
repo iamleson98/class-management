@@ -1200,72 +1200,49 @@ func MakeDefaultRoles() map[string]*Role {
 	return roles
 }
 
+// LearningSystemScopedPermissions is the authoritative set of LMS-scoped
+// permissions. The super admin and admin roles grant exactly this set; tests
+// assert the full-grant roles cover every entry (and nothing else).
+// It is populated by initializePermissions (see permission.go), like every
+// other permission value — package-level initializers would capture nils
+// because permissions are assigned inside init().
+var LearningSystemScopedPermissions []*Permission
+
+// lmsScopedPermissionIDs derives the permission id list from
+// LearningSystemScopedPermissions so the full-grant roles and the source of
+// truth can never drift apart.
+func lmsScopedPermissionIDs() []string {
+	ids := make([]string, 0, len(LearningSystemScopedPermissions))
+	for _, p := range LearningSystemScopedPermissions {
+		ids = append(ids, p.Id)
+	}
+	return ids
+}
+
 // MakeDefaultLMSRoles returns a map of default LMS roles with their assigned permissions.
 func MakeDefaultLMSRoles() map[string]*Role {
 	roles := make(map[string]*Role)
 
 	roles[RoleLmsSuperAdminRoleId] = &Role{
-		Name:          RoleLmsSuperAdminRoleId,
-		DisplayName:   "LMS Super Admin",
-		Description:   "Full access to all LMS features",
-		Permissions: []string{
-			PermissionLmsManageBranches.Id,
-			PermissionLmsManageCourses.Id,
-			PermissionLmsManageClasses.Id,
-			PermissionLmsManageSessions.Id,
-			PermissionLmsManageAttendance.Id,
-			PermissionLmsManageLeads.Id,
-			PermissionLmsManageTuition.Id,
-			PermissionLmsManagePosts.Id,
-			PermissionLmsManageHomework.Id,
-			PermissionLmsManageWeeklyReviews.Id,
-			PermissionLmsManageMaterials.Id,
-			PermissionLmsManageTasks.Id,
-			PermissionLmsManageBanners.Id,
-			PermissionLmsViewNotifications.Id,
-			PermissionLmsManageClassMedia.Id,
-			PermissionLmsManageDashboard.Id,
-			PermissionLmsViewReports.Id,
-			PermissionLmsManageStudents.Id,
-			PermissionLmsManageUsers.Id,
-			PermissionLmsManageFeePackages.Id,
-		},
-		BuiltIn: true,
+		Name:        RoleLmsSuperAdminRoleId,
+		DisplayName: "LMS Super Admin",
+		Description: "Full access to all LMS features",
+		Permissions: lmsScopedPermissionIDs(),
+		BuiltIn:     true,
 	}
 
 	roles[RoleLmsAdminRoleId] = &Role{
-		Name:          RoleLmsAdminRoleId,
-		DisplayName:   "LMS Admin",
-		Description:   "Manage all LMS features including employees and users",
-		Permissions: []string{
-			PermissionLmsManageBranches.Id,
-			PermissionLmsManageCourses.Id,
-			PermissionLmsManageClasses.Id,
-			PermissionLmsManageSessions.Id,
-			PermissionLmsManageAttendance.Id,
-			PermissionLmsManageLeads.Id,
-			PermissionLmsManageTuition.Id,
-			PermissionLmsManagePosts.Id,
-			PermissionLmsManageHomework.Id,
-			PermissionLmsManageWeeklyReviews.Id,
-			PermissionLmsManageMaterials.Id,
-			PermissionLmsManageTasks.Id,
-			PermissionLmsManageBanners.Id,
-			PermissionLmsViewNotifications.Id,
-			PermissionLmsManageClassMedia.Id,
-			PermissionLmsManageDashboard.Id,
-			PermissionLmsViewReports.Id,
-			PermissionLmsManageStudents.Id,
-			PermissionLmsManageUsers.Id,
-			PermissionLmsManageFeePackages.Id,
-		},
-		BuiltIn: true,
+		Name:        RoleLmsAdminRoleId,
+		DisplayName: "LMS Admin",
+		Description: "Manage all LMS features including employees and users",
+		Permissions: lmsScopedPermissionIDs(),
+		BuiltIn:     true,
 	}
 
 	roles[RoleLmsCounselorRoleId] = &Role{
-		Name:          RoleLmsCounselorRoleId,
-		DisplayName:   "LMS Counselor",
-		Description:   "Manage leads, students, and dashboard",
+		Name:        RoleLmsCounselorRoleId,
+		DisplayName: "LMS Counselor",
+		Description: "Manage leads, students, and dashboard",
 		Permissions: []string{
 			PermissionLmsManageLeads.Id,
 			PermissionLmsManageStudents.Id,
@@ -1275,9 +1252,9 @@ func MakeDefaultLMSRoles() map[string]*Role {
 	}
 
 	roles[RoleLmsTeacherRoleId] = &Role{
-		Name:          RoleLmsTeacherRoleId,
-		DisplayName:   "LMS Teacher",
-		Description:   "Manage sessions, attendance, homework, reviews, and class media",
+		Name:        RoleLmsTeacherRoleId,
+		DisplayName: "LMS Teacher",
+		Description: "Manage sessions, attendance, homework, reviews, and class media",
 		Permissions: []string{
 			PermissionLmsManageSessions.Id,
 			PermissionLmsManageAttendance.Id,
@@ -1295,9 +1272,9 @@ func MakeDefaultLMSRoles() map[string]*Role {
 	}
 
 	roles[RoleLmsAccountantRoleId] = &Role{
-		Name:          RoleLmsAccountantRoleId,
-		DisplayName:   "LMS Accountant",
-		Description:   "Manage tuition, payments, and financial reports",
+		Name:        RoleLmsAccountantRoleId,
+		DisplayName: "LMS Accountant",
+		Description: "Manage tuition, payments, and financial reports",
 		Permissions: []string{
 			PermissionLmsManageTuition.Id,
 			PermissionLmsManageDashboard.Id,
@@ -1307,9 +1284,9 @@ func MakeDefaultLMSRoles() map[string]*Role {
 	}
 
 	roles[RoleLmsMarketingRoleId] = &Role{
-		Name:          RoleLmsMarketingRoleId,
-		DisplayName:   "LMS Marketing",
-		Description:   "Manage posts, banners, and marketing reports",
+		Name:        RoleLmsMarketingRoleId,
+		DisplayName: "LMS Marketing",
+		Description: "Manage posts, banners, and marketing reports",
 		Permissions: []string{
 			PermissionLmsManagePosts.Id,
 			PermissionLmsManageBanners.Id,
@@ -1323,9 +1300,9 @@ func MakeDefaultLMSRoles() map[string]*Role {
 	}
 
 	roles[RoleLmsParentRoleId] = &Role{
-		Name:          RoleLmsParentRoleId,
-		DisplayName:   "LMS Parent",
-		Description:   "View dashboard",
+		Name:        RoleLmsParentRoleId,
+		DisplayName: "LMS Parent",
+		Description: "View dashboard",
 		// Parents browse their children's schedule, homework, reviews, class
 		// media and tuition. The LMS API only has coarse manage_* permissions
 		// (no per-object scoping), so these grants are read-oriented in usage.
@@ -1342,9 +1319,9 @@ func MakeDefaultLMSRoles() map[string]*Role {
 	}
 
 	roles[RoleLmsStudentRoleId] = &Role{
-		Name:          RoleLmsStudentRoleId,
-		DisplayName:   "LMS Student",
-		Description:   "View dashboard",
+		Name:        RoleLmsStudentRoleId,
+		DisplayName: "LMS Student",
+		Description: "View dashboard",
 		// Students browse their own schedule, materials, homework (submit)
 		// and weekly reviews. Coarse manage_* grants, read-oriented in usage.
 		Permissions: []string{

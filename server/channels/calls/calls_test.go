@@ -21,8 +21,8 @@ type recordingHub struct {
 }
 
 type publishedEvent struct {
-	name string
-	data map[string]any
+	name  string
+	data  map[string]any
 	bcast *model.WebsocketBroadcast
 }
 
@@ -50,7 +50,7 @@ func newTestService(t *testing.T) (*CallService, *recordingHub) {
 		StoreFn:  func() StoreBridge { return nilStoreBridge{} },
 		ConfigFn: func() *model.Config { return cfg },
 		Hub:      hub,
-		Log:      mlog.CreateTestLogger(),
+		Log:      mlog.CreateTestLogger(t),
 	})
 	require.NoError(t, err)
 	return svc, hub
@@ -59,7 +59,7 @@ func newTestService(t *testing.T) (*CallService, *recordingHub) {
 // seedCall registers an in-progress call with one joined session and returns
 // the call state.
 func seedCall(s *CallService, callID, channelID, userID, connID string) *callState {
-	cs := newCallState(callID, channelID, userID, "rtcd-host")
+	cs := newCallState(callID, channelID, "rtcd-host")
 	sess := &session{
 		userID:    userID,
 		channelID: channelID,
@@ -69,9 +69,11 @@ func seedCall(s *CallService, callID, channelID, userID, connID string) *callSta
 		unmuted:   true,
 		startAt:   model.GetMillis(),
 	}
-	cs.addSession(connID, sess)
+	cs.addSession(connID, sess, 0)
 	shard := s.shards.shardFor(callID)
 	shard.getOrCreate(callID, func() *callState { return cs })
+	// Maintain the global index invariant the handlers rely on.
+	s.index.link(connID, connID, cs)
 	return cs
 }
 
@@ -154,6 +156,7 @@ func TestGetConfig(t *testing.T) {
 	_, err := json.Marshal(cfg)
 	assert.NoError(t, err)
 }
+
 // ─── Round 2: per-channel enable/disable, states feed, dismiss sync ─────
 
 // fakeCallsChannelStore is an in-memory CallsChannelStore.
@@ -214,7 +217,7 @@ type bridgeWithCallsChannel struct {
 }
 
 func (b bridgeWithCallsChannel) CallsChannel() store.CallsChannelStore { return b.callsChannel }
-func (b bridgeWithCallsChannel) CallSession() store.CallSessionStore  { return errSessionStore{} }
+func (b bridgeWithCallsChannel) CallSession() store.CallSessionStore   { return errSessionStore{} }
 
 func newTestServiceWithChannels(t *testing.T, cc store.CallsChannelStore) (*CallService, *recordingHub) {
 	t.Helper()
@@ -227,7 +230,7 @@ func newTestServiceWithChannels(t *testing.T, cc store.CallsChannelStore) (*Call
 		StoreFn:  func() StoreBridge { return bridgeWithCallsChannel{callsChannel: cc} },
 		ConfigFn: func() *model.Config { return cfg },
 		Hub:      hub,
-		Log:      mlog.CreateTestLogger(),
+		Log:      mlog.CreateTestLogger(t),
 	})
 	require.NoError(t, err)
 	return svc, hub
@@ -255,6 +258,7 @@ func TestSetCallsChannelEnabledPersistsAndBroadcasts(t *testing.T) {
 	assert.Equal(t, eventChannelEnableVoice, hub.events[1].name)
 
 	// The join path honors the disabled preference.
+	require.NoError(t, s.SetCallsChannelEnabled("chan1", false, "admin1"))
 	err := s.handleJoin("conn1", "u1", map[string]any{"channelID": "chan1"})
 	assert.ErrorIs(t, err, ErrChannelCallsDisabled)
 }
@@ -302,7 +306,7 @@ func TestHostRemoveBroadcastsUserRemoved(t *testing.T) {
 		unmuted:   true,
 		startAt:   model.GetMillis(),
 	}
-	cs.addSession("connVictim", sess)
+	cs.addSession("connVictim", sess, 0)
 
 	// The SFU close is logged-only when no rtcd host exists; the presence
 	// broadcasts must still fire.
@@ -333,7 +337,7 @@ func TestLowerHandNoticeCarriesHostID(t *testing.T) {
 		unmuted:   true,
 		startAt:   model.GetMillis(),
 	}
-	cs.addSession("conn2", sess)
+	cs.addSession("conn2", sess, 0)
 
 	hub.events = nil
 	err := s.LowerHand("call1", "host", "conn2")

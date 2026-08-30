@@ -13,7 +13,7 @@ import (
 	"github.com/mattermost/rtcd/service/random"
 
 	"github.com/gorilla/websocket"
-	"github.com/mattermost/mattermost/server/public/shared/mlog"
+	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"github.com/stretchr/testify/require"
 )
 

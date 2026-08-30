@@ -26,7 +26,6 @@ import (
 // rtcd-related constants, ported from the plugin's rtcd.go. They govern DNS
 // discovery, reconnection, and host health.
 const (
-	maxReconnectAttempts    = 8
 	resolveTimeout          = 2 * time.Second
 	dialingTimeout          = 4 * time.Second
 	hostCheckInterval       = 10 * time.Second
@@ -88,8 +87,9 @@ type rtcdClientManager struct {
 	// construction; read-only afterwards.
 	onMessage func(host string, msg rtcd.ClientMessage)
 
-	mut     sync.RWMutex
-	closeCh chan struct{}
+	mut       sync.RWMutex
+	closeCh   chan struct{}
+	closeOnce sync.Once
 }
 
 // KVStore is the narrow persistence surface the manager needs to durably store
@@ -123,7 +123,13 @@ func (s *rtcdConfigStore) load() (rtcd.ClientConfig, bool) {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 	data, err := s.kv.Get(rtcdConfigKVKey)
-	if err != nil || len(data) == 0 {
+	if err != nil {
+		// A missing key is the normal first-boot path; anything else is worth
+		// a debug line but must not block generating a fresh key.
+		s.log.Debug("rtcd config load returned an error", mlog.Err(err))
+		return rtcd.ClientConfig{}, false
+	}
+	if len(data) == 0 {
 		return rtcd.ClientConfig{}, false
 	}
 	var cfg rtcd.ClientConfig
@@ -157,12 +163,15 @@ func newRTCDClientManager(rtcdURL string, log mlog.LoggerIFace, kv KVStore, newC
 	for _, ip := range ips {
 		client, err := m.newClient(rtcdURL, ip.String())
 		if err != nil {
-			for _, h := range m.hosts {
-				h.client.Close()
-			}
+			m.closeAllHosts()
 			return nil, fmt.Errorf("failed to create rtcd client for host %s: %w", ip, err)
 		}
 		if err := m.addHost(ip.String(), client); err != nil {
+			// addHost rejected the host (e.g. duplicate): close the orphan so
+			// its control connection does not leak.
+			if cerr := client.Close(); cerr != nil {
+				log.Debug("failed to close rejected rtcd client", mlog.String("host", ip.String()), mlog.Err(cerr))
+			}
 			return nil, fmt.Errorf("failed to add rtcd host: %w", err)
 		}
 		log.Debug("rtcd client created", mlog.String("host", ip.String()))
@@ -186,7 +195,7 @@ func (m *rtcdClientManager) hostsChecker() {
 		case <-ticker.C:
 			ips, _, err := resolveURL(m.rtcdURL, resolveTimeout)
 			if err != nil {
-				m.log.Warn("failed to resolve rtcd URL", mlog.String("err", err.Error()))
+				m.log.Warn("failed to resolve rtcd URL", mlog.Err(err))
 				continue
 			}
 			ipsMap := make(map[string]bool, len(ips))
@@ -215,12 +224,16 @@ func (m *rtcdClientManager) hostsChecker() {
 				}
 				client, err := m.newClient(m.rtcdURL, ip)
 				if err != nil {
-					m.log.Warn("failed to create rtcd client for new host", mlog.String("host", ip), mlog.String("err", err.Error()))
+					m.log.Warn("failed to create rtcd client for new host",
+						mlog.String("host", ip), mlog.Err(err))
 					continue
 				}
 				if err := m.addHost(ip, client); err != nil {
-					m.log.Warn("failed to add new rtcd host", mlog.String("host", ip), mlog.String("err", err.Error()))
-					client.Close()
+					m.log.Warn("failed to add new rtcd host",
+						mlog.String("host", ip), mlog.Err(err))
+					if cerr := client.Close(); cerr != nil {
+						m.log.Debug("failed to close rejected rtcd client", mlog.String("host", ip), mlog.Err(cerr))
+					}
 				}
 			}
 		}
@@ -243,20 +256,6 @@ func (m *rtcdClientManager) addHost(ip string, client RTCDClient) error {
 			}
 		}
 	}()
-	return nil
-}
-
-func (m *rtcdClientManager) removeHost(ip string) error {
-	m.mut.Lock()
-	defer m.mut.Unlock()
-	h, ok := m.hosts[ip]
-	if !ok {
-		return fmt.Errorf("host not found: %s", ip)
-	}
-	delete(m.hosts, ip)
-	if h.client != nil {
-		_ = h.client.Close()
-	}
 	return nil
 }
 
@@ -306,17 +305,36 @@ func (m *rtcdClientManager) SendToHost(host string, msg rtcd.ClientMessage) erro
 	return c.Send(msg)
 }
 
+// Close stops the host checker and tears down every host client. Idempotent.
 func (m *rtcdClientManager) Close() error {
-	close(m.closeCh)
-	m.mut.Lock()
-	defer m.mut.Unlock()
+	var closeErr error
+	m.closeOnce.Do(func() {
+		close(m.closeCh)
+		m.mut.Lock()
+		closeErr = m.closeAllHostsLocked()
+		m.mut.Unlock()
+	})
+	return closeErr
+}
+
+// closeAllHosts closes every host client WITHOUT taking the manager lock;
+// callers must already hold m.mut (or guarantee exclusive access, as the
+// constructor's failure path does before any goroutine exists).
+func (m *rtcdClientManager) closeAllHosts() error {
+	return m.closeAllHostsLocked()
+}
+
+func (m *rtcdClientManager) closeAllHostsLocked() error {
+	var firstErr error
 	for _, h := range m.hosts {
 		if h.client != nil {
-			_ = h.client.Close()
+			if err := h.client.Close(); err != nil && firstErr == nil {
+				firstErr = err
+			}
 		}
 	}
 	m.hosts = map[string]*rtcdHost{}
-	return nil
+	return firstErr
 }
 
 // resolveClientConfig resolves the rtcd ClientConfig (ClientID + AuthKey) using
@@ -368,7 +386,7 @@ func (m *rtcdClientManager) resolveClientConfig(rtcdURL, clientIDFallback string
 		}
 		cfg.AuthKey = key
 		if err := cfgStore.store(cfg); err != nil {
-			m.log.Warn("failed to persist rtcd config", mlog.String("err", err.Error()))
+			m.log.Warn("failed to persist rtcd config", mlog.Err(err))
 		}
 	}
 

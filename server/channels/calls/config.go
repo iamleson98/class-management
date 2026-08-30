@@ -115,26 +115,3 @@ func shardCountFor(cs *model.CallsSettings) int {
 	}
 	return *cs.StateShardCount
 }
-
-// batchMinMembers returns the participant count above which join/leave
-// fan-out is coalesced into batched events (see batching/).
-func (c config) batchMinMembers() int {
-	if c.BatchMinMembers == nil {
-		return 100
-	}
-	return *c.BatchMinMembers
-}
-
-func (c config) batchIntervalMs() int {
-	if c.BatchIntervalMs == nil || *c.BatchIntervalMs <= 0 {
-		return 1000
-	}
-	return *c.BatchIntervalMs
-}
-
-func (c config) batchMaxSize() int {
-	if c.BatchMaxSize == nil || *c.BatchMaxSize <= 0 {
-		return 1000
-	}
-	return *c.BatchMaxSize
-}

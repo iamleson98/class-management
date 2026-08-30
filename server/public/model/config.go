@@ -198,6 +198,10 @@ const (
 
 	BleveSettingsDefaultIndexDir  = ""
 	BleveSettingsDefaultBatchSize = 10000
+	// BulkIndexingTimeWindowSeconds mirrors the Elasticsearch sibling field:
+	// telemetry-only, unconsumed, defaulted to 0 (the api4 layer uses the same
+	// placeholder for Elasticsearch).
+	BleveSettingsDefaultBulkIndexingTimeWindowSeconds = 0
 
 	AnnouncementSettingsDefaultBannerColor                  = "#f2a93b"
 	AnnouncementSettingsDefaultBannerTextColor              = "#333333"
@@ -4132,6 +4136,9 @@ func (bs *BleveSettings) SetDefaults() {
 	}
 	if bs.BatchSize == nil {
 		bs.BatchSize = new(BleveSettingsDefaultBatchSize)
+	}
+	if bs.BulkIndexingTimeWindowSeconds == nil {
+		bs.BulkIndexingTimeWindowSeconds = NewPointer(BleveSettingsDefaultBulkIndexingTimeWindowSeconds)
 	}
 }
 
