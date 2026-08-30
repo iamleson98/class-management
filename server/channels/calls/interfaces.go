@@ -59,6 +59,12 @@ type ServiceConfig struct {
 	// Required when RTCDServiceURL is configured.
 	KVStore KVStore
 
+	// PostCreatorFn lazily resolves the app-layer bridge that persists call
+	// announcement posts (see posts.go). Optional; when nil no posts are
+	// created. Lazy because the service is constructed before the app layer
+	// is ready to serve.
+	PostCreatorFn func() PostCreator
+
 	// ClientID is the fallback rtcd client identity when no explicit ID is
 	// configured (env var or embedded URL credential). Typically the server
 	// diagnostic ID.

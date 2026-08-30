@@ -23,6 +23,7 @@ import { client4 } from '@/lib/chat/client'
 import { userDisplayName, type ChatPost } from '@/lib/chat/types'
 import { displayUsername } from '@/lib/chat/utils'
 import { PostComposer } from './post-composer'
+import { CallPostCard } from '@/features/calls/call-post'
 import { useTranslation } from '@/lib/i18n'
 import { useEffect } from 'react'
 
@@ -114,6 +115,9 @@ export function ThreadView({ channelId, rootId, teamId, onClose }: ThreadViewPro
               const name = userDisplayName(author)
               const isOwn = post.user_id === userId
               const isRoot = post.id === rootId
+              if ((post.type as string) === 'custom_calls') {
+                return <CallPostCard key={post.id} post={post} />
+              }
               return (
                 <div key={post.id} className={`flex gap-2.5 ${isRoot ? 'pb-3 border-b mb-1' : ''}`}>
                   <Avatar name={name} size="sm" className="mt-0.5" />

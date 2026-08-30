@@ -19,6 +19,7 @@ import (
 //
 // Routes (all session-required):
 //
+//      GET    /calls/config                                client calls config
 //      POST   /calls/channels/{channel_id}              start (or reuse) a call
 //      GET    /calls/channels/{channel_id}              get active call for channel
 //      GET    /calls/{call_id}                          get call state
@@ -27,6 +28,7 @@ func (a *CallsAPI) InitCalls() {
 	r := a.api
 	base := a.routes.Calls
 
+	base.Method(http.MethodGet, "/config", r.APISessionRequired(getCallsConfig))
 	base.Method(http.MethodPost, "/channels/{channel_id:[A-Za-z0-9]+}", r.APISessionRequired(startCall))
 	base.Method(http.MethodGet, "/channels/{channel_id:[A-Za-z0-9]+}", r.APISessionRequired(getCallByChannel))
 	base.Method(http.MethodGet, "/{call_id:[A-Za-z0-9]+}", r.APISessionRequired(getCall))
@@ -34,6 +36,14 @@ func (a *CallsAPI) InitCalls() {
 
 	// Host controls (make host / mute / screen off / lower hand / remove / end)
 	a.InitHostControls()
+}
+
+// getCallsConfig returns the client-facing calls configuration used for
+// frontend feature gating (mirrors the plugin's GET /config).
+func getCallsConfig(c *api4.Context, w http.ResponseWriter, r *http.Request) {
+	if err := json.NewEncoder(w).Encode(c.App.Calls().GetConfig()); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
 }
 
 // startCallRequest is the body for POST /calls/channels/{channel_id}.

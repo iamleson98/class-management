@@ -62,6 +62,9 @@ func (api *API) InitCalls() {
 	register("video_off", api.callsForward)
 	register("raise_hand", api.callsForward)
 	register("unraise_hand", api.callsForward)
+	register("react", api.callsForward)
+	register("caption", api.callsForward) // accepted for forward-compat (phase 4)
+	register("metric", api.callsForward)  // client diagnostics, logged by the service
 }
 
 // callsForward resolves the connection's session and forwards the message to

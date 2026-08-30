@@ -24,6 +24,7 @@ import { TypingIndicator } from './typing-indicator'
 import { MessageContent } from './message-content'
 import { PostMenu } from './post-menu'
 import { shortcodeToUnicode } from '@/lib/chat/emoji-data'
+import { CallPostCard } from '@/features/calls/call-post'
 
 interface PostListProps {
   channelId: string
@@ -451,6 +452,11 @@ function PostRow(props: PostRowProps) {
     }
     return m
   }, [reactions, currentUserId])
+
+  // Custom call posts render as interactive call cards.
+  if ((post.type as string) === 'custom_calls') {
+    return <CallPostCard post={post} />
+  }
 
   return (
     <div

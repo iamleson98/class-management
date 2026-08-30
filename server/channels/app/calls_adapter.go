@@ -6,6 +6,7 @@ package app
 import (
 	"github.com/iamleson98/sitename/server/public/model"
 	"github.com/iamleson98/sitename/server/public/shared/mlog"
+	"github.com/iamleson98/sitename/server/public/shared/request"
 	"github.com/iamleson98/sitename/server/v8/channels/app/platform"
 	"github.com/iamleson98/sitename/server/v8/channels/calls"
 )
@@ -77,4 +78,64 @@ func (a *callsKVAdapter) Set(key string, value []byte) error {
 var (
 	_ calls.HubBroadcaster = (*callsHubAdapter)(nil)
 	_ calls.KVStore        = (*callsKVAdapter)(nil)
+	_ calls.PostCreator    = (*callsPostAdapter)(nil)
 )
+
+// callsPostAdapter adapts the App to calls.PostCreator: it persists the call
+// announcement posts (custom_calls type) through the normal post pipeline so
+// websocket fan-out, notifications and unread counts behave like any post.
+type callsPostAdapter struct {
+	ch *Channels
+}
+
+// app returns a lightweight App view over the Channels (cheap struct).
+func (a callsPostAdapter) app() *App {
+	return New(ServerConnector(a.ch))
+}
+
+// CreateCallPost creates the "call started" channel post.
+func (a callsPostAdapter) CreateCallPost(channelID, userID string, props map[string]any) (string, error) {
+	app := a.app()
+	rctx := request.EmptyContext(app.Log())
+
+	post := &model.Post{
+		UserId:    userID,
+		ChannelId: channelID,
+		Message:   "Call started",
+		Type:      calls.CallPostType,
+		Props:     props,
+	}
+
+	created, _, appErr := app.CreatePostMissingChannel(rctx, post, false, false)
+	if appErr != nil {
+		return "", appErr
+	}
+	return created.Id, nil
+}
+
+// UpdateCallPostEnded patches the call post with the end time and participant
+// list, then broadcasts post_edited so open channel views refresh the card.
+func (a callsPostAdapter) UpdateCallPostEnded(postID string, props map[string]any) error {
+	app := a.app()
+	rctx := request.EmptyContext(app.Log())
+
+	post, err := app.Srv().Store().Post().GetSingle(rctx, postID, false)
+	if err != nil {
+		return err
+	}
+	for k, v := range props {
+		post.AddProp(k, v)
+	}
+	post.Message = "Call ended"
+	post.EditAt = model.GetMillis()
+	post.UpdateAt = post.EditAt
+
+	if _, err := app.Srv().Store().Post().Overwrite(rctx, post); err != nil {
+		return err
+	}
+
+	msg := model.NewWebSocketEvent(model.WebsocketEventPostEdited, "", post.ChannelId, "", nil, "")
+	msg.Add("post", post.ToJson())
+	app.Publish(msg)
+	return nil
+}

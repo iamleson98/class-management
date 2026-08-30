@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/iamleson98/sitename/server/public/model"
+	"github.com/iamleson98/sitename/server/public/shared/mlog"
 )
 
 // Common errors returned by the service. These map to model.AppError at the
@@ -90,12 +91,24 @@ func (s *CallService) StartCall(opts StartCallOpts) (*StartResult, error) {
 		return nil, fmt.Errorf("calls: failed to persist call: %w", err)
 	}
 
+	// Create the channel's call announcement post (interactive call card).
+	// Best effort: failures are logged inside and the call still runs.
+	postID := s.createCallPost(cs, opts.OwnerID)
+	if postID != "" {
+		call.PostID = postID
+		if _, uerr := s.store.Call().Update(call); uerr != nil {
+			s.log.Warn("calls: failed to persist call post id", mlog.Err(uerr))
+		}
+	}
+
 	// Announce the call to channel members.
 	s.broadcast(eventCallStart, map[string]any{
 		"channel_id": opts.ChannelID,
 		"call_id":    callID,
 		"start_at":   now,
 		"rtcd_host":  rtcdHost,
+		"post_id":    postID,
+		"owner_id":   opts.OwnerID,
 	}, &model.WebsocketBroadcast{ChannelId: opts.ChannelID})
 
 	return &StartResult{CallID: callID, RTCDHost: rtcdHost, StartAt: now}, nil
@@ -137,6 +150,17 @@ func (s *CallService) EndCall(callID string) error {
 		})
 	}
 
+	// Update the call's announcement post (end_at + participant list).
+	participants := make([]string, 0, len(views))
+	for _, v := range views {
+		participants = append(participants, v.UserID)
+	}
+	postID := ""
+	if call != nil {
+		postID = call.PostID
+	}
+	s.endCallPost(callID, postID, participants)
+
 	// Announce the end to channel members.
 	s.broadcast(eventCallEnd, map[string]any{
 		"channel_id": cs.channelID,
@@ -145,6 +169,51 @@ func (s *CallService) EndCall(callID string) error {
 	}, &model.WebsocketBroadcast{ChannelId: cs.channelID})
 
 	return nil
+}
+
+// ConfigView is the client-facing calls configuration, shaped after the Calls
+// plugin's CallsConfig so the webapp gating logic ports over directly. Flags
+// without a native server setting default to the plugin defaults.
+type ConfigView struct {
+	// Enabled reports whether the calls module is active on this server.
+	Enabled bool `json:"enabled"`
+	// MaxCallParticipants is the per-call participant cap (0 = unlimited).
+	MaxCallParticipants int `json:"maxParticipants"`
+	// AllowScreenSharing gates the share-screen controls.
+	AllowScreenSharing bool `json:"allowScreenSharing"`
+	// AllowRecording gates recording UI. Recording is not implemented by the
+	// native control plane yet (phase 4); always false today.
+	AllowRecording bool `json:"allowRecording"`
+	// EnableRinging gates incoming-call notifications for DM/GM channels.
+	EnableRinging bool `json:"ringingEnabled"`
+	// HostControlsAllowed gates host-control menus (mute/remove/lower-hand...).
+	HostControlsAllowed bool `json:"hostControlsAllowed"`
+	// GroupCallsAllowed gates calls in non-DM channels.
+	GroupCallsAllowed bool `json:"groupCallsAllowed"`
+	// EnableVideo gates camera UI (the native SFU path always supports video).
+	EnableVideo bool `json:"enableVideo"`
+	// EnableReactions gates the in-call reaction stream.
+	EnableReactions bool `json:"enableReactions"`
+	// ICEServers is the configured ICE server list (comma-separated URLs).
+	ICEServers []map[string]any `json:"iceServers,omitempty"`
+}
+
+// GetConfig returns the client-facing calls configuration.
+func (s *CallService) GetConfig() *ConfigView {
+	cfg := s.callsConfig()
+	view := &ConfigView{
+		Enabled:             s.Enabled() && s.HasRTCD(),
+		MaxCallParticipants: cfg.maxParticipants(),
+		AllowScreenSharing:  cfg.allowScreenSharing(),
+		AllowRecording:      false, // phase 4 (rtcd recording is not wired yet)
+		EnableRinging:       true,
+		HostControlsAllowed: true,
+		GroupCallsAllowed:   true,
+		EnableVideo:         true,
+		EnableReactions:     true,
+		ICEServers:          s.iceServersForHost(""),
+	}
+	return view
 }
 
 // GetCallState returns a snapshot of a call for API responses.

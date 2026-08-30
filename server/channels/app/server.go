@@ -507,6 +507,9 @@ func NewServer(options ...Option) (*Server, error) {
 		ClientID: s.ServerId(),
 		Log:      s.Log().With(mlog.String("component", "calls")),
 		Metrics:  s.GetMetrics(),
+		PostCreatorFn: func() calls.PostCreator {
+			return callsPostAdapter{ch: s.Channels()}
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create calls service: %w", err)

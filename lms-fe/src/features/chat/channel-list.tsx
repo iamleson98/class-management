@@ -15,7 +15,7 @@
  */
 
 import { useMemo, useState, useCallback } from 'react'
-import { Hash, Lock, Users, Search, MessageSquare, Star, MoreHorizontal, CheckCheck, LogOut } from 'lucide-react'
+import { Hash, Lock, Users, Search, MessageSquare, Star, MoreHorizontal, CheckCheck, LogOut, PhoneCall } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -28,6 +28,7 @@ import {
 import { useChatStore } from '@/lib/chat/store'
 import { client4 } from '@/lib/chat/client'
 import { sortChannelsByTypeAndDisplayName } from '@/lib/chat/utils'
+import { useCallsStore } from '@/features/calls/calls-store'
 import { useToast } from '@/hooks/use-toast'
 import type { ChatChannel, PresenceStatus } from '@/lib/chat/types'
 import { useTranslation } from '@/lib/i18n'
@@ -222,6 +223,8 @@ function ChannelRow({ channel, selectedChannelId, unread, mentions, presence, on
   const { t } = useTranslation()
   const [menuOpen, setMenuOpen] = useState(false)
   const isSelected = channel.id === selectedChannelId
+  // Active-call indicator (ports the sidebar ChannelLinkLabel phone icon).
+  const hasCall = useCallsStore((s) => !!s.activeCalls[channel.id])
   const isPrivate = channel.type === 'P'
   const isDM = channel.type === 'D' || channel.type === 'G'
   const toggleFavorite = useToggleFavorite(useCurrentUserId())
@@ -282,6 +285,9 @@ function ChannelRow({ channel, selectedChannelId, unread, mentions, presence, on
           <Hash className="h-4 w-4 shrink-0 opacity-70" />
         )}
         <span className="truncate flex-1">{channel.display_name}</span>
+        {hasCall && (
+          <PhoneCall className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400 animate-pulse" aria-label={t('chat.callInProgress', 'Cuộc gọi đang diễn ra')} />
+        )}
         {mentions > 0 ? (
           <Badge className="h-4 min-w-4 px-1 text-[10px] bg-sky-600 text-white hover:bg-sky-600">{mentions}</Badge>
         ) : unread > 0 ? (

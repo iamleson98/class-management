@@ -46,6 +46,11 @@ import { AccountSettingsModal } from './account-settings-modal'
 import { ForwardModal } from './forward-modal'
 import { CallButton } from './call-button'
 import { CallWidget } from '@/features/calls/call-widget'
+import { CallErrorModal } from '@/features/calls/call-error-modal'
+import { SwitchCallModal, type SwitchCallTarget } from '@/features/calls/switch-call-modal'
+import { IncomingCallStack } from '@/features/calls/incoming-call-card'
+import { ChannelCallToast } from '@/features/calls/channel-call-toast'
+import { callsClient } from '@/features/calls/calls-client'
 import { useChatShortcuts } from '@/lib/chat/use-chat-shortcuts'
 import { useCallsStore } from '@/features/calls/calls-store'
 import { useQuery } from '@tanstack/react-query'
@@ -71,6 +76,28 @@ export default function ChatView() {
   const channel = useChatStore((s) => (activeChannelId ? s.channels[activeChannelId] : undefined))
   // The channel id of an in-progress call, if any (drives the CallWidget overlay).
   const activeCallChannel = useCallsStore((s) => s.channelId)
+  // Switch-call confirmation target (joining another call while connected).
+  const [switchTarget, setSwitchTarget] = useState<SwitchCallTarget | null>(null)
+
+  // Join requests funnel through one place: the header button, the channel
+  // toast, and the call posts all dispatch 'calls:join-channel'. When already
+  // connected elsewhere, the switch-call modal confirms first.
+  useEffect(() => {
+    const onJoin = (ev: Event) => {
+      const { channelId } = (ev as CustomEvent<{ channelId: string }>).detail ?? {}
+      if (!channelId) return
+      const s = useCallsStore.getState()
+      const inCall = s.channelId != null && s.status !== 'disconnected' && s.status !== 'error'
+      if (inCall && s.channelId !== channelId) {
+        const call = s.activeCalls[channelId]
+        setSwitchTarget({ channelId, callId: call?.callId ?? '' })
+        return
+      }
+      void callsClient.join(channelId, { enableVideo: true })
+    }
+    window.addEventListener('calls:join-channel', onJoin as EventListener)
+    return () => window.removeEventListener('calls:join-channel', onJoin as EventListener)
+  }, [])
   const markActiveCall = useCallsStore((s) => s.markActiveCall)
   // Seed join-button state for channels with in-progress calls (native REST).
   useQuery({
@@ -241,7 +268,7 @@ export default function ChatView() {
                     <span className="text-base">⋯</span>
                   </Button>
                 </StatusMenu>
-                <CallButton channelId={channel.id} enableVideo />
+                <CallButton channelId={channel.id} channelType={channel.type} enableVideo />
                 <div className="flex items-center gap-0.5">
                   <HeaderBtn active={rhs === 'threads'} onClick={() => setRhs(rhs === 'threads' ? 'none' : 'threads')} icon={<MessageSquare className="h-4 w-4" />} label={t('chat.threads', 'Chuỗi')} badge={unreadThreadCount} />
                   <HeaderBtn active={rhs === 'saved'} onClick={() => setRhs(rhs === 'saved' ? 'none' : 'saved')} icon={<Bookmark className="h-4 w-4" />} label={t('chat.saved', 'Đã lưu')} />
@@ -259,6 +286,8 @@ export default function ChatView() {
               </header>
 
               <ChannelBookmarks channelId={channel.id} />
+
+              <ChannelCallToast channelId={channel.id} />
 
               <PostList
                 channelId={channel.id}
@@ -318,6 +347,21 @@ export default function ChatView() {
         {activeCallChannel && (
           <CallWidget channelId={activeCallChannel} />
         )}
+
+        {/* Calls overlays: incoming stack, error modal, switch-call confirm */}
+        <CallErrorModal />
+        <IncomingCallStack
+          onJoinRequested={(channelId) => {
+            const s = useCallsStore.getState()
+            const inCall = s.channelId != null && s.status !== 'disconnected' && s.status !== 'error'
+            if (inCall && s.channelId !== channelId) {
+              setSwitchTarget({ channelId, callId: s.activeCalls[channelId]?.callId ?? '' })
+              return
+            }
+            void callsClient.join(channelId, { enableVideo: true })
+          }}
+        />
+        <SwitchCallModal target={switchTarget} onCancel={() => setSwitchTarget(null)} />
       </div>
     </TooltipProvider>
   )

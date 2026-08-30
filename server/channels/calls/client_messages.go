@@ -54,11 +54,21 @@ func (s *CallService) HandleClientMessage(connID, userID, action string, data ma
 		err = s.handleVideoToggle(connID, userID, action == msgVideoOn, data)
 	case msgRaiseHand, msgUnraiseHand:
 		err = s.handleRaiseHand(connID, userID, action == msgRaiseHand)
+	case msgReact:
+		err = s.handleReact(connID, userID, data)
+	case msgMetric:
+		// Client metrics (e.g. ICE candidate pair reports) are accepted and
+		// logged for diagnostics; no fan-out.
+		s.log.Debug("calls: client metric", mlog.String("userID", userID), mlog.Any("data", data["data"]))
+	case msgCaption:
+		// Live captions are produced by a server-side transcriber (phase 4);
+		// browser captions are ignored.
+		return
 	case msgCallState:
 		err = s.handleCallStateRequest(connID, userID, data)
 	default:
 		// voice_on/voice_off originate from the SFU's VAD, never from the
-		// browser; react/caption/metric are accepted and ignored for now.
+		// browser.
 		return
 	}
 
@@ -542,6 +552,63 @@ func (s *CallService) handleRaiseHand(connID, userID string, raised bool) error 
 		"userID":      userID,
 		"session_id":  sess.sessionID,
 		"raised_hand": raisedAt,
+	})
+	return nil
+}
+
+// emojiData is the reaction payload exchanged with the webapp (name, optional
+// skin, unified codepoint and the literal character), matching the plugin's
+// EmojiData so stock clients interoperate.
+type emojiData struct {
+	Name    string `json:"name"`
+	Skin    string `json:"skin,omitempty"`
+	Unified string `json:"unified"`
+	Literal string `json:"literal,omitempty"`
+}
+
+func (ed emojiData) toMap() map[string]any {
+	return map[string]any{
+		"name":    ed.Name,
+		"skin":    ed.Skin,
+		"unified": ed.Unified,
+		"literal": ed.Literal,
+	}
+}
+
+// handleReact broadcasts an in-call emoji reaction to the call's participants
+// as user_reacted, mirroring the plugin's payload shape exactly:
+// {user_id, session_id, emoji: {name, skin, unified, literal}, timestamp}.
+func (s *CallService) handleReact(connID, userID string, data map[string]any) error {
+	sess, cs, err := s.sessionByConn(connID)
+	if err != nil {
+		return err
+	}
+
+	raw, _ := data["data"]
+	var emoji emojiData
+	switch v := raw.(type) {
+	case string:
+		if err := json.Unmarshal([]byte(v), &emoji); err != nil {
+			return errors.New("calls: invalid reaction data")
+		}
+	default:
+		if encoded, jerr := json.Marshal(raw); jerr == nil {
+			if jerr := json.Unmarshal(encoded, &emoji); jerr != nil {
+				return errors.New("calls: invalid reaction data")
+			}
+		} else {
+			return errors.New("calls: invalid reaction data")
+		}
+	}
+	if emoji.Name == "" && emoji.Literal == "" {
+		return errors.New("calls: empty reaction")
+	}
+
+	s.publishChannel(cs.channelID, eventUserReacted, map[string]any{
+		"user_id":    userID,
+		"session_id": sess.sessionID,
+		"emoji":      emoji.toMap(),
+		"timestamp":  model.GetMillis(),
 	})
 	return nil
 }

@@ -1,147 +1,403 @@
 /**
- * CallWidget — the full-screen call UI for the active channel's call.
+ * CallWidget — the full-screen call UI for the active channel's call (the
+ * "expanded view" in Mattermost Calls terms).
  *
  * Layout (mirrors the Mattermost Calls expanded view, restyled to lms-fe):
- *   ┌ header: title · participants · timer · connection state · error ┐
- *   │ screen stage (when someone shares) — dominant view + sharer tag  │
- *   │ participant grid (auto columns ≤3, scrollable)                   │
- *   └ controls: mute · camera · share · hand · host menu · leave ┘
+ *   ┌ header: title · participants · timer · quality · connection · error ┐
+ *   │ screen stage (when someone shares) — dominant view + sharer tag      │
+ *   │   + video stage: speaker view (large active speaker) or grid         │
+ *   │   + participants grid (avatars when no video)                        │
+ *   │ overlays: host notices · reaction stream · quality banner            │
+ *   │ right panels: participants (host controls) · in-call chat            │
+ *   └ controls: mute · camera · share · hand · react · participants · chat ┘
+ *
+ * Keyboard (plugin parity): ctrl+shift+space mute, ctrl+shift+y hand,
+ * ctrl+shift+e screen, alt+p participants, ctrl+shift+l leave; holding SPACE
+ * is push-to-talk while muted.
  *
  * Subscribes to the calls store only; media plumbing lives in the client.
  */
 
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { Users, AlertTriangle } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+	Users, AlertTriangle, Signal, Maximize2, Hand, UserMinus, Crown, PhoneIncoming,
+} from 'lucide-react'
 import { useTranslation } from '@/lib/i18n'
 import { useLMSStore } from '@/store/lms-store'
 import { useChatStore } from '@/lib/chat/store'
 import { callsClient } from './calls-client'
 import { useCallsStore } from './calls-store'
+import { useCallsConfig } from './calls-config'
 import { CallTimer } from './call-timer'
 import { CallTile } from './call-tile'
 import { CallControls } from './call-controls'
 import { bindCallsWebSocket } from './calls-events'
+import { ReactionStream } from './reaction-stream'
+import { ParticipantsPanel } from './participants-panel'
+import { CallChatPanel } from './call-chat-panel'
+import type { CallQuality } from './calls-store'
+
+/** Quality indicator glyph + color. */
+function QualityBadge({ quality }: { quality: CallQuality }) {
+	const { t } = useTranslation()
+	const map: Record<CallQuality, { bars: number; color: string; label: string }> = {
+		good: { bars: 3, color: 'text-emerald-400', label: t('chat.quality.good', 'Chất lượng tốt') },
+		fair: { bars: 2, color: 'text-amber-400', label: t('chat.quality.fair', 'Chất lượng khá') },
+		poor: { bars: 1, color: 'text-red-400', label: t('chat.quality.poor', 'Chất lượng kém') },
+		unknown: { bars: 0, color: 'text-white/40', label: t('chat.quality.unknown', 'Không rõ chất lượng') },
+	}
+	const q = map[quality]
+	return (
+		<span className={`flex items-center gap-1 ${q.color}`} title={q.label} aria-label={q.label}>
+			<Signal className="h-3.5 w-3.5" />
+			<span className="text-[10px] font-semibold leading-none">{q.bars > 0 ? '●'.repeat(q.bars) : '–'}</span>
+		</span>
+	)
+}
 
 export function CallWidget({ channelId }: { channelId: string }) {
-        const { t } = useTranslation()
+	const { t } = useTranslation()
+	useCallsConfig()
 
-        const status = useCallsStore((s) => s.status)
-        const sessions = useCallsStore((s) => s.sessions)
-        const sessionOrder = useCallsStore((s) => s.sessionOrder)
-        const startAt = useCallsStore((s) => s.startAt)
-        const videoStreams = useCallsStore((s) => s.videoStreams)
-        const screenStream = useCallsStore((s) => s.screenStream)
-        const cameraEnabled = useCallsStore((s) => s.cameraEnabled)
-        const error = useCallsStore((s) => s.error)
+	const status = useCallsStore((s) => s.status)
+	const sessions = useCallsStore((s) => s.sessions)
+	const sessionOrder = useCallsStore((s) => s.sessionOrder)
+	const startAt = useCallsStore((s) => s.startAt)
+	const videoStreams = useCallsStore((s) => s.videoStreams)
+	const screenStream = useCallsStore((s) => s.screenStream)
+	const cameraEnabled = useCallsStore((s) => s.cameraEnabled)
+	const error = useCallsStore((s) => s.error)
+	const notices = useCallsStore((s) => s.notices)
+	const quality = useCallsStore((s) => s.quality)
+	const qualityAlert = useCallsStore((s) => s.qualityAlert)
+	const viewMode = useCallsStore((s) => s.viewMode)
+	const participantsOpen = useCallsStore((s) => s.participantsOpen)
+	const chatOpen = useCallsStore((s) => s.chatOpen)
+	const micEnabled = useCallsStore((s) => s.micEnabled)
 
-        const users = useChatStore((s) => s.users)
-        const authUserId = useLMSStore((s) => s.authUser?.id)
+	const users = useChatStore((s) => s.users)
+	const authUserId = useLMSStore((s) => s.authUser?.id)
 
-        // Keep the call bound to the websocket for the app's lifetime.
-        useEffect(() => {
-                bindCallsWebSocket()
-        }, [])
+	// Keep the call bound to the websocket for the app's lifetime.
+	useEffect(() => {
+		bindCallsWebSocket()
+		callsClient.restoreDeviceSelections()
+		void callsClient.updateDevices()
+	}, [])
 
-        // Self-preview stream (the client owns the local MediaStream). Derived
-        // from the camera flag without an effect: the stream exists once the
-        // client acquired it at join/enable time.
-        const localStream = cameraEnabled ? callsClient.getLocalStream() : null
+	// ── Keyboard shortcuts (plugin parity) ──────────────────────────
+	useEffect(() => {
+		const isTyping = (target: EventTarget | null): boolean => {
+			const el = target as HTMLElement | null
+			return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
+		}
 
-        const screenVideoRef = useRef<HTMLVideoElement>(null)
-        useEffect(() => {
-                if (screenVideoRef.current && screenStream) {
-                        screenVideoRef.current.srcObject = screenStream.stream
-                }
-        }, [screenStream])
+		const onKeyDown = (ev: KeyboardEvent) => {
+			if (isTyping(ev.target)) return
+			const mod = ev.ctrlKey || ev.metaKey
+			if (mod && ev.shiftKey && ev.code === 'Space') {
+				ev.preventDefault()
+				if (useCallsStore.getState().micEnabled) callsClient.mute()
+				else callsClient.unmute()
+			} else if (mod && ev.shiftKey && ev.key.toLowerCase() === 'y') {
+				ev.preventDefault()
+				if (useCallsStore.getState().handRaised) callsClient.lowerHand()
+				else callsClient.raiseHand()
+			} else if (mod && ev.shiftKey && ev.key.toLowerCase() === 'e') {
+				ev.preventDefault()
+				const s = useCallsStore.getState()
+				if (s.screenSharing) callsClient.stopScreenShare()
+				else void callsClient.startScreenShare().catch(() => void 0)
+			} else if ((ev.altKey && ev.key.toLowerCase() === 'p') || (mod && ev.shiftKey && ev.key.toLowerCase() === 'p')) {
+				ev.preventDefault()
+				useCallsStore.getState().toggleParticipants()
+			} else if (mod && ev.shiftKey && ev.key.toLowerCase() === 'l') {
+				ev.preventDefault()
+				callsClient.leave()
+			} else if (ev.code === 'Space' && !ev.repeat) {
+				// Push-to-talk while muted.
+				if (!useCallsStore.getState().micEnabled) {
+					ev.preventDefault()
+					callsClient.pushToTalk(true)
+				}
+			}
+		}
+		const onKeyUp = (ev: KeyboardEvent) => {
+			if (ev.code === 'Space') callsClient.pushToTalk(false)
+		}
+		const onBlur = () => callsClient.pushToTalk(false)
 
-        const participants = sessionOrder
-                .map((id) => sessions[id])
-                .filter((s): s is NonNullable<typeof s> => !!s)
+		window.addEventListener('keydown', onKeyDown)
+		window.addEventListener('keyup', onKeyUp)
+		window.addEventListener('blur', onBlur)
+		return () => {
+			window.removeEventListener('keydown', onKeyDown)
+			window.removeEventListener('keyup', onKeyUp)
+			window.removeEventListener('blur', onBlur)
+		}
+	}, [])
 
-        const nameFor = (userId: string): string => {
-                const u = users[userId] as Record<string, any> | undefined
-                if (!u) return ''
-                const first = u.firstname ?? u.first_name ?? ''
-                const last = u.lastname ?? u.last_name ?? ''
-                return `${first} ${last}`.trim() || u.username || ''
-        }
+	// Self-preview stream (the client owns the local MediaStream).
+	const localStream = cameraEnabled ? callsClient.getLocalStream() : null
 
-        const connecting = status === 'connecting' || status === 'reconnecting'
+	const screenVideoRef = useRef<HTMLVideoElement>(null)
+	const stageRef = useRef<HTMLDivElement>(null)
+	useEffect(() => {
+		if (screenVideoRef.current && screenStream) {
+			screenVideoRef.current.srcObject = screenStream.stream
+		}
+	}, [screenStream])
 
-        return (
-                <div className="fixed inset-0 z-50 flex flex-col bg-black/95 backdrop-blur-sm">
-                        {/* Header */}
-                        <div className="flex items-center justify-between gap-3 px-4 h-12 border-b border-white/10 shrink-0">
-                                <div className="flex items-center gap-2 text-white/90 min-w-0">
-                                        <Users className="h-4 w-4 shrink-0" />
-                                        <span className="text-sm font-medium truncate">
-                                                {t('chat.callInProgress', 'Cuộc gọi')} · {participants.length}
-                                        </span>
-                                        <CallTimer startAt={startAt} />
-                                        {connecting && (
-                                                <span className="text-xs text-amber-400 ml-1">
-                                                        {status === 'connecting' ? t('chat.connecting', 'Đang kết nối…') : t('chat.reconnecting', 'Đang kết nối lại…')}
-                                                </span>
-                                        )}
-                                </div>
-                                {error && (
-                                        <span className="flex items-center gap-1 text-xs text-red-400 truncate max-w-[50%]">
-                                                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                                                <span className="truncate">{error.message}</span>
-                                        </span>
-                                )}
-                        </div>
+	const participants = useMemo(
+		() => sessionOrder.map((id) => sessions[id]).filter((s): s is NonNullable<typeof s> => !!s),
+		[sessionOrder, sessions],
+	)
 
-                        {/* Screen stage */}
-                        {screenStream && (
-                                <div className="relative bg-black flex items-center justify-center min-h-0 flex-[3] p-2">
-                                        <video
-                                                ref={screenVideoRef}
-                                                autoPlay
-                                                playsInline
-                                                className="max-w-full max-h-full rounded-lg object-contain"
-                                        />
-                                        <span className="absolute top-4 left-4 bg-black/60 text-white text-xs px-2 py-1 rounded backdrop-blur-sm max-w-[60%] truncate">
-                                                {t('chat.screenShareBy', 'Màn hình của')} {nameFor(sessions[screenStream.sessionId]?.userId ?? '') || '?'}
-                                        </span>
-                                </div>
-                        )}
+	const nameFor = (userId: string): string => {
+		const u = users[userId] as Record<string, any> | undefined
+		if (!u) return ''
+		const first = u.firstname ?? u.first_name ?? ''
+		const last = u.lastname ?? u.last_name ?? ''
+		return `${first} ${last}`.trim() || u.username || ''
+	}
 
-                        {/* Participants grid */}
-                        <div className={`overflow-auto p-4 min-h-0 ${screenStream ? 'flex-1' : 'flex-1 flex items-center'}`}>
-                                <div
-                                        className="grid gap-3 w-full"
-                                        style={{
-                                                gridTemplateColumns: `repeat(${Math.min(participants.length || 1, 3)}, minmax(0, 1fr))`,
-                                                maxWidth: participants.length > 3 ? undefined : 'min(100%, 720px)',
-                                                margin: '0 auto',
-                                                alignContent: 'center',
-                                        }}
-                                >
-                                        {participants.length === 0 ? (
-                                                <div className="col-span-full flex items-center justify-center text-white/50 text-sm py-12">
-                                                        {t('chat.waitingForOthers', 'Đang chờ người khác tham gia…')}
-                                                </div>
-                                        ) : (
-                                                participants.map((s) => (
-                                                        <CallTile
-                                                                key={s.sessionId}
-                                                                session={s}
-                                                                displayName={nameFor(s.userId)}
-                                                                isSelf={s.userId === authUserId}
-                                                                mirror={s.userId === authUserId}
-                                                                stream={s.userId === authUserId ? undefined : videoStreams[s.sessionId]}
-                                                                selfStream={s.userId === authUserId ? localStream : undefined}
-                                                        />
-                                                ))
-                                        )}
-                                </div>
-                        </div>
+	const connecting = status === 'connecting' || status === 'reconnecting'
 
-                        {/* Controls */}
-                        <CallControls />
-                </div>
-        )
+	// Speaker view: the active speaker (or the sharer / the sole other
+	// participant / self), with a thumbnail strip of everyone else.
+	const videoParticipants = participants.filter((s) => (s.userId === authUserId ? cameraEnabled : s.video || videoStreams[s.sessionId]))
+	const activeSpeaker =
+		participants.find((s) => s.voice && s.userId !== authUserId) ??
+		videoParticipants.find((s) => s.userId !== authUserId) ??
+		participants.find((s) => s.userId !== authUserId) ??
+		participants[0]
+	const showSpeakerView = viewMode === 'speaker' && !screenStream && videoParticipants.length > 0 && participants.length > 1
+	const thumbs = showSpeakerView ? videoParticipants.filter((s) => s.sessionId !== activeSpeaker?.sessionId) : []
+
+	const toggleFullscreen = () => {
+		const el = stageRef.current
+		if (!el) return
+		if (document.fullscreenElement) void document.exitFullscreen()
+		else void el.requestFullscreen?.().catch(() => void 0)
+	}
+
+	return (
+		<div className="fixed inset-0 z-50 flex flex-col bg-black/95 backdrop-blur-sm">
+			<div className="flex min-h-0 flex-1">
+				<div className="flex min-w-0 flex-1 flex-col">
+					{/* Header */}
+					<div className="flex items-center justify-between gap-3 px-4 h-12 border-b border-white/10 shrink-0">
+						<div className="flex items-center gap-2 text-white/90 min-w-0">
+							<Users className="h-4 w-4 shrink-0" />
+							<span className="text-sm font-medium truncate">
+								{t('chat.callInProgress', 'Cuộc gọi')} · {participants.length}
+							</span>
+							<CallTimer startAt={startAt} />
+							<QualityBadge quality={quality} />
+							{connecting && (
+								<span className="text-xs text-amber-400 ml-1">
+									{status === 'connecting' ? t('chat.connecting', 'Đang kết nối…') : t('chat.reconnecting', 'Đang kết nối lại…')}
+								</span>
+							)}
+						</div>
+						{error && (
+							<span className="flex items-center gap-1 text-xs text-red-400 truncate max-w-[40%]">
+								<AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+								<span className="truncate">{error.message}</span>
+							</span>
+						)}
+					</div>
+
+					{/* Degraded quality banner */}
+					{qualityAlert && (
+						<div className="flex items-center justify-center gap-2 bg-amber-500/15 border-b border-amber-500/30 px-4 py-1.5 text-xs text-amber-300">
+							<AlertTriangle className="h-3.5 w-3.5" />
+							{t('chat.quality.degraded', 'Chất lượng kết nối đang kém — âm thanh/video có thể bị giật.')}
+							<button
+								type="button"
+								className="underline underline-offset-2 hover:text-amber-200"
+								onClick={() => useCallsStore.getState().setQualityAlert(false)}
+							>
+								{t('common.dismiss', 'Bỏ qua')}
+							</button>
+						</div>
+					)}
+
+					{/* Stage */}
+					<div ref={stageRef} className={`relative flex min-h-0 flex-1 flex-col bg-black ${screenStream ? '' : ''}`}>
+						{/* Screen stage */}
+						{screenStream && (
+							<div className="relative flex flex-[3] items-center justify-center p-2 min-h-0">
+								<video
+									ref={screenVideoRef}
+									autoPlay
+									playsInline
+									className="max-w-full max-h-full rounded-lg object-contain"
+								/>
+								<div className="absolute top-3 left-3 flex items-center gap-2">
+									<span className="bg-black/60 text-white text-xs px-2 py-1 rounded backdrop-blur-sm max-w-[60%] truncate">
+										{t('chat.screenShareBy', 'Màn hình của')} {nameFor(sessions[screenStream.sessionId]?.userId ?? '') || '?'}
+									</span>
+									<button
+										type="button"
+										onClick={toggleFullscreen}
+										aria-label={t('chat.fullscreen', 'Toàn màn hình')}
+										className="bg-black/60 text-white/80 hover:text-white p-1.5 rounded backdrop-blur-sm"
+									>
+										<Maximize2 className="h-3.5 w-3.5" />
+									</button>
+								</div>
+							</div>
+						)}
+
+						{/* Speaker view */}
+						{showSpeakerView && activeSpeaker && (
+							<div className="relative flex min-h-0 flex-1 flex-col">
+								<div className="flex min-h-0 flex-1 items-center justify-center p-2">
+									<CallTile
+										session={activeSpeaker}
+										displayName={nameFor(activeSpeaker.userId)}
+										isSelf={activeSpeaker.userId === authUserId}
+										mirror={activeSpeaker.userId === authUserId}
+										stream={activeSpeaker.userId === authUserId ? undefined : videoStreams[activeSpeaker.sessionId]}
+										selfStream={activeSpeaker.userId === authUserId ? localStream : undefined}
+									/>
+								</div>
+								{thumbs.length > 0 && (
+									<div className="flex shrink-0 items-center justify-center gap-2 overflow-x-auto px-3 pb-2">
+										{thumbs.map((s) => (
+											<div key={s.sessionId} className="w-40 shrink-0">
+												<CallTile
+													session={s}
+													displayName={nameFor(s.userId)}
+													isSelf={s.userId === authUserId}
+													mirror={s.userId === authUserId}
+													stream={s.userId === authUserId ? undefined : videoStreams[s.sessionId]}
+													selfStream={s.userId === authUserId ? localStream : undefined}
+												/>
+											</div>
+										))}
+									</div>
+								)}
+							</div>
+						)}
+
+						{/* Participants grid (grid mode, no video, or screen-share sidebar) */}
+						<div
+							className={`overflow-auto p-4 min-h-0 ${
+								screenStream || showSpeakerView ? 'flex-none max-h-[30vh]' : 'flex-1 flex items-center'
+							}`}
+						>
+							<div
+								className="grid gap-3 w-full"
+								style={{
+									gridTemplateColumns: `repeat(${Math.min(
+										(showSpeakerView || screenStream ? Math.min(participants.length, 4) : participants.length) || 1,
+										showSpeakerView || screenStream ? 4 : 3,
+									)}, minmax(0, 1fr))`,
+									maxWidth:
+										!screenStream && !showSpeakerView && participants.length <= 3 ? 'min(100%, 720px)' : undefined,
+									margin: '0 auto',
+									alignContent: 'center',
+								}}
+							>
+								{participants.length === 0 ? (
+									<div className="col-span-full flex items-center justify-center text-white/50 text-sm py-12">
+										{t('chat.waitingForOthers', 'Đang chờ người khác tham gia…')}
+									</div>
+								) : (
+									participants
+										.filter((s) => !(showSpeakerView && s.sessionId === activeSpeaker?.sessionId))
+										.map((s) => (
+											<CallTile
+												key={s.sessionId}
+												session={s}
+												displayName={nameFor(s.userId)}
+												isSelf={s.userId === authUserId}
+												mirror={s.userId === authUserId}
+												stream={s.userId === authUserId ? undefined : videoStreams[s.sessionId]}
+												selfStream={s.userId === authUserId ? localStream : undefined}
+											/>
+										))
+								)}
+							</div>
+						</div>
+
+						{/* Overlays */}
+						<HostNotices />
+						<ReactionStream />
+					</div>
+
+					{/* Controls */}
+					<CallControls />
+				</div>
+
+				{/* Right panels */}
+				{participantsOpen && <ParticipantsPanel />}
+				{chatOpen && <CallChatPanel />}
+			</div>
+
+			{/* Muted hint while push-to-talk is available */}
+			{!micEnabled && (
+				<div className="pointer-events-none absolute bottom-24 left-1/2 -translate-x-1/2 rounded-full bg-black/70 px-3 py-1 text-xs text-white/80 backdrop-blur-sm">
+					{t('chat.pushToTalkHint', 'Giữ Space để tạm bật tiếng')}
+				</div>
+			)}
+		</div>
+	)
+}
+
+/** Transient host-control notices (top-right, auto-expiring). */
+function HostNotices() {
+	const { t } = useTranslation()
+	const notices = useCallsStore((s) => s.notices)
+	const users = useChatStore((s) => s.users)
+	const hostUserId = useCallsStore((s) => s.hostUserId)
+	const myUserId = useLMSStore((s) => s.authUser?.id)
+
+	if (notices.length === 0) return null
+
+	const nameFor = (userId: string): string => {
+		const u = users[userId] as Record<string, any> | undefined
+		if (!u) return ''
+		const first = u.firstname ?? u.first_name ?? ''
+		const last = u.lastname ?? u.last_name ?? ''
+		return `${first} ${last}`.trim() || u.username || ''
+	}
+
+	return (
+		<div className="pointer-events-none absolute right-4 top-4 z-30 flex flex-col items-end gap-1.5">
+			{notices.slice(-4).map((n) => {
+				const actor = n.kind === 'host-changed' ? nameFor(n.actorUserId) : ''
+				let label: string | null = null
+				if (n.kind === 'host-changed') {
+					label =
+						n.mine || n.actorUserId === myUserId
+							? t('chat.notices.youHost', 'Bạn là chủ trì mới')
+							: t('chat.notices.newHost', '{name} là chủ trì mới', { name: actor || '?' })
+				} else if (n.kind === 'lower-hand') {
+					label = t('chat.notices.loweredHand', 'Chủ trì đã hạ tay của bạn')
+				} else if (n.kind === 'removed') {
+					label = t('chat.notices.removed', '{name} đã bị mời ra khỏi cuộc gọi', { name: actor || '?' })
+				}
+				if (!label) return null
+				return (
+					<div
+						key={n.id}
+						className="flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-xs font-medium text-neutral-900 shadow-lg animate-[fadeIn_150ms_ease-out]"
+					>
+						{n.kind === 'host-changed' ? <Crown className="h-3.5 w-3.5 text-amber-500" /> : null}
+						{n.kind === 'lower-hand' ? <Hand className="h-3.5 w-3.5 text-amber-500" /> : null}
+						{n.kind === 'removed' ? <UserMinus className="h-3.5 w-3.5 text-red-500" /> : null}
+						<span className="max-w-[240px] truncate">{label}</span>
+					</div>
+				)
+			})}
+			{/* hostUserId referenced to re-render on host changes */}
+			<span className="hidden">{hostUserId}</span>
+			<PhoneIncoming className="hidden" />
+		</div>
+	)
 }

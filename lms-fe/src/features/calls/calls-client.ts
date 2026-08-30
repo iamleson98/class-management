@@ -25,6 +25,13 @@
  *   played via detached <audio> elements; video/screen streams land in the
  *   store keyed by the ORIGIN session so tiles bind the right participant.
  *
+ * Device management (ports the plugin client):
+ *   - enumerateDevices lists + devicechange hotplug handling with automatic
+ *     fallback when the selected device disappears (and back when it returns)
+ *   - setAudioInputDevice / setVideoInputDevice re-acquire and replaceTrack
+ *   - setAudioOutputDevice applies setSinkId on every detached audio element
+ *   - selections persist to localStorage (calls_default_*_input/output)
+ *
  * The RTCPeerConnection lives on this singleton (NOT in the zustand store) so
  * media renegotiation never triggers React re-renders. Negotiation follows the
  * "polite peer" perfect-negotiation pattern with ICE candidate queuing, and
@@ -34,7 +41,8 @@
  */
 
 import { wsClient } from '@/lib/chat/client'
-import { useCallsStore } from './calls-store'
+import { useCallsStore, type CallDevice } from './calls-store'
+import { RTCQualityMonitor, type QualitySample } from './calls-quality'
 
 // ─── Constants ──────────────────────────────────────────────────────
 
@@ -49,6 +57,19 @@ const SCREEN_ENCODINGS = [
 
 /** Single-layer encoding for the camera track. */
 const CAMERA_ENCODING = [{ maxBitrate: 1_000_000, maxFramerate: 30 }]
+
+/** Default audio processing constraints (plugin parity). */
+const AUDIO_CONSTRAINTS: MediaTrackConstraints = {
+	echoCancellation: true,
+	noiseSuppression: true,
+	autoGainControl: true,
+}
+
+// localStorage keys (plugin parity).
+const LS_AUDIO_INPUT = 'calls_default_audio_input'
+const LS_AUDIO_OUTPUT = 'calls_default_audio_output'
+const LS_VIDEO_INPUT = 'calls_default_video_input'
+const LS_SHARE_AUDIO = 'calls_share_audio_with_screen'
 
 // ─── Signaling helpers ──────────────────────────────────────────────
 
@@ -71,6 +92,49 @@ function parseTrackId(trackId: string): { type: string; sessionId: string } | nu
 	return { type, sessionId }
 }
 
+/** Persisted device selection: {deviceId, label} JSON, or raw deviceId. */
+function readStoredDevice(key: string): CallDevice | null {
+	try {
+		const raw = localStorage.getItem(key)
+		if (!raw) return null
+		try {
+			const parsed = JSON.parse(raw) as CallDevice
+			if (parsed?.deviceId) return parsed
+		} catch {
+			// legacy raw id
+		}
+		return { deviceId: raw, label: '' }
+	} catch {
+		return null
+	}
+}
+
+function storeDevice(key: string, device: CallDevice | null): void {
+	try {
+		if (device) localStorage.setItem(key, JSON.stringify(device))
+		else localStorage.removeItem(key)
+	} catch {
+		// storage unavailable (private mode) — selection stays in-memory only
+	}
+}
+
+/** Whether to share system audio when screen sharing (default true). */
+export function shareAudioWithScreen(): boolean {
+	try {
+		return localStorage.getItem(LS_SHARE_AUDIO) !== 'off'
+	} catch {
+		return true
+	}
+}
+
+export function setShareAudioWithScreen(on: boolean): void {
+	try {
+		localStorage.setItem(LS_SHARE_AUDIO, on ? 'on' : 'off')
+	} catch {
+		/* ignore */
+	}
+}
+
 // ─── Audio playback ─────────────────────────────────────────────────
 
 /** Detached <audio> elements for remote voice tracks, keyed by track id. */
@@ -83,9 +147,21 @@ function attachAudio(track: MediaStreamTrack, stream: MediaStream): void {
 	el.srcObject = stream
 	el.dataset.trackId = track.id
 	document.body.appendChild(el)
+	// Honor the selected speaker device.
+	const sink = useCallsStore.getState().selectedDevices.audioOutput
+	applySinkId(el, sink)
 	audioEls.set(track.id, el)
 	// Stop the element when the track ends (SFU teardown).
 	track.addEventListener('ended', () => detachAudio(track.id))
+}
+
+/** Apply an output device to one audio element when supported. */
+function applySinkId(el: HTMLAudioElement, deviceId: string): void {
+	if (!deviceId) return
+	const anyEl = el as HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> }
+	if (typeof anyEl.setSinkId === 'function') {
+		anyEl.setSinkId(deviceId).catch(() => void 0)
+	}
 }
 
 function detachAudio(trackId: string): void {
@@ -107,6 +183,8 @@ class CallsClient {
 	private pc: RTCPeerConnection | null = null
 	private localStream: MediaStream | null = null
 	private screenStream: MediaStream | null = null
+	/** Screen-share audio track (system audio), when shared. */
+	private screenAudioTrack: MediaStreamTrack | null = null
 
 	/** My stable session id (== the connID from the join ack). */
 	private sessionId = ''
@@ -117,6 +195,8 @@ class CallsClient {
 	/** Track senders kept alive for replaceTrack toggles. */
 	private videoSender: RTCRtpSender | null = null
 	private screenSender: RTCRtpSender | null = null
+	private screenAudioSender: RTCRtpSender | null = null
+	private audioSender: RTCRtpSender | null = null
 
 	// Perfect-negotiation state (polite peer).
 	private makingOffer = false
@@ -126,6 +206,12 @@ class CallsClient {
 
 	private joined = false
 	private connecting = false
+
+	// Device hotplug + quality monitoring.
+	private devicesBound = false
+	private qualityMonitor: RTCQualityMonitor | null = null
+	private lastQualityAlertAt = 0
+	private unloadBound = false
 
 	// ─── Lifecycle ──────────────────────────────────────────────────
 
@@ -139,6 +225,11 @@ class CallsClient {
 		return this.sessionId
 	}
 
+	/** The RTCPeerConnection (for stats/quality monitors). */
+	getPeerConnection(): RTCPeerConnection | null {
+		return this.pc
+	}
+
 	/** Join (or start) a call in a channel. */
 	async join(channelId: string, opts: { enableVideo?: boolean } = {}): Promise<void> {
 		if (this.joined || this.connecting) return
@@ -149,6 +240,9 @@ class CallsClient {
 		store.setChannel(channelId)
 		store.setStatus('connecting')
 		this.channelId = channelId
+
+		this.bindDeviceListener()
+		this.bindBeforeUnload()
 
 		try {
 			// Acquire local media BEFORE joining so the very first offer
@@ -179,6 +273,8 @@ class CallsClient {
 		this.createPeerConnection()
 		this.joined = true
 		this.connecting = false
+
+		this.startQualityMonitor()
 	}
 
 	/** Leave the current call and release all resources. */
@@ -205,12 +301,17 @@ class CallsClient {
 
 	/** Tear down the peer connection and media tracks. */
 	private teardown(): void {
+		this.stopQualityMonitor()
 		this.localStream?.getTracks().forEach((t) => t.stop())
 		this.screenStream?.getTracks().forEach((t) => t.stop())
+		this.screenAudioTrack?.stop()
 		this.localStream = null
 		this.screenStream = null
+		this.screenAudioTrack = null
 		this.videoSender = null
 		this.screenSender = null
+		this.screenAudioSender = null
+		this.audioSender = null
 		detachAllAudio()
 		this.pc?.close()
 		this.pc = null
@@ -227,16 +328,194 @@ class CallsClient {
 
 	// ─── Local media ────────────────────────────────────────────────
 
+	/** Audio getUserMedia constraints honoring the selected input device. */
+	private audioConstraints(): MediaTrackConstraints | boolean {
+		const deviceId = useCallsStore.getState().selectedDevices.audioInput
+		if (deviceId) return { ...AUDIO_CONSTRAINTS, deviceId: { exact: deviceId } }
+		return AUDIO_CONSTRAINTS
+	}
+
+	/** Video getUserMedia constraints honoring the selected camera. */
+	private videoConstraints(): MediaTrackConstraints {
+		const deviceId = useCallsStore.getState().selectedDevices.videoInput
+		if (deviceId) return { facingMode: 'user', deviceId: { exact: deviceId } }
+		return { facingMode: 'user' }
+	}
+
 	private async initLocalMedia(enableVideo: boolean): Promise<void> {
 		this.localStream = await navigator.mediaDevices.getUserMedia({
-			audio: true,
-			video: enableVideo ? { facingMode: 'user' } : false,
+			audio: this.audioConstraints(),
+			video: enableVideo ? this.videoConstraints() : false,
 		})
 		const store = useCallsStore.getState()
 		const mic = this.localStream.getAudioTracks()[0]
 		const cam = this.localStream.getVideoTracks()[0]
 		store.setMic(!!mic && mic.enabled)
 		store.setCamera(!!cam)
+		// Device labels become available after the first getUserMedia.
+		void this.updateDevices()
+	}
+
+	// ─── Device management (hotplug, pickers) ───────────────────────
+
+	/** Enumerate media devices into the store lists. */
+	async updateDevices(): Promise<void> {
+		if (typeof navigator === 'undefined' || !navigator.mediaDevices?.enumerateDevices) return
+		try {
+			const list = await navigator.mediaDevices.enumerateDevices()
+			const label = (d: MediaDeviceInfo, idx: number, kind: string): CallDevice => ({
+				deviceId: d.deviceId,
+				label: d.label || `${kind} ${idx + 1}`,
+			})
+			const audioInputs = list.filter((d) => d.kind === 'audioinput').map((d, i) => label(d, i, 'Microphone'))
+			const audioOutputs = list.filter((d) => d.kind === 'audiooutput').map((d, i) => label(d, i, 'Speaker'))
+			const videoInputs = list.filter((d) => d.kind === 'videoinput').map((d, i) => label(d, i, 'Camera'))
+			useCallsStore.getState().setDevices({ audioInputs, audioOutputs, videoInputs })
+			this.handleDeviceFallback()
+		} catch {
+			// permissions denied — pickers show empty lists
+		}
+	}
+
+	/**
+	 * Device fallback (plugin parity): when the selected input device vanished
+	 * (unplugged), fall back to the first available one; when the stored
+	 * selection returns, switch back to it.
+	 */
+	private handleDeviceFallback(): void {
+		const store = useCallsStore.getState()
+		const { audioInputs, videoInputs } = store.devices
+
+		const apply = (kind: 'audioInput' | 'videoInput', devices: CallDevice[], lsKey: string) => {
+			const selected = store.selectedDevices[kind]
+			if (!selected) return
+			const stillThere = devices.some((d) => d.deviceId === selected)
+			if (stillThere) return
+			// Selected device vanished: fall back to the first available.
+			const fallback = devices[0]
+			if (fallback) {
+				store.setSelectedDevice(kind, fallback.deviceId)
+				if (kind === 'audioInput') void this.setAudioInputDevice(fallback, false)
+				else void this.setVideoInputDevice(fallback)
+			} else {
+				store.setSelectedDevice(kind, '')
+			}
+			// Remember the stored selection so we can return to it on hotplug.
+			const stored = readStoredDevice(lsKey)
+			if (stored && !devices.some((d) => d.deviceId === stored.deviceId)) {
+				// keep the persisted preference for the return-switch below
+			}
+			return
+		}
+		apply('audioInput', audioInputs, LS_AUDIO_INPUT)
+		apply('videoInput', videoInputs, LS_VIDEO_INPUT)
+
+		// Return-to-preference: stored selection exists again → switch back.
+		const storedAudio = readStoredDevice(LS_AUDIO_INPUT)
+		if (
+			storedAudio &&
+			audioInputs.some((d) => d.deviceId === storedAudio.deviceId) &&
+			store.selectedDevices.audioInput !== storedAudio.deviceId
+		) {
+			void this.setAudioInputDevice(storedAudio, false)
+		}
+	}
+
+	/** Bind the devicechange hotplug listener once. */
+	private bindDeviceListener(): void {
+		if (this.devicesBound || typeof navigator === 'undefined' || !navigator.mediaDevices) return
+		navigator.mediaDevices.addEventListener?.('devicechange', () => {
+			void this.updateDevices()
+		})
+		this.devicesBound = true
+	}
+
+	/** Leave the call when the tab closes (plugin's beforeunload parity). */
+	private bindBeforeUnload(): void {
+		if (this.unloadBound || typeof window === 'undefined') return
+		window.addEventListener('beforeunload', () => {
+			if (this.joined) this.leave()
+		})
+		this.unloadBound = true
+	}
+
+	/** Switch the microphone input device. */
+	async setAudioInputDevice(device: CallDevice, persist = true): Promise<void> {
+		if (persist) storeDevice(LS_AUDIO_INPUT, device)
+		useCallsStore.getState().setSelectedDevice('audioInput', device.deviceId)
+		if (!this.joined) return
+		try {
+			const stream = await navigator.mediaDevices.getUserMedia({
+				audio: { ...AUDIO_CONSTRAINTS, deviceId: { exact: device.deviceId } },
+			})
+			const track = stream.getAudioTracks()[0]
+			if (!track) return
+			const old = this.localStream?.getAudioTracks()[0]
+			const wasEnabled = old ? old.enabled : useCallsStore.getState().micEnabled
+			track.enabled = wasEnabled
+			if (this.audioSender) {
+				await this.audioSender.replaceTrack(track)
+			} else if (this.pc && this.localStream) {
+				this.audioSender = this.pc.addTrack(track, this.localStream)
+			}
+			if (old) {
+				old.stop()
+				this.localStream?.removeTrack(old)
+			}
+			this.localStream?.addTrack(track)
+		} catch (err) {
+			console.warn('[calls] failed to switch audio input device', err)
+		}
+	}
+
+	/** Switch the camera device. */
+	async setVideoInputDevice(device: CallDevice, persist = true): Promise<void> {
+		if (persist) storeDevice(LS_VIDEO_INPUT, device)
+		useCallsStore.getState().setSelectedDevice('videoInput', device.deviceId)
+		if (!this.joined) return
+		if (!useCallsStore.getState().cameraEnabled) return
+		try {
+			const stream = await navigator.mediaDevices.getUserMedia({
+				video: { facingMode: 'user', deviceId: { exact: device.deviceId } },
+			})
+			const track = stream.getVideoTracks()[0]
+			if (!track) return
+			const old = this.localStream?.getVideoTracks()[0]
+			if (this.videoSender) {
+				await this.videoSender.replaceTrack(track)
+			} else if (this.pc && this.localStream) {
+				const t = this.pc.addTransceiver(track, {
+					direction: 'sendonly',
+					sendEncodings: CAMERA_ENCODING,
+				})
+				this.videoSender = t.sender
+			}
+			if (old) {
+				old.stop()
+				this.localStream?.removeTrack(old)
+			}
+			this.localStream?.addTrack(track)
+		} catch (err) {
+			console.warn('[calls] failed to switch video input device', err)
+		}
+	}
+
+	/** Switch the speaker (audio output) device; applies to live audio elements. */
+	async setAudioOutputDevice(device: CallDevice, persist = true): Promise<void> {
+		if (persist) storeDevice(LS_AUDIO_OUTPUT, device)
+		useCallsStore.getState().setSelectedDevice('audioOutput', device.deviceId)
+		for (const el of audioEls.values()) applySinkId(el, device.deviceId)
+	}
+
+	/** Load persisted device selections into the store (app boot). */
+	restoreDeviceSelections(): void {
+		const store = useCallsStore.getState()
+		const audioIn = readStoredDevice(LS_AUDIO_INPUT)
+		const audioOut = readStoredDevice(LS_AUDIO_OUTPUT)
+		const videoIn = readStoredDevice(LS_VIDEO_INPUT)
+		if (audioIn) store.setSelectedDevice('audioInput', audioIn.deviceId)
+		if (audioOut) store.setSelectedDevice('audioOutput', audioOut.deviceId)
+		if (videoIn) store.setSelectedDevice('videoInput', videoIn.deviceId)
 	}
 
 	// ─── Peer connection ────────────────────────────────────────────
@@ -254,7 +533,7 @@ class CallsClient {
 		if (this.localStream) {
 			for (const track of this.localStream.getTracks()) {
 				if (track.kind === 'audio') {
-					this.pc.addTrack(track, this.localStream)
+					this.audioSender = this.pc.addTrack(track, this.localStream)
 				} else if (track.kind === 'video') {
 					const transceiver = this.pc.addTransceiver(track, {
 						direction: 'sendonly',
@@ -303,6 +582,7 @@ class CallsClient {
 		const store = useCallsStore.getState()
 		if (state === 'connected') {
 			store.setStatus('connected')
+			this.sendICEPairMetric('succeeded')
 		} else if (state === 'disconnected' || state === 'failed') {
 			// The websocket path is still alive; only the media path dropped.
 			if (this.joined) store.setStatus('reconnecting')
@@ -356,6 +636,46 @@ class CallsClient {
 		// Serialize explicitly: RTCSessionDescription instances stringify to
 		// {} in some engines (type/sdp live on the prototype).
 		sendAction('sdp', { data: JSON.stringify({ type: desc.type, sdp: desc.sdp }) })
+	}
+
+	/** Report an ICE candidate-pair metric to the server (diagnostics). */
+	private sendICEPairMetric(state: string): void {
+		if (!this.joined) return
+		try {
+			sendAction('metric', {
+				data: JSON.stringify({
+					metric_name: 'client_ice_candidate_pair',
+					data: JSON.stringify({ state, local: { type: 'host' }, remote: { type: 'prflx' } }),
+				}),
+			})
+		} catch {
+			/* metrics are best-effort */
+		}
+	}
+
+	// ─── Quality monitoring ─────────────────────────────────────────
+
+	private startQualityMonitor(): void {
+		this.stopQualityMonitor()
+		this.qualityMonitor = new RTCQualityMonitor(() => this.pc, (sample: QualitySample) => {
+			const store = useCallsStore.getState()
+			store.setQuality(sample.quality)
+			if (sample.quality === 'poor') {
+				// Re-armable banner (plugin: 20s lock).
+				if (Date.now() - this.lastQualityAlertAt > 20_000) {
+					this.lastQualityAlertAt = Date.now()
+					store.setQualityAlert(true)
+				}
+			} else {
+				store.setQualityAlert(false)
+			}
+		})
+		this.qualityMonitor.start()
+	}
+
+	private stopQualityMonitor(): void {
+		this.qualityMonitor?.stop()
+		this.qualityMonitor = null
 	}
 
 	// ─── Inbound signaling ──────────────────────────────────────────
@@ -415,11 +735,23 @@ class CallsClient {
 		sendAction('unmute', {})
 	}
 
+	/** Push-to-talk: temporarily unmute while held (no presence broadcast). */
+	pushToTalk(down: boolean): void {
+		const track = this.localStream?.getAudioTracks()[0]
+		if (!track) return
+		// Only meaningful while muted.
+		if (down && !useCallsStore.getState().micEnabled) {
+			track.enabled = true
+		} else if (!down && !useCallsStore.getState().micEnabled) {
+			track.enabled = false
+		}
+	}
+
 	async startVideo(): Promise<void> {
 		let track = this.localStream?.getVideoTracks()[0]
 		if (!track) {
 			// Re-acquire the camera (it wasn't opened at join time).
-			const cam = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+			const cam = await navigator.mediaDevices.getUserMedia({ video: this.videoConstraints() })
 			track = cam.getVideoTracks()[0]
 			if (!this.localStream) this.localStream = new MediaStream()
 			this.localStream.addTrack(track)
@@ -445,7 +777,11 @@ class CallsClient {
 	}
 
 	async startScreenShare(): Promise<void> {
-		const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
+		const withAudio = shareAudioWithScreen()
+		const stream = await navigator.mediaDevices.getDisplayMedia({
+			video: true,
+			audio: withAudio,
+		})
 		this.screenStream = stream
 		const track = stream.getVideoTracks()[0]
 		if (this.pc) {
@@ -454,6 +790,17 @@ class CallsClient {
 			} else {
 				const t = this.pc.addTransceiver(track, { direction: 'sendonly', sendEncodings: SCREEN_ENCODINGS })
 				this.screenSender = t.sender
+			}
+
+			// System audio rides as a separate screen-audio track.
+			const audioTrack = stream.getAudioTracks()[0]
+			if (audioTrack) {
+				this.screenAudioTrack = audioTrack
+				if (this.screenAudioSender) {
+					await this.screenAudioSender.replaceTrack(audioTrack)
+				} else {
+					this.screenAudioSender = this.pc.addTrack(audioTrack, stream)
+				}
 			}
 		}
 		useCallsStore.getState().setScreenSharing(true)
@@ -466,7 +813,11 @@ class CallsClient {
 		const track = this.screenStream?.getVideoTracks()[0]
 		if (track) track.stop()
 		this.screenSender?.replaceTrack(null).catch(() => void 0)
+		this.screenAudioSender?.replaceTrack(null).catch(() => void 0)
 		this.screenSender = null
+		this.screenAudioSender = null
+		this.screenAudioTrack?.stop()
+		this.screenAudioTrack = null
 		this.screenStream = null
 		useCallsStore.getState().setScreenSharing(false)
 		sendAction('screen_off', {})
@@ -480,6 +831,17 @@ class CallsClient {
 	lowerHand(): void {
 		useCallsStore.getState().toggleHand()
 		sendAction('unraise_hand', {})
+	}
+
+	/** Send an in-call emoji reaction (broadcast as user_reacted). */
+	sendReaction(emoji: { name: string; literal: string; unified?: string }): void {
+		sendAction('react', {
+			data: JSON.stringify({
+				name: emoji.name,
+				unified: emoji.unified ?? '',
+				literal: emoji.literal,
+			}),
+		})
 	}
 
 	/** Request a fresh full-state snapshot (e.g. after a missed event). */
