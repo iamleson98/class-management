@@ -64,7 +64,10 @@ TAG=sha-<commit> ./deploy.sh     # CI does exactly this over SSH
 
 `deploy.sh` validates the environment, logs in to GHCR (when configured),
 runs `docker stack deploy --with-registry-auth lms`, waits for the rollout,
-and smoke-tests `https://app.<domain>/api/v4/system/ping` & friends.
+and smoke-tests the public endpoints — including the **calls WebSocket
+upgrade** through the app origin (`https://app.<domain>/api/v4/websocket`
+must answer `101`; it is proxied by the lms-fe server to
+`LMS_BACKEND_URL`).
 
 ## Rolling back
 

@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 
 	rtcd "github.com/mattermost/rtcd/service"
 	"github.com/mattermost/rtcd/service/rtc"
@@ -120,27 +119,6 @@ func (s *CallService) sendCallState(cs *callState, connID string) {
 		return
 	}
 	s.publishTo(eventCallState, map[string]any{"call": string(encoded)}, connID)
-}
-
-// iceServersForHost builds the ICE server list for a browser joining through a
-// given rtcd host: admin-configured URLs (CallsSettings.ICEServers csv) with a
-// stun:<rtcd host> fallback (rtcd runs a STUN listener).
-func (s *CallService) iceServersForHost(host string) []map[string]any {
-	var urls []string
-	if cfg := s.callsConfig(); cfg.ICEServers != nil && *cfg.ICEServers != "" {
-		for _, u := range strings.Split(*cfg.ICEServers, ",") {
-			if u = strings.TrimSpace(u); u != "" {
-				urls = append(urls, u)
-			}
-		}
-	}
-	if len(urls) == 0 && host != "" {
-		urls = []string{"stun:" + host}
-	}
-	if len(urls) == 0 {
-		return nil
-	}
-	return []map[string]any{{"urls": urls}}
 }
 
 // ─── join / leave / reconnect ───────────────────────────────────────
@@ -274,7 +252,7 @@ func (s *CallService) handleJoin(connID, userID string, data map[string]any) err
 	// RTCPeerConnection, matching the plugin's config delivery.
 	s.publishTo(eventJoin, map[string]any{
 		"connID":     connID,
-		"iceServers": s.iceServersForHost(cs.rtcdHost),
+		"iceServers": s.iceServers(),
 	}, connID)
 
 	// Presence fan-out (channel-scoped).

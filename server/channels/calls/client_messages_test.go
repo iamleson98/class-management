@@ -147,11 +147,11 @@ func TestHandleJoin(t *testing.T) {
 	require.Len(t, joins, 1)
 	require.Equal(t, connID, joins[0].Data.(map[string]any)["sessionID"])
 
-	// Join ack is unicast with ICE servers.
+	// Join ack is unicast. With no ICE servers configured the default is
+	// nil — correct: browsers reach the public SFU via host candidates
+	// (see ice_servers.go). Configured delivery is covered by TestIceServers.
 	ack := requireUnicast(t, hub, eventJoin, connID)
-	servers, ok := ack.data["iceServers"].([]map[string]any)
-	require.True(t, ok)
-	require.NotEmpty(t, servers)
+	require.Nil(t, ack.data["iceServers"])
 
 	// Presence fan-out.
 	bcast := requireChannelBroadcast(t, hub, eventUserJoined, "chan1")

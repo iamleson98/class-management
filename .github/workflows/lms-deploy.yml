@@ -233,3 +233,14 @@ jobs:
             code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$url" || echo 000)
             echo "  $code  $url"
           done
+          # The calls signaling path: WebSocket upgrade through the app origin
+          # (Traefik -> lms-fe /api/v4 proxy -> lms-server). Expect 101.
+          ws_head=$(curl -s -i -N --max-time 15 \
+            -H "Connection: Upgrade" -H "Upgrade: websocket" \
+            -H "Sec-WebSocket-Version: 13" \
+            -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
+            "https://app.${LMS_DOMAIN}/api/v4/websocket" 2>/dev/null | head -n 1 || true)
+          echo "  WS   https://app.${LMS_DOMAIN}/api/v4/websocket -> ${ws_head:-no response}"
+          echo "$ws_head" | grep -q "101" || {
+            echo "::warning::calls WebSocket not relayed (expected HTTP/1.1 101) — check lms-fe LMS_BACKEND_URL"
+          }

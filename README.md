@@ -447,8 +447,8 @@ cd infrastructure/terraform-contabo && terraform destroy -var-file=envs/contabo.
 
 | Symptom | Likely cause → fix |
 |---|---|
-| Login page loops / API 401 on `app.<domain>` | You're hitting `api.<domain>` directly from the app, or cookies blocked. Always use `https://app.<domain>`; check the Traefik `lms-server-chat` router (PathPrefix `/api/v4`, priority 100) exists. |
-| Chat loads but no messages arrive | WebSocket not upgraded — confirm `wss://api.<domain>/api/v4/websocket` in the browser network tab, and that Traefik is not buffering (it upgrades automatically; check service logs). |
+| Login page loops / API 401 on `app.<domain>` | You're hitting `api.<domain>` directly from the app, or cookies blocked. Always use `https://app.<domain>`; the frontend's own server proxies `/api/v4` (REST + WS) to `LMS_BACKEND_URL` — check that env on the `lms-fe` service. |
+| Chat loads but no messages arrive | WebSocket not upgraded — confirm `wss://app.<domain>/api/v4/websocket` in the browser network tab (101 response); the frontend relays the upgrade to the backend (check `LMS_BACKEND_URL` + lms-fe logs), and Traefik upgrades WS automatically. |
 | Certificate invalid / TLS errors | DNS for the subdomain doesn't point at the manager yet, or Let's Encrypt rate-limited (wait 1 h, check `docker service logs lms_traefik`). |
 | `docker stack deploy` can't pull images | GHCR auth missing on the manager → set `GHCR_PAT` (+ `GHCR_USER`) or make the packages public; deploy.sh always passes `--with-registry-auth` (private packages need a `read:packages` PAT). |
 | lms-server crash-loops | `docker service logs` → usually DB unreachable (DSN secret wrong) or S3 creds mismatch. Recreate secret: `docker secret rm db_dsn && ./secrets-bootstrap.sh` then redeploy. |

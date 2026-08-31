@@ -18,10 +18,11 @@ servers, with CI/CD through GitHub Actions and GitHub Container Registry.
 7. [Deploying](#deploying)
 8. [CI/CD pipeline](#cicd-pipeline)
 9. [Calls (rtcd) in production](#calls-rtcd-in-production)
-10. [Operations](#operations)
-11. [Backup & restore](#backup--restore)
-12. [Security hardening checklist](#security-hardening-checklist)
-13. [Troubleshooting](#troubleshooting)
+10. [Separated frontend deployment](#separated-frontend-deployment)
+11. [Operations](#operations)
+12. [Backup & restore](#backup--restore)
+13. [Security hardening checklist](#security-hardening-checklist)
+14. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -31,8 +32,8 @@ servers, with CI/CD through GitHub Actions and GitHub Container Registry.
 
 | Component | Image | Role |
 |---|---|---|
-| **traefik** | `traefik:v3.7.12` | Edge reverse proxy. TLS (Let's Encrypt), HTTP→HTTPS redirect, routes by Host/Path to the services behind it. |
-| **lms-fe** | `ghcr.io/iamleson98/lms-fe` | Next.js frontend (standalone build, bun runtime). |
+| **traefik** | `traefik:v3.7.12` | Edge reverse proxy. TLS (Let's Encrypt), HTTP→HTTPS redirect, routes by Host to the services behind it (proxies WebSocket upgrades natively). |
+| **lms-fe** | `ghcr.io/iamleson98/lms-fe` | Next.js frontend (standalone build, **Node runtime**). Its server ALSO reverse-proxies `/api/v4` — REST and the WebSocket upgrade — to `LMS_BACKEND_URL` at runtime (`run-server.js` + `lib/api-proxy.js`). |
 | **lms-server** | `ghcr.io/iamleson98/lms-server` | Go backend (REST + WebSocket + LMS business logic + calls control plane). |
 | **lms-rtcd** | `ghcr.io/iamleson98/lms-rtcd` | WebRTC SFU for calls — owns the media plane. |
 | **postgres** | `postgres:16-alpine` | Relational store. |
@@ -47,8 +48,10 @@ servers, with CI/CD through GitHub Actions and GitHub Container Registry.
         ┌──────────────────┴──────────────────┐
         │  Contabo manager node               │
         │  traefik :80/:443 (ingress)         │
-        │   ├─ app.DOMAIN          → lms-fe   │
-        │   ├─ app.DOMAIN/api/v4/* → lms-server (priority 100)
+        │   ├─ app.DOMAIN → lms-fe            │
+        │   │     └─ /api/v4/* (REST + WS) proxied
+        │   │        by lms-fe's server to the
+        │   │        backend (LMS_BACKEND_URL) │
         │   ├─ api.DOMAIN          → lms-server
         │   ├─ s3.DOMAIN           → rustfs console
         │   ├─ grafana.DOMAIN      → grafana  │
@@ -71,11 +74,17 @@ that is the default configuration.
 
 ### Data flow decisions (why it looks like this)
 
-- **Same-origin API**: the browser loads the app from `app.DOMAIN` and calls
-  `/api/v4/*` on the *same* origin. Traefik routes that path prefix straight
-  to `lms-server` (priority 100). This keeps the `httpOnly` `MMAUTHTOKEN`
-  cookie first-party for both REST and the WebSocket — no `SameSite=None`,
-  no cross-origin CORS, and cookie auth "just works".
+- **Same-origin API (frontend-owned proxy)**: the browser loads the app from
+  `app.DOMAIN` and talks to `/api/v4/*` — REST *and* the chat/calls
+  WebSocket — on the *same* origin. The frontend's own server
+  (`run-server.js`) reverse-proxies that namespace to the backend over the
+  (overlay) network, relaying the WebSocket upgrade over a raw socket pair.
+  This keeps the `httpOnly` `MMAUTHTOKEN` cookie first-party for REST, the
+  chat WS and the calls WS — no `SameSite=None`, no cross-origin CORS, no
+  token plumbing. And because the proxy target is a **runtime** env var
+  (`LMS_BACKEND_URL`), the very same image also serves a frontend deployed
+  on a different server/domain than the backend (see
+  [Separated frontend deployment](#separated-frontend-deployment)).
 - **Media bypasses the proxy**: browser ↔ rtcd media (RTP/RTCP over ICE)
   never touches Traefik. rtcd's media port is published in **host** mode and
   the node's public IP is advertised in ICE candidates
@@ -356,32 +365,144 @@ it as the `GHCR_PAT` secret; the workflow drops it on the manager as
 
 ## Calls (rtcd) in production
 
-- **`RTCD_ICE_HOST_OVERRIDE` must be the public IPv4 of the node the rtcd
-  task runs on.** It is baked into the ICE host candidates handed to
-  browsers. On Contabo this is simply the VPS's public IP.
-- Media ports (`8443/udp` + `8443/tcp` by default, `RTCD_MEDIA_PORT`) are
-  published in **host mode** — verify the port is open end-to-end:
-  ```bash
-  # from an external machine:
-  nc -vz <video-node-ip> 8443          # tcp leg
-  ```
-- The control API (`:8045`) is reachable only inside the overlay; the
-  backend self-registers as a client on first connect
-  (`MM_CALLSSETTINGS_RTCDSERVICEURL=http://rtcd:8045`).
-- Client registration credentials persist in the `rtcd_data` volume — do not
-  delete it between deploys, or the backend will register a new client ID
-  (old sessions on the SFU are orphaned until it restarts).
-- **TURN**: add a TURN server when participants sit behind corporate
-  NATs/firewalls that block direct UDP:
-  ```env
-  MM_CALLSSETTINGS_ICESERVERS=stun:stun.l.google.com:19302,turn:turn.example.com:3478
-  ```
-  (Deploy coturn separately — e.g. `coturn/coturn` on the video node — and
-  set the shared secret in the server's `TURNStaticAuthSecret` config.)
-- Capacity: one rtcd task comfortably serves ~30–50 call participants on a
-  4-vCPU/8GB node (video is CPU-bound; scale by adding rtcd instances behind
-  separate host ports/nodes and letting calls spread — each call pins to one
-  SFU via the backend's client connection).
+The calls stack has three legs — all must work for reliable audio/video:
+
+```
+browser ── (1) wss://app.DOMAIN/api/v4/websocket ──▶ frontend proxy ──▶ lms-server
+         └─ (2) DTLS-SRTP media (UDP, TCP fallback) ──▶ rtcd :8443 (host mode)
+lms-server ── (3) ws://rtcd:8045 (overlay) ──▶ rtcd control API
+```
+
+- **(1) Signaling WebSocket** — rides the app origin through the frontend's
+  `/api/v4` proxy (`run-server.js`). It is exercised by the deploy smoke test
+  (`app ws` → 101) and by CI
+  (`lms-fe/scripts/test-integration-run-server.cjs`). The browser client
+  auto-reconnects with backoff and re-joins the call on reconnect; Traefik's
+  idle timeouts are tuned for long-lived sockets (15 m).
+- **(2) Media (ICE/DTLS)** — browser ↔ rtcd, never proxied. **Two transport
+  fallbacks are always available**: UDP 8443 first, TCP 8443 when UDP is
+  blocked. `RTCD_ICE_HOST_OVERRIDE` must be the public IPv4 of the node the
+  rtcd task runs on — it is baked into the ICE host candidates handed to
+  browsers; on Contabo it is the VPS's public IP.
+- **(3) Backend ↔ SFU control** — the vendored rtcd service client
+  auto-reconnects indefinitely (2 s → 30 s capped backoff); reconnect
+  failures are logged by the backend (`rtcd host client error`).
+
+### Verifying media connectivity
+
+```bash
+# from an external machine — the TCP leg of the media port:
+nc -vz <video-node-ip> 8443
+
+# the control plane is internal-only; the backend self-registers on first
+# connect (MM_CALLSSETTINGS_RTCDSERVICEURL=http://rtcd:8045). Registration
+# credentials persist in the rtcd_data volume — do not delete it between
+# deploys or the backend registers a new client ID (old SFU sessions are
+# orphaned until it restarts).
+```
+
+### ICE / STUN / TURN
+
+`MM_CALLSSETTINGS_ICESERVERS` (comma-separated ICE URLs) is what BROWSERS
+receive in the call join ack. **Empty is the correct default**: rtcd runs on
+a public IP and publishes host candidates, which browsers reach directly
+with their own host candidates over UDP and TCP — no STUN/TURN needed for
+the client→public-SFU path, and no third-party dependency.
+
+Add servers only for restrictive networks, with TURN credentials embedded
+as URL userinfo (the server splits them into the `username`/`credential`
+fields the browser expects):
+
+```env
+MM_CALLSSETTINGS_ICESERVERS=stun:stun.example.net:3478,turn:turnuser:turnpass@turn.example.net:3478?transport=tcp,turns:turnuser:turnpass@turn.example.net:5349?transport=tcp
+```
+
+Reference coturn (run it on the video node, or any reachable host):
+
+```
+# /etc/turnserver.conf (coturn/coturn docker image: mount as config)
+listening-port=3478
+tls-listening-port=5349
+fingerprint
+lt-cred-mech
+static-auth-secret=CHANGE_ME_LONG_RANDOM       # or use long-term user:pass
+realm=turn.example.com
+# 443 is shared with Traefik — for TURN-over-TLS-on-443 run coturn on its
+# own IP, or use port 5349 with a DNS name + certificate:
+cert=/etc/letsencrypt/live/turn.example.com/fullchain.pem
+pkey=/etc/letsencrypt/live/turn.example.com/privkey.pem
+no-cli
+```
+
+Notes:
+
+- `turn:` is plain TURN (usually UDP), `?transport=tcp` selects TURN/TCP,
+  and `turns:` is TURN over TLS — the last resort that passes networks
+  which only allow HTTPS-style traffic.
+- TURN credentials in `MM_CALLSSETTINGS_ICESERVERS` are visible to
+  authenticated users via `GET /api/v4/calls/config` (same as the Mattermost
+  calls plugin). Rotate the secret if it leaks; prefer network-level
+  restrictions on who can reach coturn (`allowed-peer-ip`).
+- rtcd's OWN ICE servers (`RTCD_ICE_SERVERS`) are separate: they only affect
+  the SFU's own gathering and public-IP discovery.
+
+### Capacity
+
+One rtcd task comfortably serves ~30–50 call participants on a 4-vCPU/8 GB
+node (video is CPU-bound; scale by adding rtcd instances behind separate
+host ports/nodes and letting calls spread — each call pins to one SFU via
+the backend's client connection).
+
+---
+
+## Separated frontend deployment
+
+The frontend image is **backend-agnostic**: its server proxies `/api/v4`
+(REST *and* the WebSocket upgrade — Next.js rewrites alone cannot proxy WS)
+to `LMS_BACKEND_URL` at **runtime**. So the frontend can run on any host,
+any domain — the browser still sees one origin and the cookie-based auth
+model is unchanged. No CORS, no token plumbing, no rebuild per environment.
+
+```
+app.other-domain.com ──▶ lms-fe container ──┬─ pages  → Next.js
+                                            └─ /api/v4 (REST + WS)
+                                               → https://api.example.com (LMS_BACKEND_URL)
+```
+
+Setup:
+
+1. **Backend**: deployed as usual (this Swarm, or any host). Ensure the
+   backend origin is reachable from the frontend host, and set the CORS
+   allowlist for any DIRECT cross-origin clients (not needed for the
+   proxied app traffic, but good defense in depth):
+   `MM_SERVICESETTINGS_ALLOWCORSFROM=https://app.other-domain.com`.
+2. **Frontend**: run the same `ghcr.io/iamleson98/lms-fe` image with
+   ```env
+   LMS_BACKEND_URL=https://api.example.com
+   ```
+   and your own TLS terminator (Traefik/Caddy) in front of it. If you keep
+   the Swarm's Traefik, you can instead keep lms-fe in the Swarm and simply
+   point `LMS_BACKEND_URL` at a remote backend — same mechanics.
+3. **Verify**: open the app, log in, then check the call path:
+   ```bash
+   # WS upgrade through the frontend's proxy (expect 101):
+   curl -s -i -N --max-time 8 \
+     -H "Connection: Upgrade" -H "Upgrade: websocket" \
+     -H "Sec-WebSocket-Version: 13" \
+     -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
+     https://app.other-domain.com/api/v4/websocket | head -n 1
+   ```
+
+Caveats:
+
+- Media (browser ↔ rtcd) never goes through the frontend; participants
+  need network access to the rtcd node's public IP:8443 (UDP+TCP). Keep
+  rtcd on a host with a public IP and the correct `RTCD_ICE_HOST_OVERRIDE`.
+- The frontend server adds one proxy hop (~ms) for REST/WS — the same hop
+  the in-Swarm deployment uses.
+- `NEXT_PUBLIC_API_URL` stays at its `/` default (baked into the image);
+  do NOT bake a backend URL at build time — `LMS_BACKEND_URL` is the
+  runtime knob.
 
 ---
 

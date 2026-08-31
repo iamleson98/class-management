@@ -112,12 +112,28 @@ jobs:
       - name: Unit tests
         run: bun run test
 
+      # The runtime /api/v4 reverse proxy (REST + WebSocket upgrade relay)
+      # that makes a separately-deployed frontend work. Runs under Node —
+      # the container runtime (Bun cannot hijack upgrade sockets).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: API proxy tests
+        run: node scripts/test-api-proxy.cjs
+
       # Build with the same sentinel the production image bakes in — proves
       # the domain-agnostic build is valid on every PR.
       - name: Production build (same-origin sentinel)
         run: bun run build
         env:
           NEXT_PUBLIC_API_URL: /
+
+      # Boots the REAL production entry (run-server.js) against a stub
+      # backend and verifies REST proxying, the WebSocket upgrade relay
+      # (cookie included) and graceful SIGTERM.
+      - name: run-server.js integration test
+        run: node scripts/test-integration-run-server.cjs
 
   images:
     name: Docker images (build only)

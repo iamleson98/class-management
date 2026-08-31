@@ -6,11 +6,13 @@ package calls
 import (
 	"errors"
 	"testing"
+	"time"
 
 	rtcd "github.com/mattermost/rtcd/service"
 	"github.com/mattermost/rtcd/service/rtc"
 
 	"github.com/iamleson98/sitename/server/public/model"
+	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"github.com/stretchr/testify/require"
 )
 
@@ -144,26 +146,91 @@ func TestRTCDControlAcksIgnored(t *testing.T) {
 	require.Empty(t, hub.events)
 }
 
-func TestIceServersForHost(t *testing.T) {
-	// Admin-configured list wins.
+func TestIceServers(t *testing.T) {
+	// Admin-configured list wins: one entry per URL, credentials split out.
 	s, _, _ := newTestServiceWithConfig(t, &model.CallsSettings{
 		Enable:     ptrBool(true),
 		ICEServers: ptrString("stun:a.example:3478, turn:b.example:3479 ,"),
 	})
-	servers := s.iceServersForHost("sfu.example:8045")
-	require.Len(t, servers, 1)
-	urls, _ := servers[0]["urls"].([]string)
-	require.Equal(t, []string{"stun:a.example:3478", "turn:b.example:3479"}, urls)
+	servers := s.iceServers()
+	require.Len(t, servers, 2)
+	require.Equal(t, map[string]any{"urls": []string{"stun:a.example:3478"}}, servers[0])
+	require.Equal(t, map[string]any{"urls": []string{"turn:b.example:3479"}}, servers[1])
 
-	// Fallback: the rtcd host's own STUN listener.
+	// Nothing configured: nil — the correct default (browsers reach the
+	// public SFU with host candidates; no STUN/TURN needed).
 	s2, _, _ := newTestServiceWithStore(t)
-	servers = s2.iceServersForHost("10.0.0.1:8045")
-	require.Len(t, servers, 1)
-	urls, _ = servers[0]["urls"].([]string)
-	require.Equal(t, []string{"stun:10.0.0.1:8045"}, urls)
+	require.Nil(t, s2.iceServers())
+}
 
-	// Nothing configured and no host: nil.
-	require.Nil(t, s2.iceServersForHost(""))
+func TestParseICEServer(t *testing.T) {
+	tcs := []struct {
+		name  string
+		entry string
+		want  map[string]any
+		valid bool
+	}{
+		{
+			name:  "plain stun",
+			entry: "stun:stun.l.google.com:19302",
+			want:  map[string]any{"urls": []string{"stun:stun.l.google.com:19302"}},
+			valid: true,
+		},
+		{
+			name:  "turn with query",
+			entry: "turn:turn.example.net:3478?transport=udp",
+			want:  map[string]any{"urls": []string{"turn:turn.example.net:3478?transport=udp"}},
+			valid: true,
+		},
+		{
+			name:  "turn with credentials",
+			entry: "turn:user:secret@turn.example.net:3478?transport=tcp",
+			want: map[string]any{
+				"urls":       []string{"turn:turn.example.net:3478?transport=tcp"},
+				"username":   "user",
+				"credential": "secret",
+			},
+			valid: true,
+		},
+		{
+			name:  "turns (TLS) with credentials — userinfo splits at the first colon",
+			entry: "turns:tenant:secret@turn.example.net:5349",
+			want: map[string]any{
+				"urls":       []string{"turns:turn.example.net:5349"},
+				"username":   "tenant",
+				"credential": "secret",
+			},
+			valid: true,
+		},
+		{
+			name:  "ipv6 host",
+			entry: "stun:[2001:db8::1]:3478",
+			want:  map[string]any{"urls": []string{"stun:[2001:db8::1]:3478"}},
+			valid: true,
+		},
+		{name: "unknown scheme", entry: "http://example.net", valid: false},
+		{name: "double slash form", entry: "turn://example.net:3478", valid: false},
+		{name: "empty host", entry: "stun:", valid: false},
+		{name: "userinfo without host", entry: "turn:user:pass@", valid: false},
+		{name: "userinfo without password", entry: "turn:user@host:3478", valid: false},
+		{name: "userinfo without colon", entry: "turn:userpass@host:3478", valid: false},
+		{name: "garbage", entry: "not a url at all", valid: false},
+	}
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := parseICEServer(tc.entry)
+			require.Equal(t, tc.valid, ok)
+			if tc.valid {
+				require.Equal(t, tc.want, got)
+			}
+		})
+	}
+}
+
+func TestRedactICEEntry(t *testing.T) {
+	require.Equal(t, "turn:***:***@host:3478", redactICEEntry("turn:user:secret@host:3478"))
+	require.Equal(t, "turn:***@host:3478", redactICEEntry("turn:nopass@host:3478"))
+	require.Equal(t, "stun:host:3478", redactICEEntry("stun:host:3478"))
 }
 
 func TestParseURL(t *testing.T) {
@@ -288,4 +355,40 @@ func TestSendToHostWithoutSFU(t *testing.T) {
 	attachFakeRTCD(t, s)
 	err = s.sendToHost(cs, rtcd.ClientMessage{Type: rtcd.ClientMessageJoin})
 	require.ErrorIs(t, err, ErrNoSFUHost)
+}
+
+func TestHostPumpSurvivesClientErrors(t *testing.T) {
+	// A transient client error on ErrorCh (e.g. a failed reconnect attempt —
+	// the real service.Client retries on its own) must be logged, not fatal:
+	// the pump keeps relaying messages that arrive afterwards.
+	client := newFakeRTCDClient()
+	require.NoError(t, client.Connect())
+
+	relayed := make(chan rtcd.ClientMessage, 8)
+	mgr := &rtcdClientManager{
+		log:       mlog.CreateTestLogger(t),
+		store:     newFakeKV(),
+		rtcdURL:   "http://127.0.0.1:8045",
+		rtcdPort:  "8045",
+		hosts:     map[string]*rtcdHost{},
+		closeCh:   make(chan struct{}),
+		newClient: func(rtcdURL, host string) (RTCDClient, error) { return client, nil },
+		onMessage: func(host string, msg rtcd.ClientMessage) { relayed <- msg },
+	}
+	require.NoError(t, mgr.addHost("127.0.0.1", client))
+
+	// Emit a client error, then a message — the message must still relay.
+	client.errCh <- errors.New("failed to re-connect: connection refused")
+	client.receiveCh <- rtcd.ClientMessage{Type: rtcd.ClientMessageRTC}
+
+	select {
+	case msg := <-relayed:
+		require.Equal(t, rtcd.ClientMessageRTC, msg.Type)
+	case <-time.After(3 * time.Second):
+		t.Fatal("pump stopped after a client error — message not relayed")
+	}
+
+	// Closing both channels (manager Close path) ends the pump.
+	close(client.receiveCh)
+	close(client.errCh)
 }

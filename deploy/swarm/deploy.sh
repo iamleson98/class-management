@@ -136,6 +136,25 @@ smoke "api"       "https://api.${DOMAIN}/api/v4/system/ping"     200
 smoke "app api"   "https://app.${DOMAIN}/api/v4/system/ping"     200
 smoke "grafana"   "https://grafana.${DOMAIN}/api/health"         200
 
+# WebSocket upgrade through the SAME app origin (the calls signaling path:
+# Traefik -> lms-fe run-server.js proxy -> lms-server). The server accepts
+# unauthenticated upgrades (clients authenticate in-band), so a 101 response
+# proves the whole chain relays upgrades correctly.
+smoke_ws() { # name url
+    local name="$1" url="$2" out
+    out=$(curl -s -i -N --max-time 8 \
+        -H "Connection: Upgrade" -H "Upgrade: websocket" \
+        -H "Sec-WebSocket-Version: 13" \
+        -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
+        "$url" 2>/dev/null | head -n 1 || true)
+    if echo "$out" | grep -q "101"; then
+        echo "   OK   $name (101 Switching Protocols)"
+    else
+        echo "   WARN $name (got '${out:-none}'; calls WebSocket not relayed — check lms-fe LMS_BACKEND_URL)"
+    fi
+}
+smoke_ws "app ws"  "https://app.${DOMAIN}/api/v4/websocket"
+
 echo
 echo ">> Deployed. Useful commands:"
 echo "   docker stack services $STACK_NAME"

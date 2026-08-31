@@ -23,7 +23,11 @@ const securityHeaders = [
   },
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=()",
+    // Camera / microphone are REQUIRED by the Calls feature (getUserMedia)
+    // and display-capture by screen sharing (getDisplayMedia). "()" would
+    // hard-block every media call with NotAllowedError — the directives must
+    // allow same-origin usage.
+    value: "camera=(self), microphone=(self), display-capture=(self), geolocation=()",
   },
 ];
 

@@ -247,12 +247,31 @@ func (m *rtcdClientManager) addHost(ip string, client RTCDClient) error {
 		return fmt.Errorf("host already exists: %s", ip)
 	}
 	m.hosts[ip] = &rtcdHost{ip: ip, client: client}
-	// Pump every message this host sends back into the relay handler. The
-	// goroutine exits when the client is closed (ReceiveCh is closed).
+	// Pump every message this host sends back into the relay handler, and
+	// surface async client errors (reconnect failures) in the logs — the
+	// vendored rtcd service client reconnects on its own (2s..30s capped
+	// backoff, unbounded attempts) and keeps its receive channel open
+	// across reconnects, but its errors are invisible unless consumed
+	// here. This mirrors the calls plugin's clientReader. The goroutine
+	// exits when the client is closed (both channels close).
 	go func() {
-		for msg := range client.ReceiveCh() {
-			if m.onMessage != nil {
-				m.onMessage(ip, msg)
+		for {
+			select {
+			case msg, ok := <-client.ReceiveCh():
+				if !ok {
+					return
+				}
+				if m.onMessage != nil {
+					m.onMessage(ip, msg)
+				}
+			case err, ok := <-client.ErrorCh():
+				if !ok {
+					return
+				}
+				if err != nil {
+					m.log.Warn("rtcd host client error (the client retries on its own)",
+						mlog.String("host", ip), mlog.Err(err))
+				}
 			}
 		}
 	}()

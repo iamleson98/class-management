@@ -52,7 +52,9 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set('X-Frame-Options', 'DENY')
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+  // camera/microphone are required by the Calls feature (getUserMedia) and
+  // display-capture by screen sharing — must stay allowed for same-origin.
+  response.headers.set('Permissions-Policy', 'camera=(self), microphone=(self), display-capture=(self), geolocation=()')
 
   if (process.env.NODE_ENV === 'production') {
     response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')

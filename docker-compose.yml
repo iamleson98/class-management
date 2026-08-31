@@ -5,8 +5,10 @@
 #   rustfs       S3-compatible object store for file uploads (same as prod)
 #   rustfs-init  one-shot: creates the upload bucket
 #   lms-server   Go backend (api :8065, metrics :8067)
-#   lms-fe       Next.js frontend (:3000), proxies /api/v4/* -> lms-server
-#   dev-proxy    Caddy reverse proxy (:80) — single origin for REST + WS (chat)
+#   lms-fe       Next.js frontend (:3000), proxies /api/v4/* (REST + WebSocket)
+#                to LMS_BACKEND_URL so the browser stays same-origin — chat WS
+#                and calls signaling work without CORS/cookie gymnastics
+#   dev-proxy    Caddy reverse proxy (:80) — single HTTPS-less origin for dev
 #   prometheus   scrapes lms-server metrics
 #   grafana      dashboards (read from prometheus)
 #
@@ -147,15 +149,17 @@ services:
       - lms-net
 
   # ─────────────────────────── Frontend ───────────────────────────
+  # The image is domain- AND backend-agnostic: NEXT_PUBLIC_API_URL is baked
+  # as "/" (same-origin sentinel) and the frontend's own server (run-server.js)
+  # proxies /api/v4 — REST and the WebSocket upgrade alike — to
+  # LMS_BACKEND_URL at runtime. The httpOnly MMAUTHTOKEN cookie stays
+  # first-party for REST, the chat WS and the calls WS.
   lms-fe:
     build:
       context: ./lms-fe
       dockerfile: Dockerfile
       args:
-        # "/" is the same-origin sentinel (see lms-fe/Dockerfile): the browser
-        # talks to /api/v4/* through the dev-proxy (Caddy) on ONE origin, so
-        # the httpOnly cookie works for REST and the WebSocket alike. This
-        # mirrors the production Traefik path rule exactly.
+        # "/" is the same-origin sentinel (see lms-fe/Dockerfile).
         NEXT_PUBLIC_API_URL: /
     restart: unless-stopped
     depends_on:
@@ -163,6 +167,7 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
+      LMS_BACKEND_URL: ${LMS_BACKEND_URL:-http://lms-server:8065}
       TZ: ${TZ:-UTC}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
@@ -170,12 +175,10 @@ services:
       - lms-net
 
   # ───────────────────────── Dev reverse proxy ──────────────────────
-  # Caddy serves the whole app on a single origin (http://localhost) so that
-  # the httpOnly MMAUTHTOKEN cookie is first-party for BOTH REST and the
-  # WebSocket (/api/v4/websocket). This mirrors the prod Traefik path rule
-  # and makes real-time chat work in dev without CORS/cookie gymnastics.
-  # Use http://localhost (PROXY_PORT) for local dev; the browser then talks
-  # same-origin for everything and NEXT_PUBLIC_API_URL is unused client-side.
+  # OPTIONAL: the frontend container now proxies /api/v4 (REST + WebSocket)
+  # itself via LMS_BACKEND_URL, so this single-origin Caddy front is a local
+  # convenience only — http://localhost serves the whole app on one origin.
+  # Removing this service changes nothing functionally.
   # Path routing rules live in deploy/caddy/Caddyfile.
   dev-proxy:
     image: caddy:2.8-alpine

@@ -240,7 +240,9 @@ type ConfigView struct {
 	EnableVideo bool `json:"enableVideo"`
 	// EnableReactions gates the in-call reaction stream.
 	EnableReactions bool `json:"enableReactions"`
-	// ICEServers is the configured ICE server list (comma-separated URLs).
+	// ICEServers is the configured ICE server list (STUN/TURN URLs;
+	// TURN entries carry their username/credential). Session-gated: only
+	// authenticated clients fetch this endpoint.
 	ICEServers []map[string]any `json:"iceServers,omitempty"`
 }
 
@@ -257,7 +259,7 @@ func (s *CallService) GetConfig() *ConfigView {
 		GroupCallsAllowed:   cfg.groupCallsAllowed(),
 		EnableVideo:         cfg.enableVideo(),
 		EnableReactions:     cfg.enableReactions(),
-		ICEServers:          s.iceServersForHost(""),
+		ICEServers:          s.iceServers(),
 	}
 	return view
 }

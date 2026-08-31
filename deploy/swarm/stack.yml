@@ -43,13 +43,21 @@
 #
 # ── TLS / routing ────────────────────────────────────────────────────────
 # Traefik terminates TLS (Let's Encrypt TLS-ALPN challenge):
-#   https://app.${DOMAIN}            frontend (Next.js)
-#   app.${DOMAIN}/api/v4/*           backend REST + WebSocket (SAME ORIGIN as
-#                                    the app — required for the httpOnly
-#                                    MMAUTHTOKEN cookie; priority 100 beats
-#                                    the frontend's bare Host rule)
+#   https://app.${DOMAIN}            frontend (Next.js). ALL /api/v4 traffic
+#                                    (REST + the calls WebSocket) is proxied
+#                                    BY THE FRONTEND SERVER to LMS_BACKEND_URL
+#                                    — run-server.js relays the WS upgrade
+#                                    over a raw socket pair, so the browser
+#                                    stays same-origin and the httpOnly
+#                                    MMAUTHTOKEN cookie rides REST and WS
+#                                    alike. This is what makes a SEPARATELY
+#                                    DEPLOYED frontend work: set LMS_BACKEND_URL
+#                                    to the backend's origin (any host, any
+#                                    domain) and the auth model is unchanged.
 #   https://api.${DOMAIN}            backend API (direct access: mmctl,
-#                                    integrations, admin tooling)
+#                                    integrations, admin tooling). CORS below
+#                                    also allows the frontend origin for direct
+#                                    cross-origin API clients.
 #   https://s3.${DOMAIN}             rustfs console (login-protected; remove
 #                                    these labels to keep it internal-only)
 #   https://grafana.${DOMAIN}        Grafana (admin password from secret)
@@ -269,9 +277,17 @@ services:
       MM_FILESETTINGS_AMAZONS3SSL: "false"
       MM_FILESETTINGS_AMAZONS3REGION: us-east-1
       # ── Site ──
-      # SiteURL is the user-facing origin (the app), and CORS explicitly
-      # allows it for the rare credentialed cross-origin case.
+      # SiteURL is the user-facing origin (the app). CORS is OFF by default:
+      # the app talks same-origin through the frontend's /api/v4 proxy, so no
+      # cross-origin request ever needs it. Set MM_SERVICESETTINGS_ALLOWCORSFROM
+      # (space-separated full origins, e.g. "https://app.other-domain.com")
+      # ONLY when direct cross-origin clients must reach this backend — e.g.
+      # a frontend that bypasses the proxy, mmctl, integrations. (Nested
+      # ${A:-${B}} defaults are not supported by docker stack interpolation,
+      # hence no app.${DOMAIN} default here.)
       MM_SERVICESETTINGS_SITEURL: https://app.${DOMAIN}
+      MM_SERVICESETTINGS_ALLOWCORSFROM: ${MM_SERVICESETTINGS_ALLOWCORSFROM:-""}
+      MM_SERVICESETTINGS_CORSALLOWCREDENTIALS: "true"
       MM_SERVICESETTINGS_ALLOWEDUNTRUSTEDINTERNALCONNECTIONS: "rustfs,postgres,rtcd"
       MM_SERVICESETTINGS_ENABLELOCALMODE: "true"
       MM_SERVICESETTINGS_TRUSTPROXYIPADDRESS: "true"
@@ -280,7 +296,13 @@ services:
       MM_CALLSSETTINGS_ENABLE: "true"
       MM_CALLSSETTINGS_RTCDSERVICEURL: http://rtcd:8045
       MM_CALLSSETTINGS_MAXCALLPARTICIPANTS: ${MM_CALLSSETTINGS_MAXCALLPARTICIPANTS:-0}
-      MM_CALLSSETTINGS_ICESERVERS: ${MM_CALLSSETTINGS_ICESERVERS:-stun:stun.l.google.com:19302}
+      # ICE servers handed to BROWSERS in the join ack (empty default is
+      # correct: rtcd is on a public IP and browsers reach it with host
+      # candidates). Add STUN/TURN for restrictive networks, e.g.
+      #   stun:stun.example.net:3478
+      #   turn:user:secret@turn.example.net:3478?transport=tcp
+      # (full guidance: DEPLOY.md, "Calls in production — ICE/TURN".)
+      MM_CALLSSETTINGS_ICESERVERS: ${MM_CALLSSETTINGS_ICESERVERS:-""}
       # ── Metrics ──
       MM_METRICSSETTINGS_ENABLE: "true"
       MM_METRICSSETTINGS_LISTENADDRESS: ":8067"
@@ -305,22 +327,15 @@ services:
       resources:
         limits: { cpus: "2.0", memory: 1536M }
       labels:
-        # API at https://api.<domain> (direct access for mmctl/integrations)
+        # API at https://api.<domain> (direct access for mmctl/integrations).
+        # APP traffic does NOT use this router: the frontend service proxies
+        # /api/v4 (REST + the calls WebSocket) itself, keeping the browser
+        # same-origin with the httpOnly cookie — see the lms-fe service.
         - traefik.enable=true
         - traefik.http.services.lms-server.loadbalancer.server.port=8065
         - traefik.http.routers.lms-server.rule=Host(`api.${DOMAIN}`)
         - traefik.http.routers.lms-server.entrypoints=websecure
         - traefik.http.routers.lms-server.tls.certresolver=le
-        # Chat: /api/v4/* (REST + WebSocket) under the SAME origin as the
-        # frontend (app.<domain>) so the httpOnly MMAUTHTOKEN cookie is
-        # first-party and rides the WS upgrade unchanged (SameSite=Lax is
-        # sufficient). Traefik proxies the WS upgrade automatically.
-        # Priority 100 ensures this wins over lms-fe's bare Host rule.
-        - traefik.http.routers.lms-server-chat.rule=Host(`app.${DOMAIN}`) && PathPrefix(`/api/v4`)
-        - traefik.http.routers.lms-server-chat.entrypoints=websecure
-        - traefik.http.routers.lms-server-chat.tls.certresolver=le
-        - traefik.http.routers.lms-server-chat.service=lms-server
-        - traefik.http.routers.lms-server-chat.priority=100
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8065/api/v4/system/ping"]
       interval: 30s
@@ -330,11 +345,18 @@ services:
 
   # ──────────────────────────── Frontend ─────────────────────────────
   # Domain-agnostic image: NEXT_PUBLIC_API_URL is baked as "/" (same-origin
-  # sentinel) and the WS client resolves window.location.origin at runtime.
+  # sentinel) and the browser talks to /api/v4 (REST + WebSocket) on its own
+  # origin; run-server.js proxies that namespace to LMS_BACKEND_URL at
+  # RUNTIME — including the WebSocket upgrade, which is what keeps calls
+  # working when the frontend is deployed separately from the backend.
   lms-fe:
     image: ${REGISTRY_PREFIX:-ghcr.io/iamleson98}/lms-fe:${TAG:?set TAG in .env}
     environment:
       NODE_ENV: production
+      # Where the frontend server proxies /api/v4 (REST + WS). Point this at
+      # ANY reachable backend origin — the Swarm service above by default, or
+      # a backend on a different host entirely (separated deployment).
+      LMS_BACKEND_URL: ${LMS_BACKEND_URL:-http://lms-server:8065}
       TZ: ${TZ:-UTC}
     networks: [lms_overlay]
     logging: *default-logging
@@ -369,7 +391,10 @@ services:
       RTCD_ICE_HOST_OVERRIDE: ${RTCD_ICE_HOST_OVERRIDE:?set RTCD_ICE_HOST_OVERRIDE to the video node PUBLIC IP}
       RTCD_ICE_PORT_UDP: "${RTCD_MEDIA_PORT:-8443}"
       RTCD_ICE_PORT_TCP: "${RTCD_MEDIA_PORT:-8443}"
-      RTCD_ICE_SERVERS: ${MM_CALLSSETTINGS_ICESERVERS:-stun:stun.l.google.com:19302}
+      # rtcd's OWN ICE servers (public-IP discovery when ice_host_override
+      # is empty, and its outbound gathering). Decoupled from
+      # MM_CALLSSETTINGS_ICESERVERS, which is what BROWSERS receive.
+      RTCD_ICE_SERVERS: ${RTCD_ICE_SERVERS:-stun:stun.l.google.com:19302}
       RTCD_DATA_SOURCE: /data/rtcd_db
       RTCD_LOG_LEVEL: ${RTCD_LOG_LEVEL:-INFO}
       TZ: ${TZ:-UTC}
