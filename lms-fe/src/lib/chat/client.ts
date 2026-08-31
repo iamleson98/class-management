@@ -43,19 +43,43 @@ export const wsClient = new WebSocketClient()
 let wsInitialized = false
 
 /**
+ * Resolve the backend origin for the WebSocket connection.
+ *
+ * NEXT_PUBLIC_API_URL semantics (baked at build time by lms-fe/Dockerfile):
+ *   - "/"        → same-origin production image: use window.location.origin.
+ *                  Lets one image serve ANY deployment domain (the reverse
+ *                  proxy routes /api/v4/* to the backend), so the image is
+ *                  domain-agnostic and the WS stays same-origin with the
+ *                  httpOnly MMAUTHTOKEN cookie.
+ *   - unset      → dev default http://localhost:8065 (cookies are
+ *                  port-agnostic, so the WS from localhost:3001 carries it).
+ *   - full URL   → explicit cross-origin backend (advanced; requires CORS
+ *                  with credentials on the server).
+ */
+export function resolveBackendOrigin(): string {
+  const configured = process.env.NEXT_PUBLIC_API_URL
+  if (configured === '/') {
+    return typeof window !== 'undefined' ? window.location.origin : ''
+  }
+  return configured || 'http://localhost:8065'
+}
+
+/**
  * Open the WebSocket connection.
  *
- * Connects to the backend directly (NEXT_PUBLIC_API_URL), because the httpOnly
- * MMAUTHTOKEN cookie is host-only to "localhost" and cookies are port-agnostic
- * (RFC 6265 §5.1.4) — so a WS to localhost:8065 from a page on localhost:3001
- * DOES carry the cookie. The backend's AllowCorsFrom includes the frontend
- * origin and CorsAllowCredentials is true, so the credentialed upgrade is
- * accepted.
+ * Connects to the backend on the origin resolved by resolveBackendOrigin().
+ * In dev that is localhost:8065 because the httpOnly MMAUTHTOKEN cookie is
+ * host-only to "localhost" and cookies are port-agnostic (RFC 6265 §5.1.4) —
+ * so a WS to localhost:8065 from a page on localhost:3001 DOES carry the
+ * cookie. In production the origin is same-origin (NEXT_PUBLIC_API_URL="/"
+ * baked into the image; Traefik's path rule routes the upgrade to the
+ * backend), so the cookie model is identical. The backend's AllowCorsFrom
+ * includes the frontend origin and CorsAllowCredentials is true, so the
+ * credentialed upgrade is accepted either way.
  *
- * Production note: when frontend + backend share one origin (Caddy/Traefik,
- * see deploy/caddy/Caddyfile), the WS is same-origin and the cookie model is
- * identical. Do not switch this to the page origin in dev — Next.js rewrites
- * proxy REST but CANNOT proxy WebSocket upgrades, so a same-origin WS would 404.
+ * Do not switch this to a relative URL — Next.js rewrites proxy REST but
+ * CANNOT proxy WebSocket upgrades, so a same-origin WS via the Next server
+ * would 404. The URL must be absolute (ws:// or wss://).
  *
  * Idempotent; safe to call again after a disconnect (reconnect is handled
  * internally by WebSocketClient).
@@ -67,8 +91,7 @@ export function connectWebSocket(): void {
   if (typeof window === 'undefined' || wsInitialized) return
   configureClient4()
 
-  // Backend origin → ws(s). The cookie (host-only "localhost") rides along.
-  const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8065'
+  const backendUrl = resolveBackendOrigin()
   const wsOrigin = backendUrl.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:')
   const connUrl = `${wsOrigin}/api/v4/websocket`
 

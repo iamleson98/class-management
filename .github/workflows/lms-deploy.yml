@@ -1,0 +1,235 @@
+# LMS CD — build & push images to GHCR, then deploy to the Contabo Swarm.
+#
+# Trigger: push to master (after LMS CI passes) or manual dispatch.
+#
+# Pipeline:
+#   1. build-push  matrix job builds lms-server, lms-fe, lms-rtcd and pushes
+#      them to ghcr.io/iamleson98/* with TWO tags:
+#        sha-<short>   immutable — what the deploy pins
+#        master        rolling alias
+#   2. deploy       uploads the deploy bundle (deploy/ + observability/) to
+#      the Contabo manager over SSH, renders .env from GitHub vars/secrets,
+#      runs deploy.sh (docker stack deploy --with-registry-auth), waits for
+#      the rollout and smoke-tests the public endpoints.
+#
+# Required GitHub configuration:
+#   Secrets:
+#     CONTABO_SSH_KEY      private SSH key for the manager (ed25519 recommended)
+#     LMS_TRAEFIK_AUTH     htpasswd line for the Traefik dashboard
+#     GHCR_PAT             (only if packages are private) PAT with read:packages
+#   Variables (Settings → Secrets and variables → Actions → Variables):
+#     CONTABO_SSH_HOST     manager public IP / hostname
+#     CONTABO_SSH_USER     ssh user on the manager (default root)
+#     CONTABO_SSH_PORT     ssh port (default 22)
+#     LMS_DOMAIN           base domain (example.com)
+#     LMS_ACME_EMAIL       Let's Encrypt email
+#     LMS_RTCD_PUBLIC_IP   public IPv4 of the rtcd node
+#   Optional:
+#     CONTABO_KNOWN_HOSTS  output of `ssh-keyscan <host>` (skips TOFU scan)
+#
+# First run on a fresh swarm: SSH in once and run
+#   deploy/swarm/secrets-bootstrap.sh
+# (the stack's external secrets cannot be created remotely by this workflow).
+name: LMS Deploy
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  # One deploy at a time; queued pushes supersede each other (last wins).
+  group: lms-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  # repository_owner is already lowercase for this account; if you fork to a
+  # mixed-case owner, lowercase it here.
+  REGISTRY_PREFIX: ghcr.io/${{ github.repository_owner }}
+
+jobs:
+  build-push:
+    name: Build & push ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: lms-server
+            context: server
+            file: server/Dockerfile
+          - name: lms-fe
+            context: lms-fe
+            file: lms-fe/Dockerfile
+          # rtcd builds from the REPO ROOT (replace directives in rtcd/go.mod
+          # point at ../server — the context must contain it).
+          - name: lms-rtcd
+            context: .
+            file: deploy/images/rtcd.Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY_PREFIX }}/${{ matrix.name }}
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=ref,event=branch
+
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,scope=${{ matrix.name }},mode=max
+          build-args: |
+            BUILD_NUMBER=sha-${{ github.sha }}
+
+  deploy:
+    name: Deploy to Contabo Swarm
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: build-push
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH
+        env:
+          SSH_KEY: ${{ secrets.CONTABO_SSH_KEY }}
+          SSH_HOST: ${{ vars.CONTABO_SSH_HOST }}
+          SSH_PORT: ${{ vars.CONTABO_SSH_PORT || '22' }}
+          KNOWN_HOSTS: ${{ secrets.CONTABO_KNOWN_HOSTS }}
+        run: |
+          set -eu
+          if [ -z "${SSH_HOST}" ]; then
+            echo "::error::Set the CONTABO_SSH_HOST repository variable (manager IP/hostname)" >&2
+            exit 1
+          fi
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${SSH_KEY}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          if [ -n "${KNOWN_HOSTS}" ]; then
+            printf '%s\n' "${KNOWN_HOSTS}" > ~/.ssh/known_hosts
+          else
+            echo "::warning::CONTABO_KNOWN_HOSTS not set — trusting ssh-keyscan (TOFU)"
+            ssh-keyscan -p "${SSH_PORT}" "${SSH_HOST}" >> ~/.ssh/known_hosts 2>/dev/null
+          fi
+          ssh -p "${SSH_PORT}" -o BatchMode=yes "${{ vars.CONTABO_SSH_USER || 'root' }}@${SSH_HOST}" 'echo "SSH OK: $(hostname)"'
+
+      - name: Upload deploy bundle
+        env:
+          SSH_HOST: ${{ vars.CONTABO_SSH_HOST }}
+          SSH_PORT: ${{ vars.CONTABO_SSH_PORT || '22' }}
+          SSH_USER: ${{ vars.CONTABO_SSH_USER || 'root' }}
+          LMS_DOMAIN: ${{ vars.LMS_DOMAIN }}
+          LMS_ACME_EMAIL: ${{ vars.LMS_ACME_EMAIL }}
+          LMS_RTCD_PUBLIC_IP: ${{ vars.LMS_RTCD_PUBLIC_IP }}
+          LMS_TRAEFIK_AUTH: ${{ secrets.LMS_TRAEFIK_AUTH }}
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
+          SHORT_SHA: ${{ github.sha }}
+        run: |
+          set -eu
+          if [ -z "${SSH_HOST}" ]; then
+            echo "::error::Set the CONTABO_SSH_HOST repository variable (manager IP/hostname)" >&2
+            exit 1
+          fi
+          if [ -z "${LMS_DOMAIN}" ] || [ -z "${LMS_RTCD_PUBLIC_IP}" ]; then
+            echo "::error::Set the LMS_DOMAIN and LMS_RTCD_PUBLIC_IP repository variables" >&2
+            exit 1
+          fi
+          TAG="sha-$(echo "${SHORT_SHA}" | cut -c1-7)"
+
+          # Everything deploy.sh + stack.yml need, preserving the relative
+          # paths the stack file uses for docker configs (../../observability).
+          tar czf /tmp/lms-bundle.tgz deploy/swarm deploy/images observability
+
+          # Render .env LOCALLY and ship it as a file. Secrets travel via scp
+          # (file content), never via the remote process environment or the
+          # ssh command line (where they would be visible in `ps`).
+          cat > /tmp/lms.env <<ENV
+          # Managed by GitHub Actions (lms-deploy.yml) — manual edits are overwritten.
+          DOMAIN=${LMS_DOMAIN}
+          ACME_EMAIL=${LMS_ACME_EMAIL}
+          TRAEFIK_AUTH=${LMS_TRAEFIK_AUTH}
+          TAG=${TAG}
+          RTCD_TAG=${TAG}
+          RUSTFS_ACCESS_KEY_USER=lms
+          MM_FILESETTINGS_AMAZONS3BUCKET=lms-uploads
+          RTCD_ICE_HOST_OVERRIDE=${LMS_RTCD_PUBLIC_IP}
+          TZ=Asia/Ho_Chi_Minh
+          ENV
+
+          scp -P "${SSH_PORT}" /tmp/lms-bundle.tgz /tmp/lms.env "${SSH_USER}@${SSH_HOST}:/tmp/"
+          rm -f /tmp/lms.env
+          if [ -n "${GHCR_PAT}" ]; then
+            printf '%s' "${GHCR_PAT}" > /tmp/.ghcr-token
+            scp -P "${SSH_PORT}" /tmp/.ghcr-token "${SSH_USER}@${SSH_HOST}:/tmp/.ghcr-token"
+            rm -f /tmp/.ghcr-token
+          fi
+
+      - name: Deploy
+        env:
+          SSH_HOST: ${{ vars.CONTABO_SSH_HOST }}
+          SSH_PORT: ${{ vars.CONTABO_SSH_PORT || '22' }}
+          SSH_USER: ${{ vars.CONTABO_SSH_USER || 'root' }}
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
+          GHCR_USER: ${{ github.repository_owner }}
+        run: |
+          set -eu
+          ssh -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" \
+              env DEPLOY_TAG="sha-$(echo '${{ github.sha }}' | cut -c1-7)" \
+                  GHCR_TOKEN_FILE="$([ -n "${GHCR_PAT}" ] && echo /opt/lms/.ghcr-token || echo '')" \
+                  GHCR_USER="${GHCR_USER}" \
+              /bin/bash -s <<'REMOTE'
+          set -euo pipefail
+          DEPLOY_DIR=/opt/lms
+
+          mkdir -p "$DEPLOY_DIR"
+          tar xzf /tmp/lms-bundle.tgz -C "$DEPLOY_DIR"
+          rm -f /tmp/lms-bundle.tgz
+          mv /tmp/lms.env "$DEPLOY_DIR/deploy/swarm/.env"
+          if [ -f /tmp/.ghcr-token ]; then
+            mv /tmp/.ghcr-token /opt/lms/.ghcr-token
+            chmod 600 /opt/lms/.ghcr-token
+          fi
+
+          cd "$DEPLOY_DIR/deploy/swarm"
+          TAG="$DEPLOY_TAG" ./deploy.sh
+          REMOTE
+
+      - name: Post-deploy smoke test (from the runner)
+        env:
+          LMS_DOMAIN: ${{ vars.LMS_DOMAIN }}
+        run: |
+          set -eu
+          TAG="sha-$(echo '${{ github.sha }}' | cut -c1-7)"
+          echo "Deployed $TAG — checking public endpoints from the outside:"
+          for url in "https://app.${LMS_DOMAIN}/" \
+                     "https://api.${LMS_DOMAIN}/api/v4/system/ping" \
+                     "https://app.${LMS_DOMAIN}/api/v4/system/ping"; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$url" || echo 000)
+            echo "  $code  $url"
+          done

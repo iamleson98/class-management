@@ -1,0 +1,95 @@
+# LMS rollback — redeploy a previously deployed immutable image tag.
+#
+# Manual dispatch only. Two strategies:
+#   1. Quick revert (no input): tells the manager to roll the stack back to
+#      the previous stack spec (docker stack rollback). Instant, but only
+#      reverts ONE spec back — if you deployed twice since the incident,
+#      use strategy 2.
+#   2. Pin an old tag (input `tag`, e.g. sha-1a2b3c4): re-renders .env with
+#      that TAG and redeploys through deploy.sh (full rollout + smoke test).
+#
+# Find previous tags at https://github.com/iamleson98/class-management/pkgs
+# or in the LMS Deploy workflow logs.
+#
+# Required GitHub variables/secrets: same as lms-deploy.yml.
+name: LMS Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to redeploy (e.g. sha-1a2b3c4). Empty = quick stack rollback."
+        required: false
+        default: ""
+
+concurrency:
+  group: lms-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  rollback:
+    name: Rollback on Contabo Swarm
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - name: Set up SSH
+        env:
+          SSH_KEY: ${{ secrets.CONTABO_SSH_KEY }}
+          SSH_HOST: ${{ vars.CONTABO_SSH_HOST }}
+          SSH_PORT: ${{ vars.CONTABO_SSH_PORT || '22' }}
+          KNOWN_HOSTS: ${{ secrets.CONTABO_KNOWN_HOSTS }}
+        run: |
+          set -eu
+          if [ -z "${SSH_HOST}" ]; then
+            echo "::error::Set the CONTABO_SSH_HOST repository variable" >&2
+            exit 1
+          fi
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${SSH_KEY}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          if [ -n "${KNOWN_HOSTS}" ]; then
+            printf '%s\n' "${KNOWN_HOSTS}" > ~/.ssh/known_hosts
+          else
+            echo "::warning::CONTABO_KNOWN_HOSTS not set — trusting ssh-keyscan (TOFU)"
+            ssh-keyscan -p "${SSH_PORT}" "${SSH_HOST}" >> ~/.ssh/known_hosts 2>/dev/null
+          fi
+
+      - name: Quick rollback (previous stack spec)
+        if: ${{ inputs.tag == '' }}
+        env:
+          SSH_HOST: ${{ vars.CONTABO_SSH_HOST }}
+          SSH_PORT: ${{ vars.CONTABO_SSH_PORT || '22' }}
+          SSH_USER: ${{ vars.CONTABO_SSH_USER || 'root' }}
+        run: |
+          set -eu
+          ssh -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" \
+              "docker stack rollback lms && docker stack services lms --format 'table {{.Name}}\t{{.Image}}\t{{.Replicas}}'"
+
+      - name: Redeploy pinned tag
+        if: ${{ inputs.tag != '' }}
+        env:
+          SSH_HOST: ${{ vars.CONTABO_SSH_HOST }}
+          SSH_PORT: ${{ vars.CONTABO_SSH_PORT || '22' }}
+          SSH_USER: ${{ vars.CONTABO_SSH_USER || 'root' }}
+          ROLLBACK_TAG: ${{ inputs.tag }}
+        run: |
+          set -eu
+          ssh -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" \
+              env ROLLBACK_TAG="${ROLLBACK_TAG}" \
+              /bin/bash -s <<'REMOTE'
+          set -euo pipefail
+          ENV_FILE=/opt/lms/deploy/swarm/.env
+          if [ ! -f "$ENV_FILE" ]; then
+            echo "!! $ENV_FILE not found — run a normal deploy first" >&2
+            exit 1
+          fi
+          # Rewrite TAG / RTCD_TAG in the CI-managed env file.
+          sed -i.bak -E "s/^TAG=.*/TAG=${ROLLBACK_TAG}/; s/^RTCD_TAG=.*/RTCD_TAG=${ROLLBACK_TAG}/" "$ENV_FILE"
+          rm -f "$ENV_FILE.bak"
+          cd "$(dirname "$ENV_FILE")"
+          ./deploy.sh
+          REMOTE

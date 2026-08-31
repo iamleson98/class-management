@@ -1,0 +1,154 @@
+# LMS CI — tests and image build validation for the fork's own code.
+#
+# Jobs:
+#   server     Go 1.27: build, vet, unit tests (calls suite with -race,
+#              public model suite)
+#   rtcd       Go 1.27: build + tests (builds against the fork's public
+#              module via the replace directives in rtcd/go.mod)
+#   frontend   bun: lint (non-blocking: pre-existing warnings), unit tests,
+#              production build with the same-origin sentinel
+#   images     docker build of all three production images (no push) —
+#              validates the Dockerfiles on every PR
+#
+# The upstream Mattermost workflows in this directory are inherited from the
+# fork and are not used by this repository.
+name: LMS CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: lms-ci-${{ github.event_name == 'pull_request' && github.event.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.27"
+
+jobs:
+  server:
+    name: Server (Go)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: server/go.sum
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet (calls + API surface)
+        run: go vet ./channels/calls/... ./channels/api4/...
+
+      - name: Test calls suite (race detector)
+        run: go test -race -count=1 ./channels/calls/...
+
+      - name: Test public model suite
+        run: go test -count=1 ./public/model/...
+
+  rtcd:
+    name: rtcd SFU (Go)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: rtcd
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: rtcd/go.sum
+
+      # rtcd/go.mod replaces github.com/iamleson98/sitename/server{,/public}
+      # with ../server — building from rtcd/ picks those up automatically.
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test -count=1 ./...
+
+  frontend:
+    name: Frontend (Next.js)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: lms-fe
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # Non-blocking: the repo carries pre-existing lint findings unrelated
+      # to the deploy pipeline; new code should not add more (fix the debt,
+      # then flip this to blocking).
+      - name: Lint
+        run: bun run lint
+        continue-on-error: true
+
+      - name: Unit tests
+        run: bun run test
+
+      # Build with the same sentinel the production image bakes in — proves
+      # the domain-agnostic build is valid on every PR.
+      - name: Production build (same-origin sentinel)
+        run: bun run build
+        env:
+          NEXT_PUBLIC_API_URL: /
+
+  images:
+    name: Docker images (build only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: lms-server
+            context: server
+            file: server/Dockerfile
+          - name: lms-fe
+            context: lms-fe
+            file: lms-fe/Dockerfile
+          # rtcd builds from the REPO ROOT: rtcd/go.mod has replace
+          # directives pointing at ../server, so the context must include it.
+          - name: lms-rtcd
+            context: .
+            file: deploy/images/rtcd.Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build ${{ matrix.name }} (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          push: false
+          tags: ${{ matrix.name }}:ci
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,scope=${{ matrix.name }},mode=max

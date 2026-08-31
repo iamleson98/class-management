@@ -1,55 +1,81 @@
 #!/usr/bin/env bash
-# Build the backend and frontend images and push them to the in-cluster
-# private registry, so every Swarm node can pull them.
+# Build the three LMS images and push them to GitHub Container Registry.
 #
-# Run on a host with docker that can reach the manager (or on the manager).
-# If the manager's 5000 port isn't reachable from here, SSH-tunnel it first:
-#   ssh -L 5000:127.0.0.1:5000 root@<manager-ip>
+# This is the MANUAL path (from a workstation with docker). The automated
+# path is .github/workflows/lms-deploy.yml, which builds the same images in
+# GitHub Actions. Use this for local experiments or air-gapped CI runners.
+#
+# Usage (from the repo root or anywhere — paths are resolved):
+#   ./build-and-push.sh                      # TAG=latest
+#   TAG=sha-1a2b3c4 ./build-and-push.sh       # immutable CI-style tag
+#
+# Auth: GHCR_USER + GHCR_TOKEN (a PAT with write:packages), from env or
+#   ~/.docker/config.json (an existing `docker login ghcr.io`).
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
-[ -f "$HERE/.env" ] && set -a && . "$HERE/.env" && set -a 2>/dev/null || true
 
-REG_HOST="${REGISTRY:-127.0.0.1:5000}"
+GHCR_USER="${GHCR_USER:-}"
+GHCR_TOKEN="${GHCR_TOKEN:-}"
+REGISTRY_PREFIX="${REGISTRY_PREFIX:-ghcr.io/iamleson98}"
 TAG="${TAG:-latest}"
+PLATFORMS="${PLATFORMS:-linux/amd64}"
 
-REG_USER="${REGISTRY_USERNAME:-lms}"
-REG_PASS="${REGISTRY_PASSWORD:-}"
-# Try terraform output if env var unset
-if [ -z "$REG_PASS" ] && [ -d "$HERE/../../infrastructure/terraform" ] && command -v terraform >/dev/null 2>&1; then
-  REG_PASS="$( (cd "$HERE/../../infrastructure/terraform" && terraform output -raw generated_registry_password 2>/dev/null) || true )"
+# Environment variables take precedence over .env (same rule as deploy.sh).
+CALLER_TAG="${TAG:-}"
+CALLER_REGISTRY_PREFIX="${REGISTRY_PREFIX:-}"
+
+if [ -f "$HERE/.env" ]; then set -a && . "$HERE/.env" && set +a; fi
+
+[ -n "$CALLER_TAG" ] && TAG="$CALLER_TAG"
+[ -n "$CALLER_REGISTRY_PREFIX" ] && REGISTRY_PREFIX="$CALLER_REGISTRY_PREFIX"
+
+if [ -n "$GHCR_TOKEN" ] && [ -n "$GHCR_USER" ]; then
+    printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin >/dev/null
+    echo ">> Logged in to ghcr.io as $GHCR_USER"
+else
+    if ! docker system info 2>/dev/null | grep -q 'ghcr.io'; then
+        echo "!! No ghcr.io credentials. Either export GHCR_USER + GHCR_TOKEN or run:" >&2
+        echo "   docker login ghcr.io" >&2
+        exit 1
+    fi
 fi
 
-# Only attempt login if the registry is reachable; otherwise assume tunnel/manager.
-if [ -n "$REG_PASS" ]; then
-  echo "$REG_PASS" | docker login "$REG_HOST" -u "$REG_USER" --password-stdin 2>/dev/null \
-    && echo ">> Logged in to $REG_HOST" \
-    || echo ">> registry login skipped (not reachable?) — make sure you can push to $REG_HOST"
-fi
+BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+BUILD_HASH="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo none)"
+BUILD_NUMBER="${BUILD_NUMBER:-$BUILD_HASH}"
 
-build_push() {
-  local name="$1" ctx="$2" dockerfile="$3" domain_arg="$4"
-  local image="${REG_HOST}/${name}:${TAG}"
-  echo ">> Building $name -> $image"
-  if [ -n "$domain_arg" ]; then
-    docker build -t "$image" -f "$ctx/$dockerfile" --build-arg "$domain_arg" "$ctx"
-  else
-    docker build -t "$image" -f "$ctx/$dockerfile" "$ctx"
-  fi
-  echo ">> Pushing $image"
-  docker push "$image"
+build_push() { # image-name dockerfile context extra-build-args...
+    local name="$1" dockerfile="$2" context="$3"; shift 3
+    local image="${REGISTRY_PREFIX}/${name}:${TAG}"
+    echo
+    echo ">> Building $name -> $image"
+    docker build \
+        --platform "$PLATFORMS" \
+        --build-arg "BUILD_NUMBER=${BUILD_NUMBER}" \
+        --build-arg "BUILD_DATE=${BUILD_DATE}" \
+        --build-arg "BUILD_HASH=${BUILD_HASH}" \
+        "$@" \
+        -f "$dockerfile" \
+        -t "$image" \
+        "$context"
+    echo ">> Pushing $image"
+    docker push "$image"
 }
 
-# Backend
-build_push lms-server "$ROOT/server" Dockerfile ""
+# Backend: context = server/
+build_push lms-server "$ROOT/server/Dockerfile" "$ROOT/server"
 
-# Frontend — bake the public API URL into the client bundle.
-# In Swarm the frontend talks to the backend through Traefik (api.DOMAIN),
-# so NEXT_PUBLIC_API_URL is the public https URL.
-DOMAIN_VAL="${DOMAIN:-example.com}"
-build_push lms-fe "$ROOT/lms-fe" Dockerfile "NEXT_PUBLIC_API_URL=https://api.${DOMAIN_VAL}"
+# Frontend: context = lms-fe/ (NEXT_PUBLIC_API_URL defaults to the
+# same-origin sentinel "/" inside the Dockerfile — the image is
+# domain-agnostic, no build-arg needed).
+build_push lms-fe "$ROOT/lms-fe/Dockerfile" "$ROOT/lms-fe"
 
-echo ""
-echo "Done. Images pushed to ${REG_HOST}. Now run:"
-echo "  ./deploy.sh"
+# rtcd: context = REPO ROOT (rtcd/go.mod has replace directives pointing at
+# ../server — building from rtcd/ alone cannot resolve the modules).
+build_push lms-rtcd "$ROOT/deploy/images/rtcd.Dockerfile" "$ROOT"
+
+echo
+echo ">> Done. Deploy with:"
+echo "   TAG=${TAG} ${HERE}/deploy.sh"

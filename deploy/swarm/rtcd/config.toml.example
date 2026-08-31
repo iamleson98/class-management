@@ -1,9 +1,11 @@
-# rtcd configuration for the LMS Swarm deployment.
+# rtcd configuration reference for the LMS Swarm deployment.
 #
-# Copy to config.toml next to this file and edit the marked values:
-#   cp config.toml.example config.toml
+# NOTE: the lms-rtcd IMAGE (deploy/images/rtcd.Dockerfile) renders its config
+# from RTCD_* environment variables at container start — see
+# deploy/images/rtcd-config.template.toml. The Swarm service never mounts a
+# config file. This file documents the full option surface and is kept as a
+# reference; the values below match the defaults the image renders.
 #
-# The stack mounts it at /etc/rtcd/config.toml (see root README.md §4.1).
 # Full option reference: rtcd/config/config.sample.toml
 
 [api]

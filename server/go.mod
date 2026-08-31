@@ -1,6 +1,6 @@
 module github.com/iamleson98/sitename/server/v8
 
-go 1.27rc2
+go 1.27.0
 
 replace (
 	// Use the fork's local public module.

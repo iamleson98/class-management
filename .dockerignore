@@ -1,0 +1,20 @@
+# Build context filter for the rtcd image (deploy/images/rtcd.Dockerfile,
+# built from the REPO ROOT because rtcd/go.mod replaces -> ../server).
+#
+# Only server/ + rtcd/ + deploy/images/ are needed; everything else would
+# just bloat the context upload (frontend node_modules, .git, reports…).
+
+*
+!server/
+!server/**
+!rtcd/
+!rtcd/**
+!deploy/images/
+!deploy/images/**
+
+# Within the allowed trees, still exclude build/test debris.
+**/.git
+**/node_modules
+**/*.test
+**/dist/
+**/coverage/

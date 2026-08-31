@@ -1,6 +1,6 @@
 module github.com/iamleson98/sitename/server/public
 
-go 1.27rc2
+go 1.27.0
 
 require (
 	github.com/aarondl/null/v8 v8.1.3

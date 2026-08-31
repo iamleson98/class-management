@@ -1,0 +1,115 @@
+#cloud-config
+
+# Contabo VPS bootstrap for the LMS Docker Swarm cluster.
+#
+# Usage: when creating the server in the Contabo panel, paste this file into
+# the "Cloud-init / User data" field (supported on Cloud VPS and VDS lines).
+# It can also be applied manually after first boot:
+#   sudo cloud-init status --wait   # then check /var/log/cloud-init-output.log
+#
+# What it does:
+#   - installs Docker CE from docker's apt repo (with containerd + compose)
+#   - sysctls for Swarm networking (VXLAN, conntrack, listening ranges)
+#   - journald + log rotation limits
+#   - a deploy user with sudo + your SSH key (swap the placeholder!)
+#   - ufw baseline: swarm control-plane + public entry points
+#   - unattended security upgrades
+#
+# ⚠️ BEFORE USE (manual): replace ${ssh_public_key} with your real public
+# public key. The default Contabo root password login stays as the panel
+# configured it — harden (PasswordAuthentication no) once access is verified.
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - ufw
+  - unattended-upgrades
+  - htop
+  - jq
+
+write_files:
+  - path: /etc/sysctl.d/99-lms-swarm.conf
+    permissions: "0644"
+    content: |
+      # Docker Swarm / WebRTC networking requirements.
+      # ip_forward is enabled by docker; these cover overlay + ICE.
+      net.ipv4.ip_forward = 1
+      net.ipv4.conf.all.rp_filter = 0
+      net.ipv4.conf.default.rp_filter = 0
+      # rtcd opens many UDP sockets (udpmux + ICE).
+      net.core.rmem_max = 16777216
+      net.core.wmem_max = 16777216
+      # Conntrack for NAT'd clients; Swarm's default table can overflow on
+      # busy video nodes.
+      net.netfilter.nf_conntrack_max = 262144
+  - path: /etc/docker/daemon.json
+    permissions: "0644"
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": { "max-size": "10m", "max-file": "3" },
+        "live-restore": true,
+        "default-address-pools": [
+          { "base": "10.10.0.0/16", "size": 24 }
+        ]
+      }
+  - path: /etc/apt/apt.conf.d/20auto-upgrades
+    permissions: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+
+runcmd:
+  # ── Docker CE from the official repository ──────────────────────────
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+  - |
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] \
+    https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+    > /etc/apt/sources.list.d/docker.list
+  - apt-get update
+  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  - systemctl enable --now docker
+  - sysctl --system
+
+  # ── Deploy user (used by GitHub Actions to deploy) ──────────────────
+  - useradd -m -s /bin/bash -G sudo,docker deploy || true
+  - |
+    install -d -m 0700 -o deploy -g deploy /home/deploy/.ssh
+    cat >> /home/deploy/.ssh/authorized_keys <<'KEY'
+    ssh-ed25519 ${ssh_public_key}
+    KEY
+  - chmod 600 /home/deploy/.ssh/authorized_keys
+  - chown -R deploy:deploy /home/deploy/.ssh
+
+  # ── Firewall ─────────────────────────────────────────────────────────
+  # Swarm control plane (between nodes) + public entry points.
+  # NOTE: Docker publishes ports directly via iptables (bypassing ufw for
+  # published container ports); ufw here guards the HOST services and the
+  # swarm ports. Published container ports (80/443/8443) are controlled by
+  # the stack file, not ufw.
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow 22/tcp comment 'ssh'
+  - ufw allow 2377/tcp comment 'swarm management'
+  - ufw allow 7946/tcp comment 'swarm gossip'
+  - ufw allow 7946/udp comment 'swarm gossip'
+  - ufw allow 4789/udp comment 'swarm vxlan'
+  - ufw allow 80/tcp comment 'http'
+  - ufw allow 443/tcp comment 'https'
+  - ufw allow 8443/tcp comment 'rtcd ICE tcp'
+  - ufw allow 8443/udp comment 'rtcd ICE udp'
+  - ufw --force enable
+
+users:
+  - name: deploy
+    groups: [sudo, docker]
+    shell: /bin/bash
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    ssh_authorized_keys:
+      - ssh-ed25519 ${ssh_public_key}

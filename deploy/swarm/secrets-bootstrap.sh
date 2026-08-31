@@ -1,91 +1,106 @@
 #!/usr/bin/env bash
-# Create the Docker Swarm secrets referenced by stack.yml.
+# Create the Docker secrets the LMS Swarm stack expects (see stack.yml).
 #
-# Run ONCE on the Swarm manager (or any node that can reach the manager socket)
-# after `terraform apply`. Safe to re-run: existing secrets are left in place.
+# Idempotent: existing secrets are left untouched (Docker secrets cannot be
+# read back after creation, so regeneration would orphan the old value —
+# rotating is a deliberate act, see "Rotation" at the bottom).
 #
-# Secrets created (all external: referenced in stack.yml under `secrets:`):
-#   db_password            — PostgreSQL password (plaintext)
-#   db_dsn                 — full Postgres DSN for the backend
-#   minio_root_password    — MinIO root password
-#   grafana_admin_password — Grafana admin password
-#   registry_htpasswd      — htpasswd entry for the private registry user
+# Run ONCE on the Swarm manager before the first `deploy.sh`:
+#   cd deploy/swarm
+#   cp .env.example .env && $EDITOR .env     # set DOMAIN etc.
+#   ./secrets-bootstrap.sh
 #
-# Values come from Terraform outputs if present, else from .env, else are
-# generated and printed.
+# Creates:
+#   db_password            postgres password            (hex 48)
+#   db_dsn                 postgres://...               (assembled)
+#   rustfs_access_key      S3 access key ID             (lms-<hex 24>)
+#   rustfs_secret_key      S3 secret access key         (hex 64)
+#   grafana_admin_password Grafana admin password       (hex 32)
+#
+# All generated values are plain alphanumeric (URL-safe, no shell quoting
+# hazards in the DSN).
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_FILE="${HERE}/.env"
-[ -f "$ENV_FILE" ] && set -a && . "$ENV_FILE" && set -a 2>/dev/null || true
+[ -f "$HERE/.env" ] && set -a && . "$HERE/.env" && set +a
 
-PGUSER="${POSTGRES_USER:-mmuser}"
-PGDB="${POSTGRES_DB:-mattermost}"
-PGHOST="${PGHOST:-postgres}"
+POSTGRES_USER="${POSTGRES_USER:-mmuser}"
+POSTGRES_DB="${POSTGRES_DB:-mattermost}"
 
-require() { : "${1:?missing $2 — set it in $ENV_FILE (see .env.example) }"; }
+# ── Preflight ──────────────────────────────────────────────────────────
+if ! docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null | grep -q 'active'; then
+    echo "!! This node is not an active Swarm member. Run: docker swarm init" >&2
+    exit 1
+fi
 
-# Resolve each secret value: Terraform output > .env > generate.
-get_value() {
-  local tf_var="$1" env_var="$2"
-  # Try terraform output first (cd to the terraform dir)
-  local val=""
-  if [ -d "$HERE/../../infrastructure/terraform" ] && command -v terraform >/dev/null 2>&1; then
-    val="$( (cd "$HERE/../../infrastructure/terraform" && terraform output -raw "$tf_var" 2>/dev/null) || true )"
-  fi
-  if [ -z "$val" ]; then val="${!env_var:-}"; fi
-  if [ -z "$val" ]; then val="$(openssl rand -base64 30 | tr -d '\n/=+')"; echo "  (generated new $env_var — record it)" >&2; fi
-  printf '%s' "$val"
+have_secret() {
+    docker secret inspect "$1" >/dev/null 2>&1
 }
 
-# db_password
-DB_PASS="$(get_value generated_db_password DB_PASSWORD)"
-# db_dsn: full DSN the backend expects
-DB_DSN="$(get_value _ DB_DSN 2>/dev/null || true)"
-if [ -z "$DB_DSN" ]; then
-  DB_DSN="postgres://${PGUSER}:${DB_PASS}@${PGHOST}:5432/${PGDB}?sslmode=disable&connect_timeout=10"
-fi
-MINIO_PASS="$(get_value generated_minio_root_password MINIO_ROOT_PASSWORD)"
-GRAFANA_PASS="$(get_value generated_grafana_admin_password GRAFANA_ADMIN_PASSWORD)"
+create_secret() { # name value
+    local name="$1" value="$2"
+    printf '%s' "$value" | docker secret create "$name" - >/dev/null
+    echo "   created: $name"
+}
 
-# registry htpasswd for user ${REGISTRY_USERNAME:-lms}
-REG_USER="${REGISTRY_USERNAME:-lms}"
-REG_PASS="$(get_value generated_registry_password REGISTRY_PASSWORD)"
-if command -v htpasswd >/dev/null 2>&1; then
-  REG_HTPASSWD="$(htpasswd -nbB "$REG_USER" "$REG_PASS")"
+gen_hex() { openssl rand -hex "${1:-16}"; }
+
+echo ">> Creating Docker secrets (existing ones are kept)"
+
+# ── PostgreSQL ─────────────────────────────────────────────────────────
+# db_password and db_dsn must be created together: the DSN embeds the
+# password, and an existing secret's value cannot be recovered.
+if have_secret db_password || have_secret db_dsn; then
+    if have_secret db_password && have_secret db_dsn; then
+        echo "   kept:    db_password, db_dsn"
+    else
+        echo "!! Inconsistent state: exactly one of db_password/db_dsn exists." >&2
+        echo "   Docker secrets cannot be read back, so the DSN cannot be rebuilt." >&2
+        echo "   Fix (loses the old DB password — needs ALTER USER if the DB is" >&2
+        echo "   already initialized):" >&2
+        echo "     docker secret rm db_password db_dsn && $0" >&2
+        exit 1
+    fi
 else
-  echo "htpasswd not found — generating via docker run (apache2-utils)..." >&2
-  REG_HTPASSWD="$(docker run --rm httpd:2.4 htpasswd -nbB "$REG_USER" "$REG_PASS")"
+    DB_PASSWORD="$(gen_hex 24)"
+    create_secret db_password "$DB_PASSWORD"
+    create_secret db_dsn \
+        "postgres://${POSTGRES_USER}:${DB_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable&connect_timeout=10"
 fi
 
-# Create each secret (idempotent: skip if it already exists).
-create_secret() {
-  local name="$1" file="$2"
-  if docker secret inspect "$name" >/dev/null 2>&1; then
-    echo "secret '$name' already exists — skipping"
-    return
-  fi
-  printf '%s' "$(cat "$file")" | docker secret create "$name" - >/dev/null
-  echo "secret '$name' created"
-}
+# ── rustfs (S3) ────────────────────────────────────────────────────────
+if have_secret rustfs_access_key; then
+    echo "   kept:    rustfs_access_key"
+else
+    create_secret rustfs_access_key "lms-$(gen_hex 12)"
+fi
 
-tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
+if have_secret rustfs_secret_key; then
+    echo "   kept:    rustfs_secret_key"
+else
+    create_secret rustfs_secret_key "$(gen_hex 32)"
+fi
 
-printf '%s' "$DB_PASS"        > "$tmp/db_password"
-printf '%s' "$DB_DSN"         > "$tmp/db_dsn"
-printf '%s' "$MINIO_PASS"     > "$tmp/minio_root_password"
-printf '%s' "$GRAFANA_PASS"   > "$tmp/grafana_admin_password"
-printf '%s' "$REG_HTPASSWD"   > "$tmp/registry_htpasswd"
+# ── Grafana ────────────────────────────────────────────────────────────
+if have_secret grafana_admin_password; then
+    echo "   kept:    grafana_admin_password"
+else
+    create_secret grafana_admin_password "$(gen_hex 16)"
+fi
 
-create_secret db_password          "$tmp/db_password"
-create_secret db_dsn               "$tmp/db_dsn"
-create_secret minio_root_password  "$tmp/minio_root_password"
-create_secret grafana_admin_password "$tmp/grafana_admin_password"
-create_secret registry_htpasswd    "$tmp/registry_htpasswd"
-
-echo ""
-echo "All secrets ready. Next:"
-echo "  ./registry-auth.sh   # distribute registry creds to nodes"
-echo "  ./build-and-push.sh  # build & push images"
-echo "  ./deploy.sh          # docker stack deploy"
+echo
+echo ">> Done. Secrets in the swarm:"
+docker secret ls --format '{{.Name}}' | grep -E '^(db_|rustfs_|grafana_)' | sort | sed 's/^/   /'
+echo
+echo ">> Next: ./deploy.sh"
+echo
+echo ">> Rotation (deliberate, per-secret):"
+echo "   db_password:      docker secret rm db_password db_dsn && $0"
+echo "                     then ALTER USER on postgres to the NEW password,"
+echo "                     then redeploy. (Only safe on a fresh DB.)"
+echo "   rustfs_secret_key: docker secret rm rustfs_secret_key && $0"
+echo "                     rustfs keeps the OLD key until restarted; the S3"
+echo "                     credentials are validated by lms-server on boot."
+echo "   grafana_admin_password: docker secret rm grafana_admin_password && $0"
+echo "                     Grafana only reads it on first boot (stored in its"
+echo "                     own DB afterwards); reset via grafana-cli."

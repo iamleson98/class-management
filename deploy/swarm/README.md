@@ -1,126 +1,116 @@
-# Docker Swarm deployment
+# Docker Swarm deployment (Contabo)
 
-Deploys the LMS system across the Kamatera Swarm cluster provisioned by
-`infrastructure/terraform`. One stack file, TLS via Traefik, secrets via Docker
-Swarm, images via an in-cluster private registry.
+Deploys the LMS system on a Docker Swarm cluster running on Contabo servers:
+frontend (`lms-fe`), Go backend (`lms-server`), calls SFU (`lms-rtcd`), and
+rustfs object storage, plus PostgreSQL, Traefik (TLS), Prometheus and Grafana.
+Images come from GitHub Container Registry; CI/CD is GitHub Actions
+(`.github/workflows/lms-deploy.yml`).
 
-> Start with the root `README.md` — it walks the whole deployment in order.
+> Start with the root `DEPLOY.md` — it walks the whole deployment in order.
 > This file is the operator's reference for the Swarm layer.
 
-## Prerequisites (after `terraform apply`)
+## Layout
 
-- A formed Swarm (4 nodes labelled `role=manager|backend|db|video`). Verify:
-  `terraform output -raw swarm_check | sh`
-- DNS: A records for `app`, `api`, `minio`, `grafana`, `traefik` → manager IP
-  (and, when enabling calls, the video node firewall opened for 8443 — see
-  the rtcd section below).
+```
+deploy/swarm/
+  stack.yml             the Swarm stack (services, networks, volumes, secrets, configs)
+  .env.example          every tunable (domain, placements, tags, calls settings)
+  secrets-bootstrap.sh  one-time: create the 5 Docker secrets
+  deploy.sh             deploy/update + rollout wait + smoke tests
+  rollback.sh           stack rollback / redeploy an older tag
+  build-and-push.sh     manual image build & push to GHCR
+  configs/prometheus.yml  scrape config (mounted as a Docker config)
+  rtcd/config.toml.example  reference config (the image renders from env)
+```
 
-## One-time setup
+## Prerequisites
+
+- Contabo VPSes with Docker installed (see `deploy/cloud-init/contabo.yaml` —
+  paste it into Contabo's cloud-init field when creating the server(s)).
+- A formed Swarm. Single node: `docker swarm init`. Multi-node: init on the
+  manager, `docker swarm join` on the workers, then tag roles:
+  ```bash
+  docker node update --label-add role=db <node>
+  docker node update --label-add role=video <node>
+  docker node update --label-add role=backend <node>
+  ```
+- Firewall (on every node): allow `2377/tcp` (manager), `7946/tcp+udp`,
+  `4789/udp` (VXLAN) between nodes; `80/tcp`, `443/tcp` (public, manager);
+  `8443/tcp+udp` (public, video node only).
+- DNS: A records for `app`, `api`, `s3`, `grafana`, `traefik` → manager IP.
+
+## One-time setup (on the manager)
 
 ```bash
-cd deploy/swarm
+git clone https://github.com/iamleson98/class-management   # or upload deploy/
+cd class-management/deploy/swarm
 cp .env.example .env
-# edit .env: DOMAIN, ACME_EMAIL, TRAEFIK_AUTH
+# edit .env: DOMAIN, ACME_EMAIL, TRAEFIK_AUTH, RTCD_ICE_HOST_OVERRIDE, TAG
 
-# 1. Create the Swarm secrets (pulls generated values from terraform output)
-./secrets-bootstrap.sh
-
-# 2. Log the manager into the private registry and ship creds to all nodes
-./registry-auth.sh
+./secrets-bootstrap.sh    # creates db_password, db_dsn, rustfs_*, grafana_*
 ```
 
-## Build & deploy
+If the GHCR packages are private, also store a read:packages PAT:
 
 ```bash
-# 3. Build images and push to the in-cluster registry
-#    (run where docker can reach 127.0.0.1:5000, e.g. on the manager,
-#     or SSH-tunnel it: ssh -L 5000:127.0.0.1:5000 root@<manager-ip>)
-./build-and-push.sh
-
-# 4. Deploy the stack (run on the manager, or via DOCKER_HOST=ssh://root@<mgr>)
-./deploy.sh
+echo "github_pat_..." > /opt/lms/.ghcr-token   # chmod 600; path via GHCR_TOKEN_FILE in .env
 ```
 
-## What runs where
-
-| Service      | Node label  | Notes                                        |
-|--------------|-------------|----------------------------------------------|
-| traefik      | manager     | TLS termination, 80/443 published            |
-| registry     | manager     | private registry:5000 (overlay only)         |
-| postgres     | db          | volume `pgdata`                              |
-| minio        | backend     | volume `miniodata`; S3 for uploads           |
-| lms-server   | backend     | Go API; reads secrets via entrypoint shim    |
-| lms-fe       | manager     | Next.js; `/api/v4` routed to lms-server      |
-| prometheus   | manager     | scrapes lms-server:8067                      |
-| grafana      | manager     | datasource auto-provisioned                  |
-| rtcd         | video       | calls SFU — add it, see below                |
-
-## Routing model (why cookies and chat work)
-
-The `MMAUTHTOKEN` login cookie is `httpOnly` + `SameSite=Lax`. For the cookie
-to ride both REST calls and the chat WebSocket, everything the browser touches
-must be **one origin**. Traefik therefore routes:
-
-- `Host(app.<domain>) && PathPrefix(/api/v4)` → **lms-server** (priority 100)
-- `Host(app.<domain>)` (everything else) → **lms-fe**
-- `Host(api.<domain>)` → lms-server (direct API access / external clients)
-
-Result: the browser only ever talks to `https://app.<domain>`, same-origin for
-REST + WS. The WebSocket upgrade is proxied automatically by Traefik.
-
-## Secrets handling
-
-Mattermost has no `*_FILE` env convention, so the backend image ships a small
-entrypoint shim (`server/build/docker-entrypoint.sh`) that reads Swarm secret
-files and exports the matching `MM_*` vars. The mapping is set per-service via
-`SECRETS_MAP`. Postgres/Grafana use their native `_FILE` support directly.
-
-Secrets are created by `secrets-bootstrap.sh` and stored in Swarm's encrypted
-raft store — never in plaintext env files. Existing secrets are never
-overwritten; to rotate one: `docker secret rm <name> && ./secrets-bootstrap.sh`
-then `./deploy.sh`.
-
-## Enabling calls — the rtcd service
-
-The native calls feature needs the rtcd SFU on the `video` node. Full
-walkthrough in the root `README.md` §4; the short version:
-
-1. **Add the service block** (from root README §4.1) to `stack.yml`: image
-   `mattermost/rtcd` (or your build of `./rtcd`), config TOML mounted at
-   `/etc/rtcd/config.toml`, `rtcd_data` volume for its client-key store, and
-   **host-mode** published ports `8443/udp` + `8443/tcp` (Swarm ingress does
-   not carry WebRTC UDP media; host mode pins correctly because the service is
-   constrained to the single `video` node).
-2. **rtcd config** (from `rtcd/config/config.sample.toml`): set
-   `security.allow_self_registration = true` (safe on the private overlay) and
-   `ice_host_override = "<video node public IP>"` so browsers receive a
-   reachable media address.
-3. **Tell the backend** — add to `lms-server.environment`:
-   `MM_CALLSSETTINGS_ENABLE=true`,
-   `MM_CALLSSETTINGS_RTCDSERVICEURL=http://rtcd:8045`.
-4. **Firewall the video node**: allow UDP + TCP 8443 inbound.
-5. `./deploy.sh`, then verify:
-   `docker service logs lms_rtcd` and
-   `docker service logs lms_lms-server | grep calls` →
-   *"calls: rtcd client manager started"*.
-
-Scaling media: add more `video`-labelled nodes with rtcd replicas behind one
-DNS name and point `MM_CALLSSETTINGS_RTCDSERVICEURL` at it — the server
-resolves all A records and spreads new calls across the SFU pool.
-
-## Updating
+## Deploy
 
 ```bash
-# Rebuild a changed service and redeploy
-TAG=v2 ./build-and-push.sh && ./deploy.sh
+TAG=sha-<commit> ./deploy.sh     # CI does exactly this over SSH
 ```
-Swarm rolls out with `order: start-first` (new tasks start before old ones
-stop) and `failure_action: rollback`. Manual rollback of one service:
-`docker service rollback lms_lms-server`.
 
-## Tear down
+`deploy.sh` validates the environment, logs in to GHCR (when configured),
+runs `docker stack deploy --with-registry-auth lms`, waits for the rollout,
+and smoke-tests `https://app.<domain>/api/v4/system/ping` & friends.
+
+## Rolling back
 
 ```bash
-docker stack rm lms
-# then terraform destroy from infrastructure/terraform
+./rollback.sh                 # revert to the previous stack spec
+./rollback.sh sha-1a2b3c4     # redeploy an older immutable tag
 ```
+
+## Operations cheat-sheet
+
+```bash
+docker stack services lms                       # service overview
+docker stack ps lms                             # task placement/state
+docker service logs lms_lms-server --tail 100 -f
+docker service inspect lms_lms-rtcd --format '{{json .Spec.TaskTemplate.ContainerSpec.Env}}'
+docker secret ls
+docker node ls                                  # role labels, availability
+docker service update --env-add ... lms_lms-server   # ad-hoc env change
+```
+
+## Placement & scaling
+
+Defaults keep everything on the manager (single-node swarm works untouched).
+Override the `*_PLACEMENT` vars in `.env` for multi-node clusters — see the
+comments in `.env.example`. Scale stateless tiers with `BACKEND_REPLICAS` /
+`FRONTEND_REPLICAS` (postgres, rustfs and rtcd are single-writer services;
+scaling them is not supported by this stack).
+
+## rtcd (calls) notes
+
+- `RTCD_ICE_HOST_OVERRIDE` MUST be the public IPv4 of the node rtcd runs on:
+  it is advertised to browsers in ICE candidates. Behind Contabo NATless
+  public IPs this is simply the VPS address.
+- Media ports (`8443/udp+tcp` by default) are published in **host** mode on
+  that node — ingress/VIP publishing would break ICE host-candidate matching.
+- The control API (`:8045`) stays on the overlay; the backend self-registers
+  (`MM_CALLSSETTINGS_RTCDSERVICEURL=http://rtcd:8045`).
+- The image renders its config from env vars at start
+  (`deploy/images/rtcd-entrypoint.sh`); no config file to maintain.
+- Registered client credentials persist in the `rtcd_data` volume
+  (`/data/rtcd_db`) — do not delete it between deploys.
+
+## Registry notes
+
+Images live at `ghcr.io/iamleson98/lms-{server,fe,rtcd}`. CI pushes
+`sha-<short>` (immutable) and `master` (rolling) tags; deploys pin the SHA
+tag. Public packages need no login; private ones need a PAT with
+`read:packages` on every node that pulls (the deploy uses
+`--with-registry-auth` so only the manager needs the login).

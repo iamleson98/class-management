@@ -55,6 +55,11 @@ const nextConfig: NextConfig = {
   // In production, achieve the same effect by serving frontend + backend under
   // one domain (or a reverse proxy) instead of this Next.js rewrite.
   async rewrites() {
+    // NEXT_PUBLIC_API_URL = "/" means "same-origin production image": the
+    // reverse proxy (Traefik) routes /api/v4/* straight to the backend before
+    // the request ever reaches Next.js, so no rewrite is needed — and one
+    // would be wrong (no absolute backend URL exists at build time).
+    if (process.env.NEXT_PUBLIC_API_URL === "/") return []
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8065"
     return [
       {

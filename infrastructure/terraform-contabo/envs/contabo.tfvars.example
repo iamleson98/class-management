@@ -1,0 +1,21 @@
+# Contabo swarm node provisioning — see main.tf for the full instructions.
+#
+# 1. Pick product IDs from https://contabo.com/en/product-list/?show_ids=true
+# 2. Paste YOUR public key (one line, starts with ssh-ed25519/ssh-rsa)
+# 3. Single-node: leave enable_* false. Multi-node: enable what you need.
+
+cluster_name = "lms"
+region       = "EU"
+period       = 1
+
+ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... your key here ..."
+
+# Single-node default: everything on the manager (8 vCPU / 16 GB class
+# recommended — the Go server, postgres, rustfs and rtcd all run here).
+manager_product_id = "V15"
+
+# Multi-node options:
+enable_db_node   = false
+db_product_id    = "V30"
+enable_video_node = false
+video_product_id  = "V50"

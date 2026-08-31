@@ -3,7 +3,13 @@ on:
   push:
     branches:
       - master
-      - release-*
+    # Upstream workflow — this fork has no webapp/ directory (the frontend
+    # lives in lms-fe/ and is covered by lms-ci.yml), so scope it away to
+    # stop it failing on every master push.
+    paths:
+      - "webapp/**"
+      - ".github/workflows/webapp-ci.yml"
+      - ".github/actions/webapp-setup/**"
   pull_request:
     paths:
       - "webapp/**"

@@ -5,7 +5,7 @@
 # ----------------------------------------------------------------------------
 # Stage 1: build the Go server and mmctl
 # ----------------------------------------------------------------------------
-FROM golang:1.27rc2-alpine AS builder
+FROM golang:1.27-alpine AS builder
 
 # Required for git-based ldflags and module fetching
 RUN apk add --no-cache git gcc musl-dev

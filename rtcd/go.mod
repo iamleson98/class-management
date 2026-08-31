@@ -1,6 +1,6 @@
 module github.com/mattermost/rtcd
 
-go 1.27rc2
+go 1.27.0
 
 require (
 	git.mills.io/prologic/bitcask v1.0.2
