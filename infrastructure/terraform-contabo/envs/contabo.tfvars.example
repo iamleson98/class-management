@@ -1,21 +1,39 @@
 # Contabo swarm node provisioning — see main.tf for the full instructions.
 #
 # 1. Pick product IDs from https://contabo.com/en/product-list/?show_ids=true
+#    (the IDs below reference the classic V-classes; verify against the
+#    current product list — plans are RAM-heavy, e.g. 8 vCPU/24 GB.)
 # 2. Paste YOUR public key (one line, starts with ssh-ed25519/ssh-rsa)
 # 3. Single-node: leave enable_* false. Multi-node: enable what you need.
+#
+# Region: "SIN" (Singapore) is the recommended region for users in Vietnam
+# (~30-50 ms RTT from HCMC/Hanoi). Other options: EU, US-central, US-east,
+# US-west. Singapore carries a small per-instance location fee shown at
+# checkout. All nodes of one swarm MUST be in the same region.
 
 cluster_name = "lms"
-region       = "EU"
+region       = "SIN"
 period       = 1
 
 ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... your key here ..."
 
-# Single-node default: everything on the manager (8 vCPU / 16 GB class
-# recommended — the Go server, postgres, rustfs and rtcd all run here).
+# Manager: swarm control + Traefik edge + frontend replicas + observability.
+# 4 vCPU / 8 GB class is enough — no business data lives here.
 manager_product_id = "V15"
 
-# Multi-node options:
+# Production profile for ~1000 concurrent users (see DEPLOY.md "Server
+# planning"): dedicated db node (postgres + rustfs, RAM+NVMe heavy) and two
+# video nodes for the rtcd SFU pool. Enable them as you grow:
+
 enable_db_node   = false
-db_product_id    = "V30"
-enable_video_node = false
-video_product_id  = "V50"
+db_product_id    = "V30"   # 12 vCPU / 48 GB class — postgres + rustfs
+
+enable_video_node  = false
+video_product_id   = "V50" # prefer a VDS/performance tier (dedicated cores,
+                           # 500 Mbit/s - 1 Gbit/s port) for SFU media egress
+
+# Second SFU node — activate together with MM_CALLSSETTINGS_RTCDSERVICEURL=
+# http://rtcd-pool:8045 and RTCD2_* in deploy/swarm/.env (DEPLOY.md
+# "Scaling the SFU pool").
+enable_video2_node = false
+video2_product_id  = "V50"

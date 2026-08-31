@@ -92,23 +92,30 @@ docker service update --env-add ... lms_lms-server   # ad-hoc env change
 
 Defaults keep everything on the manager (single-node swarm works untouched).
 Override the `*_PLACEMENT` vars in `.env` for multi-node clusters — see the
-comments in `.env.example`. Scale stateless tiers with `BACKEND_REPLICAS` /
-`FRONTEND_REPLICAS` (postgres, rustfs and rtcd are single-writer services;
-scaling them is not supported by this stack).
+comments in `.env.example`. Scale `FRONTEND_REPLICAS` freely; keep
+`BACKEND_REPLICAS=1` (per-call state lives in the backend's memory — cross-node
+call sync is not wired yet). postgres and rustfs are single-writer services;
+**rtcd scales horizontally as a pool**: `lms-rtcd2` (and further copies) share
+the `rtcd-pool` DNS alias, and the backend discovers every instance and
+spreads new calls across the pool — see DEPLOY.md "Scaling the SFU pool".
 
 ## rtcd (calls) notes
 
 - `RTCD_ICE_HOST_OVERRIDE` MUST be the public IPv4 of the node rtcd runs on:
   it is advertised to browsers in ICE candidates. Behind Contabo NATless
-  public IPs this is simply the VPS address.
+  public IPs this is simply the VPS address. Each pool instance advertises
+  ITS node's IP (`RTCD2_ICE_HOST_OVERRIDE`, …).
 - Media ports (`8443/udp+tcp` by default) are published in **host** mode on
   that node — ingress/VIP publishing would break ICE host-candidate matching.
+  Only ONE rtcd task can run per node (host-mode port conflict).
 - The control API (`:8045`) stays on the overlay; the backend self-registers
-  (`MM_CALLSSETTINGS_RTCDSERVICEURL=http://rtcd:8045`).
+  per instance (`MM_CALLSSETTINGS_RTCDSERVICEURL=http://rtcd:8045`, or
+  `http://rtcd-pool:8045` for the pool; the URL is re-resolved every 10s so
+  new instances are picked up without a backend restart).
 - The image renders its config from env vars at start
   (`deploy/images/rtcd-entrypoint.sh`); no config file to maintain.
-- Registered client credentials persist in the `rtcd_data` volume
-  (`/data/rtcd_db`) — do not delete it between deploys.
+- Registered client credentials persist in the `rtcd_data` / `rtcd2_data`
+  volumes (`/data/rtcd_db`) — do not delete them between deploys.
 
 ## Registry notes
 

@@ -14,6 +14,11 @@ reference only; Contabo is the supported target.
   services; everything, on a single-node setup)
 - `contabo_instance.db` — optional (postgres + rustfs)
 - `contabo_instance.video` — optional (rtcd SFU, host-mode media ports)
+- `contabo_instance.video2` — optional (second SFU node for the `rtcd-pool`)
+
+**Region**: set `region = "SIN"` (Singapore) for users in Vietnam —
+~25–70 ms RTT from VN cities. All nodes must be in the same region.
+DEPLOY.md → "Server planning" has the sizing profiles.
 
 ## Quick start
 
@@ -32,7 +37,7 @@ terraform apply -var-file=envs/contabo.tfvars
 
 `terraform output swarm_setup_instructions` then prints the one-time swarm
 formation and DNS steps. Node IPs: `manager_ip`, `db_node_ip`,
-`video_node_ip`.
+`video_node_ip`, `video2_node_ip`.
 
 ## Notes
 

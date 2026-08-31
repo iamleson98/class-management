@@ -90,3 +90,18 @@ resource "contabo_instance" "video" {
   ssh_keys     = [contabo_secret.ssh_key.id]
   user_data    = local.cloud_init
 }
+
+# Second video node for the rtcd SFU pool (lms-rtcd2 in the stack).
+# Only needed when call volume outgrows one SFU node — see DEPLOY.md
+# "Scaling the SFU pool".
+resource "contabo_instance" "video2" {
+  count = var.enable_video2_node ? 1 : 0
+
+  display_name = "${var.cluster_name}-video2"
+  product_id   = var.video2_product_id
+  region       = var.region
+  period       = var.period
+  default_user = "root"
+  ssh_keys     = [contabo_secret.ssh_key.id]
+  user_data    = local.cloud_init
+}

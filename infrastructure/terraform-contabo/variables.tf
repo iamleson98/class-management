@@ -55,6 +55,18 @@ variable "enable_video_node" {
   default     = false
 }
 
+variable "enable_video2_node" {
+  description = "Provision a second video node for the rtcd SFU pool (lms-rtcd2). Requires enable_video_node."
+  type        = bool
+  default     = false
+}
+
+variable "video2_product_id" {
+  description = "Contabo product ID for the second video node (same class as video_product_id)."
+  type        = string
+  default     = "V50" # check the product list
+}
+
 variable "video_product_id" {
   description = "Contabo product ID for the video node (CPU + network heavy)."
   type        = string

@@ -24,6 +24,11 @@ scrape_configs:
       - targets: ["lms-rtcd:8045"]
         labels:
           service: "lms-rtcd"
+      # Second SFU instance: uncomment when the pool is active
+      # (RTCD2_REPLICAS=1) so its metrics are scraped too.
+      # - targets: ["lms-rtcd2:8045"]
+      #   labels:
+      #       service: "lms-rtcd2"
 
   # Self-monitor Prometheus
   - job_name: "prometheus"

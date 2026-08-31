@@ -13,6 +13,11 @@ output "video_node_ip" {
   value       = var.enable_video_node ? contabo_instance.video[0].ip_config[0].v4[0].ip : ""
 }
 
+output "video2_node_ip" {
+  description = "Public IPv4 of the second video node (empty when not provisioned) — this is RTCD2_ICE_HOST_OVERRIDE."
+  value       = var.enable_video2_node ? contabo_instance.video2[0].ip_config[0].v4[0].ip : ""
+}
+
 output "swarm_setup_instructions" {
   description = "One-time steps to run after apply."
   value       = <<-EOT
@@ -25,6 +30,7 @@ output "swarm_setup_instructions" {
     4. Tag roles on the manager:
          docker node update --label-add role=db <db-node>      # only with enable_db_node
          docker node update --label-add role=video <video>    # only with enable_video_node
+         docker node update --label-add rtcd=2 <video2>       # only with enable_video2_node
     5. DNS: point app.<domain>, api.<domain>, s3.<domain>, grafana.<domain>, traefik.<domain> at ${contabo_instance.manager.ip_config[0].v4[0].ip}
     6. Deploy:
          cd deploy/swarm && cp .env.example .env && $EDITOR .env && ./secrets-bootstrap.sh && ./deploy.sh

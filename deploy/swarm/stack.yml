@@ -179,7 +179,9 @@ services:
       placement:
         constraints: ["${DB_PLACEMENT:-node.role == manager}"]
       resources:
-        limits: { cpus: "2.0", memory: 1G }
+        limits:
+          cpus: "${DB_CPUS:-2.0}"
+          memory: "${DB_MEM:-1G}"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mmuser} -d ${POSTGRES_DB:-mattermost}"]
       interval: 10s
@@ -293,8 +295,14 @@ services:
       MM_SERVICESETTINGS_TRUSTPROXYIPADDRESS: "true"
       MM_SERVICESETTINGS_ENABLECUSTOMEMOJI: "true"
       # ── Calls (native control plane + rtcd SFU) ──
+      # SFU pool: the backend resolves this URL via DNS and keeps ONE control
+      # connection per resolved IP, assigning new calls across the pool (and
+      # re-resolving every 10s — scaled-up rtcd instances are picked up
+      # without a backend restart). Default: the single lms-rtcd service. For
+      # a multi-node pool set it to http://rtcd-pool:8045 (the shared network
+      # alias of lms-rtcd + lms-rtcd2 + …) in .env.
+      MM_CALLSSETTINGS_RTCDSERVICEURL: ${MM_CALLSSETTINGS_RTCDSERVICEURL:-http://rtcd:8045}
       MM_CALLSSETTINGS_ENABLE: "true"
-      MM_CALLSSETTINGS_RTCDSERVICEURL: http://rtcd:8045
       MM_CALLSSETTINGS_MAXCALLPARTICIPANTS: ${MM_CALLSSETTINGS_MAXCALLPARTICIPANTS:-0}
       # ICE servers handed to BROWSERS in the join ack (empty default is
       # correct: rtcd is on a public IP and browsers reach it with host
@@ -325,7 +333,9 @@ services:
       placement:
         constraints: ["${BACKEND_PLACEMENT:-node.role == manager}"]
       resources:
-        limits: { cpus: "2.0", memory: 1536M }
+        limits:
+          cpus: "${BACKEND_CPUS:-2.0}"
+          memory: "${BACKEND_MEM:-1536M}"
       labels:
         # API at https://api.<domain> (direct access for mmctl/integrations).
         # APP traffic does NOT use this router: the frontend service proxies
@@ -366,7 +376,9 @@ services:
       placement:
         constraints: ["${FRONTEND_PLACEMENT:-node.role == manager}"]
       resources:
-        limits: { cpus: "1.0", memory: 512M }
+        limits:
+          cpus: "${FRONTEND_CPUS:-1.0}"
+          memory: "${FRONTEND_MEM:-512M}"
       labels:
         # App at https://app.<domain>
         - traefik.enable=true
@@ -383,6 +395,11 @@ services:
   # advertised ICE host candidate (RTCD_ICE_HOST_OVERRIDE = the node's PUBLIC
   # IP) matches the socket that actually terminates media. Ingress-VIP
   # publishing would break ICE host-candidate matching.
+  # Scale-out (see DEPLOY.md "Scaling the SFU pool"): every lms-rtcd*
+  # service carries the SAME network alias "rtcd-pool" with dnsrr endpoint
+  # mode, so the alias resolves to all live task IPs; point
+  # MM_CALLSSETTINGS_RTCDSERVICEURL at http://rtcd-pool:8045 to use it. The
+  # backend discovers new instances within ~10s of them coming up.
   lms-rtcd:
     image: ${REGISTRY_PREFIX:-ghcr.io/iamleson98}/lms-rtcd:${RTCD_TAG:-latest}
     environment:
@@ -409,7 +426,9 @@ services:
         mode: host
     volumes:
       - rtcd_data:/data
-    networks: [lms_overlay]
+    networks:
+      lms_overlay:
+        aliases: [rtcd-pool]
     logging: *default-logging
     deploy:
       # stop-first: two tasks cannot bind the same host-mode media port.
@@ -418,8 +437,59 @@ services:
       placement:
         constraints: ["${RTCD_PLACEMENT:-node.role == manager}"]
       resources:
-        limits: { cpus: "2.0", memory: 1G }
+        limits:
+          cpus: "${RTCD_CPUS:-2.0}"
+          memory: "${RTCD_MEM:-1G}"
     # Healthcheck inherited from the image (GET /version on :8045).
+    # dnsrr: DNS for "rtcd" (and the shared "rtcd-pool" alias) resolves to
+    # the TASK IP, which is what the backend's per-host rtcd client pool
+    # needs. Host-mode port publishing is compatible with dnsrr.
+    endpoint_mode: dnsrr
+
+  # ── Optional second SFU instance (multi-node scale-out) ──
+  # Inert by default (0 replicas). To activate (DEPLOY.md "Scaling the SFU
+  # pool"): label a second video node (docker node update --label-add rtcd=2
+  # <node>), set RTCD2_ICE_HOST_OVERRIDE to ITS public IP, RTCD2_REPLICAS=1,
+  # and MM_CALLSSETTINGS_RTCDSERVICEURL=http://rtcd-pool:8045, then redeploy.
+  # The backend discovers the new instance within ~10s and spreads new calls
+  # across the pool. Each instance keeps its own registration volume.
+  lms-rtcd2:
+    image: ${REGISTRY_PREFIX:-ghcr.io/iamleson98}/lms-rtcd:${RTCD_TAG:-latest}
+    environment:
+      RTCD_API_LISTEN: ":8045"
+      RTCD_ALLOW_SELF_REGISTRATION: "true"
+      RTCD_ICE_HOST_OVERRIDE: ${RTCD2_ICE_HOST_OVERRIDE:-}
+      RTCD_ICE_PORT_UDP: "${RTCD_MEDIA_PORT:-8443}"
+      RTCD_ICE_PORT_TCP: "${RTCD_MEDIA_PORT:-8443}"
+      RTCD_ICE_SERVERS: ${RTCD_ICE_SERVERS:-stun:stun.l.google.com:19302}
+      RTCD_DATA_SOURCE: /data/rtcd_db
+      RTCD_LOG_LEVEL: ${RTCD_LOG_LEVEL:-INFO}
+      TZ: ${TZ:-UTC}
+    ports:
+      - target: 8443
+        published: ${RTCD_MEDIA_PORT:-8443}
+        protocol: udp
+        mode: host
+      - target: 8443
+        published: ${RTCD_MEDIA_PORT:-8443}
+        protocol: tcp
+        mode: host
+    volumes:
+      - rtcd2_data:/data
+    networks:
+      lms_overlay:
+        aliases: [rtcd-pool]
+    logging: *default-logging
+    deploy:
+      <<: *stateful-update
+      replicas: ${RTCD2_REPLICAS:-0}
+      placement:
+        constraints: ["${RTCD2_PLACEMENT:-node.labels.rtcd == 2}"]
+      resources:
+        limits:
+          cpus: "${RTCD2_CPUS:-2.0}"
+          memory: "${RTCD2_MEM:-1G}"
+    endpoint_mode: dnsrr
 
   # ──────────────────────── Observability ────────────────────────────
   prometheus:
@@ -493,6 +563,7 @@ volumes:
   pgdata: {}
   rustfs_data: {}
   rtcd_data: {}
+  rtcd2_data: {}
   promdata: {}
   grafana-data: {}
   grafana-dashboards: {}
