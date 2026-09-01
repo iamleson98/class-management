@@ -30,6 +30,10 @@ concurrency:
 
 permissions:
   contents: read
+  # paths-filter@v4 resolves pull_request change sets via the GitHub API
+  # (GET /repos/.../pulls/N/files); without this scope it fails with
+  # "Resource not accessible by integration".
+  pull-requests: read
 
 env:
   GO_VERSION: "1.27"
