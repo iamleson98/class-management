@@ -289,11 +289,14 @@ services:
   # ──────────────────────────── Backend ──────────────────────────────
   lms-server:
     image: ${REGISTRY_PREFIX:-ghcr.io/iamleson98}/lms-server:${TAG:?set TAG in .env}
-    # Override the image CMD: pre-fix images carry CMD ["sitename"], which
-    # the entrypoint shim appends as an ARGUMENT (exec sitename sitename ->
-    # cobra "unknown command"). Empty command = exec sitename (no args) =
-    # server start. Works for both old and fixed images.
-    command: []
+    # Explicit 'server' subcommand overrides the image CMD: pre-fix images
+    # carry CMD ["sitename"], which the entrypoint shim appends as an
+    # ARGUMENT (exec sitename sitename -> cobra "unknown command"). Also
+    # future-proof: (a) an EMPTY command ([]) is dropped by docker stack's
+    # compose interpretation (Args=null -> image CMD still applies), while a
+    # real subcommand reliably overrides it; (b) 'sitename server' is the
+    # same code path as the root no-args default (RootCmd.RunE = serverCmdF).
+    command: server
     environment:
       # ── Database ──
       # DSN (password inside) is assembled by secrets-bootstrap.sh into the
