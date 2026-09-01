@@ -4,6 +4,7 @@
 package calls
 
 import (
+        "time"
         "errors"
         "fmt"
         "sync"
@@ -93,41 +94,76 @@ func (s *CallService) Start() error {
                 return nil
         }
 
-        var mgr *rtcdClientManager
         if url := s.callsConfig().rtcdURL(); url != "" {
-                m, err := newRTCDClientManager(url, s.log, s.cfg.KVStore, s.newRTCDClient, s.handleRTCDMessage)
-                if err != nil {
-                        return fmt.Errorf("calls: failed to init rtcd client manager: %w", err)
-                }
-                mgr = m
+                // rtcd resolves via swarm DNS with dnsrr endpoints: during stack
+                // rollouts and worker restarts the name can transiently fail to
+                // resolve, and a failed init here disables calls until the next
+                // server restart. Initialize in the background with retries so the
+                // boot path is never blocked and a startup race can never disable
+                // calls permanently.
+                go s.initRTCDManagerWithRetry(url)
         } else {
                 s.log.Warn("calls: rtcd service URL not set; calls media is unavailable until configured")
         }
 
         s.mut.Lock()
         if s.started {
-                // A concurrent Start() won the race and already owns the manager.
+                // A concurrent Start() won the race; the background init path
+                // resolves manager ownership on its own.
                 s.mut.Unlock()
-                if mgr != nil {
-                        if err := mgr.Close(); err != nil {
-                                s.log.Warn("calls: closed duplicate rtcd manager", mlog.Err(err))
-                        }
-                }
                 return nil
         }
-        s.rtcd = mgr
         s.started = true
         s.mut.Unlock()
-
-        if mgr != nil {
-                s.log.Info("calls: rtcd client manager started", mlog.String("url", s.callsConfig().rtcdURL()))
-        }
 
         if s.cfg.Cluster != nil {
                 s.registerClusterHandlers()
         }
         return nil
 }
+
+// initRTCDManagerWithRetry brings up the rtcd client manager, retrying
+// transient failures (DNS resolution during dnsrr rollouts, control socket
+// connect while rtcd boots) with exponential backoff for up to five minutes
+// before giving up with calls disabled until the next restart.
+func (s *CallService) initRTCDManagerWithRetry(url string) {
+        const (
+                maxWait    = 5 * time.Minute
+                minBackoff = 2 * time.Second
+                maxBackoff = 15 * time.Second
+        }
+
+        deadline := time.Now().Add(maxWait)
+        backoff := minBackoff
+        for {
+                m, err := newRTCDClientManager(url, s.log, s.cfg.KVStore, s.newRTCDClient, s.handleRTCDMessage)
+                if err == nil {
+                        s.mut.Lock()
+                        if s.started && s.rtcd == nil {
+                                s.rtcd = m
+                                s.mut.Unlock()
+                                s.log.Info("calls: rtcd client manager started", mlog.String("url", url))
+                                return
+                        }
+                        s.mut.Unlock()
+                        // Start() lost the race or the service was stopped meanwhile: the
+                        // manager we built is an orphan — close it so its control
+                        // connections do not leak.
+                        if cerr := m.Close(); cerr != nil {
+                                s.log.Debug("calls: error closing orphan rtcd manager", mlog.Err(cerr))
+                        }
+                        return
+                }
+                if time.Now().After(deadline) {
+                        s.log.Error("calls: rtcd client manager unavailable; calls disabled until next restart", mlog.String("url", url), mlog.Err(err))
+                        return
+                }
+                s.log.Warn("calls: rtcd client manager init failed; retrying", mlog.String("url", url), mlog.Err(err))
+                time.Sleep(backoff)
+                backoff = min(backoff*2, maxBackoff)
+        }
+}
+
 
 // Stop tears down the rtcd manager and releases resources. Idempotent.
 func (s *CallService) Stop() error {
