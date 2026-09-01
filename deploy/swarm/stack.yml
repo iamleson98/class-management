@@ -564,12 +564,21 @@ networks:
   lms_overlay:
     driver: overlay
     attachable: true
-    # VXLAN overhead is 50 bytes. On Contabo's public network (MTU 1500) the
-    # default 1450 payload works. If you run the swarm over a private network
-    # with a smaller MTU (e.g. a vSwitch/VLAN at 1400), lower this to
-    # MTU-of-underlay minus 50 via driver_opts (see DEPLOY.md §Networking).
+    # Encrypted overlay: inter-node VXLAN is wrapped in IPsec (AES), because
+    # the swarm fabric rides the PUBLIC internet (Contabo has no VPC/private
+    # NIC product). Swarm control traffic (2377/7946) is TLS regardless; this
+    # encrypts the DATA plane — the lms-server<->rtcd control channel and any
+    # cross-node service traffic.
+    # MTU: VXLAN costs 50 bytes, the IPsec ESP wrapper ~60 more. On a
+    # 1500-MTU underlay, 1380 is safe for both (raise to 1450 ONLY if you
+    # remove encryption). Over a private network with a smaller MTU (e.g. a
+    # vSwitch/VLAN at 1400), lower accordingly.
+    # NOTE: `encrypted` and MTU apply at network CREATION. On an existing
+    # stack: docker stack rm lms, remove the lms_lms_overlay network, then
+    # redeploy. Fresh deployments need nothing.
     driver_opts:
-      com.docker.network.driver.mtu: "1450"
+      encrypted: "true"
+      com.docker.network.driver.mtu: "1380"
 
 volumes:
   traefik_certs: {}
