@@ -150,6 +150,7 @@ jobs:
           LMS_DOMAIN: ${{ vars.LMS_DOMAIN }}
           LMS_ACME_EMAIL: ${{ vars.LMS_ACME_EMAIL }}
           LMS_RTCD_PUBLIC_IP: ${{ vars.LMS_RTCD_PUBLIC_IP }}
+          LMS_RTCD_PLACEMENT: ${{ vars.LMS_RTCD_PLACEMENT }}
           LMS_APP_SUBDOMAIN: ${{ vars.LMS_APP_SUBDOMAIN || 'app' }}
           LMS_API_SUBDOMAIN: ${{ vars.LMS_API_SUBDOMAIN || 'api' }}
           LMS_S3_SUBDOMAIN: ${{ vars.LMS_S3_SUBDOMAIN || 's3' }}
@@ -200,6 +201,11 @@ jobs:
           RTCD_TAG=${TAG}
           MM_FILESETTINGS_AMAZONS3BUCKET=lms-uploads
           RTCD_ICE_HOST_OVERRIDE=${LMS_RTCD_PUBLIC_IP}
+          # Placement expression (single-quoted: deploy.sh sources .env with
+          # bash and an unquoted == would parse as a command). Set the repo
+          # var when rtcd runs on a dedicated labeled worker node, e.g.
+          # LMS_RTCD_PLACEMENT='node.labels.role == video'.
+          RTCD_PLACEMENT='${LMS_RTCD_PLACEMENT:-node.role == manager}'
           TZ=Asia/Ho_Chi_Minh
           ENV
 
