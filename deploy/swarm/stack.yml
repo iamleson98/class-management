@@ -151,6 +151,13 @@ services:
         # Deterministic backend network (traefik is also attached to ingress
         # for its published 80/443; without this it may pick the wrong one).
         - traefik.docker.network=lms_overlay
+        # The swarm provider auto-builds a service for this container from
+        # the swarm service name ("lms-traefik"); published mesh ports are
+        # NOT on the overlay interface, so it errors "port is missing" and
+        # drops ALL labels on this container (incl. the dashboard router,
+        # whose cert then never gets issued). Give the auto-service a port —
+        # nothing routes to it (the dashboard uses api@internal).
+        - traefik.http.services.lms-traefik.loadbalancer.server.port=8080
         # Dashboard at https://traefik.<domain> behind basic auth.
         - traefik.http.routers.traefik.rule=Host(`${TRAEFIK_SUBDOMAIN:-traefik}.${DOMAIN:?set DOMAIN in .env}`)
         - traefik.http.routers.traefik.entrypoints=websecure
