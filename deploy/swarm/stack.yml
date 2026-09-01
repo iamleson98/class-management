@@ -466,7 +466,13 @@ services:
       - rtcd_data:/data
     networks:
       lms_overlay:
-        aliases: [rtcd-pool]
+        # 'rtcd' alias is REQUIRED: with endpoint_mode dnsrr the swarm DNS
+        # only registers the stack-prefixed service name (lms_lms-rtcd) —
+        # the compose short name does NOT resolve (SERVFAIL) unlike VIP
+        # services. lms-server's MM_CALLSSETTINGS_RTCDSERVICEURL default
+        # points at http://rtcd:8045. 'rtcd-pool' is the shared alias for
+        # multi-instance scale-out.
+        aliases: [rtcd, rtcd-pool]
     logging: *default-logging
     deploy:
       # stop-first: two tasks cannot bind the same host-mode media port.
