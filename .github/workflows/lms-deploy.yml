@@ -249,7 +249,7 @@ jobs:
           fi
 
           cd "$DEPLOY_DIR/deploy/swarm"
-          TAG="$DEPLOY_TAG" ./deploy.sh
+          TAG="$DEPLOY_TAG" bash ./deploy.sh
           REMOTE
 
       - name: Post-deploy smoke test (from the runner)
