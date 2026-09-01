@@ -507,7 +507,7 @@ func (s *Server) doLMSRolesCreationMigration() error {
 		}
 	}
 
-	if err := s.Store().System().Save(&model.System{Name: model.LMSRolesCreationMigrationKey, Value: "true"}); err != nil {
+	if err := s.Store().System().SaveOrUpdate(&model.System{Name: model.LMSRolesCreationMigrationKey, Value: "true"}); err != nil {
 		multiErr = multierror.Append(multiErr, fmt.Errorf("failed to save LMS roles migration key: %w", err))
 	}
 

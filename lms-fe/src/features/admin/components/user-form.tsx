@@ -61,8 +61,8 @@ export default function UserForm({ onDone }: UserFormProps) {
                         name="firstname"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel>{t('settings.firstName', 'Họ')}</FormLabel>
-                                <FormControl><Input {...field} value={field.value ?? ''} placeholder="Nguyễn" /></FormControl>
+                                <FormLabel>{t('settings.firstName', 'Tên')}</FormLabel>
+                                <FormControl><Input {...field} value={field.value ?? ''} placeholder="Nga" /></FormControl>
                                 <FormMessage />
                             </FormItem>
                         )}
@@ -72,8 +72,8 @@ export default function UserForm({ onDone }: UserFormProps) {
                         name="lastname"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel>{t('settings.lastName', 'Tên')}</FormLabel>
-                                <FormControl><Input {...field} value={field.value ?? ''} placeholder="Văn A" /></FormControl>
+                                <FormLabel>{t('settings.lastName', 'Họ')}</FormLabel>
+                                <FormControl><Input {...field} value={field.value ?? ''} placeholder="Nguyen" /></FormControl>
                                 <FormMessage />
                             </FormItem>
                         )}
@@ -95,7 +95,7 @@ export default function UserForm({ onDone }: UserFormProps) {
                     name="username"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>{t('common.username', 'Email')}</FormLabel>
+                            <FormLabel>{t('common.username', 'Tên đăng nhập')}</FormLabel>
                             <FormControl><Input type="text" {...field} value={field.value ?? ''} placeholder="username1" /></FormControl>
                             <FormMessage />
                         </FormItem>

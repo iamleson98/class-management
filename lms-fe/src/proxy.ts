@@ -42,7 +42,7 @@ const ENDPOINT_RATE_LIMIT_RULES: EndpointRateLimitRule[] = [
   {
     path: '/api/v4/users/login',
     windowMs: 15 * 60 * 1000,
-    maxRequests: 5,
+    maxRequests: 100,
     keyPrefix: 'login',
     errorMessage: 'Quá nhiều lần đăng nhập. Thử lại sau.',
   },
