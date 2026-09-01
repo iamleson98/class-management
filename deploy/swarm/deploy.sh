@@ -81,6 +81,13 @@ else
 fi
 
 # ── 3. Deploy ──────────────────────────────────────────────────────────
+# Public hostnames (subdomain prefix + DOMAIN; see stack.yml header).
+APP_HOST="${APP_SUBDOMAIN:-app}.${DOMAIN}"
+API_HOST="${API_SUBDOMAIN:-api}.${DOMAIN}"
+S3_HOST="${S3_SUBDOMAIN:-s3}.${DOMAIN}"
+GRAFANA_HOST="${GRAFANA_SUBDOMAIN:-grafana}.${DOMAIN}"
+TRAEFIK_HOST="${TRAEFIK_SUBDOMAIN:-traefik}.${DOMAIN}"
+
 echo ">> Deploying stack '$STACK_NAME' (TAG=${TAG}, DOMAIN=${DOMAIN})"
 docker stack deploy -c "$HERE/stack.yml" --with-registry-auth "$STACK_NAME"
 
@@ -131,10 +138,10 @@ smoke() { # name url expected-status
         echo "   WARN $name (got $code, want $want; cold-start TLS/DNS can lag)"
     fi
 }
-smoke "frontend"  "https://app.${DOMAIN}/"                       200
-smoke "api"       "https://api.${DOMAIN}/api/v4/system/ping"     200
-smoke "app api"   "https://app.${DOMAIN}/api/v4/system/ping"     200
-smoke "grafana"   "https://grafana.${DOMAIN}/api/health"         200
+smoke "frontend"  "https://${APP_HOST}/"                       200
+smoke "api"       "https://${API_HOST}/api/v4/system/ping"     200
+smoke "app api"   "https://${APP_HOST}/api/v4/system/ping"     200
+smoke "grafana"   "https://${GRAFANA_HOST}/api/health"         200
 
 # WebSocket upgrade through the SAME app origin (the calls signaling path:
 # Traefik -> lms-fe run-server.js proxy -> lms-server). The server accepts
@@ -153,7 +160,7 @@ smoke_ws() { # name url
         echo "   WARN $name (got '${out:-none}'; calls WebSocket not relayed — check lms-fe LMS_BACKEND_URL)"
     fi
 }
-smoke_ws "app ws"  "https://app.${DOMAIN}/api/v4/websocket"
+smoke_ws "app ws"  "https://${APP_HOST}/api/v4/websocket"
 
 echo
 echo ">> Deployed. Useful commands:"
@@ -162,8 +169,8 @@ echo "   docker stack ps $STACK_NAME"
 echo "   docker service logs ${STACK_NAME}_lms-server --tail 100"
 echo
 echo ">> Routes:"
-echo "   https://app.${DOMAIN}      (frontend + API, same origin)"
-echo "   https://api.${DOMAIN}      (backend API)"
-echo "   https://s3.${DOMAIN}       (rustfs console)"
-echo "   https://grafana.${DOMAIN}  (Grafana)"
-echo "   https://traefik.${DOMAIN}  (Traefik dashboard, basic auth)"
+echo "   https://${APP_HOST}      (frontend + API, same origin)"
+echo "   https://${API_HOST}      (backend API)"
+echo "   https://${S3_HOST}       (rustfs console)"
+echo "   https://${GRAFANA_HOST}  (Grafana)"
+echo "   https://${TRAEFIK_HOST}  (Traefik dashboard, basic auth)"

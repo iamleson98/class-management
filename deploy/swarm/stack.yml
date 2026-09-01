@@ -43,7 +43,7 @@
 #
 # ── TLS / routing ────────────────────────────────────────────────────────
 # Traefik terminates TLS (Let's Encrypt TLS-ALPN challenge):
-#   https://app.${DOMAIN}            frontend (Next.js). ALL /api/v4 traffic
+#   https://${APP_SUBDOMAIN}.${DOMAIN}     frontend (Next.js). ALL /api/v4 traffic
 #                                    (REST + the calls WebSocket) is proxied
 #                                    BY THE FRONTEND SERVER to LMS_BACKEND_URL
 #                                    — run-server.js relays the WS upgrade
@@ -54,14 +54,19 @@
 #                                    DEPLOYED frontend work: set LMS_BACKEND_URL
 #                                    to the backend's origin (any host, any
 #                                    domain) and the auth model is unchanged.
-#   https://api.${DOMAIN}            backend API (direct access: mmctl,
+#   https://${API_SUBDOMAIN}.${DOMAIN}     backend API (direct access: mmctl,
 #                                    integrations, admin tooling). CORS below
 #                                    also allows the frontend origin for direct
 #                                    cross-origin API clients.
-#   https://s3.${DOMAIN}             rustfs console (login-protected; remove
+#   https://${S3_SUBDOMAIN}.${DOMAIN}      rustfs console (login-protected; remove
 #                                    these labels to keep it internal-only)
-#   https://grafana.${DOMAIN}        Grafana (admin password from secret)
-#   https://traefik.${DOMAIN}        Traefik dashboard (basic auth)
+#   https://${GRAFANA_SUBDOMAIN}.${DOMAIN}  Grafana (admin password from secret)
+#   https://${TRAEFIK_SUBDOMAIN}.${DOMAIN}  Traefik dashboard (basic auth)
+#
+# Hostname scheme: each service gets "${<SVC>_SUBDOMAIN:-<svc>}.${DOMAIN}" so
+# deployments with non-obvious prefixes (e.g. lms / lms-api / lms-s3 under
+# sitename.me) work without touching this file. Defaults keep the classic
+# app./api./s3./grafana./traefik. scheme.
 
 x-logging: &default-logging
   driver: json-file
@@ -144,7 +149,7 @@ services:
       labels:
         - traefik.enable=true
         # Dashboard at https://traefik.<domain> behind basic auth.
-        - traefik.http.routers.traefik.rule=Host(`traefik.${DOMAIN:?set DOMAIN in .env}`)
+        - traefik.http.routers.traefik.rule=Host(`${TRAEFIK_SUBDOMAIN:-traefik}.${DOMAIN:?set DOMAIN in .env}`)
         - traefik.http.routers.traefik.entrypoints=websecure
         - traefik.http.routers.traefik.tls.certresolver=le
         - traefik.http.routers.traefik.service=api@internal
@@ -229,7 +234,7 @@ services:
         # Console at https://s3.<domain> (auth = the rustfs access/secret key)
         - traefik.enable=true
         - traefik.http.services.rustfs-console.loadbalancer.server.port=9001
-        - traefik.http.routers.rustfs-console.rule=Host(`s3.${DOMAIN}`)
+        - traefik.http.routers.rustfs-console.rule=Host(`${S3_SUBDOMAIN:-s3}.${DOMAIN}`)
         - traefik.http.routers.rustfs-console.entrypoints=websecure
         - traefik.http.routers.rustfs-console.tls.certresolver=le
     healthcheck:
@@ -299,7 +304,7 @@ services:
       # a frontend that bypasses the proxy, mmctl, integrations. (Nested
       # ${A:-${B}} defaults are not supported by docker stack interpolation,
       # hence no app.${DOMAIN} default here.)
-      MM_SERVICESETTINGS_SITEURL: https://app.${DOMAIN}
+      MM_SERVICESETTINGS_SITEURL: https://${APP_SUBDOMAIN:-app}.${DOMAIN}
       MM_SERVICESETTINGS_ALLOWCORSFROM: ${MM_SERVICESETTINGS_ALLOWCORSFROM:-""}
       MM_SERVICESETTINGS_CORSALLOWCREDENTIALS: "true"
       MM_SERVICESETTINGS_ALLOWEDUNTRUSTEDINTERNALCONNECTIONS: "rustfs,postgres,rtcd"
@@ -355,7 +360,7 @@ services:
         # same-origin with the httpOnly cookie — see the lms-fe service.
         - traefik.enable=true
         - traefik.http.services.lms-server.loadbalancer.server.port=8065
-        - traefik.http.routers.lms-server.rule=Host(`api.${DOMAIN}`)
+        - traefik.http.routers.lms-server.rule=Host(`${API_SUBDOMAIN:-api}.${DOMAIN}`)
         - traefik.http.routers.lms-server.entrypoints=websecure
         - traefik.http.routers.lms-server.tls.certresolver=le
     healthcheck:
@@ -395,7 +400,7 @@ services:
         # App at https://app.<domain>
         - traefik.enable=true
         - traefik.http.services.lms-fe.loadbalancer.server.port=3000
-        - traefik.http.routers.lms-fe.rule=Host(`app.${DOMAIN}`)
+        - traefik.http.routers.lms-fe.rule=Host(`${APP_SUBDOMAIN:-app}.${DOMAIN}`)
         - traefik.http.routers.lms-fe.entrypoints=websecure
         - traefik.http.routers.lms-fe.tls.certresolver=le
     # Healthcheck inherited from the image (fetches its own root page).
@@ -532,7 +537,7 @@ services:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD_FILE: /run/secrets/grafana_admin_password
       GF_USERS_ALLOW_SIGN_UP: "false"
-      GF_SERVER_ROOT_URL: https://grafana.${DOMAIN}
+      GF_SERVER_ROOT_URL: https://${GRAFANA_SUBDOMAIN:-grafana}.${DOMAIN}
       TZ: ${TZ:-UTC}
     secrets: [grafana_admin_password]
     volumes:
@@ -556,7 +561,7 @@ services:
         # Grafana at https://grafana.<domain>
         - traefik.enable=true
         - traefik.http.services.grafana.loadbalancer.server.port=3000
-        - traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN}`)
+        - traefik.http.routers.grafana.rule=Host(`${GRAFANA_SUBDOMAIN:-grafana}.${DOMAIN}`)
         - traefik.http.routers.grafana.entrypoints=websecure
         - traefik.http.routers.grafana.tls.certresolver=le
 

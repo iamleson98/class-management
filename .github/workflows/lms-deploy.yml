@@ -150,6 +150,11 @@ jobs:
           LMS_DOMAIN: ${{ vars.LMS_DOMAIN }}
           LMS_ACME_EMAIL: ${{ vars.LMS_ACME_EMAIL }}
           LMS_RTCD_PUBLIC_IP: ${{ vars.LMS_RTCD_PUBLIC_IP }}
+          LMS_APP_SUBDOMAIN: ${{ vars.LMS_APP_SUBDOMAIN || 'app' }}
+          LMS_API_SUBDOMAIN: ${{ vars.LMS_API_SUBDOMAIN || 'api' }}
+          LMS_S3_SUBDOMAIN: ${{ vars.LMS_S3_SUBDOMAIN || 's3' }}
+          LMS_GRAFANA_SUBDOMAIN: ${{ vars.LMS_GRAFANA_SUBDOMAIN || 'grafana' }}
+          LMS_TRAEFIK_SUBDOMAIN: ${{ vars.LMS_TRAEFIK_SUBDOMAIN || 'traefik' }}
           LMS_TRAEFIK_AUTH: ${{ secrets.LMS_TRAEFIK_AUTH }}
           GHCR_PAT: ${{ secrets.GHCR_PAT }}
           SHORT_SHA: ${{ github.sha }}
@@ -165,6 +170,15 @@ jobs:
           fi
           TAG="sha-$(echo "${SHORT_SHA}" | cut -c1-7)"
 
+          # Public hostnames: subdomain prefix (repo var, default = classic
+          # app/api/s3/grafana/traefik) + LMS_DOMAIN. Rendered into .env for
+          # stack.yml interpolation.
+          APP_SUBDOMAIN="${LMS_APP_SUBDOMAIN:-app}"
+          API_SUBDOMAIN="${LMS_API_SUBDOMAIN:-api}"
+          S3_SUBDOMAIN="${LMS_S3_SUBDOMAIN:-s3}"
+          GRAFANA_SUBDOMAIN="${LMS_GRAFANA_SUBDOMAIN:-grafana}"
+          TRAEFIK_SUBDOMAIN="${LMS_TRAEFIK_SUBDOMAIN:-traefik}"
+
           # Everything deploy.sh + stack.yml need, preserving the relative
           # paths the stack file uses for docker configs (../../observability).
           tar czf /tmp/lms-bundle.tgz deploy/swarm deploy/images observability
@@ -175,6 +189,11 @@ jobs:
           cat > /tmp/lms.env <<ENV
           # Managed by GitHub Actions (lms-deploy.yml) — manual edits are overwritten.
           DOMAIN=${LMS_DOMAIN}
+          APP_SUBDOMAIN=${APP_SUBDOMAIN}
+          API_SUBDOMAIN=${API_SUBDOMAIN}
+          S3_SUBDOMAIN=${S3_SUBDOMAIN}
+          GRAFANA_SUBDOMAIN=${GRAFANA_SUBDOMAIN}
+          TRAEFIK_SUBDOMAIN=${TRAEFIK_SUBDOMAIN}
           ACME_EMAIL=${LMS_ACME_EMAIL}
           TRAEFIK_AUTH=${LMS_TRAEFIK_AUTH}
           TAG=${TAG}
@@ -225,13 +244,17 @@ jobs:
       - name: Post-deploy smoke test (from the runner)
         env:
           LMS_DOMAIN: ${{ vars.LMS_DOMAIN }}
+          LMS_APP_SUBDOMAIN: ${{ vars.LMS_APP_SUBDOMAIN || 'app' }}
+          LMS_API_SUBDOMAIN: ${{ vars.LMS_API_SUBDOMAIN || 'api' }}
         run: |
           set -eu
           TAG="sha-$(echo '${{ github.sha }}' | cut -c1-7)"
+          APP_HOST="${LMS_APP_SUBDOMAIN}.${LMS_DOMAIN}"
+          API_HOST="${LMS_API_SUBDOMAIN}.${LMS_DOMAIN}"
           echo "Deployed $TAG — checking public endpoints from the outside:"
-          for url in "https://app.${LMS_DOMAIN}/" \
-                     "https://api.${LMS_DOMAIN}/api/v4/system/ping" \
-                     "https://app.${LMS_DOMAIN}/api/v4/system/ping"; do
+          for url in "https://${APP_HOST}/" \
+                     "https://${API_HOST}/api/v4/system/ping" \
+                     "https://${APP_HOST}/api/v4/system/ping"; do
             code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$url" || echo 000)
             echo "  $code  $url"
           done
@@ -241,8 +264,8 @@ jobs:
             -H "Connection: Upgrade" -H "Upgrade: websocket" \
             -H "Sec-WebSocket-Version: 13" \
             -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
-            "https://app.${LMS_DOMAIN}/api/v4/websocket" 2>/dev/null | head -n 1 || true)
-          echo "  WS   https://app.${LMS_DOMAIN}/api/v4/websocket -> ${ws_head:-no response}"
+            "https://${APP_HOST}/api/v4/websocket" 2>/dev/null | head -n 1 || true)
+          echo "  WS   https://${APP_HOST}/api/v4/websocket -> ${ws_head:-no response}"
           echo "$ws_head" | grep -q "101" || {
             echo "::warning::calls WebSocket not relayed (expected HTTP/1.1 101) — check lms-fe LMS_BACKEND_URL"
           }
