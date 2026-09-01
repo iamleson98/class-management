@@ -196,7 +196,10 @@ jobs:
           GRAFANA_SUBDOMAIN=${GRAFANA_SUBDOMAIN}
           TRAEFIK_SUBDOMAIN=${TRAEFIK_SUBDOMAIN}
           ACME_EMAIL=${LMS_ACME_EMAIL}
-          TRAEFIK_AUTH=${LMS_TRAEFIK_AUTH}
+          # Single quotes REQUIRED: deploy.sh sources this file with bash,
+          # and the bcrypt hash contains $2y$10$... — unquoted, bash expands
+          # $2 as a positional parameter and dies ('unbound variable').
+          TRAEFIK_AUTH='${LMS_TRAEFIK_AUTH}'
           TAG=${TAG}
           RTCD_TAG=${TAG}
           MM_FILESETTINGS_AMAZONS3BUCKET=lms-uploads
