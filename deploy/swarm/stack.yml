@@ -249,11 +249,11 @@ services:
     entrypoint: >
       /bin/sh -c "
       set -e;
-      MC_ACCESS=$$(cat /run/secrets/rustfs_access_key);
-      MC_SECRET=$$(cat /run/secrets/rustfs_secret_key);
+      RC_ACCESS=$$(cat /run/secrets/rustfs_access_key);
+      RC_SECRET=$$(cat /run/secrets/rustfs_secret_key);
       echo '>> waiting for rustfs S3 API...';
       n=0;
-      until mc alias set local http://rustfs:9000 "$$MC_ACCESS" "$$MC_SECRET" >/dev/null 2>&1; do
+      until rc alias set local http://rustfs:9000 "$$RC_ACCESS" "$$RC_SECRET" >/dev/null 2>&1; do
         n=$$((n+1));
         if [ $$n -ge 60 ]; then echo '!! rustfs unreachable after 60 tries' >&2; exit 1; fi;
         sleep 2;

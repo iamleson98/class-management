@@ -92,8 +92,9 @@ services:
     entrypoint: >
       /bin/sh -c "
       set -e;
-      mc alias set local http://rustfs:9000 ${RUSTFS_ACCESS_KEY:-lms} ${RUSTFS_SECRET_KEY};
-      mc mb --ignore-existing local/${MM_FILESETTINGS_AMAZONS3BUCKET:-lms-uploads};
+      rc alias set local http://rustfs:9000 ${RUSTFS_ACCESS_KEY:-lms} ${RUSTFS_SECRET_KEY};
+      rc ready local --timeout 10;
+      rc mb --ignore-existing local/${MM_FILESETTINGS_AMAZONS3BUCKET:-lms-uploads};
       echo '>> bucket ready';
       exit 0;
       "
