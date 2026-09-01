@@ -148,6 +148,9 @@ services:
         limits: { cpus: "1.0", memory: 256M }
       labels:
         - traefik.enable=true
+        # Deterministic backend network (traefik is also attached to ingress
+        # for its published 80/443; without this it may pick the wrong one).
+        - traefik.docker.network=lms_overlay
         # Dashboard at https://traefik.<domain> behind basic auth.
         - traefik.http.routers.traefik.rule=Host(`${TRAEFIK_SUBDOMAIN:-traefik}.${DOMAIN:?set DOMAIN in .env}`)
         - traefik.http.routers.traefik.entrypoints=websecure
@@ -233,6 +236,7 @@ services:
       labels:
         # Console at https://s3.<domain> (auth = the rustfs access/secret key)
         - traefik.enable=true
+        - traefik.docker.network=lms_overlay
         - traefik.http.services.rustfs-console.loadbalancer.server.port=9001
         - traefik.http.routers.rustfs-console.rule=Host(`${S3_SUBDOMAIN:-s3}.${DOMAIN}`)
         - traefik.http.routers.rustfs-console.entrypoints=websecure
@@ -359,6 +363,7 @@ services:
         # /api/v4 (REST + the calls WebSocket) itself, keeping the browser
         # same-origin with the httpOnly cookie — see the lms-fe service.
         - traefik.enable=true
+        - traefik.docker.network=lms_overlay
         - traefik.http.services.lms-server.loadbalancer.server.port=8065
         - traefik.http.routers.lms-server.rule=Host(`${API_SUBDOMAIN:-api}.${DOMAIN}`)
         - traefik.http.routers.lms-server.entrypoints=websecure
@@ -399,6 +404,7 @@ services:
       labels:
         # App at https://app.<domain>
         - traefik.enable=true
+        - traefik.docker.network=lms_overlay
         - traefik.http.services.lms-fe.loadbalancer.server.port=3000
         - traefik.http.routers.lms-fe.rule=Host(`${APP_SUBDOMAIN:-app}.${DOMAIN}`)
         - traefik.http.routers.lms-fe.entrypoints=websecure
@@ -560,6 +566,7 @@ services:
       labels:
         # Grafana at https://grafana.<domain>
         - traefik.enable=true
+        - traefik.docker.network=lms_overlay
         - traefik.http.services.grafana.loadbalancer.server.port=3000
         - traefik.http.routers.grafana.rule=Host(`${GRAFANA_SUBDOMAIN:-grafana}.${DOMAIN}`)
         - traefik.http.routers.grafana.entrypoints=websecure
@@ -567,6 +574,12 @@ services:
 
 networks:
   lms_overlay:
+    # Explicit name: without it Swarm prefixes the network with the stack
+    # name ("lms_lms_overlay"), which Traefik's swarm provider then fails to
+    # match against the network referenced in labels/services (it "defaults
+    # to the first available network" — the ingress for port-published
+    # services — and routing breaks with "port is missing").
+    name: lms_overlay
     driver: overlay
     attachable: true
     # Encrypted overlay: inter-node VXLAN is wrapped in IPsec (AES), because

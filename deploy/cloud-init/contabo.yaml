@@ -103,6 +103,12 @@ runcmd:
   - ufw allow 7946/tcp comment 'swarm gossip'
   - ufw allow 7946/udp comment 'swarm gossip'
   - ufw allow 4789/udp comment 'swarm vxlan'
+  # ESP (IP protocol 50) carries the ENCRYPTED overlay data plane. Without
+  # this, inter-node overlay traffic (lms-server<->rtcd, cross-node S3) is
+  # silently dropped. Per-peer restriction needs the cluster IPs, so this
+  # opens it generally — tighten to `ufw allow proto esp from <peer>` after
+  # the cluster is formed.
+  - ufw allow proto esp comment 'swarm encrypted overlay'
   - ufw allow 80/tcp comment 'http'
   - ufw allow 443/tcp comment 'https'
   - ufw allow 8443/tcp comment 'rtcd ICE tcp'
