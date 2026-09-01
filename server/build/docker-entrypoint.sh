@@ -13,7 +13,7 @@ set -eu
 
 # Default mapping (overridable via SECRETS_MAP env in the service definition).
 # Each token is NAME=secret; we read /run/secrets/<secret> into $NAME.
-SECRETS_MAP="${SECRETS_MAP:-MM_SQLSETTINGS_DATASOURCE=db_dsn MM_FILESETTINGS_AMAZONS3SECRETACCESSKEY=rustfs_secret_key}"
+SECRETS_MAP="${SECRETS_MAP:-MM_SQLSETTINGS_DATASOURCE=db_dsn MM_FILESETTINGS_AMAZONS3ACCESSKEYID=rustfs_access_key MM_FILESETTINGS_AMAZONS3SECRETACCESSKEY=rustfs_secret_key}"
 
 for pair in $SECRETS_MAP; do
     var=${pair%%=*}

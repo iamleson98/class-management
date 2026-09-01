@@ -92,9 +92,8 @@ services:
     entrypoint: >
       /bin/sh -c "
       set -e;
-      rc alias set local http://rustfs:9000 ${RUSTFS_ACCESS_KEY:-lms} ${RUSTFS_SECRET_KEY};
-      rc ready local --timeout 10;
-      rc mb --ignore-existing local/${MM_FILESETTINGS_AMAZONS3_BUCKET:-lms-uploads};
+      mc alias set local http://rustfs:9000 ${RUSTFS_ACCESS_KEY:-lms} ${RUSTFS_SECRET_KEY};
+      mc mb --ignore-existing local/${MM_FILESETTINGS_AMAZONS3BUCKET:-lms-uploads};
       echo '>> bucket ready';
       exit 0;
       "
@@ -124,7 +123,7 @@ services:
       MM_FILESETTINGS_DRIVERNAME: amazons3
       MM_FILESETTINGS_AMAZONS3ACCESSKEYID: ${RUSTFS_ACCESS_KEY:-lms}
       MM_FILESETTINGS_AMAZONS3SECRETACCESSKEY: ${RUSTFS_SECRET_KEY}
-      MM_FILESETTINGS_AMAZONS3BUCKET: ${MM_FILESETTINGS_AMAZONS3_BUCKET:-lms-uploads}
+      MM_FILESETTINGS_AMAZONS3BUCKET: ${MM_FILESETTINGS_AMAZONS3BUCKET:-lms-uploads}
       MM_FILESETTINGS_AMAZONS3ENDPOINT: http://rustfs:9000
       MM_FILESETTINGS_AMAZONS3SSL: "false"
       MM_FILESETTINGS_AMAZONS3REGION: us-east-1

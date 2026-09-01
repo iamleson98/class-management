@@ -179,7 +179,6 @@ jobs:
           TRAEFIK_AUTH=${LMS_TRAEFIK_AUTH}
           TAG=${TAG}
           RTCD_TAG=${TAG}
-          RUSTFS_ACCESS_KEY_USER=lms
           MM_FILESETTINGS_AMAZONS3BUCKET=lms-uploads
           RTCD_ICE_HOST_OVERRIDE=${LMS_RTCD_PUBLIC_IP}
           TZ=Asia/Ho_Chi_Minh

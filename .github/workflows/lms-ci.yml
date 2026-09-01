@@ -1,23 +1,28 @@
 # LMS CI — tests and image build validation for the fork's own code.
 #
-# Jobs:
-#   server     Go 1.27: build, vet, unit tests (calls suite with -race,
-#              public model suite)
-#   rtcd       Go 1.27: build + tests (builds against the fork's public
-#              module via the replace directives in rtcd/go.mod)
-#   frontend   bun: lint (non-blocking: pre-existing warnings), unit tests,
-#              production build with the same-origin sentinel
-#   images     docker build of all three production images (no push) —
-#              validates the Dockerfiles on every PR
+# Trigger: pull requests and manual dispatch. Master pushes do NOT run this —
+# the LMS Deploy workflow rebuilds everything from source on every master
+# push anyway, so a second test pass would only duplicate work.
 #
-# The upstream Mattermost workflows in this directory are inherited from the
-# fork and are not used by this repository.
+# Jobs (each is skipped — cheaply — when its code paths did not change):
+#   changes    path filter; every other job gates on its outputs
+#   server     Go: build, vet, unit tests (calls suite with -race,
+#              public model suite)
+#   rtcd       Go: build + vet + tests (builds against the fork's public
+#              module via the replace directives in rtcd/go.mod)
+#   frontend   bun: lint (non-blocking), unit tests, API-proxy tests,
+#              production build with the same-origin sentinel,
+#              run-server.js integration test
+#   images     docker build of all three production images (no push) —
+#              validates the Dockerfiles
+#
+# The upstream Mattermost workflows that came with the fork were removed;
+# this is the only test workflow this repository uses.
 name: LMS CI
 
 on:
-  push:
-    branches: [master]
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: lms-ci-${{ github.event_name == 'pull_request' && github.event.number || github.run_id }}
@@ -28,10 +33,52 @@ permissions:
 
 env:
   GO_VERSION: "1.27"
+  NODE_VERSION: "24"
 
 jobs:
+  # ── Path filter ─────────────────────────────────────────────────────
+  # Every job below gates on these outputs so a frontend-only PR does not
+  # burn Go build minutes (and vice versa). The filter job itself is a
+  # few seconds; skipped downstream jobs report as neutral, not failed.
+  # NOTE: `master` pushes never reach this workflow, so a filter base of
+  # origin/master is always available on PRs.
+  changes:
+    name: Detect changed areas
+    runs-on: ubuntu-latest
+    outputs:
+      server: ${{ steps.filter.outputs.server }}
+      rtcd: ${{ steps.filter.outputs.rtcd }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      docker: ${{ steps.filter.outputs.docker }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            server:
+              - "server/**"
+            rtcd:
+              # rtcd/go.mod replace directives point at ../server — server
+              # changes can break the rtcd build too.
+              - "rtcd/**"
+              - "server/**"
+              - "deploy/images/rtcd*"
+            frontend:
+              - "lms-fe/**"
+            docker:
+              - "server/Dockerfile"
+              - "lms-fe/Dockerfile"
+              - "deploy/images/**"
+              - "lms-fe/**"
+              - "server/**"
+              - "rtcd/**"
+
+  # ── Backend (Go) ────────────────────────────────────────────────────
   server:
     name: Server (Go)
+    needs: changes
+    if: needs.changes.outputs.server == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     defaults:
@@ -62,8 +109,11 @@ jobs:
           cd public
           go test -count=1 ./model/...
 
+  # ── rtcd SFU (Go) ───────────────────────────────────────────────────
   rtcd:
     name: rtcd SFU (Go)
+    needs: changes
+    if: needs.changes.outputs.rtcd == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -76,10 +126,12 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-          cache-dependency-path: rtcd/go.sum
+          # rtcd/go.mod replaces the fork's server modules with ../server —
+          # both go.sum files feed the cache key.
+          cache-dependency-path: |
+            rtcd/go.sum
+            server/go.sum
 
-      # rtcd/go.mod replaces github.com/iamleson98/sitename/server{,/public}
-      # with ../server — building from rtcd/ picks those up automatically.
       - name: Build
         run: go build ./...
 
@@ -89,8 +141,11 @@ jobs:
       - name: Test
         run: go test -count=1 ./...
 
+  # ── Frontend (Next.js) ──────────────────────────────────────────────
   frontend:
     name: Frontend (Next.js)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -121,7 +176,7 @@ jobs:
       # the container runtime (Bun cannot hijack upgrade sockets).
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: API proxy tests
         run: node scripts/test-api-proxy.cjs
@@ -139,8 +194,11 @@ jobs:
       - name: run-server.js integration test
         run: node scripts/test-integration-run-server.cjs
 
+  # ── Production Dockerfiles (build only, no push) ────────────────────
   images:
-    name: Docker images (build only)
+    name: Image — ${{ matrix.name }}
+    needs: changes
+    if: needs.changes.outputs.docker == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
