@@ -87,6 +87,31 @@ async function waitForServer(port, timeoutMs = 30000) {
   return false
 }
 
+/**
+ * Collect post-handshake bytes until we have minBytes or the timeout hits.
+ * Used for the server-push check: the client sends NOTHING while waiting,
+ * so a proxy that only relays after client activity will time out and fail.
+ */
+function collectBytes(sock, initial, minBytes, timeoutMs) {
+  return new Promise((resolve) => {
+    let buf = initial
+    if (buf.length >= minBytes) return resolve(buf)
+    const t = setTimeout(() => {
+      sock.off('data', onChunk)
+      resolve(buf)
+    }, timeoutMs)
+    const onChunk = (d) => {
+      buf = Buffer.concat([buf, d])
+      if (buf.length >= minBytes) {
+        clearTimeout(t)
+        sock.off('data', onChunk)
+        resolve(buf)
+      }
+    }
+    sock.on('data', onChunk)
+  })
+}
+
 function wsHandshake(port) {
   return new Promise((resolve, reject) => {
     const key = crypto.randomBytes(16).toString('base64')
@@ -167,8 +192,15 @@ async function main() {
     // 3. WS upgrade.
     const ws = await wsHandshake(PORT)
     ok(ws.head.startsWith('HTTP/1.1 101'), 'websocket upgrade relayed (101)')
+    // The stub backend 101-headers and the first pushed frame in two separate
+    // socket.write() calls — TCP may deliver them in separate chunks, so the
+    // pushed bytes are not guaranteed to share the chunk the handshake was
+    // parsed from. Give them a bounded window to arrive (client stays silent,
+    // which is exactly what is being asserted: a server-initiated push must
+    // traverse the proxy without the client speaking first).
+    const pushed = await collectBytes(ws.sock, ws.rest, 'stub-hello'.length, 3000)
     ok(
-      ws.rest.toString('utf8').startsWith('stub-hello'),
+      pushed.toString('utf8').startsWith('stub-hello'),
       'backend pushes bytes through the proxy immediately after handshake',
     )
     ws.sock.write('ping-1')
