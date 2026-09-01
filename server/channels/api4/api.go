@@ -1,6 +1,7 @@
 package api4
 
 import (
+	"strings"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -674,7 +675,20 @@ func Init(srv *app.Server) (*API, error) {
 		api.BaseRoutes.Root.Method(http.MethodGet, "/manualtest", api.APIHandler(manualtesting.ManualTest))
 	}
 
-	srv.Router.Handle("/api/v4/{anything:.*}", http.HandlerFunc(api.Handle404))
+	// API 404 fallback — MUST be the router's NotFound handler, not an explicit
+	// wildcard route. chi resolves Root.Mount("/api/v4", sub) against
+	// Root.Handle("/api/v4/{anything:.*}") by preferring the explicit wildcard
+	// for single-segment remainders, which 404s REGISTERED bare paths
+	// (/api/v4/users, /api/v4/teams, /api/v4/websocket, ...) before the
+	// mounted subrouter is consulted. NotFound fires only when nothing
+	// matched anywhere — the correct fallback semantics.
+	srv.Router.NotFound(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			api.Handle404(w, r)
+			return
+		}
+		http.NotFound(w, r)
+	}))
 
 	InitLocal(srv)
 
@@ -914,7 +928,9 @@ func InitLocal(srv *app.Server) *API {
 	api.InitCustomProfileAttributesLocal()
 	api.InitAccessControlPolicyLocal()
 
-	srv.LocalRouter.Handle("/api/v4/{anything:.*}", http.HandlerFunc(api.Handle404))
+	// Local-mode API 404 fallback — same rationale as above: NotFound, not an
+	// explicit wildcard route competing with the Mount.
+	srv.LocalRouter.NotFound(http.HandlerFunc(api.Handle404))
 
 	return api
 }

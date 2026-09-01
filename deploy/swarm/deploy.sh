@@ -149,7 +149,7 @@ smoke "grafana"   "https://${GRAFANA_HOST}/api/health"         200
 # proves the whole chain relays upgrades correctly.
 smoke_ws() { # name url
     local name="$1" url="$2" out
-    out=$(curl -s -i -N --max-time 8 \
+    out=$(curl -s -i -N --http1.1 --max-time 8 \
         -H "Connection: Upgrade" -H "Upgrade: websocket" \
         -H "Sec-WebSocket-Version: 13" \
         -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \

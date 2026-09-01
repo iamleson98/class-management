@@ -197,8 +197,10 @@ jobs:
           TRAEFIK_SUBDOMAIN=${TRAEFIK_SUBDOMAIN}
           ACME_EMAIL=${LMS_ACME_EMAIL}
           # Single quotes REQUIRED: deploy.sh sources this file with bash,
-          # and the bcrypt hash contains $2y$10$... — unquoted, bash expands
-          # $2 as a positional parameter and dies ('unbound variable').
+          # and the bcrypt hash contains dollar-prefixed sequences —
+          # unquoted, bash expands them as positional parameters and dies
+          # ('unbound variable'). NOTE: keep literal dollar-parameter text
+          # OUT of this unquoted heredoc, comments included.
           TRAEFIK_AUTH='${LMS_TRAEFIK_AUTH}'
           TAG=${TAG}
           RTCD_TAG=${TAG}
@@ -269,7 +271,7 @@ jobs:
           done
           # The calls signaling path: WebSocket upgrade through the app origin
           # (Traefik -> lms-fe /api/v4 proxy -> lms-server). Expect 101.
-          ws_head=$(curl -s -i -N --max-time 15 \
+          ws_head=$(curl -s -i -N --http1.1 --max-time 15 \
             -H "Connection: Upgrade" -H "Upgrade: websocket" \
             -H "Sec-WebSocket-Version: 13" \
             -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \

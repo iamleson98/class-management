@@ -13,8 +13,11 @@ type AppIface interface {
 func MakeWorker(jobServer *jobs.JobServer, app AppIface) *jobs.SimpleWorker {
 	const workerName = "LastAccessibleFile"
 
+	// Self-hosted installs have no cloud file-size limit; the cloud-limits
+	// lookup nil-derefs there on every scheduler run. The value this job
+	// computes is only meaningful for cloud plans, so keep it disabled.
 	isEnabled := func(_ *model.Config) bool {
-		return true
+		return false
 	}
 	execute := func(logger mlog.LoggerIFace, job *model.Job) error {
 		defer jobServer.HandleJobPanic(logger, job)
