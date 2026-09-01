@@ -16,7 +16,7 @@ func (a *LMSApp) GetReport(reportType string) (map[string]any, *model.AppError) 
 
 	switch reportType {
 	case "enrollment":
-		totalQuery := sq.Select("COUNT(*)").From("StudentClasses").Where(sq.Eq{"Status": "ACTIVE"}).PlaceholderFormat(sq.Dollar)
+		totalQuery := sq.Select("COUNT(*)").From("student_classes").Where(sq.Eq{"Status": "ACTIVE"}).PlaceholderFormat(sq.Dollar)
 		queryStr, args, err := totalQuery.ToSql()
 		if err != nil {
 			return nil, model.NewAppError("GetReport", "app.lms.report.enrollment_query.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
@@ -73,7 +73,7 @@ func (a *LMSApp) GetReport(reportType string) (map[string]any, *model.AppError) 
 			return nil, model.NewAppError("GetReport", "app.lms.report.course_progress.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 		}
 
-		gradedQuery := sq.Select("COUNT(*)").From("Submissions").Where(sq.Eq{"Grade": "GRADED"}).PlaceholderFormat(sq.Dollar)
+		gradedQuery := sq.Select("COUNT(*)").From("Submissions").Where(sq.NotEq{"feedback": nil}).PlaceholderFormat(sq.Dollar)
 		queryStr, args, err = gradedQuery.ToSql()
 		if err != nil {
 			return nil, model.NewAppError("GetReport", "app.lms.report.course_progress_query.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
