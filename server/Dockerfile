@@ -116,4 +116,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -fsS http://localhost:8065/api/v4/system/ping || exit 1
 
 ENTRYPOINT ["/sitename/bin/docker-entrypoint.sh"]
-CMD ["sitename"]
+# NO CMD: the entrypoint shim execs the binary itself (exec sitename "$@").
+# A CMD like ["sitename"] would be appended as an ARGUMENT (sitename
+# sitename) and cobra rejects it: 'unknown command "sitename" for
+# "mattermost"'. Pass subcommands explicitly when needed, e.g.
+#   docker run ... lms-server version

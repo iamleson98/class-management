@@ -289,6 +289,11 @@ services:
   # ──────────────────────────── Backend ──────────────────────────────
   lms-server:
     image: ${REGISTRY_PREFIX:-ghcr.io/iamleson98}/lms-server:${TAG:?set TAG in .env}
+    # Override the image CMD: pre-fix images carry CMD ["sitename"], which
+    # the entrypoint shim appends as an ARGUMENT (exec sitename sitename ->
+    # cobra "unknown command"). Empty command = exec sitename (no args) =
+    # server start. Works for both old and fixed images.
+    command: []
     environment:
       # ── Database ──
       # DSN (password inside) is assembled by secrets-bootstrap.sh into the
