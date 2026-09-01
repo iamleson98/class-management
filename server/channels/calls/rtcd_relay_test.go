@@ -372,7 +372,7 @@ func TestHostPumpSurvivesClientErrors(t *testing.T) {
 		rtcdPort:  "8045",
 		hosts:     map[string]*rtcdHost{},
 		closeCh:   make(chan struct{}),
-		newClient: func(rtcdURL, host string) (RTCDClient, error) { return client, nil },
+		newClient: func(m *rtcdClientManager, rtcdURL, host string) (RTCDClient, error) { return client, nil },
 		onMessage: func(host string, msg rtcd.ClientMessage) { relayed <- msg },
 	}
 	require.NoError(t, mgr.addHost("127.0.0.1", client))

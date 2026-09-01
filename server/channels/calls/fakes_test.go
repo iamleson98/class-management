@@ -422,7 +422,7 @@ func attachFakeRTCD(t *testing.T, s *CallService) *fakeRTCDClient {
 		rtcdPort:  "8045",
 		hosts:     map[string]*rtcdHost{hostIP: {ip: hostIP, client: client}},
 		closeCh:   make(chan struct{}),
-		newClient: func(rtcdURL, host string) (RTCDClient, error) { return client, nil },
+		newClient: func(m *rtcdClientManager, rtcdURL, host string) (RTCDClient, error) { return client, nil },
 	}
 	s.mut.Lock()
 	s.rtcd = mgr
