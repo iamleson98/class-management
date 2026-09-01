@@ -123,6 +123,17 @@ if ! wait_for_services; then
     exit 1
 fi
 
+# ── 4b. One extra backend roll (rtcd DNS race) ──────────────────────────
+# A stack update restarts every service at once. lms-server can boot before
+# the rtcd task (dnsrr endpoint on the video node) is back in swarm DNS,
+# and its rtcd client manager only initializes at process start — calls
+# would then stay down until the next restart. Roll the backend once more
+# AFTER convergence so that init runs with rtcd resolvable.
+echo ">> Rolling lms-server once more (rtcd DNS race on shared rollouts)"
+if ! docker service update --force "${STACK_NAME}_lms-server" >/dev/null; then
+    echo "!! lms-server re-roll failed; check: docker service ps ${STACK_NAME}_lms-server" >&2
+fi
+
 # ── 5. Smoke test ──────────────────────────────────────────────────────
 echo
 echo ">> Smoke tests (public endpoints)"
