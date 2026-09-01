@@ -48,11 +48,14 @@ write_files:
       net.netfilter.nf_conntrack_max = 262144
   - path: /etc/docker/daemon.json
     permissions: "0644"
+    # NOTE: deliberately NO "live-restore": true — it is INCOMPATIBLE with
+    # Docker Swarm mode ("docker swarm init" refuses to start: "--live-restore
+    # daemon configuration is incompatible with swarm mode"). Swarm's own
+    # restart policies reschedule containers across daemon restarts.
     content: |
       {
         "log-driver": "json-file",
         "log-opts": { "max-size": "10m", "max-file": "3" },
-        "live-restore": true,
         "default-address-pools": [
           { "base": "10.10.0.0/16", "size": 24 }
         ]
