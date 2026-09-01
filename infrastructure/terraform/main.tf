@@ -51,9 +51,9 @@ resource "random_password" "db_password" {
   special = true
 }
 
-resource "random_password" "minio_root_password" {
+resource "random_password" "rustfs_secret_key" {
   length  = 24
-  special = false # MinIO password charset constraints
+  special = false # object-storage secret key charset constraints
 }
 
 resource "random_password" "grafana_admin_password" {

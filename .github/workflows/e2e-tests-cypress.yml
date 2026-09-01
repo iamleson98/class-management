@@ -110,7 +110,7 @@ jobs:
       test_filter: '--stage="@prod" --excludeGroup="@smoke,@te_only,@cloud_only,@high_availability" --sortFirst="@compliance_export,@elasticsearch,@ldap_group,@ldap" --sortLast="@saml,@keycloak,@plugin,@plugins_uninstall,@mfa,@license_removal"'
       workers: 20
       timeout_minutes: 60
-      enabled_docker_services: "postgres inbucket minio openldap elasticsearch keycloak"
+      enabled_docker_services: "postgres inbucket rustfs openldap elasticsearch keycloak"
       commit_sha: ${{ inputs.commit_sha }}
       branch: ${{ needs.generate-build-variables.outputs.branch }}
       build_id: ${{ needs.generate-build-variables.outputs.build_id }}

@@ -17,8 +17,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/iamleson98/sitename/server/public/model"
-	s3 "github.com/minio/minio-go/v7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -42,12 +43,12 @@ func TestCheckMandatoryS3Fields(t *testing.T) {
 }
 
 func TestMakeBucket(t *testing.T) {
-	s3Host := os.Getenv("CI_MINIO_HOST")
+	s3Host := os.Getenv("CI_RUSTFS_HOST")
 	if s3Host == "" {
 		s3Host = "localhost"
 	}
 
-	s3Port := os.Getenv("CI_MINIO_PORT")
+	s3Port := os.Getenv("CI_RUSTFS_PORT")
 	if s3Port == "" {
 		s3Port = "9000"
 	}
@@ -64,8 +65,8 @@ func TestMakeBucket(t *testing.T) {
 
 	cfg := FileBackendSettings{
 		DriverName:                         model.ImageDriverS3,
-		AmazonS3AccessKeyId:                model.MinioAccessKey,
-		AmazonS3SecretAccessKey:            model.MinioSecretKey,
+		AmazonS3AccessKeyId:                model.RustFSAccessKey,
+		AmazonS3SecretAccessKey:            model.RustFSSecretKey,
 		AmazonS3Bucket:                     bucketName,
 		AmazonS3Endpoint:                   s3Endpoint,
 		AmazonS3Region:                     "",
@@ -83,12 +84,12 @@ func TestMakeBucket(t *testing.T) {
 }
 
 func TestTimeout(t *testing.T) {
-	s3Host := os.Getenv("CI_MINIO_HOST")
+	s3Host := os.Getenv("CI_RUSTFS_HOST")
 	if s3Host == "" {
 		s3Host = "localhost"
 	}
 
-	s3Port := os.Getenv("CI_MINIO_PORT")
+	s3Port := os.Getenv("CI_RUSTFS_PORT")
 	if s3Port == "" {
 		s3Port = "9000"
 	}
@@ -105,8 +106,8 @@ func TestTimeout(t *testing.T) {
 
 	cfg := FileBackendSettings{
 		DriverName:                         model.ImageDriverS3,
-		AmazonS3AccessKeyId:                model.MinioAccessKey,
-		AmazonS3SecretAccessKey:            model.MinioSecretKey,
+		AmazonS3AccessKeyId:                model.RustFSAccessKey,
+		AmazonS3SecretAccessKey:            model.RustFSSecretKey,
 		AmazonS3Bucket:                     bucketName,
 		AmazonS3Endpoint:                   s3Endpoint,
 		AmazonS3Region:                     "",
@@ -149,12 +150,12 @@ func TestTimeout(t *testing.T) {
 }
 
 func TestInsecureMakeBucket(t *testing.T) {
-	s3Host := os.Getenv("CI_MINIO_HOST")
+	s3Host := os.Getenv("CI_RUSTFS_HOST")
 	if s3Host == "" {
 		s3Host = "localhost"
 	}
 
-	s3Port := os.Getenv("CI_MINIO_PORT")
+	s3Port := os.Getenv("CI_RUSTFS_PORT")
 	if s3Port == "" {
 		s3Port = "9000"
 	}
@@ -187,8 +188,8 @@ func TestInsecureMakeBucket(t *testing.T) {
 
 			cfg := FileBackendSettings{
 				DriverName:                         model.ImageDriverS3,
-				AmazonS3AccessKeyId:                model.MinioAccessKey,
-				AmazonS3SecretAccessKey:            model.MinioSecretKey,
+				AmazonS3AccessKeyId:                model.RustFSAccessKey,
+				AmazonS3SecretAccessKey:            model.RustFSSecretKey,
 				AmazonS3Bucket:                     bucketName,
 				AmazonS3Endpoint:                   proxySelfSignedHTTPS.URL[8:],
 				AmazonS3Region:                     "",
@@ -302,7 +303,7 @@ func newMockS3WithCancel(timeout time.Duration, closeErr error) (*fauxCloser, co
 	ctx, cancel := context.WithCancel(context.Background())
 	return &fauxCloser{
 		s3WithCancel: &s3WithCancel{
-			Object: &s3.Object{},
+			path:   "mock-object",
 			timer:  time.AfterFunc(timeout, cancel),
 			cancel: cancel,
 		},
@@ -322,12 +323,12 @@ func (fc fauxCloser) Close() error {
 }
 
 func TestListDirectory(t *testing.T) {
-	s3Host := os.Getenv("CI_MINIO_HOST")
+	s3Host := os.Getenv("CI_RUSTFS_HOST")
 	if s3Host == "" {
 		s3Host = "localhost"
 	}
 
-	s3Port := os.Getenv("CI_MINIO_PORT")
+	s3Port := os.Getenv("CI_RUSTFS_PORT")
 	if s3Port == "" {
 		s3Port = "9000"
 	}
@@ -336,8 +337,8 @@ func TestListDirectory(t *testing.T) {
 
 	cfg := FileBackendSettings{
 		DriverName:                         driverS3,
-		AmazonS3AccessKeyId:                "minioaccesskey",
-		AmazonS3SecretAccessKey:            "miniosecretkey",
+		AmazonS3AccessKeyId:                "rustfsaccesskey",
+		AmazonS3SecretAccessKey:            "rustfssecretkey",
 		AmazonS3Bucket:                     "mattermost-test-1",
 		AmazonS3Region:                     "",
 		AmazonS3Endpoint:                   s3Endpoint,
@@ -350,8 +351,13 @@ func TestListDirectory(t *testing.T) {
 	fileBackend, err := NewS3FileBackend(cfg)
 	require.NoError(t, err)
 
-	found, err := fileBackend.client.BucketExists(context.Background(), cfg.AmazonS3Bucket)
-	require.NoError(t, err)
+	_, err = fileBackend.client.HeadBucket(context.Background(), &s3.HeadBucketInput{
+		Bucket: aws.String(cfg.AmazonS3Bucket),
+	})
+	found := err == nil
+	if err != nil && !isBucketMissingError(err) {
+		require.NoError(t, err)
+	}
 
 	if !found {
 		err = fileBackend.MakeBucket()
@@ -378,12 +384,12 @@ func TestListDirectory(t *testing.T) {
 }
 
 func TestWriteFileVideoMimeTypes(t *testing.T) {
-	s3Host := os.Getenv("CI_MINIO_HOST")
+	s3Host := os.Getenv("CI_RUSTFS_HOST")
 	if s3Host == "" {
 		s3Host = "localhost"
 	}
 
-	s3Port := os.Getenv("CI_MINIO_PORT")
+	s3Port := os.Getenv("CI_RUSTFS_PORT")
 	if s3Port == "" {
 		s3Port = "9000"
 	}
@@ -400,8 +406,8 @@ func TestWriteFileVideoMimeTypes(t *testing.T) {
 
 	cfg := FileBackendSettings{
 		DriverName:                         model.ImageDriverS3,
-		AmazonS3AccessKeyId:                model.MinioAccessKey,
-		AmazonS3SecretAccessKey:            model.MinioSecretKey,
+		AmazonS3AccessKeyId:                model.RustFSAccessKey,
+		AmazonS3SecretAccessKey:            model.RustFSSecretKey,
 		AmazonS3Bucket:                     bucketName,
 		AmazonS3Endpoint:                   s3Endpoint,
 		AmazonS3SSL:                        false,
@@ -433,16 +439,17 @@ func TestWriteFileVideoMimeTypes(t *testing.T) {
 			require.Equal(t, int64(len(testContent)), written)
 
 			// Verify the file exists with correct mime type
-			props, err := fileBackend.client.StatObject(
+			props, err := fileBackend.client.HeadObject(
 				context.Background(),
-				bucketName,
-				path,
-				s3.StatObjectOptions{},
+				&s3.HeadObjectInput{
+					Bucket: aws.String(bucketName),
+					Key:    aws.String(path),
+				},
 			)
 			require.NoError(t, err)
 
 			// Ensure the MIME type is one of the expected values
-			assert.Contains(t, validMimeTypes, props.ContentType, "Unexpected MIME type: %s", props.ContentType)
+			assert.Contains(t, validMimeTypes, aws.ToString(props.ContentType), "Unexpected MIME type: %s", aws.ToString(props.ContentType))
 
 			defer func() {
 				err = fileBackend.RemoveFile(path)

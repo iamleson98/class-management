@@ -1,9 +1,9 @@
 # Local development dependencies for `make run-server`.
 #
 # Services:
-#   - postgres   (SqlSettings: mmuser:mostest@mattermost_test)
-#   - minio      (S3-compatible file storage on :9000, console on :9001)
-#   - prometheus (metrics scraper on :9090, scrapes server on host:8067)
+#   postgres   (SqlSettings: mmuser:mostest@mattermost_test)
+#   rustfs     (S3-compatible file storage on :9000, console on :9001)
+#   prometheus (metrics scraper on :9090, scrapes server on host:8067)
 #
 # Start with:
 #   make start-docker
@@ -32,38 +32,53 @@ services:
       timeout: 5s
       retries: 10
 
-  minio:
-    image: minio/minio:latest
-    container_name: lms-dev-minio
+  # RustFS — S3-compatible object storage (same engine as the production
+  # stack). The dev credentials match the test constants in
+  # public/model/config.go (RustFSAccessKey / RustFSSecretKey), so the
+  # filestore test suite can run against this instance with
+  # CI_RUSTFS_HOST=localhost CI_RUSTFS_PORT=9000.
+  rustfs:
+    image: rustfs/rustfs:1.0.0-rc.4
+    container_name: lms-dev-rustfs
     restart: unless-stopped
-    command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      RUSTFS_ACCESS_KEY: rustfsaccesskey
+      RUSTFS_SECRET_KEY: rustfssecretkey
+      RUSTFS_VOLUMES: /data
+      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_CONSOLE_ADDRESS: ":9001"
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_OBS_LOGGER_LEVEL: "warn"
     ports:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - lms-dev-miniodata:/data
+      - lms-dev-rustfsdata:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9000/health || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 10
 
-  minio-init:
-    image: minio/mc:latest
-    container_name: lms-dev-minio-init
+  # One-shot bucket creator (rustfs/rc is the official RustFS S3 CLI,
+  # mc-compatible: alias set / mb / anonymous). Also creates the
+  # mattermost-test bucket used by the filestore test suite.
+  rustfs-init:
+    image: rustfs/rc:v0.1.31
+    container_name: lms-dev-rustfs-init
     profiles:
       - setup
     depends_on:
-      minio:
+      rustfs:
         condition: service_healthy
     entrypoint: >
       /bin/sh -c "
-        mc alias set local http://minio:9000 minioadmin minioadmin;
-        mc mb --ignore-existing local/lms-dev;
-        mc anonymous set download local/lms-dev;
+        set -e;
+        rc alias set local http://rustfs:9000 rustfsaccesskey rustfssecretkey;
+        rc ready local --timeout 10;
+        rc mb --ignore-existing local/lms-dev;
+        rc mb --ignore-existing local/mattermost-test;
+        echo '>> buckets ready';
       "
 
   prometheus:
@@ -84,4 +99,4 @@ services:
 
 volumes:
   lms-dev-pgdata:
-  lms-dev-miniodata:
+  lms-dev-rustfsdata:

@@ -1,5 +1,8 @@
-# Build context filter for the rtcd image (deploy/images/rtcd.Dockerfile,
-# built from the REPO ROOT because rtcd/go.mod replaces -> ../server).
+# Build context filter for the root-context images:
+#   - deploy/images/rtcd.Dockerfile  (rtcd/go.mod replaces -> ../server)
+#   - server/Dockerfile              (server/go.mod replaces -> ../rtcd)
+# Both are built from the REPO ROOT because each module has a local replace
+# directive pointing at the other.
 #
 # Only server/ + rtcd/ + deploy/images/ are needed; everything else would
 # just bloat the context upload (frontend node_modules, .git, reports…).

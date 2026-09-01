@@ -1,6 +1,14 @@
 # Multi-stage production Dockerfile for the LMS backend (Go server).
 # Builds the sitename server binary from source and ships a minimal
 # Alpine runtime image.
+#
+# IMPORTANT: build from the REPOSITORY ROOT, not from server/:
+#   docker build -f server/Dockerfile -t lms-server .
+#
+# server/go.mod resolves two local modules that live OUTSIDE server/:
+#   replace github.com/iamleson98/sitename/server/public => ./public
+#   replace github.com/mattermost/rtcd                  => ../rtcd
+# so the build context must contain both server/ and rtcd/.
 
 # ----------------------------------------------------------------------------
 # Stage 1: build the Go server and mmctl
@@ -17,23 +25,27 @@ ARG BUILD_NUMBER=dev
 ARG BUILD_DATE
 ARG BUILD_HASH=none
 
-WORKDIR /build
+WORKDIR /src
 
-# Copy the root module manifests plus the local replacement module (./public).
-# go.mod has `replace ... => ./public`, so go mod download needs public/go.mod
-# available — copying just go.mod/go.sum first would fail to resolve it.
-COPY go.mod go.sum ./
-COPY public/go.mod public/go.sum ./public/
+# Layer-cache the module downloads. All modules with local replace
+# directives must be visible to the go command at download time.
+# Layout: server at /src/server, public at /src/server/public (./public),
+# rtcd at /src/rtcd (../rtcd) — matching the repo-root directory structure
+# so every replace directive resolves exactly as it does on a dev machine.
+COPY server/go.mod server/go.sum ./server/
+COPY server/public/go.mod server/public/go.sum ./server/public/
+COPY rtcd/go.mod rtcd/go.sum ./rtcd/
+RUN cd server && go mod download
 
-RUN go mod download
-
-# Copy the rest of the server source (respect .dockerignore)
-COPY . .
+# Copy the rest of the source (respect .dockerignore)
+COPY server/ ./server/
+COPY rtcd/ ./rtcd/
 
 # Build the sitename server binary.
 # -trimpath strips local paths; -tags enterprise registers LMS API endpoints
 # (see cmd/sitename/main.go which imports the enterprise package).
-RUN BUILD_NUMBER="${BUILD_NUMBER}" \
+RUN cd server && \
+    BUILD_NUMBER="${BUILD_NUMBER}" \
     BUILD_DATE="${BUILD_DATE:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}" \
     BUILD_HASH="${BUILD_HASH}" \
     && go build \
@@ -49,7 +61,7 @@ RUN BUILD_NUMBER="${BUILD_NUMBER}" \
         ./cmd/sitename
 
 # Build mmctl (Mattermost command-line tool)
-RUN go build -trimpath -o /out/mmctl ./cmd/mmctl
+RUN cd server && go build -trimpath -o /out/mmctl ./cmd/mmctl
 
 # ----------------------------------------------------------------------------
 # Stage 2: minimal Alpine runtime
@@ -78,12 +90,12 @@ COPY --from=builder /out/mmctl     /sitename/bin/mmctl
 
 # Entrypoint shim that maps Docker secret files -> MM_* env vars (Mattermost
 # does not support the *_FILE convention natively).
-COPY build/docker-entrypoint.sh /sitename/bin/docker-entrypoint.sh
+COPY server/build/docker-entrypoint.sh /sitename/bin/docker-entrypoint.sh
 
 # Runtime assets (i18n strings, fonts for image rendering, email/page templates)
-COPY --from=builder /build/i18n      /sitename/i18n
-COPY --from=builder /build/fonts     /sitename/fonts
-COPY --from=builder /build/templates /sitename/templates
+COPY --from=builder /src/server/i18n      /sitename/i18n
+COPY --from=builder /src/server/fonts     /sitename/fonts
+COPY --from=builder /src/server/templates /sitename/templates
 
 RUN chown -R sitename:sitename /sitename
 

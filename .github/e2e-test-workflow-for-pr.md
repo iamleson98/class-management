@@ -242,9 +242,9 @@ Different test phases enable different Docker services based on test requirement
 | Test Phase | Docker Services |
 |------------|-----------------|
 | Smoke Tests | `postgres inbucket` |
-| Full Tests | `postgres inbucket minio openldap elasticsearch keycloak` |
+| Full Tests | `postgres inbucket rustfs openldap elasticsearch keycloak` |
 
-Full tests enable additional services to support tests requiring LDAP, Elasticsearch, S3-compatible storage (Minio), and SAML/OAuth (Keycloak).
+Full tests enable additional services to support tests requiring LDAP, Elasticsearch, S3-compatible storage (RustFS), and SAML/OAuth (Keycloak).
 
 ## Failure Behavior
 

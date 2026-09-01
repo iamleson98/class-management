@@ -89,7 +89,7 @@ Edit `.env` and change every `CHANGE ME` value:
 |---|---|
 | `POSTGRES_PASSWORD` | strong password (also appears inside `MM_SQLSETTINGS_DATASOURCE`) |
 | `MM_SQLSETTINGS_DATASOURCE` | keep in sync with user/password/db above |
-| `MINIO_ROOT_PASSWORD` | 8–40 chars |
+| `RUSTFS_SECRET_KEY` | 8–40 chars (object-storage secret; console login is `RUSTFS_ACCESS_KEY` + this) |
 | `GRAFANA_ADMIN_PASSWORD` | Grafana login |
 | `MM_SERVICESETTINGS_SITEURL` | `http://localhost` for local |
 

@@ -35,8 +35,8 @@ output "generated_db_password" {
   sensitive   = true
 }
 
-output "generated_minio_root_password" {
-  value     = random_password.minio_root_password.result
+output "generated_rustfs_secret_key" {
+  value     = random_password.rustfs_secret_key.result
   sensitive = true
 }
 

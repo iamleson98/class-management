@@ -1,5 +1,3 @@
-
-
 package client
 
 import (
@@ -9,6 +7,7 @@ import (
 	"io"
 	"log"
 	"log/slog"
+	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -26,6 +25,19 @@ import (
 
 	"github.com/stretchr/testify/require"
 )
+
+// serverReachable reports whether a Mattermost server answers at apiURL.
+// It is used to skip integration tests when no server is running.
+func serverReachable(tb testing.TB, apiURL string) bool {
+	tb.Helper()
+	client := &http.Client{Timeout: 2 * time.Second}
+	resp, err := client.Get(apiURL + "/api/v4/system/ping")
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	return true
+}
 
 type TestHelper struct {
 	tb             testing.TB
@@ -367,6 +379,13 @@ func setupTestHelper(tb testing.TB, channelName string) *TestHelper {
 	}
 
 	th.apiURL = "http://localhost:8065"
+
+	// These are integration tests: they need a running Mattermost server
+	// (the one the e2e environment starts, or a local `make run-server`).
+	// Skip cleanly when no server is reachable so unit-CI stays green.
+	if !serverReachable(tb, th.apiURL) {
+		tb.Skipf("no Mattermost server reachable at %s — skipping client integration test", th.apiURL)
+	}
 
 	th.adminAPIClient = model.NewAPIv4Client(th.apiURL)
 	th.userAPIClient = model.NewAPIv4Client(th.apiURL)

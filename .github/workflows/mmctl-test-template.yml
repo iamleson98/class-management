@@ -66,7 +66,7 @@ jobs:
           cat ../tests/custom-schema-objectID.ldif | docker compose --ansi never exec -T openldap bash -c 'ldapadd -Y EXTERNAL -H ldapi:/// -w mostest || true';
           cat ../tests/custom-schema-cpa.ldif | docker compose --ansi never exec -T openldap bash -c 'ldapadd -Y EXTERNAL -H ldapi:/// -w mostest || true';
           cat ../tests/test-data.ldif | docker compose --ansi never exec -T openldap bash -c 'ldapadd -x -D "cn=admin,dc=mm,dc=test,dc=com" -w mostest';
-          docker compose --ansi never exec -T minio sh -c 'mkdir -p /data/mattermost-test';
+          docker compose --ansi never --profile setup run --rm rustfs-init;
           docker compose --ansi never ps
 
       - name: Run mmctl Tests
@@ -82,6 +82,8 @@ jobs:
             --ulimit nofile=8096:8096 \
             --env-file=server/build/dotenv/test.env \
             --env MM_SQLSETTINGS_DATASOURCE="${{ inputs.datasource }}" \
+            --env CI_RUSTFS_HOST=rustfs \
+            --env CI_RUSTFS_PORT=9000 \
             --env MMCTL_TESTFLAGS="$TESTFLAGS" \
             --env FIPS_ENABLED="${{ inputs.fips-enabled }}" \
             -v $PWD:/mattermost \

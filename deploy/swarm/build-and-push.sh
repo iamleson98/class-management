@@ -64,8 +64,9 @@ build_push() { # image-name dockerfile context extra-build-args...
     docker push "$image"
 }
 
-# Backend: context = server/
-build_push lms-server "$ROOT/server/Dockerfile" "$ROOT/server"
+# Backend: context = REPO ROOT (server/go.mod replaces -> ../rtcd, so the
+# context must contain both server/ and rtcd/).
+build_push lms-server "$ROOT/server/Dockerfile" "$ROOT"
 
 # Frontend: context = lms-fe/ (NEXT_PUBLIC_API_URL defaults to the
 # same-origin sentinel "/" inside the Dockerfile — the image is

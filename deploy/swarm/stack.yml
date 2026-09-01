@@ -206,6 +206,13 @@ services:
       RUSTFS_CONSOLE_ADDRESS: ":9001"
       RUSTFS_CONSOLE_ENABLE: "true"
       RUSTFS_OBS_LOGGER_LEVEL: "warn"
+      # SSE-S3 (AES256) at-rest encryption requires a 32-byte base64 key
+      # when no KMS is configured. Only needed if MM_FILESETTINGS_AMAZONS3SSE
+      # is enabled on lms-server. Create via:
+      #   docker secret create rustfs_sse_s3_master_key <(python3 -c \
+      #     "import base64,os; print(base64.b64encode(os.urandom(32)).decode())")
+      # then uncomment the secrets entry below.
+      # RUSTFS_SSE_S3_MASTER_KEY_FILE: /run/secrets/rustfs_sse_s3_master_key
     secrets: [rustfs_access_key, rustfs_secret_key]
     volumes:
       - rustfs_data:/data
@@ -235,21 +242,24 @@ services:
 
   # One-shot bucket creator. Swarm ignores depends_on, so it retries until
   # rustfs answers, then exits 0. Idempotent (mb --ignore-existing).
+  # rustfs/rc is the official RustFS S3 CLI (mc-compatible: alias set / mb /
+  # anonymous). Replaces the previous minio/mc bootstrap.
   rustfs-init:
-    image: minio/mc:RELEASE.2025-02-08T19-14-10Z
+    image: rustfs/rc:v0.1.31
     entrypoint: >
       /bin/sh -c "
       set -e;
-      MC_USER='${RUSTFS_ACCESS_KEY_USER:-lms}';
-      MC_KEY=$$(cat /run/secrets/rustfs_access_key):$$(cat /run/secrets/rustfs_secret_key);
+      RC_USER='${RUSTFS_ACCESS_KEY_USER:-lms}';
+      RC_KEY=$$(cat /run/secrets/rustfs_secret_key);
       echo '>> waiting for rustfs S3 API...';
       n=0;
-      until mc alias set local http://rustfs:9000 \"$$MC_KEY\" >/dev/null 2>&1; do
+      until rc alias set local http://rustfs:9000 \"$$RC_USER\" \"$$RC_KEY\" >/dev/null 2>&1; do
         n=$$((n+1));
         if [ $$n -ge 60 ]; then echo '!! rustfs unreachable after 60 tries' >&2; exit 1; fi;
         sleep 2;
       done;
-      mc mb --ignore-existing local/${MM_FILESETTINGS_AMAZONS3BUCKET:-lms-uploads};
+      rc ready local --timeout 10;
+      rc mb --ignore-existing local/${MM_FILESETTINGS_AMAZONS3BUCKET:-lms-uploads};
       echo '>> bucket ready';
       "
     secrets: [rustfs_access_key, rustfs_secret_key]
@@ -269,8 +279,8 @@ services:
       # db_dsn secret; the entrypoint shim exports it as this env var.
       MM_SQLSETTINGS_DRIVERNAME: postgres
       MM_SQLSETTINGS_MAXCONNS: ${MM_SQLSETTINGS_MAXCONNS:-40}
-      # ── File storage → rustfs (path-style: minio-go uses path-style for
-      #    non-AWS endpoints automatically) ──
+      # ── File storage → rustfs (the AWS SDK v2 backend uses path-style
+      #    addressing for non-AWS endpoints automatically) ──
       MM_FILESETTINGS_DRIVERNAME: amazons3
       MM_FILESETTINGS_AMAZONS3ACCESSKEYID: ${RUSTFS_ACCESS_KEY_USER:-lms}
       # Secret key read from /run/secrets/rustfs_secret_key by the shim.

@@ -37,9 +37,9 @@ const (
 
 	SearchengineElasticsearch = "elasticsearch"
 
-	MinioAccessKey = "minioaccesskey"
-	MinioSecretKey = "miniosecretkey"
-	MinioBucket    = "mattermost-test"
+	RustFSAccessKey = "rustfsaccesskey"
+	RustFSSecretKey = "rustfssecretkey"
+	RustFSBucket    = "mattermost-test"
 
 	PasswordMaximumLength = 72
 	PasswordMinimumLength = 5

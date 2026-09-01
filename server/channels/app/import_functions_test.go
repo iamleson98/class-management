@@ -5859,8 +5859,8 @@ func BenchmarkCompareFilesContent(b *testing.B) {
 			th := SetupConfig(b, func(cfg *model.Config) {
 				cfg.FileSettings = model.FileSettings{
 					DriverName:                         model.NewPointer(model.ImageDriverS3),
-					AmazonS3AccessKeyId:                model.NewPointer(model.MinioAccessKey),
-					AmazonS3SecretAccessKey:            model.NewPointer(model.MinioSecretKey),
+					AmazonS3AccessKeyId:                model.NewPointer(model.RustFSAccessKey),
+					AmazonS3SecretAccessKey:            model.NewPointer(model.RustFSSecretKey),
 					AmazonS3Bucket:                     model.NewPointer("comparefilescontentbucket"),
 					AmazonS3Endpoint:                   model.NewPointer("localhost:9000"),
 					AmazonS3Region:                     model.NewPointer(""),
@@ -6005,8 +6005,8 @@ func BenchmarkCompareFilesContent(b *testing.B) {
 			th := SetupConfig(b, func(cfg *model.Config) {
 				cfg.FileSettings = model.FileSettings{
 					DriverName:                         model.NewPointer(model.ImageDriverS3),
-					AmazonS3AccessKeyId:                model.NewPointer(model.MinioAccessKey),
-					AmazonS3SecretAccessKey:            model.NewPointer(model.MinioSecretKey),
+					AmazonS3AccessKeyId:                model.NewPointer(model.RustFSAccessKey),
+					AmazonS3SecretAccessKey:            model.NewPointer(model.RustFSSecretKey),
 					AmazonS3Bucket:                     model.NewPointer("comparefilescontentbucket"),
 					AmazonS3Endpoint:                   model.NewPointer("localhost:9000"),
 					AmazonS3Region:                     model.NewPointer(""),

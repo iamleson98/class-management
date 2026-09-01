@@ -3,8 +3,6 @@ package filestore
 import (
 	"context"
 	"net/http"
-
-	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
 // customTransport is used to point the request to a different server.
@@ -26,33 +24,3 @@ func (t *customTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	req.URL.Host = t.host
 	return t.client.Do(req)
 }
-
-// customProvider is a dummy credentials provider for the minio client to work
-// without actually providing credentials. This is needed with a custom transport
-// in cases where the minio client does not actually have credentials with itself,
-// rather needs responses from another entity.
-//
-// It satisfies the credentials.Provider interface.
-type customProvider struct {
-	isSignV2 bool
-}
-
-// RetrieveWithCredContext simply calls Retrieve, because we don't need to use
-// the param.
-func (cp customProvider) RetrieveWithCredContext(_ *credentials.CredContext) (credentials.Value, error) {
-	return cp.Retrieve()
-}
-
-// Retrieve just returns empty credentials.
-func (cp customProvider) Retrieve() (credentials.Value, error) {
-	sign := credentials.SignatureV4
-	if cp.isSignV2 {
-		sign = credentials.SignatureV2
-	}
-	return credentials.Value{
-		SignerType: sign,
-	}, nil
-}
-
-// IsExpired always returns false.
-func (cp customProvider) IsExpired() bool { return false }

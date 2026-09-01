@@ -618,12 +618,12 @@ func TestS3TestConnection(t *testing.T) {
 	th := Setup(t)
 	client := th.Client
 
-	s3Host := os.Getenv("CI_MINIO_HOST")
+	s3Host := os.Getenv("CI_RUSTFS_HOST")
 	if s3Host == "" {
 		s3Host = "localhost"
 	}
 
-	s3Port := os.Getenv("CI_MINIO_PORT")
+	s3Port := os.Getenv("CI_RUSTFS_PORT")
 	if s3Port == "" {
 		s3Port = "9000"
 	}
@@ -634,8 +634,8 @@ func TestS3TestConnection(t *testing.T) {
 	fs.SetDefaults(false)
 
 	fs.DriverName = model.NewPointer(model.ImageDriverS3)
-	fs.AmazonS3AccessKeyId = model.NewPointer(model.MinioAccessKey)
-	fs.AmazonS3SecretAccessKey = model.NewPointer(model.MinioSecretKey)
+	fs.AmazonS3AccessKeyId = model.NewPointer(model.RustFSAccessKey)
+	fs.AmazonS3SecretAccessKey = model.NewPointer(model.RustFSSecretKey)
 	fs.AmazonS3Bucket = model.NewPointer("")
 	fs.AmazonS3Endpoint = model.NewPointer(s3Endpoint)
 	fs.AmazonS3Region = model.NewPointer("")
@@ -656,9 +656,9 @@ func TestS3TestConnection(t *testing.T) {
 		resp, err := th.SystemAdminClient.TestS3Connection(context.Background(), &config)
 		CheckBadRequestStatus(t, resp)
 		CheckErrorMessage(t, err, "S3 Bucket is required")
-		// If this fails, check the test configuration to ensure minio is setup with the
-		// `mattermost-test` bucket defined by model.MINIO_BUCKET.
-		*config.FileSettings.AmazonS3Bucket = model.MinioBucket
+		// If this fails, check the test configuration to ensure rustfs is setup with the
+		// `mattermost-test` bucket defined by model.RUSTFS_BUCKET.
+		*config.FileSettings.AmazonS3Bucket = model.RustFSBucket
 		config.FileSettings.AmazonS3PathPrefix = model.NewPointer("")
 		*config.FileSettings.AmazonS3Region = "us-east-1"
 		resp, err = th.SystemAdminClient.TestS3Connection(context.Background(), &config)

@@ -88,12 +88,12 @@ func TestStartServerPortUnavailable(t *testing.T) {
 
 func TestStartServerNoS3Bucket(t *testing.T) {
 	mainHelper.Parallel(t)
-	s3Host := os.Getenv("CI_MINIO_HOST")
+	s3Host := os.Getenv("CI_RUSTFS_HOST")
 	if s3Host == "" {
 		s3Host = "localhost"
 	}
 
-	s3Port := os.Getenv("CI_MINIO_PORT")
+	s3Port := os.Getenv("CI_RUSTFS_PORT")
 	if s3Port == "" {
 		s3Port = "9000"
 	}
@@ -105,8 +105,8 @@ func TestStartServerNoS3Bucket(t *testing.T) {
 	cfg := store.Get()
 	cfg.FileSettings = model.FileSettings{
 		DriverName:              model.NewPointer(model.ImageDriverS3),
-		AmazonS3AccessKeyId:     model.NewPointer(model.MinioAccessKey),
-		AmazonS3SecretAccessKey: model.NewPointer(model.MinioSecretKey),
+		AmazonS3AccessKeyId:     model.NewPointer(model.RustFSAccessKey),
+		AmazonS3SecretAccessKey: model.NewPointer(model.RustFSSecretKey),
 		AmazonS3Bucket:          model.NewPointer("nosuchbucket"),
 		AmazonS3Endpoint:        model.NewPointer(s3Endpoint),
 		AmazonS3Region:          model.NewPointer(""),

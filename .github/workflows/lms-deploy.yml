@@ -61,8 +61,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # lms-server builds from the REPO ROOT: server/go.mod has a
+          # replace directive pointing at ../rtcd — the context must
+          # contain both server/ and rtcd/.
           - name: lms-server
-            context: server
+            context: .
             file: server/Dockerfile
           - name: lms-fe
             context: lms-fe

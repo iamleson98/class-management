@@ -55,8 +55,12 @@ jobs:
       - name: Test calls suite (race detector)
         run: go test -race -count=1 ./channels/calls/...
 
+      # public/ is its own Go module (github.com/iamleson98/sitename/server/public),
+      # so the model suite must run from server/public, not from server/.
       - name: Test public model suite
-        run: go test -count=1 ./public/model/...
+        run: |
+          cd public
+          go test -count=1 ./model/...
 
   rtcd:
     name: rtcd SFU (Go)
@@ -143,8 +147,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # lms-server builds from the REPO ROOT: server/go.mod has a
+          # replace directive pointing at ../rtcd — the context must
+          # contain both server/ and rtcd/.
           - name: lms-server
-            context: server
+            context: .
             file: server/Dockerfile
           - name: lms-fe
             context: lms-fe

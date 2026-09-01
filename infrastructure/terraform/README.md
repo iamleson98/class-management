@@ -59,7 +59,7 @@ These are used by `deploy/swarm/secrets-bootstrap.sh`:
 
 ```bash
 terraform output -raw generated_db_password
-terraform output -raw generated_minio_root_password
+terraform output -raw generated_rustfs_secret_key
 terraform output -raw generated_grafana_admin_password
 terraform output -raw generated_registry_password
 ```

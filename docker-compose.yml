@@ -60,6 +60,11 @@ services:
       RUSTFS_CONSOLE_ADDRESS: ":9001"
       RUSTFS_CONSOLE_ENABLE: "true"
       RUSTFS_OBS_LOGGER_LEVEL: "warn"
+      # SSE-S3 (AES256) at-rest encryption requires a 32-byte base64 key
+      # when no KMS is configured. Generate with:
+      #   python3 -c "import base64,os; print(base64.b64encode(os.urandom(32)).decode())"
+      # Only needed if you enable MM_FILESETTINGS_AMAZONS3SSE on lms-server.
+      # RUSTFS_SSE_S3_MASTER_KEY: ${RUSTFS_SSE_S3_MASTER_KEY:-}
     volumes:
       - rustfs_data:/data
     ports:
@@ -78,15 +83,18 @@ services:
   # depends_on is honored here, but the retry loop is harmless and matches
   # the Swarm init job). Exits 0 when done.
   rustfs-init:
-    image: minio/mc:RELEASE.2025-02-08T19-14-10Z
+    # rustfs/rc is the official RustFS S3 CLI (mc-compatible: alias set / mb /
+    # anonymous). Replaces the previous minio/mc bootstrap.
+    image: rustfs/rc:v0.1.31
     depends_on:
       rustfs:
         condition: service_healthy
     entrypoint: >
       /bin/sh -c "
       set -e;
-      mc alias set local http://rustfs:9000 ${RUSTFS_ACCESS_KEY:-lms} ${RUSTFS_SECRET_KEY};
-      mc mb --ignore-existing local/${MM_FILESETTINGS_AMAZONS3_BUCKET:-lms-uploads};
+      rc alias set local http://rustfs:9000 ${RUSTFS_ACCESS_KEY:-lms} ${RUSTFS_SECRET_KEY};
+      rc ready local --timeout 10;
+      rc mb --ignore-existing local/${MM_FILESETTINGS_AMAZONS3_BUCKET:-lms-uploads};
       echo '>> bucket ready';
       exit 0;
       "
@@ -95,9 +103,11 @@ services:
 
   # ─────────────────────────── Backend ────────────────────────────
   lms-server:
+    # Context must be the REPO ROOT: server/go.mod has a replace directive
+    # pointing at ../rtcd, so the build needs server/ AND rtcd/ in the context.
     build:
-      context: ./server
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: server/Dockerfile
     restart: unless-stopped
     depends_on:
       postgres:

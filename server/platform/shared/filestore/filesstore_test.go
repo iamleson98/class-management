@@ -87,12 +87,12 @@ func TestS3FileBackendTestSuiteWithEncryption(t *testing.T) {
 }
 
 func runBackendTest(t *testing.T, encrypt bool) {
-	s3Host := os.Getenv("CI_MINIO_HOST")
+	s3Host := os.Getenv("CI_RUSTFS_HOST")
 	if s3Host == "" {
 		s3Host = "localhost"
 	}
 
-	s3Port := os.Getenv("CI_MINIO_PORT")
+	s3Port := os.Getenv("CI_RUSTFS_PORT")
 	if s3Port == "" {
 		s3Port = "9000"
 	}
@@ -102,8 +102,8 @@ func runBackendTest(t *testing.T, encrypt bool) {
 	suite.Run(t, &FileBackendTestSuite{
 		settings: FileBackendSettings{
 			DriverName:                         driverS3,
-			AmazonS3AccessKeyId:                "minioaccesskey",
-			AmazonS3SecretAccessKey:            "miniosecretkey",
+			AmazonS3AccessKeyId:                "rustfsaccesskey",
+			AmazonS3SecretAccessKey:            "rustfssecretkey",
 			AmazonS3Bucket:                     "mattermost-test",
 			AmazonS3Region:                     "",
 			AmazonS3Endpoint:                   s3Endpoint,
@@ -645,12 +645,12 @@ func BenchmarkFileStore(b *testing.B) {
 	require.NoError(b, err)
 
 	// Setup S3 backend
-	s3Host := os.Getenv("CI_MINIO_HOST")
+	s3Host := os.Getenv("CI_RUSTFS_HOST")
 	if s3Host == "" {
 		s3Host = "localhost"
 	}
 
-	s3Port := os.Getenv("CI_MINIO_PORT")
+	s3Port := os.Getenv("CI_RUSTFS_PORT")
 	if s3Port == "" {
 		s3Port = "9000"
 	}
@@ -659,8 +659,8 @@ func BenchmarkFileStore(b *testing.B) {
 
 	s3Settings := FileBackendSettings{
 		DriverName:                         driverS3,
-		AmazonS3AccessKeyId:                "minioaccesskey",
-		AmazonS3SecretAccessKey:            "miniosecretkey",
+		AmazonS3AccessKeyId:                "rustfsaccesskey",
+		AmazonS3SecretAccessKey:            "rustfssecretkey",
 		AmazonS3Bucket:                     "mattermost-test",
 		AmazonS3Region:                     "",
 		AmazonS3Endpoint:                   s3Endpoint,
@@ -806,8 +806,8 @@ func BenchmarkS3WriteFile(b *testing.B) {
 
 	defaultSettings := FileBackendSettings{
 		DriverName:                         driverS3,
-		AmazonS3AccessKeyId:                "minioaccesskey",
-		AmazonS3SecretAccessKey:            "miniosecretkey",
+		AmazonS3AccessKeyId:                "rustfsaccesskey",
+		AmazonS3SecretAccessKey:            "rustfssecretkey",
 		AmazonS3Bucket:                     "mattermost-test",
 		AmazonS3Region:                     "",
 		AmazonS3Endpoint:                   "localhost:9000",
@@ -818,7 +818,7 @@ func BenchmarkS3WriteFile(b *testing.B) {
 	}
 
 	// The following overrides make it easier to test these against different backends
-	// (e.g. S3 instead of minio).
+	// (e.g. real AWS S3 instead of the local RustFS).
 	if val := os.Getenv("MM_FILESETTINGS_AMAZONS3BUCKET"); val != "" {
 		defaultSettings.AmazonS3Bucket = val
 	}
@@ -935,8 +935,8 @@ func TestNewExportFileBackendSettingsFromConfig(t *testing.T) {
 		expected := FileBackendSettings{
 			DriverName:                         driverS3,
 			Directory:                          "",
-			AmazonS3AccessKeyId:                "minioaccesskey",
-			AmazonS3SecretAccessKey:            "miniosecretkey",
+			AmazonS3AccessKeyId:                "rustfsaccesskey",
+			AmazonS3SecretAccessKey:            "rustfssecretkey",
 			AmazonS3Bucket:                     "mattermost-test",
 			AmazonS3PathPrefix:                 "prefix",
 			AmazonS3Region:                     "region",
@@ -953,8 +953,8 @@ func TestNewExportFileBackendSettingsFromConfig(t *testing.T) {
 
 		actual := NewExportFileBackendSettingsFromConfig(&model.FileSettings{
 			ExportDriverName:                         model.NewPointer(driverS3),
-			ExportAmazonS3AccessKeyId:                model.NewPointer("minioaccesskey"),
-			ExportAmazonS3SecretAccessKey:            model.NewPointer("miniosecretkey"),
+			ExportAmazonS3AccessKeyId:                model.NewPointer("rustfsaccesskey"),
+			ExportAmazonS3SecretAccessKey:            model.NewPointer("rustfssecretkey"),
 			ExportAmazonS3Bucket:                     model.NewPointer("mattermost-test"),
 			ExportAmazonS3Region:                     model.NewPointer("region"),
 			ExportAmazonS3Endpoint:                   model.NewPointer("s3.example.com"),
@@ -979,8 +979,8 @@ func TestNewExportFileBackendSettingsFromConfig(t *testing.T) {
 		expected := FileBackendSettings{
 			DriverName:                         driverS3,
 			Directory:                          "",
-			AmazonS3AccessKeyId:                "minioaccesskey",
-			AmazonS3SecretAccessKey:            "miniosecretkey",
+			AmazonS3AccessKeyId:                "rustfsaccesskey",
+			AmazonS3SecretAccessKey:            "rustfssecretkey",
 			AmazonS3Bucket:                     "mattermost-test",
 			AmazonS3PathPrefix:                 "prefix",
 			AmazonS3Region:                     "region",
@@ -998,8 +998,8 @@ func TestNewExportFileBackendSettingsFromConfig(t *testing.T) {
 
 		actual := NewExportFileBackendSettingsFromConfig(&model.FileSettings{
 			ExportDriverName:                         model.NewPointer(driverS3),
-			ExportAmazonS3AccessKeyId:                model.NewPointer("minioaccesskey"),
-			ExportAmazonS3SecretAccessKey:            model.NewPointer("miniosecretkey"),
+			ExportAmazonS3AccessKeyId:                model.NewPointer("rustfsaccesskey"),
+			ExportAmazonS3SecretAccessKey:            model.NewPointer("rustfssecretkey"),
 			ExportAmazonS3Bucket:                     model.NewPointer("mattermost-test"),
 			ExportAmazonS3Region:                     model.NewPointer("region"),
 			ExportAmazonS3Endpoint:                   model.NewPointer("s3.example.com"),

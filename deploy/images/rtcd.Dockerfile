@@ -20,10 +20,13 @@ RUN apk add --no-cache git
 
 WORKDIR /src
 
-# Layer-cache the module downloads. Both modules must be visible to the
-# go command because of the cross-module replace directives.
+# Layer-cache the module downloads. ALL modules must be visible to the go
+# command because of the cross-module replace directives — server/go.mod
+# replaces mattermost/rtcd with ../rtcd, so rtcd/go.mod must be present
+# before `go mod download` runs in server/ too.
 COPY server/public/go.mod server/public/go.sum ./server/public/
 COPY server/go.mod server/go.sum ./server/
+COPY rtcd/go.mod rtcd/go.sum ./rtcd/
 RUN cd server && go mod download
 
 COPY server/ ./server/

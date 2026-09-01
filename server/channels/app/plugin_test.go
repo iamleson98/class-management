@@ -374,21 +374,21 @@ func TestPluginSync(t *testing.T) {
 		{
 			"s3",
 			func(cfg *model.Config) {
-				s3Host := os.Getenv("CI_MINIO_HOST")
+				s3Host := os.Getenv("CI_RUSTFS_HOST")
 				if s3Host == "" {
 					s3Host = "localhost"
 				}
 
-				s3Port := os.Getenv("CI_MINIO_PORT")
+				s3Port := os.Getenv("CI_RUSTFS_PORT")
 				if s3Port == "" {
 					s3Port = "9000"
 				}
 
 				s3Endpoint := fmt.Sprintf("%s:%s", s3Host, s3Port)
 				cfg.FileSettings.DriverName = model.NewPointer(model.ImageDriverS3)
-				cfg.FileSettings.AmazonS3AccessKeyId = model.NewPointer(model.MinioAccessKey)
-				cfg.FileSettings.AmazonS3SecretAccessKey = model.NewPointer(model.MinioSecretKey)
-				cfg.FileSettings.AmazonS3Bucket = model.NewPointer(model.MinioBucket)
+				cfg.FileSettings.AmazonS3AccessKeyId = model.NewPointer(model.RustFSAccessKey)
+				cfg.FileSettings.AmazonS3SecretAccessKey = model.NewPointer(model.RustFSSecretKey)
+				cfg.FileSettings.AmazonS3Bucket = model.NewPointer(model.RustFSBucket)
 				cfg.FileSettings.AmazonS3PathPrefix = model.NewPointer("")
 				cfg.FileSettings.AmazonS3Endpoint = model.NewPointer(s3Endpoint)
 				cfg.FileSettings.AmazonS3Region = model.NewPointer("")

@@ -16,9 +16,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gorilla/websocket"
-	s3 "github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/stretchr/testify/require"
 
 	"github.com/iamleson98/sitename/server/public/model"
@@ -1187,25 +1189,38 @@ func CheckErrorMessage(tb testing.TB, err error, message string) {
 	require.Equalf(tb, message, appError.Message, "incorrect error message, actual: %s, expected: %s", appError.Id, message)
 }
 
-// Similar to s3.New() but allows initialization of signature v2 or signature v4 client.
-// If signV2 input is false, function always returns signature v4.
-//
-// Additionally this function also takes a user defined region, if set
-// disables automatic region lookup.
+// s3New builds an S3 API client for the test endpoint. It uses the AWS SDK
+// for Go v2 with static credentials and path-style addressing, which works
+// with S3-compatible stores such as RustFS.
 func s3New(endpoint, accessKey, secretKey string, secure bool, signV2 bool, region string) (*s3.Client, error) {
-	var creds *credentials.Credentials
 	if signV2 {
-		creds = credentials.NewStatic(accessKey, secretKey, "", credentials.SignatureV2)
-	} else {
-		creds = credentials.NewStatic(accessKey, secretKey, "", credentials.SignatureV4)
+		return nil, errors.New("signature v2 is not supported")
 	}
 
-	opts := s3.Options{
-		Creds:  creds,
-		Secure: secure,
-		Region: region,
+	if region == "" {
+		region = "us-east-1"
 	}
-	return s3.New(endpoint, &opts)
+
+	scheme := "https"
+	if !secure {
+		scheme = "http"
+	}
+	baseURL := scheme + "://" + strings.TrimSuffix(endpoint, "/")
+
+	cfg, err := awsconfig.LoadDefaultConfig(context.Background(),
+		awsconfig.WithRegion(region),
+		awsconfig.WithCredentialsProvider(
+			credentials.NewStaticCredentialsProvider(accessKey, secretKey, ""),
+		),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.BaseEndpoint = aws.String(baseURL)
+		o.UsePathStyle = true
+	}), nil
 }
 
 func (th *TestHelper) cleanupTestFile(info *model.FileInfo) error {
@@ -1222,18 +1237,27 @@ func (th *TestHelper) cleanupTestFile(info *model.FileInfo) error {
 			return err
 		}
 		bucket := *cfg.FileSettings.AmazonS3Bucket
-		if err := s3Clnt.RemoveObject(context.Background(), bucket, info.Path, s3.RemoveObjectOptions{}); err != nil {
+		if _, err := s3Clnt.DeleteObject(context.Background(), &s3.DeleteObjectInput{
+			Bucket: aws.String(bucket),
+			Key:    aws.String(info.Path),
+		}); err != nil {
 			return err
 		}
 
 		if info.ThumbnailPath != "" {
-			if err := s3Clnt.RemoveObject(context.Background(), bucket, info.ThumbnailPath, s3.RemoveObjectOptions{}); err != nil {
+			if _, err := s3Clnt.DeleteObject(context.Background(), &s3.DeleteObjectInput{
+				Bucket: aws.String(bucket),
+				Key:    aws.String(info.ThumbnailPath),
+			}); err != nil {
 				return err
 			}
 		}
 
 		if info.PreviewPath != "" {
-			if err := s3Clnt.RemoveObject(context.Background(), bucket, info.PreviewPath, s3.RemoveObjectOptions{}); err != nil {
+			if _, err := s3Clnt.DeleteObject(context.Background(), &s3.DeleteObjectInput{
+				Bucket: aws.String(bucket),
+				Key:    aws.String(info.PreviewPath),
+			}); err != nil {
 				return err
 			}
 		}
