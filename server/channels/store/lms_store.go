@@ -254,6 +254,7 @@ type SubmissionStore interface {
 
 type ClassMediaStore interface {
 	Get(id string) (*lms_models.ClassMedium, error)
+	GetByFileID(fileID string) (*lms_models.ClassMedium, error)
 	Search(opts modelhelper.ClassMediaFilterOpts) ([]*lms_models.ClassMedium, int64, error)
 	Save(cm *lms_models.ClassMedium) (*lms_models.ClassMedium, error)
 	Delete(id string) error

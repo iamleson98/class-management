@@ -9,7 +9,7 @@ import { motion } from 'framer-motion'
 import { School, Plus, Pencil, Trash2, UserPlus, Users, Eye, Camera, Calendar, Play, Upload } from 'lucide-react'
 import { createClassSchema, type CreateClassInput, type UpdateClassInput } from '@/lib/schemas'
 import { getClassesPaginated, createClass, updateClass, deleteClass, enrollStudents, getStudents, getClassDetail, getClassMedia, createClassMedia, deleteClassMedia, getSessions } from '@/lib/api'
-import { uploadLmsFile } from '@/lib/file-upload'
+import { uploadLmsFile, lmsMediaSrc, type LmsUploadProgress } from '@/lib/file-upload'
 import { eq, and, paginate } from '@/lib/query'
 import { useToast } from '@/hooks/use-toast'
 import { useLMSStore } from '@/store/lms-store'
@@ -74,6 +74,7 @@ function ClassMediaTab({ media, classId, onDelete, isAuthenticated }: {
   const [uploadType, setUploadType] = useState<'PHOTO' | 'VIDEO'>('PHOTO')
   const [uploadFileId, setUploadFileId] = useState('')
   const [isFileUploading, setIsFileUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<LmsUploadProgress | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const uploadMutation = useMutation({
@@ -88,14 +89,16 @@ function ClassMediaTab({ media, classId, onDelete, isAuthenticated }: {
     onError: (err: unknown) => toast({ title: (err as Error)?.message || t('classes.uploadFail', 'Tải lên thất bại'), variant: 'destructive' }),
   })
 
-  /** Upload a local file via /api/v4/files and fill URL + file_id. */
+  /** Upload a local file (Mattermost-style: simple upload ≤5MB, resumable
+   *  upload session for larger files, with server-confirmed progress). */
   async function handleFilePicked(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     setIsFileUploading(true)
+    setUploadProgress(null)
     try {
-      const uploaded = await uploadLmsFile(file)
-      setUploadUrl(uploaded.fileUrl)
+      const uploaded = await uploadLmsFile(file, setUploadProgress)
+      setUploadUrl(uploaded.selfUrl)
       setUploadFileId(uploaded.fileId)
       setUploadType(uploaded.fileType === 'video' ? 'VIDEO' : 'PHOTO')
       if (!uploadTitle) setUploadTitle(uploaded.fileName)
@@ -103,6 +106,7 @@ function ClassMediaTab({ media, classId, onDelete, isAuthenticated }: {
       toast({ title: (err as Error)?.message || t('classes.uploadFail', 'Tải lên thất bại'), variant: 'destructive' })
     } finally {
       setIsFileUploading(false)
+      setUploadProgress(null)
       e.target.value = ''
     }
   }
@@ -174,6 +178,24 @@ function ClassMediaTab({ media, classId, onDelete, isAuthenticated }: {
                 {t('classes.upload', 'Tải lên')}
               </Button>
             </div>
+            {isFileUploading && uploadProgress && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{t('classes.uploadingProgress', 'Đang tải lên...')}</span>
+                  <span className="font-mono">{uploadProgress.percent}%</span>
+                </div>
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-sky-500 transition-all duration-300"
+                    style={{ width: `${uploadProgress.percent}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {(uploadProgress.uploadedBytes / (1024 * 1024)).toFixed(1)} / {(uploadProgress.totalBytes / (1024 * 1024)).toFixed(1)} MB
+                  {uploadProgress.uploadedBytes > 5 * 1024 * 1024 && t('classes.uploadResumable', ' · hổ trợ tiếp tục khi mất mạng')}
+                </p>
+              </div>
+            )}
           </div>
         </Card>
       )}
@@ -185,7 +207,7 @@ function ClassMediaTab({ media, classId, onDelete, isAuthenticated }: {
           <p className="text-sm">{t('classes.noMedia', 'Chưa có hình ảnh/video nào')}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           {media.map((item: any, idx: number) => (
             <motion.div
               key={item.id || idx}
@@ -199,7 +221,7 @@ function ClassMediaTab({ media, classId, onDelete, isAuthenticated }: {
                 <div className="relative aspect-video bg-muted">
                   {item.fileType === 'VIDEO' ? (
                     <>
-                      <video src={item.fileUrl} className="w-full h-full object-cover" preload="metadata" muted />
+                      <video src={lmsMediaSrc(item)} className="w-full h-full object-cover" preload="metadata" muted />
                       <div className="absolute inset-0 flex items-center justify-center bg-black/20">
                         <div className="p-2 rounded-full bg-white/90">
                           <Play className="h-5 w-5 text-sky-600 fill-sky-600" />
@@ -207,7 +229,7 @@ function ClassMediaTab({ media, classId, onDelete, isAuthenticated }: {
                       </div>
                     </>
                   ) : (
-                    <img src={item.fileUrl} alt={item.title || 'Class photo'} className="w-full h-full object-cover" />
+                    <img src={lmsMediaSrc(item)} alt={item.title || 'Class photo'} className="w-full h-full object-cover" />
                   )}
                 </div>
                 <div className="p-2 flex items-center justify-between">
@@ -231,7 +253,7 @@ function ClassMediaTab({ media, classId, onDelete, isAuthenticated }: {
 
       {/* Preview dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-5xl">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               {selectedMedia?.title || (selectedMedia?.fileType === 'VIDEO' ? t('classes.video', 'Video') : t('classes.photo', 'Hình ảnh'))}
@@ -239,9 +261,9 @@ function ClassMediaTab({ media, classId, onDelete, isAuthenticated }: {
           </DialogHeader>
           <div className="w-full">
             {selectedMedia?.fileType === 'VIDEO' ? (
-              <video src={selectedMedia.fileUrl} controls className="w-full rounded-lg" />
+              <video src={lmsMediaSrc(selectedMedia)} controls className="w-full rounded-lg" />
             ) : (
-              <img src={selectedMedia?.fileUrl} alt={selectedMedia?.title || 'Preview'} className="w-full rounded-lg" />
+              <img src={lmsMediaSrc(selectedMedia)} alt={selectedMedia?.title || 'Preview'} className="w-full rounded-lg" />
             )}
           </div>
         </DialogContent>
@@ -591,13 +613,13 @@ export default function AdminClasses() {
 
       {/* Class Detail Dialog */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-6xl w-[min(72rem,calc(100vw-2rem))] max-h-[92vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-lg">
               <School className="h-5 w-5 text-sky-500" />
               {classDetail?.code || ''} — {classDetail?.name || ''}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-sm">
               {classDetail?.course?.name || t('classes.noCourse', 'Không có khóa học')} · {classDetail?.teacher?.name || t('classes.noTeacherAssigned', 'Chưa phân công')} · {classDetail?.room || '-'}
             </DialogDescription>
           </DialogHeader>
@@ -612,7 +634,7 @@ export default function AdminClasses() {
             </div>
           ) : (
             <Tabs value={detailTab} onValueChange={setDetailTab} className="flex-1 min-h-0 flex flex-col">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-3 max-w-md mx-auto">
                 <TabsTrigger value="students" className="gap-1.5">
                   <Users className="h-3.5 w-3.5" /> {t('classes.students', 'Học viên')}
                 </TabsTrigger>
@@ -632,7 +654,7 @@ export default function AdminClasses() {
                     <p className="text-sm">{t('classes.noEnrolledStudents', 'Chưa có học viên ghi danh')}</p>
                   </div>
                 ) : (
-                  <ScrollArea className="h-100">
+                  <ScrollArea className="h-[65vh] min-h-100">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/50 hover:bg-muted/50">
@@ -690,7 +712,7 @@ export default function AdminClasses() {
                     <p className="text-sm">{t('classes.noSessions', 'Chưa có buổi học')}</p>
                   </div>
                 ) : (
-                  <ScrollArea className="h-100">
+                  <ScrollArea className="h-[65vh] min-h-100">
                     <div className="space-y-3">
                       <div className="flex items-center gap-2 mb-2">
                         <Badge variant="secondary" className="rounded-full">{classSessions.length} {t('classes.sessions', 'buổi học')}</Badge>
@@ -745,12 +767,14 @@ export default function AdminClasses() {
                     <p className="text-sm text-destructive">{t('common.loadFailed', 'Tải thất bại')}</p>
                   </div>
                 ) : (
-                  <ClassMediaTab
-                    media={classMedia as any[]}
-                    classId={viewingClassId!}
-                    onDelete={(id) => mediaDeleteMutation.mutate(id)}
-                    isAuthenticated={true}
-                  />
+                  <ScrollArea className="h-[65vh] min-h-100 pr-3">
+                    <ClassMediaTab
+                      media={classMedia as any[]}
+                      classId={viewingClassId!}
+                      onDelete={(id) => mediaDeleteMutation.mutate(id)}
+                      isAuthenticated={true}
+                    />
+                  </ScrollArea>
                 )}
               </TabsContent>
             </Tabs>

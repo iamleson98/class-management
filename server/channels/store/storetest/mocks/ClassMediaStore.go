@@ -150,6 +150,68 @@ func (_c *ClassMediaStore_Get_Call) RunAndReturn(run func(id string) (*lms_model
 	return _c
 }
 
+// GetByFileID provides a mock function for the type ClassMediaStore
+func (_mock *ClassMediaStore) GetByFileID(fileID string) (*lms_models.ClassMedium, error) {
+	ret := _mock.Called(fileID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetByFileID")
+	}
+
+	var r0 *lms_models.ClassMedium
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string) (*lms_models.ClassMedium, error)); ok {
+		return returnFunc(fileID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(string) *lms_models.ClassMedium); ok {
+		r0 = returnFunc(fileID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*lms_models.ClassMedium)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
+		r1 = returnFunc(fileID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClassMediaStore_GetByFileID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByFileID'
+type ClassMediaStore_GetByFileID_Call struct {
+	*mock.Call
+}
+
+// GetByFileID is a helper method to define mock.On call
+//   - fileID string
+func (_e *ClassMediaStore_Expecter) GetByFileID(fileID any) *ClassMediaStore_GetByFileID_Call {
+	return &ClassMediaStore_GetByFileID_Call{Call: _e.mock.On("GetByFileID", fileID)}
+}
+
+func (_c *ClassMediaStore_GetByFileID_Call) Run(run func(fileID string)) *ClassMediaStore_GetByFileID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *ClassMediaStore_GetByFileID_Call) Return(classMedium *lms_models.ClassMedium, err error) *ClassMediaStore_GetByFileID_Call {
+	_c.Call.Return(classMedium, err)
+	return _c
+}
+
+func (_c *ClassMediaStore_GetByFileID_Call) RunAndReturn(run func(fileID string) (*lms_models.ClassMedium, error)) *ClassMediaStore_GetByFileID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Save provides a mock function for the type ClassMediaStore
 func (_mock *ClassMediaStore) Save(cm *lms_models.ClassMedium) (*lms_models.ClassMedium, error) {
 	ret := _mock.Called(cm)

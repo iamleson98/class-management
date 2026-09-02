@@ -767,6 +767,8 @@ export default {
   "classes.updateSuccess": 'Class updated successfully',
   "classes.upload": 'Upload',
   "classes.uploadFail": 'Upload failed',
+  "classes.uploadingProgress": 'Uploading file…',
+  "classes.uploadResumable": ' · auto-resumes if the connection drops',
   "classes.uploadNewMedia": 'Upload new photo/video',
   "classes.uploadSuccess": 'Uploaded successfully',
   "classes.uploadTitlePlaceholder": 'Title (optional)',

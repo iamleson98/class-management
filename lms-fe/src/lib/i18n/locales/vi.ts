@@ -767,6 +767,8 @@ export default {
   "classes.updateSuccess": 'Cập nhật lớp thành công',
   "classes.upload": 'Tải lên',
   "classes.uploadFail": 'Tải lên thất bại',
+  "classes.uploadingProgress": 'Đang tải lên file…',
+  "classes.uploadResumable": ' · tự động tiếp tục nếu mất mạng',
   "classes.uploadNewMedia": 'Tải lên media mới',
   "classes.uploadSuccess": 'Tải lên thành công',
   "classes.uploadTitlePlaceholder": 'Nhập tiêu đề',

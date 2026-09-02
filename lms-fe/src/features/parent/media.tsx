@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { useLMSStore } from '@/store/lms-store'
 import { format, parseISO } from 'date-fns'
 import { getTuitions, getClassMedia } from '@/lib/api'
+import { lmsMediaSrc } from '@/lib/file-upload'
 import { in_, and } from '@/lib/query'
 import { useParentChildren } from '@/lib/parent'
 import { staggerContainer, staggerItem } from '@/components/shared/animations'
@@ -103,7 +104,7 @@ export default function ParentMedia() {
                     >
                       <div className="relative aspect-video bg-muted">
                         <img
-                          src={item.fileUrl}
+                          src={lmsMediaSrc(item)}
                           alt={item.title || t('parent.media.defaultPhotoAlt', 'Ảnh lớp học')}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
@@ -147,7 +148,7 @@ export default function ParentMedia() {
                     >
                       <div className="relative aspect-video bg-muted">
                         <video
-                          src={item.fileUrl}
+                          src={lmsMediaSrc(item)}
                           className="w-full h-full object-cover"
                           preload="metadata"
                           muted
@@ -192,17 +193,17 @@ export default function ParentMedia() {
           </DialogHeader>
           <div className="w-full">
             {selectedMedia?.fileType === 'VIDEO' ? (
-              selectedMedia?.fileUrl && (
+              selectedMedia?.fileId && (
                 <video
-                  src={selectedMedia.fileUrl}
+                  src={lmsMediaSrc(selectedMedia)}
                   controls
                   className="w-full rounded-lg"
                 />
               )) :
               (
-                selectedMedia?.fileUrl && (
+                (selectedMedia?.fileId || selectedMedia?.fileUrl) && (
                   <img
-                    src={selectedMedia.fileUrl}
+                    src={lmsMediaSrc(selectedMedia)}
                     alt={selectedMedia.title || t('parent.media.preview', 'Xem trước')}
                     className="w-full rounded-lg"
                   />

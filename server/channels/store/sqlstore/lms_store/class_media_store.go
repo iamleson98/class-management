@@ -31,6 +31,22 @@ func (s *SqlClassMediaStore) Get(id string) (*lms_models.ClassMedium, error) {
 	return classMedia, nil
 }
 
+// GetByFileID returns the first class media row referencing the given
+// Mattermost FileInfo id. Used by the LMS media file-serving route to scope
+// file access to files that actually belong to LMS media (as opposed to
+// arbitrary chat files).
+func (s *SqlClassMediaStore) GetByFileID(fileID string) (*lms_models.ClassMedium, error) {
+	classMedia, err := lms_models.ClassMedia(qm.Where("file_id = ?", fileID)).One(s.sqlStore.GetReplicaExecuter())
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, store.NewErrNotFound("ClassMedium", fileID)
+		}
+		return nil, errors.Wrap(err, "failed to find class media by file id")
+	}
+
+	return classMedia, nil
+}
+
 func (s *SqlClassMediaStore) Search(opts modelhelper.ClassMediaFilterOpts) ([]*lms_models.ClassMedium, int64, error) {
 	mods := []qm.QueryMod{}
 
