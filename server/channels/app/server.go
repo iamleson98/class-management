@@ -58,7 +58,6 @@ import (
 	"github.com/iamleson98/sitename/server/v8/channels/jobs/notify_admin"
 	"github.com/iamleson98/sitename/server/v8/channels/jobs/plugins"
 	"github.com/iamleson98/sitename/server/v8/channels/jobs/post_persistent_notifications"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs/recap"
 	"github.com/iamleson98/sitename/server/v8/channels/jobs/refresh_materialized_views"
 	"github.com/iamleson98/sitename/server/v8/channels/jobs/resend_invitation_email"
 	"github.com/iamleson98/sitename/server/v8/channels/jobs/s3_path_migration"
@@ -399,7 +398,7 @@ func NewServer(options ...Option) (*Server, error) {
 	if _, err = url.ParseRequestURI(*s.platform.Config().ServiceSettings.SiteURL); err != nil {
 		// Don't spam the logs when in CI or local testing mode
 		if !(os.Getenv("IS_CI") == "true" || os.Getenv("IS_LOCAL_TESTING") == "true") {
-			mlog.Error("SiteURL must be set. Some features will operate incorrectly if the SiteURL is not set. See documentation for details: https://mattermost.com/pl/configure-site-url")
+			mlog.Error("SiteURL must be set. Some features will operate incorrectly if the SiteURL is not set. See documentation for details: )
 		}
 	}
 
@@ -525,9 +524,6 @@ func (s *Server) runJobs() {
 		runDNDStatusExpireJob(appInstance)
 		runPostReminderJob(appInstance)
 		runScheduledPostJob(appInstance)
-	})
-	s.Go(func() {
-		runSecurityJob(s)
 	})
 	s.Go(func() {
 		runSessionCleanupJob(s)
@@ -1169,13 +1165,6 @@ func (s *Server) checkPushNotificationServerURL() {
 	}
 }
 
-func runSecurityJob(s *Server) {
-	doSecurity(s)
-	model.CreateRecurringTask("Security", func() {
-		doSecurity(s)
-	}, time.Hour*4)
-}
-
 func runTokenCleanupJob(s *Server) {
 	doTokenCleanup(s)
 	model.CreateRecurringTask("Token Cleanup", func() {
@@ -1233,10 +1222,6 @@ func doReportUsageToAWSMeteringService(s *Server) {
 	if err := awsMeter.ReportUserCategoryUsage(ctx, reports); err != nil {
 		mlog.Error("Failed to report usage to AWS Metering Service", mlog.Err(err))
 	}
-}
-
-func doSecurity(s *Server) {
-	s.DoSecurityUpdateCheck()
 }
 
 // Reports activated user count to the CWS every 24 hours
@@ -1534,12 +1519,6 @@ func (s *Server) initJobs() {
 		model.JobTypeDeleteDmsPreferencesMigration,
 		delete_dms_preferences_migration.MakeWorker(s.Jobs, s.Store(), New(ServerConnector(s.Channels()))),
 		nil)
-
-	s.Jobs.RegisterJobType(
-		model.JobTypeRecap,
-		recap.MakeWorker(s.Jobs, s.Store(), New(ServerConnector(s.Channels()))),
-		nil,
-	)
 
 	s.Jobs.RegisterJobType(
 		model.JobTypeDeleteExpiredPosts,

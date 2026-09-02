@@ -13,15 +13,6 @@ type TeamsUsage struct {
 	CloudArchived int64 `json:"cloud_archived"`
 }
 
-var InstalledIntegrationsIgnoredPlugins = map[string]struct{}{
-	PluginIdPlaybooks:     {},
-	PluginIdFocalboard:    {},
-	PluginIdApps:          {},
-	PluginIdCalls:         {},
-	PluginIdNPS:           {},
-	PluginIdChannelExport: {},
-	PluginIdAI:            {},
-}
 
 type InstalledIntegration struct {
 	Type    string `json:"type"` // "plugin" or "app"

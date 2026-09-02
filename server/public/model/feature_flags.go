@@ -82,12 +82,6 @@ type FeatureFlags struct {
 
 	// Enable burn-on-read messages that automatically delete after viewing
 	BurnOnRead bool
-
-	// FEATURE_FLAG_REMOVAL: EnableAIPluginBridge
-	EnableAIPluginBridge bool
-
-	// FEATURE_FLAG_REMOVAL: EnableAIRecaps - Remove this when GA is released
-	EnableAIRecaps bool
 }
 
 func (f *FeatureFlags) SetDefaults() {
@@ -126,11 +120,6 @@ func (f *FeatureFlags) SetDefaults() {
 	f.AutoTranslation = false
 
 	f.BurnOnRead = true
-
-	// FEATURE_FLAG_REMOVAL: EnableAIPluginBridge - Remove this default when MVP is to be released
-	f.EnableAIPluginBridge = false
-
-	f.EnableAIRecaps = false
 }
 
 // ToMap returns the feature flags as a map[string]string

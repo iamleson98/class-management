@@ -762,31 +762,28 @@ func TestDiff(t *testing.T) {
 		},
 		{
 			"map change",
-			defaultConfigGen(),
 			func() *model.Config {
 				cfg := defaultConfigGen()
-				cfg.PluginSettings.PluginStates["com.mattermost.nps"] = &model.PluginState{
-					Enable: !cfg.PluginSettings.PluginStates["com.mattermost.nps"].Enable,
+				cfg.PluginSettings.PluginStates = map[string]*model.PluginState{
+					"someplugin": {Enable: true},
+				}
+				return cfg
+			}(),
+			func() *model.Config {
+				cfg := defaultConfigGen()
+				cfg.PluginSettings.PluginStates = map[string]*model.PluginState{
+					"someplugin": {Enable: false},
 				}
 				return cfg
 			}(),
 			ConfigDiffs{
 				{
 					Path:    "PluginSettings.PluginStates",
-					BaseVal: defaultConfigGen().PluginSettings.PluginStates,
+					BaseVal: map[string]*model.PluginState{
+						"someplugin": {Enable: true},
+					},
 					ActualVal: map[string]*model.PluginState{
-						"com.mattermost.nps": {
-							Enable: !defaultConfigGen().PluginSettings.PluginStates["com.mattermost.nps"].Enable,
-						},
-						"com.mattermost.calls": {
-							Enable: true,
-						},
-						"mattermost-ai": {
-							Enable: true,
-						},
-						"playbooks": {
-							Enable: true,
-						},
+						"someplugin": {Enable: false},
 					},
 				},
 			},
@@ -794,34 +791,30 @@ func TestDiff(t *testing.T) {
 		},
 		{
 			"map addition",
-			defaultConfigGen(),
 			func() *model.Config {
 				cfg := defaultConfigGen()
-				cfg.PluginSettings.PluginStates["com.mattermost.newplugin"] = &model.PluginState{
-					Enable: true,
+				cfg.PluginSettings.PluginStates = map[string]*model.PluginState{
+					"someplugin": {Enable: true},
+				}
+				return cfg
+			}(),
+			func() *model.Config {
+				cfg := defaultConfigGen()
+				cfg.PluginSettings.PluginStates = map[string]*model.PluginState{
+					"someplugin":   {Enable: true},
+					"otherplugin":  {Enable: true},
 				}
 				return cfg
 			}(),
 			ConfigDiffs{
 				{
 					Path:    "PluginSettings.PluginStates",
-					BaseVal: defaultConfigGen().PluginSettings.PluginStates,
+					BaseVal: map[string]*model.PluginState{
+						"someplugin": {Enable: true},
+					},
 					ActualVal: map[string]*model.PluginState{
-						"com.mattermost.nps": {
-							Enable: defaultConfigGen().PluginSettings.PluginStates["com.mattermost.nps"].Enable,
-						},
-						"com.mattermost.newplugin": {
-							Enable: true,
-						},
-						"com.mattermost.calls": {
-							Enable: true,
-						},
-						"mattermost-ai": {
-							Enable: true,
-						},
-						"playbooks": {
-							Enable: true,
-						},
+						"someplugin":  {Enable: true},
+						"otherplugin": {Enable: true},
 					},
 				},
 			},
@@ -829,31 +822,36 @@ func TestDiff(t *testing.T) {
 		},
 		{
 			"map deletion",
-			defaultConfigGen(),
 			func() *model.Config {
 				cfg := defaultConfigGen()
-				delete(cfg.PluginSettings.PluginStates, "com.mattermost.nps")
+				cfg.PluginSettings.PluginStates = map[string]*model.PluginState{
+					"someplugin":  {Enable: true},
+					"otherplugin": {Enable: true},
+				}
+				return cfg
+			}(),
+			func() *model.Config {
+				cfg := defaultConfigGen()
+				cfg.PluginSettings.PluginStates = map[string]*model.PluginState{
+					"otherplugin": {Enable: true},
+				}
 				return cfg
 			}(),
 			ConfigDiffs{
 				{
 					Path:    "PluginSettings.PluginStates",
-					BaseVal: defaultConfigGen().PluginSettings.PluginStates,
+					BaseVal: map[string]*model.PluginState{
+						"someplugin":  {Enable: true},
+						"otherplugin": {Enable: true},
+					},
 					ActualVal: map[string]*model.PluginState{
-						"com.mattermost.calls": {
-							Enable: true,
-						},
-						"mattermost-ai": {
-							Enable: true,
-						},
-						"playbooks": {
-							Enable: true,
-						},
+						"otherplugin": {Enable: true},
 					},
 				},
 			},
 			"",
 		},
+
 		{
 			"map nil",
 			defaultConfigGen(),

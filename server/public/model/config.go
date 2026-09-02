@@ -52,8 +52,8 @@ const (
 
 	GenericNoChannelNotification = "generic_no_channel"
 	GenericNotification          = "generic"
-	GenericNotificationServer    = "https://push-test.mattermost.com"
-	MmSupportAdvisorAddress      = "support-advisor@mattermost.com"
+	GenericNotificationServer    = ""
+	MmSupportAdvisorAddress      = ""
 	FullNotification             = "full"
 	IdLoadedNotification         = "id_loaded"
 
@@ -140,11 +140,11 @@ const (
 
 	EmailSettingsDefaultFeedbackOrganization = ""
 
-	SupportSettingsDefaultTermsOfServiceLink = "https://mattermost.com/pl/terms-of-use/"
-	SupportSettingsDefaultPrivacyPolicyLink  = "https://mattermost.com/pl/privacy-policy/"
-	SupportSettingsDefaultAboutLink          = "https://mattermost.com/pl/about-mattermost"
-	SupportSettingsDefaultHelpLink           = "https://mattermost.com/pl/help/"
-	SupportSettingsDefaultReportAProblemLink = "https://mattermost.com/pl/report-a-bug"
+	SupportSettingsDefaultTermsOfServiceLink = ""
+	SupportSettingsDefaultPrivacyPolicyLink  = ""
+	SupportSettingsDefaultAboutLink          = ""
+	SupportSettingsDefaultHelpLink           = ""
+	SupportSettingsDefaultReportAProblemLink = ""
 	SupportSettingsDefaultSupportEmail       = ""
 	SupportSettingsDefaultReAcceptancePeriod = 365
 
@@ -187,9 +187,9 @@ const (
 	SamlSettingsCanonicalAlgorithmC14n11  = "Canonical1.1"
 	SamlSettingsDefaultCanonicalAlgorithm = SamlSettingsCanonicalAlgorithmC14n
 
-	NativeappSettingsDefaultAppDownloadLink        = "https://mattermost.com/pl/download-apps"
-	NativeappSettingsDefaultAndroidAppDownloadLink = "https://mattermost.com/pl/android-app/"
-	NativeappSettingsDefaultIosAppDownloadLink     = "https://mattermost.com/pl/ios-app/"
+	NativeappSettingsDefaultAppDownloadLink        = ""
+	NativeappSettingsDefaultAndroidAppDownloadLink = ""
+	NativeappSettingsDefaultIosAppDownloadLink     = ""
 
 	ExperimentalSettingsDefaultLinkMetadataTimeoutMilliseconds                       = 5000
 	ExperimentalSettingsDefaultUsersStatusAndProfileFetchingPollIntervalMilliseconds = 3000
@@ -205,7 +205,7 @@ const (
 
 	AnnouncementSettingsDefaultBannerColor                  = "#f2a93b"
 	AnnouncementSettingsDefaultBannerTextColor              = "#333333"
-	AnnouncementSettingsDefaultNoticesJsonURL               = "https://notices.mattermost.com/"
+	AnnouncementSettingsDefaultNoticesJsonURL               = ""
 	AnnouncementSettingsDefaultNoticesFetchFrequencySeconds = 3600
 
 	TeamSettingsDefaultTeamText = "default"
@@ -243,8 +243,8 @@ const (
 	PluginSettingsDefaultDirectory         = "./plugins"
 	PluginSettingsDefaultClientDirectory   = "./client/plugins"
 	PluginSettingsDefaultEnableMarketplace = true
-	PluginSettingsDefaultMarketplaceURL    = "https://api.integrations.mattermost.com"
-	PluginSettingsOldMarketplaceURL        = "https://marketplace.integrations.mattermost.com"
+	PluginSettingsDefaultMarketplaceURL    = ""
+	PluginSettingsOldMarketplaceURL        = ""
 
 	ComplianceExportDirectoryFormat                = "compliance-export-2006-01-02-15h04m"
 	ComplianceExportPath                           = "export"
@@ -367,7 +367,6 @@ type ServiceSettings struct {
 	EnableDeveloper                     *bool    `access:"environment_developer,write_restrictable,cloud_restrictable"`
 	DeveloperFlags                      *string  `access:"environment_developer,cloud_restrictable"`
 	EnableClientPerformanceDebugging    *bool    `access:"environment_developer,write_restrictable,cloud_restrictable"`
-	EnableSecurityFixAlert              *bool    `access:"environment_smtp,write_restrictable,cloud_restrictable"`
 	EnableInsecureOutgoingConnections   *bool    `access:"environment_web_server,write_restrictable,cloud_restrictable"`
 	AllowedUntrustedInternalConnections *string  `access:"environment_web_server,write_restrictable,cloud_restrictable"`
 	EnableMultifactorAuthentication     *bool    `access:"authentication_mfa"`
@@ -519,10 +518,6 @@ func (s *ServiceSettings) SetDefaults(isUpdate bool) {
 
 	if s.EnableClientPerformanceDebugging == nil {
 		s.EnableClientPerformanceDebugging = new(false)
-	}
-
-	if s.EnableSecurityFixAlert == nil {
-		s.EnableSecurityFixAlert = new(true)
 	}
 
 	if s.EnableInsecureOutgoingConnections == nil {
@@ -3579,26 +3574,6 @@ func (s *PluginSettings) SetDefaults(ls LogSettings) {
 
 	if s.PluginStates == nil {
 		s.PluginStates = make(map[string]*PluginState)
-	}
-
-	if s.PluginStates[PluginIdNPS] == nil {
-		// Enable the NPS plugin by default if diagnostics are enabled
-		s.PluginStates[PluginIdNPS] = &PluginState{Enable: ls.EnableDiagnostics == nil || *ls.EnableDiagnostics}
-	}
-
-	if s.PluginStates[PluginIdCalls] == nil {
-		// Enable the calls plugin by default
-		s.PluginStates[PluginIdCalls] = &PluginState{Enable: true}
-	}
-
-	if s.PluginStates[PluginIdPlaybooks] == nil {
-		// Enable the playbooks plugin by default
-		s.PluginStates[PluginIdPlaybooks] = &PluginState{Enable: true}
-	}
-
-	if s.PluginStates[PluginIdAI] == nil {
-		// Enable the AI plugin by default
-		s.PluginStates[PluginIdAI] = &PluginState{Enable: true}
 	}
 
 	if s.EnableMarketplace == nil {
