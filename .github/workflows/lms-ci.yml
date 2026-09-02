@@ -165,7 +165,7 @@ jobs:
       # Bun's global install cache — keyed on the lockfile so dependency
       # installs are ~instant unless bun.lock changes.
       - name: Cache bun dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('lms-fe/bun.lock') }}
