@@ -67,6 +67,10 @@ func createStudent(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		c.Err = model.NewAppError("createStudent", "api.lms.create_student.bad_body.app_error", map[string]any{"error": err.Error()}, "", http.StatusBadRequest)
 		return
 	}
+	if body.User == nil {
+		c.Err = model.NewAppError("createStudent", "api.lms.create_student.bad_body.app_error", nil, "missing user object", http.StatusBadRequest)
+		return
+	}
 
 	created, err := c.App.LMS().CreateStudent(body.User, body.Props)
 	if err != nil {
@@ -119,6 +123,10 @@ func updateStudent(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		c.Err = model.NewAppError("updateStudent", "api.lms.update_student.bad_body.app_error", map[string]any{"error": err.Error()}, "", http.StatusBadRequest)
+		return
+	}
+	if body.User == nil {
+		c.Err = model.NewAppError("updateStudent", "api.lms.update_student.bad_body.app_error", nil, "missing user object", http.StatusBadRequest)
 		return
 	}
 

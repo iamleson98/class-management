@@ -6,10 +6,12 @@ import { StudentStatus, Gender } from './enums'
 // into a wrapper `{ user: <model.User>, props: <map[string]any> }` (see
 // server/channels/api4/lms_api/student.go + app/lms/student.go).
 //
-//   - `user` carries model.User fields (firstname/lastname/email/username/phone/
+//   - `user` carries model.User fields (firstname/lastname/email/phone/
 //     parent_id/branch_id). The server overwrites `roles` to lms_student and
-//     `password` to a default hash, so those are not sent. CreateStudent
-//     REQUIRES non-empty `user.email` and `user.username`.
+//     `password` to a default hash, so those are not sent. The server
+//     auto-derives `username` from the email local-part when absent (the
+//     admin form never collects one), de-duplicating with numeric suffixes
+//     when the derived name is taken.
 //   - `props` is an arbitrary map stored as a JSON string under
 //     `user.props["student"]`. Canonical keys (model_helper/lms.go):
 //       gender         → "male" | "female"

@@ -3,7 +3,10 @@ package lms
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
@@ -17,7 +20,32 @@ import (
 const (
 	studentPropsKey        = "student"
 	defaultStudentPassword = "Student@123"
+
+	// maxUsernameAttempts caps username de-duplication retries
+	// (base, base1, base2, ...) when the derived username is taken.
+	maxUsernameAttempts = 20
 )
+
+// deriveUsernameFromEmail builds a Mattermost-valid username candidate from
+// the local part of an email address: lower-cased, with any character outside
+// [a-z0-9._-] replaced by '-'. Mirrors the employee flow (lms_api/user.go
+// createUser) which derives the username from the email prefix, but adds
+// sanitization so prefixes like "Nguyen.An+01" still produce a usable name
+// ("nguyen.an-01").
+func deriveUsernameFromEmail(email string) string {
+	local, _, _ := strings.Cut(email, "@")
+	local = strings.ToLower(local)
+	var b strings.Builder
+	for _, r := range local {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '.', r == '-', r == '_':
+			b.WriteRune(r)
+		default:
+			b.WriteRune('-')
+		}
+	}
+	return b.String()
+}
 
 func (a *LMSApp) GetStudent(id string) (*model.User, *model.AppError) {
 	user, err := a.store.User().Get(context.Background(), id)
@@ -40,17 +68,33 @@ func (a *LMSApp) GetStudents(opts modelhelper.StudentFilterOpts) (lms_models.Use
 }
 
 func (a *LMSApp) CreateStudent(user *model.User, props map[string]any) (*model.User, *model.AppError) {
+	if user == nil {
+		return nil, model.NewAppError("CreateStudent", "api.lms.create_student.bad_body.app_error", nil, "", http.StatusBadRequest)
+	}
 	if user.Email == "" {
 		return nil, model.NewAppError("CreateStudent", "app.lms.student.email.app_error", nil, "", http.StatusBadRequest)
 	}
+
+	// The admin UI does not collect a username: derive one from the email
+	// local-part (same convention as employee creation). PreSave() would
+	// otherwise mint a random 26-char username, which is useless for the
+	// username+password login students get (default Student@123).
 	if user.Username == "" {
-		return nil, model.NewAppError("CreateStudent", "app.lms.student.username.app_error", nil, "", http.StatusBadRequest)
+		candidate := deriveUsernameFromEmail(user.Email)
+		if model.IsValidUsername(candidate) {
+			user.Username = candidate
+		}
+		// An unusable candidate (e.g. 1-char local part) falls through with an
+		// empty username and User.PreSave() mints a random valid one below.
 	}
 
 	// Set role to lms_student. Use the canonical lowercase role ID (not the
 	// legacy uppercase "STUDENT" string) so the user matches the store's
 	// `users.roles LIKE '%lms_student%'` filter used by SearchStudentUsers.
 	user.Roles = model.RoleLmsStudentRoleId
+
+	// Admin-created accounts are verified by definition (no email flow).
+	user.EmailVerified = true
 
 	// Hash the default password
 	hasher := hashers.NewBCrypt()
@@ -72,16 +116,48 @@ func (a *LMSApp) CreateStudent(user *model.User, props map[string]any) (*model.U
 		user.Props[studentPropsKey] = string(propsJSON)
 	}
 
-	// TODO: Call a.store.User().Save() — requires request.CTX which is not available in LMSApp.
-	// This will need a thin wrapper or the LMSApp to carry a request context.
-	saved, err := a.store.User().Save(nil, user) // TODO: pass proper request.CTX
+	saved, err := a.saveStudentWithUniqueUsername(user)
 	if err != nil {
-		return nil, model.NewAppError("CreateStudent", "app.lms.student.create.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		var invErr *store.ErrInvalidInput
+		switch {
+		case errors.As(err, &invErr) && invErr.Entity == "User" && invErr.Field == "email":
+			return nil, model.NewAppError("CreateStudent", "app.lms.student.email_exists.app_error", nil, "", http.StatusBadRequest).Wrap(err)
+		case errors.As(err, &invErr) && invErr.Entity == "User" && invErr.Field == "username":
+			return nil, model.NewAppError("CreateStudent", "app.user.save.username_exists.app_error", nil, "", http.StatusBadRequest).Wrap(err)
+		default:
+			return nil, model.NewAppError("CreateStudent", "app.lms.student.create.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		}
 	}
 	return saved, nil
 }
 
+// saveStudentWithUniqueUsername saves the user, retrying with numeric
+// username suffixes (base, base1, base2, ...) when the derived username is
+// already taken — the same conflict resolution Mattermost applies for
+// SSO/LDAP provisioned users. Other errors are returned untouched.
+func (a *LMSApp) saveStudentWithUniqueUsername(user *model.User) (*model.User, error) {
+	base := user.Username
+	saved, err := a.store.User().Save(nil, user)
+	for attempt := 1; ; attempt++ {
+		if err == nil {
+			return saved, nil
+		}
+		var invErr *store.ErrInvalidInput
+		if !errors.As(err, &invErr) || invErr.Entity != "User" || invErr.Field != "username" || base == "" || attempt >= maxUsernameAttempts {
+			return nil, err
+		}
+		// Save() rejected a preset non-remote Id earlier or PreSave() set one;
+		// reset so the retry inserts a fresh row.
+		user.Id = ""
+		user.Username = fmt.Sprintf("%s%d", base, attempt)
+		saved, err = a.store.User().Save(nil, user)
+	}
+}
+
 func (a *LMSApp) UpdateStudent(user *model.User, props map[string]any) (*model.User, *model.AppError) {
+	if user == nil {
+		return nil, model.NewAppError("UpdateStudent", "api.lms.update_student.bad_body.app_error", nil, "", http.StatusBadRequest)
+	}
 	// Retrieve existing user
 	existing, err := a.store.User().Get(context.Background(), user.Id)
 	if err != nil {
@@ -91,8 +167,36 @@ func (a *LMSApp) UpdateStudent(user *model.User, props map[string]any) (*model.U
 		return nil, model.NewAppError("UpdateStudent", "app.lms.student.get.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}
 
-	// Update base user fields
-	// TODO: Call a.store.User().Update() — requires request.CTX
+	// The admin UI sends a partial user (name/email/phone/parent/branch only —
+	// no username, roles or locale), so merge the incoming non-zero fields onto
+	// the stored record instead of clobbering them. Without this merge the
+	// store's User.IsValid() rejects the update (empty username) and the edit
+	// fails with a 500.
+	if user.FirstName != "" {
+		existing.FirstName = user.FirstName
+	}
+	if user.LastName != "" {
+		existing.LastName = user.LastName
+	}
+	if user.Nickname != "" {
+		existing.Nickname = user.Nickname
+	}
+	if user.Position != "" {
+		existing.Position = user.Position
+	}
+	if user.Phone != nil && *user.Phone != "" {
+		existing.Phone = user.Phone
+	}
+	if user.Email != "" {
+		existing.Email = user.Email
+	}
+	if user.ParentId != nil && *user.ParentId != "" {
+		existing.ParentId = user.ParentId
+	}
+	if user.Roles != "" {
+		existing.Roles = user.Roles
+	}
+	existing.UpdateAt = model.GetMillis()
 
 	// Merge student props
 	if props != nil {
@@ -114,18 +218,23 @@ func (a *LMSApp) UpdateStudent(user *model.User, props map[string]any) (*model.U
 		if err != nil {
 			return nil, model.NewAppError("UpdateStudent", "app.lms.student.props_marshal.app_error", nil, "", http.StatusBadRequest).Wrap(err)
 		}
-		if user.Props == nil {
-			user.Props = make(model.StringMap)
+		if existing.Props == nil {
+			existing.Props = make(model.StringMap)
 		}
-		user.Props[studentPropsKey] = string(propsJSON)
+		existing.Props[studentPropsKey] = string(propsJSON)
 	}
 
-	// TODO: Call a.store.User().Update(nil, user, true) — requires request.CTX
-	_, err = a.store.User().Update(nil, user, true) // TODO: pass proper request.CTX
+	updated, err := a.store.User().Update(nil, existing, true)
 	if err != nil {
+		if store.IsErrNotFound(err) {
+			return nil, model.NewAppError("UpdateStudent", "app.lms.student.not_found.app_error", nil, "", http.StatusNotFound)
+		}
 		return nil, model.NewAppError("UpdateStudent", "app.lms.student.update.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}
-	return user, nil
+	if updated != nil && updated.New != nil {
+		return updated.New, nil
+	}
+	return existing, nil
 }
 
 func (a *LMSApp) DeleteStudent(id string) *model.AppError {

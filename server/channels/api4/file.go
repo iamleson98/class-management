@@ -30,7 +30,14 @@ const maxMultipartFormDataBytes = 10 * 1024 // 10Kb
 
 func (api *API) InitFile() {
 	api.BaseRoutes.Files.Method(http.MethodPost, "/", api.APISessionRequired(uploadFileStream, handlerParamFileAPI))
+	// getFile is reachable both as /api/v4/files/{file_id} (the URL the
+	// official clients use) and as /api/v4/files/{file_id}/{filename} (the
+	// documented URL shape that carries the file name, e.g. for display
+	// alt text). The filename segment is matched loosely and ignored by the
+	// handler; static sub-routes (thumbnail/link/preview/info) still win
+	// over this parameterized route.
 	api.BaseRoutes.File.Method(http.MethodGet, "/", api.APISessionRequiredTrustRequester(getFile))
+	api.BaseRoutes.File.Method(http.MethodGet, "/{filename:.+}", api.APISessionRequiredTrustRequester(getFile))
 	api.BaseRoutes.File.Method(http.MethodGet, "/thumbnail", api.APISessionRequiredTrustRequester(getFileThumbnail))
 	api.BaseRoutes.File.Method(http.MethodGet, "/link", api.APISessionRequired(getFileLink))
 	api.BaseRoutes.File.Method(http.MethodGet, "/preview", api.APISessionRequiredTrustRequester(getFilePreview))
