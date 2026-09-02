@@ -13,7 +13,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { DataTable } from '@/components/data-table'
+import { createAccountantTuitionColumns, type AccountantTuitionRow } from './tuition-columns'
 import { formatVND, getTuitions } from '@/lib/api'
 import { useTranslation } from '@/lib/i18n'
 import { Separator } from '@/components/ui/separator'
@@ -24,7 +25,7 @@ export default function AccountantTuitionPage() {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
-  const [selectedTuition, setSelectedTuition] = useState<any>(null)
+  const [selectedTuition, setSelectedTuition] = useState<AccountantTuitionRow | null>(null)
   const [paymentAmount, setPaymentAmount] = useState('')
 
   // TuitionFilterOpts honors a top-level `search` field — search runs
@@ -36,22 +37,16 @@ export default function AccountantTuitionPage() {
     queryFn: () => getTuitions(opts),
   })
 
-  const handleRecordPayment = (tuition: any) => {
+  const handleRecordPayment = (tuition: AccountantTuitionRow) => {
     setSelectedTuition(tuition)
     setPaymentAmount('')
     setPaymentDialogOpen(true)
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'PAID': return <Badge className="bg-green-100 text-green-700 hover:bg-green-100">{t('accountant.tuition.statusPaid', 'Đã thanh toán')}</Badge>
-      case 'PARTIAL': return <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100">{t('accountant.tuition.statusPartial', 'Thanh toán một phần')}</Badge>
-      case 'UNPAID': return <Badge className="bg-red-100 text-red-700 hover:bg-red-100">{t('accountant.tuition.statusUnpaid', 'Chưa thanh toán')}</Badge>
-      default: return <Badge variant="outline">{status}</Badge>
-    }
-  }
-
-  const filteredTuitions = tuitions || []
+  const columns = useMemo(
+    () => createAccountantTuitionColumns(t, handleRecordPayment),
+    [t, handleRecordPayment]
+  )
 
   if (isError) {
     return <ErrorState onRetry={() => refetch()} />
@@ -66,68 +61,32 @@ export default function AccountantTuitionPage() {
         accentColor="green"
       />
 
-      <div className="mb-4">
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={t('accountant.tuition.searchPlaceholder', 'Tìm kiếm học viên hoặc lớp...')}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
+      <DataTable
+        columns={columns}
+        data={tuitions}
+        paginationMode="client"
+        initialPageSize={10}
+        isLoading={isLoading}
+        toolbarActions={
+          <div className="relative w-full sm:max-w-70">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              data-slot="accountant-tuition-search"
+              placeholder={t('accountant.tuition.searchPlaceholder', 'Tìm kiếm học viên hoặc lớp...')}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        }
+        emptyState={
+          <EmptyState
+            icon={<DollarSign className="h-12 w-12" />}
+            title={t('accountant.tuition.noTuitionTitle', 'Chưa có khoản học phí nào')}
+            description={t('accountant.tuition.noTuitionDesc', 'Không tìm thấy dữ liệu học phí')}
           />
-        </div>
-      </div>
-
-      {isLoading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-          <span className="ml-3 text-muted-foreground">{t('common.loading', 'Đang tải...')}</span>
-        </div>
-      ) : filteredTuitions.length === 0 ? (
-        <EmptyState
-          icon={<DollarSign className="h-12 w-12" />}
-          title={t('accountant.tuition.noTuitionTitle', 'Chưa có khoản học phí nào')}
-          description={t('accountant.tuition.noTuitionDesc', 'Không tìm thấy dữ liệu học phí')}
-        />
-      ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('accountant.tuition.colStudent', 'Học viên')}</TableHead>
-                <TableHead>{t('accountant.tuition.colClass', 'Lớp')}</TableHead>
-                <TableHead className="text-right">{t('accountant.tuition.colTotal', 'Tổng')}</TableHead>
-                <TableHead className="text-right">{t('accountant.tuition.colPaid', 'Đã thu')}</TableHead>
-                <TableHead className="text-right">{t('accountant.tuition.colRemaining', 'Còn thiếu')}</TableHead>
-                <TableHead>{t('common.status', 'Trạng thái')}</TableHead>
-                <TableHead className="w-25 text-right">{t('common.actions', 'Thao tác')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredTuitions.map((tuition: any) => (
-                <TableRow key={tuition.id}>
-                  <TableCell className="font-medium">{tuition.studentName || tuition.student?.name}</TableCell>
-                  <TableCell>{tuition.className || tuition.class?.name}</TableCell>
-                  <TableCell className="text-right">{formatVND(tuition.totalAmount || 0)}</TableCell>
-                  <TableCell className="text-right text-green-600">{formatVND(tuition.paidAmount || 0)}</TableCell>
-                  <TableCell className="text-right text-red-600">{formatVND((tuition.totalAmount || 0) - (tuition.paidAmount || 0))}</TableCell>
-                  <TableCell>{getStatusBadge(tuition.status)}</TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleRecordPayment(tuition)}
-                      disabled={tuition.status === 'PAID'}
-                    >
-                      <Plus className="h-3 w-3 mr-1" />{t('accountant.tuition.collectFee', 'Thu phí')}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+        }
+      />
 
       {/* Payment Dialog */}
       <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>

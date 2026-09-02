@@ -10,18 +10,14 @@ import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ErrorState } from '@/components/shared/error-state'
+import { DataTable } from '@/components/data-table'
+import { createAttendanceColumns, type AttendanceRow } from './attendance-columns'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { DatePicker } from '@/components/ui/date-picker'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
-import { cn } from '@/lib/utils'
-import { staggerContainer, staggerItem } from '@/components/shared/animations'
 import { useTranslation } from '@/lib/i18n'
 
 const STATUS_OPTIONS = [
@@ -32,24 +28,6 @@ const STATUS_OPTIONS = [
   { value: 'EARLY_LEAVE', label: 'Về sớm', icon: LogOut, className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200' },
   { value: 'MAKEUP', label: 'Học bù', icon: RotateCcw, className: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400 border-violet-200' },
 ]
-
-const STATUS_LABEL: Record<string, string> = {
-  PRESENT: 'Có mặt',
-  EXCUSED_ABSENT: 'Vắng phép',
-  UNEXCUSED_ABSENT: 'Vắng không phép',
-  LATE: 'Đi muộn',
-  EARLY_LEAVE: 'Về sớm',
-  MAKEUP: 'Học bù',
-}
-
-const STATUS_BADGE: Record<string, string> = {
-  PRESENT: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400',
-  EXCUSED_ABSENT: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  UNEXCUSED_ABSENT: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  LATE: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-  EARLY_LEAVE: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  MAKEUP: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
-}
 
 export default function AdminAttendance() {
   const { toast } = useToast()
@@ -93,11 +71,16 @@ export default function AdminAttendance() {
 
   // Roster rows joined with any saved attendance; the map key is the USER id.
   const students = useMemo(
-    () => roster.map((s: any) => {
-      const uid = s.userId ?? s.id
-      const record = attendanceRecords.find((a) => a.studentId === uid)
-      return { ...s, id: uid, savedStatus: record?.status }
-    }),
+    () =>
+      roster.map((s: any) => {
+        const uid = s.userId ?? s.id
+        const record = attendanceRecords.find((a) => a.studentId === uid)
+        return {
+          ...s,
+          id: uid,
+          savedStatus: record?.status,
+        } as AttendanceRow
+      }),
     [roster, attendanceRecords],
   )
 
@@ -132,11 +115,26 @@ export default function AdminAttendance() {
 
   const markAll = (status: string) => {
     const newData: Record<string, string> = {}
-    students.forEach((s: any) => {
+    students.forEach((s: AttendanceRow) => {
       newData[s.id] = status
     })
     setAttendanceOverrides(newData)
   }
+
+  // Rows for the data table: roster with each student's resolved status.
+  const rows = useMemo(
+    () =>
+      students.map((s) => ({
+        ...s,
+        currentStatus: attendanceMap[s.id] || (s.status as string | undefined) || '',
+      })),
+    [students, attendanceMap]
+  )
+
+  const columns = useMemo(
+    () => createAttendanceColumns(t, handleMark),
+    [t, handleMark]
+  )
 
   if (classesLoading) {
     return (
@@ -236,56 +234,19 @@ export default function AdminAttendance() {
           description={t('attendance.noStudentsDesc', 'Lớp học này chưa có học viên hoặc không có buổi học trong ngày đã chọn.')}
         />
       ) : (
-        <motion.div variants={staggerContainer} initial="initial" animate="animate" className="rounded-xl overflow-hidden border">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="uppercase text-xs font-semibold w-12.5">{t('attendance.index', 'STT')}</TableHead>
-                <TableHead className="uppercase text-xs font-semibold">{t('common.name', 'Họ tên')}</TableHead>
-                <TableHead className="uppercase text-xs font-semibold hidden md:table-cell">{t('common.status', 'Trạng thái')}</TableHead>
-                <TableHead className="uppercase text-xs font-semibold">{t('common.actions', 'Thao tác')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {students.map((student: any, idx: number) => {
-                const currentStatus = attendanceMap[student.id] || student.status || ''
-                return (
-                  <motion.tr key={student.id} variants={staggerItem} className="hover:bg-muted/30">
-                    <TableCell className="text-sm text-muted-foreground">{idx + 1}</TableCell>
-                    <TableCell className="font-medium text-sm">{student.name || student.username}</TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      {currentStatus ? (
-                        <Badge className={cn('rounded-full text-xs', STATUS_BADGE[currentStatus] || 'bg-muted text-muted-foreground')}>
-                          {STATUS_LABEL[currentStatus] || currentStatus}
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">{t('attendance.notMarked', 'Chưa điểm danh')}</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1 flex-wrap">
-                        {STATUS_OPTIONS.map((opt) => (
-                          <Button
-                            key={opt.value}
-                            variant={currentStatus === opt.value ? 'default' : 'outline'}
-                            size="sm"
-                            className={cn(
-                              'h-7 text-[10px] px-2 rounded-lg',
-                              currentStatus === opt.value && opt.className
-                            )}
-                            onClick={() => handleMark(student.id, opt.value)}
-                          >
-                            {opt.label}
-                          </Button>
-                        ))}
-                      </div>
-                    </TableCell>
-                  </motion.tr>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </motion.div>
+        <DataTable
+          columns={columns}
+          data={rows}
+          searchColumnId="name"
+          searchPlaceholder={t('attendance.searchStudent', 'Tìm học viên...')}
+          initialPageSize={20}
+          emptyState={
+            <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground">
+              <ClipboardCheck className="h-10 w-10 mb-2 opacity-40" />
+              <p className="text-sm">{t('attendance.noStudents', 'Lớp học này chưa có học viên hoặc không có buổi học trong ngày đã chọn.')}</p>
+            </div>
+          }
+        />
       )}
     </motion.div>
   )

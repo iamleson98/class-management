@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { format, isToday, parseISO } from 'date-fns'
@@ -15,7 +16,8 @@ import { ErrorState } from '@/components/shared/error-state'
 import { StatCard } from '@/components/shared/stat-card'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { DataTable } from '@/components/data-table'
+import { createSessionColumns } from './dashboard-columns'
 import { cn } from '@/lib/utils'
 import { staggerContainer, staggerItem } from '@/components/shared/animations'
 import { useTranslation } from '@/lib/i18n'
@@ -58,6 +60,8 @@ export default function AdminDashboard() {
     // by current month client-side.
     queryFn: () => getSessions(),
   })
+
+  const sessionColumns = useMemo(() => createSessionColumns(t), [t])
 
   if (dashboardQuery.isLoading || sessionsQuery.isLoading) {
     return (
@@ -318,34 +322,14 @@ export default function AdminDashboard() {
               description={t('dashboard.noSessionsDesc', 'Tạo buổi học đầu tiên để bắt đầu.')}
             />
           ) : (
-            <div className="rounded-xl overflow-hidden border">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50 hover:bg-muted/50">
-                    <TableHead className="uppercase text-xs font-semibold">{t('dashboard.title', 'Tiêu đề')}</TableHead>
-                    <TableHead className="uppercase text-xs font-semibold">{t('dashboard.className', 'Lớp')}</TableHead>
-                    <TableHead className="uppercase text-xs font-semibold hidden md:table-cell">{t('dashboard.teacher', 'Giáo viên')}</TableHead>
-                    <TableHead className="uppercase text-xs font-semibold hidden lg:table-cell">{t('common.date', 'Ngày')}</TableHead>
-                    <TableHead className="uppercase text-xs font-semibold hidden sm:table-cell">{t('dashboard.time', 'Thời gian')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recentSessions.map((session: any) => (
-                    <TableRow key={session.id}>
-                      <TableCell className="font-medium">{session.title}</TableCell>
-                      <TableCell>
-                        {session.class?.name && (
-                          <Badge variant="outline" className="rounded-full text-xs">{session.class.name}</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell text-muted-foreground">{session.teacher?.name || '-'}</TableCell>
-                      <TableCell className="hidden lg:table-cell text-muted-foreground">{format(parseISO(session.date), 'dd/MM/yyyy')}</TableCell>
-                      <TableCell className="hidden sm:table-cell text-muted-foreground font-mono text-xs">{session.startTime} - {session.endTime}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <DataTable
+              columns={sessionColumns}
+              data={recentSessions}
+              paginationMode="client"
+              initialPageSize={10}
+              searchColumnId="title"
+              searchPlaceholder={t('dashboard.searchSessions', 'Tìm buổi học...')}
+            />
           )}
         </CardContent>
       </Card>

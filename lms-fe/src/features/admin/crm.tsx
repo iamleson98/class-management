@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod/v4'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import type { PaginationState } from '@tanstack/react-table'
 import { motion } from 'framer-motion'
 import { Users, Plus, Pencil, Trash2, Search, Eye, UserCheck } from 'lucide-react'
 import { createLeadSchema, updateLeadSchema, leadActivitySchema, type CreateLeadInput, type UpdateLeadInput, type LeadActivityInput } from '@/lib/schemas'
@@ -15,16 +16,14 @@ import { useLMSStore } from '@/store/lms-store'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ErrorState } from '@/components/shared/error-state'
+import { DataTable } from '@/components/data-table'
+import { createLeadColumns, LEAD_STATUS_MAP, LEAD_SOURCE_MAP, type LeadRow } from './crm-columns'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog'
@@ -37,30 +36,11 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { PaginationControls, usePagination, derivePageInfo } from '@/components/shared/pagination'
 import { cn } from '@/lib/utils'
-import { staggerContainer, staggerItem } from '@/components/shared/animations'
 import { useTranslation } from '@/lib/i18n'
 
-const STATUS_MAP: Record<string, { label: string; className: string }> = {
-  NEW: { label: 'Mới', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
-  CONTACTED: { label: 'Đã liên hệ', className: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400' },
-  TEST_SCHEDULED: { label: 'Hẹn test', className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-  TESTED: { label: 'Đã test', className: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' },
-  PENDING_PAYMENT: { label: 'Chờ đóng phí', className: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' },
-  ENROLLED: { label: 'Đã đăng ký', className: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400' },
-  NOT_INTERESTED: { label: 'Không nhu cầu', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
-}
-
-const SOURCE_MAP: Record<string, string> = {
-  WEBSITE: 'Website',
-  FACEBOOK: 'Facebook',
-  REFERRAL: 'Giới thiệu',
-  PHONE: 'Điện thoại',
-  WALK_IN: 'Đến trực tiếp',
-  ZALO: 'Zalo',
-  TIKTOK: 'TikTok',
-}
+const STATUS_MAP = LEAD_STATUS_MAP
+const SOURCE_MAP = LEAD_SOURCE_MAP
 
 const EMPTY_ACTIVITY: LeadActivityInput = { type: 'NOTE', content: '', nextFollowUp: '' }
 
@@ -84,10 +64,10 @@ export default function AdminCRM() {
   const [detailOpen, setDetailOpen] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const [editingLead, setEditingLead] = useState<any>(null)
-  const [selectedLead, setSelectedLead] = useState<any>(null)
+  const [editingLead, setEditingLead] = useState<LeadRow | null>(null)
+  const [selectedLead, setSelectedLead] = useState<LeadRow | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const pagination = usePagination(10)
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 })
 
   const leadForm = useForm<LeadFormValues>({
     resolver: zodResolver(updateLeadSchema),
@@ -99,9 +79,8 @@ export default function AdminCRM() {
     defaultValues: EMPTY_ACTIVITY,
   })
 
-  // Reset to first page whenever filters change so the user doesn't land on
-  // an empty page after narrowing the result set.
-  useEffect(() => { pagination.setPageIndex(0) }, [search, statusFilter, sourceFilter])
+  // Filters reset to page 0 directly in their change handlers.
+  const resetPage = () => setPagination(p => ({ ...p, pageIndex: 0 }))
 
   // Build the typed SearchOpts body. LeadFilterOpts honors a top-level
   // `search` field (see server/public/model_helper/lms.go), so it goes at the
@@ -120,9 +99,6 @@ export default function AdminCRM() {
     queryKey: ['leads', opts],
     queryFn: () => getLeadsPaginated(opts),
   })
-
-  const leads = data?.items ?? []
-  const pageInfo = derivePageInfo(data?.totalCount ?? 0, pagination.pageIndex, pagination.pageSize, leads.length)
 
   const { data: counselorsData, isLoading: isLoadingCounselors, isError: isCounselorsError, refetch: refetchCounselors } = useQuery({
     queryKey: ['users-counselors'],
@@ -201,31 +177,41 @@ export default function AdminCRM() {
     setDialogOpen(true)
   }
 
-  const openEdit = (lead: any) => {
+  const openEdit = (lead: LeadRow) => {
     setEditingLead(lead)
     leadForm.reset({
       name: lead.name || '',
       phone: lead.phone || '',
       email: lead.email || '',
-      source: lead.source || 'WEBSITE',
-      status: lead.status || 'NEW',
+      source: (lead.source as LeadFormValues['source']) || 'WEBSITE',
+      status: (lead.status as LeadFormValues['status']) || 'NEW',
       counselorId: lead.counselorId || '',
-      notes: lead.notes || lead.note || '',
+      notes: lead.notes || '',
       age: lead.age || '',
       school: lead.school || '',
       need: lead.need || '',
       testDate: lead.testDate || '',
       testResult: lead.testResult || '',
-      testScore: lead.testScore ?? undefined,
+      testScore: lead.testScore ? Number(lead.testScore) : undefined,
       studentId: lead.studentId || '',
     })
     setDialogOpen(true)
   }
 
-  const openDetail = (lead: any) => {
+  const openDetail = (lead: LeadRow) => {
     setSelectedLead(lead)
     setDetailOpen(true)
   }
+
+  const columns = useMemo(
+    () =>
+      createLeadColumns(t, {
+        onView: openDetail,
+        onEdit: openEdit,
+        onDelete: (lead) => { setDeletingId(lead.id); setDeleteOpen(true) },
+      }),
+    [t, openDetail, openEdit]
+  )
 
   const onLeadSubmit = (values: LeadFormValues) => {
     if (editingLead) {
@@ -273,106 +259,61 @@ export default function AdminCRM() {
         }
       />
 
-      {/* Filters */}
-      <Card className="rounded-xl p-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder={t('crm.searchPlaceholder', 'Tìm theo tên, SĐT...')}
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); pagination.reset() }}
-              className="pl-9"
-            />
-          </div>
-          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); pagination.reset() }}>
-            <SelectTrigger className="w-45">
-              <SelectValue placeholder={t('common.status', 'Trạng thái')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('common.allStatuses', 'Tất cả trạng thái')}</SelectItem>
-              {Object.entries(STATUS_MAP).map(([key, val]) => (
-                <SelectItem key={key} value={key}>{val.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={sourceFilter} onValueChange={(v) => { setSourceFilter(v); pagination.reset() }}>
-            <SelectTrigger className="w-45">
-              <SelectValue placeholder={t('crm.source', 'Nguồn')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('crm.allSources', 'Tất cả nguồn')}</SelectItem>
-              {Object.entries(SOURCE_MAP).map(([key, val]) => (
-                <SelectItem key={key} value={key}>{val}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </Card>
-
-      {/* Table */}
-      {leads.length === 0 ? (
-        <EmptyState
-          icon={Users}
-          title={t('crm.emptyTitle', 'Chưa có lead')}
-          description={t('crm.emptyDescription', 'Thêm khách hàng tiềm năng đầu tiên.')}
-          actionLabel={t('crm.addLead', 'Thêm lead')}
-          onAction={openCreate}
-        />
-      ) : (
-        <>
-          <motion.div variants={staggerContainer} initial="initial" animate="animate" className="rounded-xl overflow-hidden border">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="uppercase text-xs font-semibold">{t('common.name', 'Tên')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold">{t('common.phone', 'SĐT')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold hidden md:table-cell">{t('crm.source', 'Nguồn')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold">{t('common.status', 'Trạng thái')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold hidden lg:table-cell">{t('crm.counselor', 'Tư vấn viên')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold hidden lg:table-cell">{t('crm.createdDate', 'Ngày tạo')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold w-30">{t('common.actions', 'Thao tác')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {leads.map((lead: any) => {
-                  const status = STATUS_MAP[lead.status] || STATUS_MAP.NEW
-                  return (
-                    <motion.tr key={lead.id} variants={staggerItem} className="hover:bg-muted/30">
-                      <TableCell className="font-medium text-sm">{lead.name}</TableCell>
-                      <TableCell className="text-sm">{lead.phone || '-'}</TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <Badge variant="outline" className="rounded-full text-xs">{SOURCE_MAP[lead.source] || lead.source}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={cn('rounded-full text-xs', status.className)}>{status.label}</Badge>
-                      </TableCell>
-                      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{lead.counselor?.name || '-'}</TableCell>
-                      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                        {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('vi-VN') : '-'}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openDetail(lead)} title={t('common.details', 'Chi tiết')}>
-                            <Eye className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(lead)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => { setDeletingId(lead.id); setDeleteOpen(true) }}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </motion.tr>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </motion.div>
-          <PaginationControls {...pageInfo} onPageIndexChange={pagination.setPageIndex} onPageSizeChange={pagination.setPageSize} />
-        </>
-      )}
+      {/* Data table (server-driven pagination + server-side search) */}
+      <DataTable
+        columns={columns}
+        data={data?.items}
+        paginationMode="server"
+        paginationState={pagination}
+        onPaginationChange={setPagination}
+        rowCount={data?.totalCount ?? 0}
+        isLoading={isLoading}
+        toolbarActions={
+          <>
+            <div className="relative w-full sm:max-w-70">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                data-slot="crm-search"
+                placeholder={t('crm.searchPlaceholder', 'Tìm theo tên, SĐT...')}
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); resetPage() }}
+                className="pl-9"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); resetPage() }}>
+              <SelectTrigger className="w-45">
+                <SelectValue placeholder={t('common.status', 'Trạng thái')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('common.allStatuses', 'Tất cả trạng thái')}</SelectItem>
+                {Object.entries(STATUS_MAP).map(([key, val]) => (
+                  <SelectItem key={key} value={key}>{val.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={sourceFilter} onValueChange={(v) => { setSourceFilter(v); resetPage() }}>
+              <SelectTrigger className="w-45">
+                <SelectValue placeholder={t('crm.source', 'Nguồn')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('crm.allSources', 'Tất cả nguồn')}</SelectItem>
+                {Object.entries(SOURCE_MAP).map(([key, val]) => (
+                  <SelectItem key={key} value={key}>{val}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        }
+        emptyState={
+          <EmptyState
+            icon={Users}
+            title={t('crm.emptyTitle', 'Chưa có lead')}
+            description={t('crm.emptyDescription', 'Thêm khách hàng tiềm năng đầu tiên.')}
+            actionLabel={t('crm.addLead', 'Thêm lead')}
+            onAction={openCreate}
+          />
+        }
+      />
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog() }}>
@@ -584,7 +525,7 @@ export default function AdminCRM() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider">{t('crm.source', 'Nguồn')}</p>
-                  <p className="font-medium text-sm mt-1">{SOURCE_MAP[selectedLead?.source] || selectedLead?.source || '-'}</p>
+                  <p className="font-medium text-sm mt-1">{SOURCE_MAP[selectedLead?.source ?? ''] || selectedLead?.source || '-'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider">{t('common.status', 'Trạng thái')}</p>
@@ -605,12 +546,12 @@ export default function AdminCRM() {
                   <p className="font-medium text-sm mt-1">{selectedLead?.createdAt ? new Date(selectedLead.createdAt).toLocaleDateString('vi-VN') : '-'}</p>
                 </div>
               </div>
-              {(selectedLead?.notes || selectedLead?.note) && (
+              {selectedLead?.notes && (
                 <>
                   <Separator />
                   <div>
                     <p className="text-xs text-muted-foreground uppercase tracking-wider">{t('crm.notes', 'Ghi chú')}</p>
-                    <p className="text-sm mt-1">{selectedLead.notes || selectedLead.note}</p>
+                    <p className="text-sm mt-1">{selectedLead.notes}</p>
                   </div>
                 </>
               )}

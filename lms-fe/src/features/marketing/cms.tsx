@@ -18,7 +18,8 @@ import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { DataTable } from '@/components/data-table'
+import { createMarketingPostColumns, type MarketingPostRow } from './cms-columns'
 import RichTextEditor from '@/components/ui/mdx-editor'
 import { uploadLmsFile } from '@/lib/file-upload'
 import { Textarea } from '@/components/ui/textarea'
@@ -40,7 +41,7 @@ export default function MarketingCMSPage() {
   const { authUser } = useLMSStore()
   const [search, setSearch] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingPost, setEditingPost] = useState<any>(null)
+  const [editingPost, setEditingPost] = useState<MarketingPostRow | null>(null)
 
   const form = useForm<MarketingPostFormValues>({
     resolver: zodResolver(createPostSchema),
@@ -119,25 +120,10 @@ export default function MarketingCMSPage() {
       mutation.mutate(editingPost ? updatePostSchema.parse(data) : createPostSchema.parse(data))
   }
 
-  const getCategoryBadge = (category: string) => {
-    switch (category) {
-      case 'NEWS': return <Badge variant="outline">{t('marketing.cms.categoryNews', 'Tin tức')}</Badge>
-      case 'PROMOTION': return <Badge className="bg-red-100 text-red-700 hover:bg-red-100">{t('marketing.cms.categoryPromotion', 'Khuyến mãi')}</Badge>
-      case 'EVENT': return <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-100">{t('marketing.cms.categoryEvent', 'Sự kiện')}</Badge>
-      case 'BLOG': return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">{t('marketing.cms.categoryBlog', 'Blog')}</Badge>
-      default: return <Badge variant="outline">{category}</Badge>
-    }
-  }
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'PUBLISHED': return <Badge className="bg-green-100 text-green-700 hover:bg-green-100">{t('marketing.cms.statusPublished', 'Đã xuất bản')}</Badge>
-      case 'DRAFT': return <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100">{t('marketing.cms.statusDraft', 'Nháp')}</Badge>
-      default: return <Badge variant="outline">{status}</Badge>
-    }
-  }
-
-  const filteredPosts = posts || []
+  const columns = useMemo(
+    () => createMarketingPostColumns(t, (post) => handleEdit(post as MarketingPostRow)),
+    [t, handleEdit]
+  )
 
   if (isError) {
     return <ErrorState onRetry={() => refetch()} />
@@ -158,64 +144,34 @@ export default function MarketingCMSPage() {
         }
       />
 
-      <div className="mb-4">
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={t('marketing.cms.searchPlaceholder', 'Tìm kiếm bài viết...')}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
+      <DataTable
+        columns={columns}
+        data={posts}
+        paginationMode="client"
+        initialPageSize={10}
+        isLoading={isLoading}
+        toolbarActions={
+          <div className="relative w-full sm:max-w-70">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              data-slot="marketing-cms-search"
+              placeholder={t('marketing.cms.searchPlaceholder', 'Tìm kiếm bài viết...')}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        }
+        emptyState={
+          <EmptyState
+            icon={<Newspaper className="h-12 w-12" />}
+            title={t('marketing.cms.noPostsTitle', 'Chưa có bài viết')}
+            description={t('marketing.cms.noPostsDesc', 'Hãy tạo bài viết mới')}
+            actionLabel={t('marketing.cms.addPost', 'Thêm bài viết')}
+            onAction={handleAdd}
           />
-        </div>
-      </div>
-
-      {isLoading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-          <span className="ml-3 text-muted-foreground">{t('common.loading', 'Đang tải...')}</span>
-        </div>
-      ) : filteredPosts.length === 0 ? (
-        <EmptyState
-          icon={<Newspaper className="h-12 w-12" />}
-          title={t('marketing.cms.noPostsTitle', 'Chưa có bài viết')}
-          description={t('marketing.cms.noPostsDesc', 'Hãy tạo bài viết mới')}
-          actionLabel={t('marketing.cms.addPost', 'Thêm bài viết')}
-          onAction={handleAdd}
-        />
-      ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('marketing.cms.colTitle', 'Tiêu đề')}</TableHead>
-                <TableHead>{t('marketing.cms.colCategory', 'Chuyên mục')}</TableHead>
-                <TableHead>{t('common.status', 'Trạng thái')}</TableHead>
-                <TableHead className="w-25 text-right">{t('common.actions', 'Thao tác')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredPosts.map((post: any) => (
-                <TableRow key={post.id}>
-                  <TableCell className="font-medium">{post.title}</TableCell>
-                  <TableCell>{getCategoryBadge(post.category)}</TableCell>
-                  <TableCell>{getStatusBadge(post.status)}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" title={t('common.view', 'Xem')}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(post)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+        }
+      />
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog() }}>

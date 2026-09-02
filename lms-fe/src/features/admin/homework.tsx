@@ -1,14 +1,14 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod/v4'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import type { PaginationState } from '@tanstack/react-table'
 import { motion } from 'framer-motion'
 import {
-  BookOpen, Plus, Search, Eye, Trash2, Users, Upload,
-  CheckCircle, Clock, AlertTriangle,
+  BookOpen, Plus, Search, Eye, Trash2, Users, Upload, CheckCircle,
 } from 'lucide-react'
 import {
   getHomeworkPaginated, createHomework, deleteHomework,
@@ -21,15 +21,13 @@ import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ErrorState } from '@/components/shared/error-state'
+import { DataTable } from '@/components/data-table'
+import { createHomeworkColumns, type HomeworkRow } from './homework-columns'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog'
@@ -42,9 +40,7 @@ import {
 } from '@/components/ui/select'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { DatePicker } from '@/components/ui/date-picker'
-import { PaginationControls, usePagination, derivePageInfo } from '@/components/shared/pagination'
 import { cn } from '@/lib/utils'
-import { staggerContainer, staggerItem } from '@/components/shared/animations'
 import { useTranslation } from '@/lib/i18n'
 
 // ── Schema ──────────────────────────────────────────────────────────
@@ -94,19 +90,7 @@ function buildBulkHomeworkPayload(values: BulkHomeworkFormValues) {
 // type GradeFormValues = z.input<typeof gradeSchema>
 
 // ── Status helpers ──────────────────────────────────────────────────
-const STATUS_MAP: Record<string, { label: string; className: string; icon: typeof CheckCircle }> = {
-  PENDING: { label: 'Chờ nộp', className: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400', icon: Clock },
-  GRADED: { label: 'Đã chấm', className: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400', icon: CheckCircle },
-  OVERDUE: { label: 'Quá hạn', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', icon: AlertTriangle },
-}
-
-function getHomeworkStatus(deadline: string, submissionsCount: number, totalStudents: number): string {
-  const now = new Date()
-  const dl = new Date(deadline)
-  if (now > dl && submissionsCount < totalStudents) return 'OVERDUE'
-  if (submissionsCount > 0) return 'GRADED'
-  return 'PENDING'
-}
+// Status helpers live in homework-columns.tsx (HOMEWORK_STATUS_MAP, getHomeworkStatus)
 
 // ── Component ────────────────────────────────────────────────────────
 export default function AdminHomework() {
@@ -121,11 +105,11 @@ export default function AdminHomework() {
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false)
   const [detailDialogOpen, setDetailDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [selectedHomework, setSelectedHomework] = useState<any>(null)
+  const [selectedHomework, setSelectedHomework] = useState<HomeworkRow | null>(null)
   const [gradeValues, setGradeValues] = useState<Record<string, { grade: string; feedback: string }>>({})
   const [fileName, setFileName] = useState('')
   const [bulkFileName, setBulkFileName] = useState('')
-  const pagination = usePagination(10)
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 })
 
   // Forms
   const form = useForm<HomeworkFormValues>({
@@ -145,9 +129,16 @@ export default function AdminHomework() {
     },
   })
 
-  // Reset to first page whenever filters change so the user doesn't land on
-  // an empty page after narrowing the result set.
-  useEffect(() => { pagination.setPageIndex(0) }, [search, filterClassId])
+  // Filters reset to page 0 directly in their change handlers.
+  const onSearchChange = (value: string) => {
+    setSearch(value)
+    setPagination(p => ({ ...p, pageIndex: 0 }))
+  }
+
+  const onFilterClassChange = (value: string) => {
+    setFilterClassId(value === '__all__' ? '' : value)
+    setPagination(p => ({ ...p, pageIndex: 0 }))
+  }
 
   // Build the typed SearchOpts body. HomeworkFilterOpts has NO top-level
   // search field, so text search is expressed as an ILIKE on homeworks.title
@@ -163,9 +154,6 @@ export default function AdminHomework() {
     queryKey: ['homework', opts],
     queryFn: () => getHomeworkPaginated(opts),
   })
-
-  const homeworkList = data?.items ?? []
-  const pageInfo = derivePageInfo(data?.totalCount ?? 0, pagination.pageIndex, pagination.pageSize, homeworkList.length)
 
   const { data: classes = [], isLoading: isLoadingClasses, isError: isClassesError, refetch: refetchClasses } = useQuery({
     queryKey: ['classes', 'all'],
@@ -274,16 +262,21 @@ export default function AdminHomework() {
     setBulkDialogOpen(true)
   }
 
-  const openDetail = (hw: any) => {
+  const openDetail = (hw: HomeworkRow) => {
     setSelectedHomework(hw)
     setGradeValues({})
     setDetailDialogOpen(true)
   }
 
-  const openDelete = (hw: any) => {
+  const openDelete = (hw: HomeworkRow) => {
     setSelectedHomework(hw)
     setDeleteDialogOpen(true)
   }
+
+  const columns = useMemo(
+    () => createHomeworkColumns(t, { onView: openDetail, onDelete: openDelete }),
+    [t, openDetail, openDelete]
+  )
 
   const [uploadingFile, setUploadingFile] = useState(false)
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, isBulk: boolean) => {
@@ -320,7 +313,7 @@ export default function AdminHomework() {
     if (!submission) return
     const gv = gradeValues[studentId] || { grade: '', feedback: '' }
     gradeMutation.mutate({
-      homeworkId: selectedHomework.id,
+      homeworkId: selectedHomework?.id ?? '',
       submission,
       feedback: gv.feedback,
     })
@@ -370,126 +363,66 @@ export default function AdminHomework() {
         }
       />
 
-      {/* Filters */}
-      <Card className="rounded-xl p-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <div className="relative max-w-sm flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder={t('homework.searchPlaceholder', 'Tìm kiếm bài tập...')}
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); pagination.reset() }}
-              className="pl-9"
-            />
-          </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('homework.className', 'Lớp học')}</p>
-                <Select value={filterClassId || '__all__'} onValueChange={(v) => { setFilterClassId(v === '__all__' ? '' : v); pagination.reset() }}>
-                  <SelectTrigger className="w-60">
-                    {isLoadingClasses ? (
-                      <SelectValue placeholder={t('common.loading', 'Đang tải...')} />
-                    ) : (
-                      <SelectValue placeholder={t('homework.allClasses', 'Tất cả lớp')} />
-                    )}
-                  </SelectTrigger>
-                  <SelectContent>
-                    {isClassesError ? (
-                      <SelectItem value="__all__" disabled>
-                        <span className="text-destructive">{t('common.loadFailed', 'Tải thất bại')}</span>
-                      </SelectItem>
-                    ) : (
-                      <>
-                        <SelectItem value="__all__">{t('homework.allClasses', 'Tất cả lớp')}</SelectItem>
-                        {classes.map((cls: any) => (
-                          <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
-                        ))}
-                      </>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-        </div>
-      </Card>
-
-      {/* Table */}
-      {homeworkList.length === 0 ? (
-        <EmptyState
-          icon={BookOpen}
-          title={t('homework.noHomework', 'Chưa có bài tập')}
-          description={t('homework.noHomeworkDesc', 'Giao bài tập đầu tiên cho học viên.')}
-          actionLabel={t('homework.assign', 'Giao bài tập')}
-          onAction={openCreate}
-        />
-      ) : (
-        <>
-          <motion.div variants={staggerContainer} initial="initial" animate="animate" className="rounded-xl overflow-hidden border">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="uppercase text-xs font-semibold">{t('homework.title', 'Tiêu đề')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold hidden md:table-cell">{t('homework.className', 'Lớp')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold hidden lg:table-cell">{t('homework.teacher', 'Giáo viên')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold hidden md:table-cell">{t('homework.deadline', 'Hạn nộp')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold text-center">{t('homework.submissions', 'Bài nộp')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold text-center">{t('common.status', 'Trạng thái')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold w-24">{t('common.actions', 'Thao tác')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {homeworkList.map((hw: any) => {
-                  const status = getHomeworkStatus(hw.deadline, hw.submissionsCount || 0, hw.totalStudents || 0)
-                  const statusInfo = STATUS_MAP[status] || STATUS_MAP.PENDING
-                  const StatusIcon = statusInfo.icon
-                  return (
-                    <motion.tr
-                      key={hw.id}
-                      variants={staggerItem}
-                      className="hover:bg-muted/30 cursor-pointer"
-                      onClick={() => openDetail(hw)}
-                    >
-                      <TableCell className="font-medium text-sm">{hw.title}</TableCell>
-                      <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                        {hw.class?.name || hw.className || '-'}
-                      </TableCell>
-                      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                        {hw.teacher?.name || hw.teacherName || '-'}
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                        {hw.deadline ? new Date(hw.deadline).toLocaleDateString('vi-VN') : '-'}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span className="text-sm font-medium">{hw.submissionsCount || 0}</span>
-                        <span className="text-xs text-muted-foreground">/{hw.totalStudents || 0}</span>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge className={cn('rounded-full text-xs gap-1', statusInfo.className)}>
-                          <StatusIcon className="h-3 w-3" />
-                          {statusInfo.label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title={t('common.view', 'Xem')} onClick={() => openDetail(hw)}>
-                            <Eye className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600" title={t('common.delete', 'Xóa')} onClick={() => openDelete(hw)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </motion.tr>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </motion.div>
-          <PaginationControls
-            {...pageInfo}
-            onPageIndexChange={pagination.setPageIndex}
-            onPageSizeChange={pagination.setPageSize}
+      {/* Data table (server-driven pagination + server-side search) */}
+      <DataTable
+        columns={columns}
+        data={data?.items}
+        paginationMode="server"
+        paginationState={pagination}
+        onPaginationChange={setPagination}
+        rowCount={data?.totalCount ?? 0}
+        isLoading={isLoading}
+        onRowClick={(hw) => openDetail(hw)}
+        toolbarActions={
+          <>
+            <div className="relative w-full sm:max-w-70">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                data-slot="homework-search"
+                placeholder={t('homework.searchPlaceholder', 'Tìm kiếm bài tập...')}
+                value={search}
+                onChange={(e) => onSearchChange(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('homework.className', 'Lớp học')}</p>
+              <Select value={filterClassId || '__all__'} onValueChange={onFilterClassChange}>
+                <SelectTrigger className="w-60">
+                  {isLoadingClasses ? (
+                    <SelectValue placeholder={t('common.loading', 'Đang tải...')} />
+                  ) : (
+                    <SelectValue placeholder={t('homework.allClasses', 'Tất cả lớp')} />
+                  )}
+                </SelectTrigger>
+                <SelectContent>
+                  {isClassesError ? (
+                    <SelectItem value="__all__" disabled>
+                      <span className="text-destructive">{t('common.loadFailed', 'Tải thất bại')}</span>
+                    </SelectItem>
+                  ) : (
+                    <>
+                      <SelectItem value="__all__">{t('homework.allClasses', 'Tất cả lớp')}</SelectItem>
+                      {classes.map((cls: any) => (
+                        <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
+                      ))}
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          </>
+        }
+        emptyState={
+          <EmptyState
+            icon={BookOpen}
+            title={t('homework.noHomework', 'Chưa có bài tập')}
+            description={t('homework.noHomeworkDesc', 'Giao bài tập đầu tiên cho học viên.')}
+            actionLabel={t('homework.assign', 'Giao bài tập')}
+            onAction={openCreate}
           />
-        </>
-      )}
+        }
+      />
 
       {/* ── Create Dialog ───────────────────────────────────────── */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>

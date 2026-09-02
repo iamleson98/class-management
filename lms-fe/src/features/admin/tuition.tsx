@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod/v4'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import type { PaginationState } from '@tanstack/react-table'
 import { motion } from 'framer-motion'
-import { DollarSign, Plus, CreditCard } from 'lucide-react'
+import { DollarSign, Plus } from 'lucide-react'
 import { createTuitionSchema, paymentSchema, type CreateTuitionInput, type PaymentInput } from '@/lib/schemas'
 import { useLMSStore } from '@/store/lms-store'
 import { formatVND, getTuitionsPaginated, createTuition, createPayment, getTuitionPayments } from '@/lib/api'
@@ -15,13 +16,11 @@ import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ErrorState } from '@/components/shared/error-state'
+import { DataTable } from '@/components/data-table'
+import { createTuitionColumns, TUITION_STATUS_MAP, type TuitionRow } from './tuition-columns'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog'
@@ -29,17 +28,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { PaginationControls, usePagination, derivePageInfo } from '@/components/shared/pagination'
-import { cn } from '@/lib/utils'
-import { staggerContainer, staggerItem } from '@/components/shared/animations'
 import { useTranslation } from '@/lib/i18n'
 
-const STATUS_MAP: Record<string, { label: string; className: string }> = {
-  PAID: { label: 'Đã thanh toán', className: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400' },
-  PARTIAL: { label: 'Đóng một phần', className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-  UNPAID: { label: 'Chưa thanh toán', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
-  OVERDUE: { label: 'Quá hạn', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
-}
+const STATUS_MAP = TUITION_STATUS_MAP
 
 export default function AdminTuition() {
   const { t } = useTranslation()
@@ -50,8 +41,8 @@ export default function AdminTuition() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [createOpen, setCreateOpen] = useState(false)
   const [paymentOpen, setPaymentOpen] = useState(false)
-  const [selectedTuition, setSelectedTuition] = useState<any>(null)
-  const pagination = usePagination(10)
+  const [selectedTuition, setSelectedTuition] = useState<TuitionRow | null>(null)
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 })
 
   type CreateTuitionFormValues = z.input<typeof createTuitionSchema>
   type PaymentFormValues = z.input<typeof paymentSchema>
@@ -68,9 +59,10 @@ export default function AdminTuition() {
     defaultValues: EMPTY_PAYMENT_FORM,
   })
 
-  // Reset to first page whenever the status filter changes so the user doesn't
-  // land on an empty page after narrowing the result set.
-  useEffect(() => { pagination.setPageIndex(0) }, [statusFilter])
+  const onStatusFilterChange = (value: string) => {
+    setStatusFilter(value)
+    setPagination(p => ({ ...p, pageIndex: 0 }))
+  }
 
   // Build the typed SearchOpts body. TuitionFilterOpts honors a top-level
   // `search` field (see server/public/model_helper/lms.go), so that goes at the
@@ -85,9 +77,6 @@ export default function AdminTuition() {
     queryKey: ['tuitions', opts],
     queryFn: () => getTuitionsPaginated(opts),
   })
-
-  const tuitions = data?.items ?? []
-  const pageInfo = derivePageInfo(data?.totalCount ?? 0, pagination.pageIndex, pagination.pageSize, tuitions.length)
 
   const { data: payments = [], isLoading: isLoadingPayments, isError: isPaymentsError } = useQuery({
     queryKey: ['tuition-payments', selectedTuition?.id],
@@ -123,7 +112,7 @@ export default function AdminTuition() {
     setCreateOpen(true)
   }
 
-  const openPayment = (tuition: any) => {
+  const openPayment = (tuition: TuitionRow) => {
     setSelectedTuition(tuition)
     const remaining = (tuition.totalFee || tuition.totalAmount || 0) - (tuition.paidAmount || 0)
     paymentForm.reset({ ...EMPTY_PAYMENT_FORM, amount: remaining, paidById: authUser?.id || '' })
@@ -135,13 +124,10 @@ export default function AdminTuition() {
     createPaymentMutation.mutate({ tuitionId: selectedTuition.id, data: paymentSchema.parse(values) })
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin h-8 w-8 border-4 border-sky-500 border-t-transparent rounded-full" />
-      </div>
-    )
-  }
+  const columns = useMemo(
+    () => createTuitionColumns(t, { onCollect: openPayment }),
+    [t, openPayment]
+  )
 
   if (isError) {
     return <ErrorState onRetry={() => refetch()} />
@@ -162,9 +148,17 @@ export default function AdminTuition() {
         }
       />
 
-      <Card className="rounded-xl p-4">
-        <div className="flex gap-3">
-          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); pagination.reset() }}>
+      {/* Data table (server-driven pagination) */}
+      <DataTable
+        columns={columns}
+        data={data?.items}
+        paginationMode="server"
+        paginationState={pagination}
+        onPaginationChange={setPagination}
+        rowCount={data?.totalCount ?? 0}
+        isLoading={isLoading}
+        toolbarActions={
+          <Select value={statusFilter} onValueChange={onStatusFilterChange}>
             <SelectTrigger className="w-50">
               <SelectValue placeholder={t('common.status', 'Trạng thái')} />
             </SelectTrigger>
@@ -175,52 +169,17 @@ export default function AdminTuition() {
               ))}
             </SelectContent>
           </Select>
-        </div>
-      </Card>
-
-      {tuitions.length === 0 ? (
-        <EmptyState icon={DollarSign} title={t('tuition.emptyTitle', 'Chưa có khoản học phí')} description={t('tuition.emptyDescription', 'Tạo khoản học phí đầu tiên.')} actionLabel={t('tuition.createTuition', 'Tạo học phí')} onAction={openCreate} />
-      ) : (
-        <>
-          <motion.div variants={staggerContainer} initial="initial" animate="animate" className="rounded-xl overflow-hidden border">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="uppercase text-xs font-semibold">{t('tuition.student', 'Học viên')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold">{t('tuition.className', 'Lớp')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold hidden md:table-cell">{t('tuition.totalFee', 'Tổng phí')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold hidden md:table-cell">{t('tuition.paidAmount', 'Đã thu')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold">{t('tuition.remaining', 'Còn thiếu')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold">{t('common.status', 'Trạng thái')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold w-20">{t('common.actions', 'Thao tác')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {tuitions.map((tuition: any) => {
-                  const status = STATUS_MAP[tuition.status] || STATUS_MAP.UNPAID
-                  const remaining = (tuition.totalFee || tuition.totalAmount || 0) - (tuition.paidAmount || 0)
-                  return (
-                    <motion.tr key={tuition.id} variants={staggerItem} className="hover:bg-muted/30">
-                      <TableCell className="font-medium text-sm">{tuition.student?.name || tuition.studentName || '-'}</TableCell>
-                      <TableCell className="text-sm">{tuition.class?.name || tuition.className || '-'}</TableCell>
-                      <TableCell className="hidden md:table-cell text-sm">{formatVND(tuition.totalFee || tuition.totalAmount || 0)}</TableCell>
-                      <TableCell className="hidden md:table-cell text-sm text-sky-600">{formatVND(tuition.paidAmount || 0)}</TableCell>
-                      <TableCell className={cn('text-sm font-medium', remaining > 0 ? 'text-red-600' : 'text-muted-foreground')}>{formatVND(remaining)}</TableCell>
-                      <TableCell><Badge className={cn('rounded-full text-xs', status.className)}>{status.label}</Badge></TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openPayment(tuition)} title={t('tuition.collectFee', 'Thu phí')}>
-                          <CreditCard className="h-3.5 w-3.5" />
-                        </Button>
-                      </TableCell>
-                    </motion.tr>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </motion.div>
-          <PaginationControls {...pageInfo} onPageIndexChange={pagination.setPageIndex} onPageSizeChange={pagination.setPageSize} />
-        </>
-      )}
+        }
+        emptyState={
+          <EmptyState
+            icon={DollarSign}
+            title={t('tuition.emptyTitle', 'Chưa có khoản học phí')}
+            description={t('tuition.emptyDescription', 'Tạo khoản học phí đầu tiên.')}
+            actionLabel={t('tuition.createTuition', 'Tạo học phí')}
+            onAction={openCreate}
+          />
+        }
+      />
 
       {/* Create Tuition Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>

@@ -91,6 +91,8 @@ export interface User {
   phone: string | null
   parentId: string | null
   position: string
+  /** Non-zero when the account is deactivated (soft delete). */
+  deleteat?: number | null
   createat: UnixMs
   updateat: UnixMs
 }
@@ -144,6 +146,8 @@ export interface StudentEnrollment {
   status: string
   createat: UnixMs
   updateat: UnixMs
+  // Optional joined relation (class-detail API includes the student)
+  student?: Student
 }
 
 export interface Class {
@@ -164,6 +168,10 @@ export interface Class {
   teacher?: User
   sessions?: Session[]
   students?: Student[]
+  // Enrollment count (Prisma-style _count or inline enrollments relation)
+  _count?: { studentEnrollments?: number }
+  enrollments?: Array<{ id: string }>
+  studentCount?: number
 }
 
 // ─── Session ───────────────────────────────────────────────────────
@@ -227,6 +235,9 @@ export interface Student {
   phone: string | null
   parentId: string | null
   branchId: string | null
+  // Family/given names lifted from user (or user relation) by denormalizeStudent
+  firstname: string | null
+  lastname: string | null
   // Student props (from user.props["student"])
   code: string
   name: string

@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod/v4'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import type { PaginationState } from '@tanstack/react-table'
 import { motion } from 'framer-motion'
 import { Star, Plus, Search, Eye, Pencil, Trash2, MessageSquare } from 'lucide-react'
 import {
@@ -17,13 +18,11 @@ import { useLMSStore } from '@/store/lms-store'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ErrorState } from '@/components/shared/error-state'
+import { DataTable } from '@/components/data-table'
+import { createReviewColumns, type ReviewRow } from './reviews-columns'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog'
@@ -35,9 +34,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { PaginationControls, usePagination, derivePageInfo } from '@/components/shared/pagination'
 import { cn } from '@/lib/utils'
-import { staggerContainer, staggerItem } from '@/components/shared/animations'
 import { useTranslation } from '@/lib/i18n'
 import { Badge } from '@/components/ui/badge'
 
@@ -114,8 +111,8 @@ export default function AdminReviews() {
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [selectedReview, setSelectedReview] = useState<any>(null)
-  const pagination = usePagination(10)
+  const [selectedReview, setSelectedReview] = useState<ReviewRow | null>(null)
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 })
 
   // Form
   const form = useForm<ReviewFormValues>({
@@ -125,9 +122,8 @@ export default function AdminReviews() {
     },
   })
 
-  // Reset to first page whenever filters change so the user doesn't land on
-  // an empty page after narrowing the result set.
-  useEffect(() => { pagination.setPageIndex(0) }, [search, filterClassId, filterStudentId])
+  // Filters reset to page 0 directly in their change handlers.
+  const resetPage = () => setPagination(p => ({ ...p, pageIndex: 0 }))
 
   // Build the typed SearchOpts body. WeeklyReviewFilterOpts has NO top-level
   // search field, so text search is expressed as an ILIKE on
@@ -146,9 +142,6 @@ export default function AdminReviews() {
     queryKey: ['weekly-reviews', opts],
     queryFn: () => getWeeklyReviewsPaginated(opts),
   })
-
-  const reviews = data?.items ?? []
-  const pageInfo = derivePageInfo(data?.totalCount ?? 0, pagination.pageIndex, pagination.pageSize, reviews.length)
 
   const { data: classes = [], isLoading: isLoadingClasses, isError: isClassesError } = useQuery({
     queryKey: ['classes', 'all'],
@@ -212,7 +205,7 @@ export default function AdminReviews() {
     setCreateDialogOpen(true)
   }
 
-  const openEdit = (review: any) => {
+  const openEdit = (review: ReviewRow) => {
     setSelectedReview(review)
     form.reset({
       studentId: review.studentId || '',
@@ -224,24 +217,20 @@ export default function AdminReviews() {
     setEditDialogOpen(true)
   }
 
-  const openView = (review: any) => {
+  const openView = (review: ReviewRow) => {
     setSelectedReview(review)
     setViewDialogOpen(true)
   }
 
-  const openDelete = (review: any) => {
+  const openDelete = (review: ReviewRow) => {
     setSelectedReview(review)
     setDeleteDialogOpen(true)
   }
 
-  // ── Loading state ──────────────────────────────────────────────
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin h-8 w-8 border-4 border-sky-500 border-t-transparent rounded-full" />
-      </div>
-    )
-  }
+  const columns = useMemo(
+    () => createReviewColumns(t, { onView: openView, onEdit: openEdit, onDelete: openDelete }),
+    [t, openView, openEdit, openDelete]
+  )
 
   if (isError) {
     return <ErrorState onRetry={() => refetch()} />
@@ -262,143 +251,89 @@ export default function AdminReviews() {
         }
       />
 
-      {/* Filters */}
-      <Card className="rounded-xl p-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <div className="relative max-w-sm flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder={t('reviews.searchPlaceholder', 'Tìm kiếm học viên, nội dung...')}
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); pagination.reset() }}
-              className="pl-9"
-            />
-          </div>
+      {/* Data table (server-driven pagination + server-side search) */}
+      <DataTable
+        columns={columns}
+        data={data?.items}
+        paginationMode="server"
+        paginationState={pagination}
+        onPaginationChange={setPagination}
+        rowCount={data?.totalCount ?? 0}
+        isLoading={isLoading}
+        toolbarActions={
+          <>
+            <div className="relative w-full sm:max-w-70">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                data-slot="reviews-search"
+                placeholder={t('reviews.searchPlaceholder', 'Tìm kiếm học viên, nội dung...')}
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); resetPage() }}
+                className="pl-9"
+              />
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('reviews.className', 'Lớp học')}</p>
+              <Select value={filterClassId} onValueChange={(v) => { setFilterClassId(v === '__all__' ? '' : v); setFilterStudentId(''); resetPage() }}>
+                <SelectTrigger className="w-48">
+                  {isLoadingClasses ? (
+                    <SelectValue placeholder={t('common.loading', 'Đang tải...')} />
+                  ) : (
+                    <SelectValue placeholder={t('reviews.allClasses', 'Tất cả lớp')} />
+                  )}
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">{t('reviews.allClasses', 'Tất cả lớp')}</SelectItem>
+                  {isClassesError ? (
+                    <SelectItem value="__error" disabled>
+                      <span className="text-destructive">{t('common.loadFailed', 'Tải thất bại')}</span>
+                    </SelectItem>
+                  ) : (
+                    classes.map((cls: any) => (
+                      <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            {filterClassId && (
               <div className="space-y-1">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('reviews.className', 'Lớp học')}</p>
-                <Select value={filterClassId} onValueChange={(v) => { setFilterClassId(v === '__all__' ? '' : v); setFilterStudentId(''); pagination.reset() }}>
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('reviews.student', 'Học viên')}</p>
+                <Select value={filterStudentId} onValueChange={(v) => { setFilterStudentId(v === '__all__' ? '' : v); resetPage() }}>
                   <SelectTrigger className="w-48">
-                    {isLoadingClasses ? (
+                    {isLoadingFilterStudents ? (
                       <SelectValue placeholder={t('common.loading', 'Đang tải...')} />
                     ) : (
-                      <SelectValue placeholder={t('reviews.allClasses', 'Tất cả lớp')} />
+                      <SelectValue placeholder={t('common.all', 'Tất cả')} />
                     )}
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__all__">{t('reviews.allClasses', 'Tất cả lớp')}</SelectItem>
-                    {isClassesError ? (
+                    <SelectItem value="__all__">{t('common.all', 'Tất cả')}</SelectItem>
+                    {isFilterStudentsError ? (
                       <SelectItem value="__error" disabled>
                         <span className="text-destructive">{t('common.loadFailed', 'Tải thất bại')}</span>
                       </SelectItem>
                     ) : (
-                      classes.map((cls: any) => (
-                        <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
+                      filterStudents.map((s: any) => (
+                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                       ))
                     )}
                   </SelectContent>
                 </Select>
               </div>
-              {filterClassId && (
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('reviews.student', 'Học viên')}</p>
-                  <Select value={filterStudentId} onValueChange={(v) => { setFilterStudentId(v === '__all__' ? '' : v); pagination.reset() }}>
-                    <SelectTrigger className="w-48">
-                      {isLoadingFilterStudents ? (
-                        <SelectValue placeholder={t('common.loading', 'Đang tải...')} />
-                      ) : (
-                        <SelectValue placeholder={t('common.all', 'Tất cả')} />
-                      )}
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all__">{t('common.all', 'Tất cả')}</SelectItem>
-                      {isFilterStudentsError ? (
-                        <SelectItem value="__error" disabled>
-                          <span className="text-destructive">{t('common.loadFailed', 'Tải thất bại')}</span>
-                        </SelectItem>
-                      ) : (
-                        filterStudents.map((s: any) => (
-                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-        </div>
-      </Card>
-
-      {/* Table */}
-      {reviews.length === 0 ? (
-        <EmptyState
-          icon={MessageSquare}
-          title={t('reviews.noReviews', 'Chưa có nhận xét')}
-          description={t('reviews.noReviewsDesc', 'Viết nhận xét đầu tiên cho học viên.')}
-          actionLabel={t('reviews.writeReview', 'Viết nhận xét')}
-          onAction={openCreate}
-        />
-      ) : (
-        <>
-          <motion.div variants={staggerContainer} initial="initial" animate="animate" className="rounded-xl overflow-hidden border">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="uppercase text-xs font-semibold">{t('reviews.student', 'Học viên')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold hidden md:table-cell">{t('reviews.className', 'Lớp')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold text-center">{t('reviews.week', 'Tuần')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold text-center">{t('reviews.rating', 'Đánh giá')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold hidden lg:table-cell">{t('reviews.content', 'Nội dung')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold hidden md:table-cell">{t('reviews.date', 'Ngày')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold w-28">{t('common.actions', 'Thao tác')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {reviews.map((review: any) => (
-                  <motion.tr key={review.id} variants={staggerItem} className="hover:bg-muted/30">
-                    <TableCell className="font-medium text-sm">
-                      {review.student?.name || review.studentName || '-'}
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                      {review.class?.name || review.className || '-'}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className="rounded-full text-xs bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400">
-                        {t('reviews.weekLabel', 'Tuần')} {review.weekNumber || '-'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <StarRating value={review.rating || 0} readonly size="sm" />
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell text-sm text-muted-foreground max-w-50 truncate">
-                      {review.content || '-'}
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                      {review.createdAt ? new Date(review.createdAt).toLocaleDateString('vi-VN') : '-'}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" title={t('common.view', 'Xem')} onClick={() => openView(review)}>
-                          <Eye className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" title={t('common.edit', 'Sửa')} onClick={() => openEdit(review)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600" title={t('common.delete', 'Xóa')} onClick={() => openDelete(review)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </motion.tr>
-                ))}
-              </TableBody>
-            </Table>
-          </motion.div>
-          <PaginationControls
-            {...pageInfo}
-            onPageIndexChange={pagination.setPageIndex}
-            onPageSizeChange={pagination.setPageSize}
+            )}
+          </>
+        }
+        emptyState={
+          <EmptyState
+            icon={MessageSquare}
+            title={t('reviews.noReviews', 'Chưa có nhận xét')}
+            description={t('reviews.noReviewsDesc', 'Viết nhận xét đầu tiên cho học viên.')}
+            actionLabel={t('reviews.writeReview', 'Viết nhận xét')}
+            onAction={openCreate}
           />
-        </>
-      )}
+        }
+      />
 
       {/* ── Create / Edit Dialog ─────────────────────────────────── */}
       <Dialog open={createDialogOpen || editDialogOpen} onOpenChange={(open) => {

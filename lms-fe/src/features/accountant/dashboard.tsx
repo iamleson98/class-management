@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { DollarSign, TrendingUp, CreditCard, AlertCircle } from 'lucide-react'
@@ -9,7 +10,8 @@ import { LoadingState } from '@/components/shared/loading-state'
 import { StatCard } from '@/components/shared/stat-card'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { DataTable } from '@/components/data-table'
+import { createPaymentColumns } from './dashboard-columns'
 import { formatVND, getTuitions, getPayments, getStudents } from '@/lib/api'
 import { gte, desc, and } from '@/lib/query'
 import { useTranslation } from '@/lib/i18n'
@@ -60,6 +62,18 @@ export default function AccountantDashboard() {
   const totalDebt = tuitions.reduce((sum: number, tui: any) => sum + Number(tui.remainingAmount ?? 0), 0)
   const debtCount = tuitions.filter((tui: any) => Number(tui.remainingAmount ?? 0) > 0).length
   const monthlyCollected = monthPayments.reduce((sum: number, p: any) => sum + Number(p.amount ?? 0), 0)
+
+  const paymentColumns = useMemo(() => createPaymentColumns(t), [t])
+
+  // Rows with the payer resolved through the tuition → student link.
+  const paymentRows = useMemo(
+    () =>
+      payments.map((payment: any) => ({
+        ...payment,
+        student: payment.student || studentById.get(payment.studentId) || studentById.get(payment.paidById),
+      })),
+    [payments, students]
+  )
 
   if (isError) {
     return <ErrorState onRetry={() => tuitionsQuery.refetch()} />
@@ -118,37 +132,13 @@ export default function AccountantDashboard() {
           ) : payments.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">{t('accountant.dashboard.noTransactions', 'Chưa có giao dịch nào')}</p>
           ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('accountant.dashboard.colStudent', 'Học viên')}</TableHead>
-                    <TableHead className="text-right">{t('accountant.dashboard.colAmount', 'Số tiền')}</TableHead>
-                    <TableHead>{t('accountant.dashboard.colDate', 'Ngày thu')}</TableHead>
-                    <TableHead>{t('common.status', 'Trạng thái')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {payments.map((payment: any, idx: number) => {
-                    // Payment rows carry paidById (the collector); the payer is
-                    // resolved through the tuition → student link when present.
-                    const student = payment.student || studentById.get(payment.studentId) || studentById.get(payment.paidById)
-                    return (
-                      <TableRow key={payment.id || idx}>
-                        <TableCell className="font-medium">{student?.name || '—'}</TableCell>
-                        <TableCell className="text-right text-green-600">
-                          {payment.amount != null ? formatVND(payment.amount) : '—'}
-                        </TableCell>
-                        <TableCell>{payment.paymentDate || (payment.createdAt ? new Date(payment.createdAt).toLocaleDateString('vi-VN') : '—')}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{payment.method || 'CASH'}</Badge>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+            <DataTable
+              columns={paymentColumns}
+              data={paymentRows}
+              paginationMode="client"
+              initialPageSize={10}
+              tableClassName="rounded-md"
+            />
           )}
         </CardContent>
       </Card>

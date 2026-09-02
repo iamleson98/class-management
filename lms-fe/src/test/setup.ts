@@ -3,6 +3,7 @@
  */
 
 import { vi } from 'vitest'
+import '@testing-library/jest-dom/vitest'
 
 // matchMedia (used by Tailwind-responsive components + radix).
 Object.defineProperty(window, 'matchMedia', {

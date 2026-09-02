@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod/v4'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import type { PaginationState } from '@tanstack/react-table'
 import { motion } from 'framer-motion'
-import { FileText, Plus, Search, Eye, Download } from 'lucide-react'
+import { FileText, Plus, Search } from 'lucide-react'
 import { createMaterialSchema, type CreateMaterialInput } from '@/lib/schemas'
 import { useLMSStore } from '@/store/lms-store'
 import { getMaterialsPaginated, createMaterial, getCourses } from '@/lib/api'
@@ -16,13 +17,10 @@ import { PageHeader } from '@/components/shared/page-header'
 import { FileUpload } from '@/components/shared/file-upload'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ErrorState } from '@/components/shared/error-state'
+import { DataTable } from '@/components/data-table'
+import { createMaterialColumns } from './materials-columns'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog'
@@ -31,9 +29,6 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { PaginationControls, usePagination, derivePageInfo } from '@/components/shared/pagination'
-import { cn } from '@/lib/utils'
-import { staggerContainer, staggerItem } from '@/components/shared/animations'
 import { useTranslation } from '@/lib/i18n'
 
 export default function AdminMaterials() {
@@ -46,7 +41,7 @@ export default function AdminMaterials() {
   const [dialogOpen, setDialogOpen] = useState(false)
   // Display label for the uploaded file backing the hidden fileId field.
   const [fileNameLabel, setFileNameLabel] = useState('')
-  const pagination = usePagination(10)
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 })
   // TODO: wire courseId / visibility filter UI; undefined drops the condition.
   const courseId: string | undefined = undefined
   const visibility: string | undefined = undefined
@@ -62,9 +57,12 @@ export default function AdminMaterials() {
     defaultValues: emptyMaterialForm,
   })
 
-  // Reset to first page whenever the search box changes so the user doesn't
+  // Reset to the first page when the search box changes so the user doesn't
   // land on an empty page after narrowing the result set.
-  useEffect(() => { pagination.setPageIndex(0) }, [search])
+  const onSearchChange = (value: string) => {
+    setSearch(value)
+    setPagination(p => ({ ...p, pageIndex: 0 }))
+  }
 
   // Build the typed SearchOpts body. MaterialFilterOpts has NO top-level
   // `search` field, so free-text search on the title goes via where_ors +
@@ -80,9 +78,6 @@ export default function AdminMaterials() {
     queryKey: ['materials', opts],
     queryFn: () => getMaterialsPaginated(opts),
   })
-
-  const materials = data?.items ?? []
-  const pageInfo = derivePageInfo(data?.totalCount ?? 0, pagination.pageIndex, pagination.pageSize, materials.length)
 
   const { data: courses = [], isLoading: isLoadingCourses, isError: isCoursesError } = useQuery({
     queryKey: ['courses-materials'],
@@ -105,13 +100,10 @@ export default function AdminMaterials() {
     setDialogOpen(true)
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin h-8 w-8 border-4 border-sky-500 border-t-transparent rounded-full" />
-      </div>
-    )
-  }
+  const columns = useMemo(
+    () => createMaterialColumns(t),
+    [t]
+  )
 
   if (isError) {
     return <ErrorState onRetry={() => refetch()} />
@@ -132,55 +124,37 @@ export default function AdminMaterials() {
         }
       />
 
-      <Card className="rounded-xl p-4">
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder={t('materials.searchPlaceholder', 'Tìm kiếm tài liệu...')} value={search} onChange={(e) => { setSearch(e.target.value); pagination.reset() }} className="pl-9" />
-        </div>
-      </Card>
-
-      {materials.length === 0 ? (
-        <EmptyState icon={FileText} title={t('materials.noMaterials', 'Chưa có tài liệu')} description={t('materials.noMaterialsDesc', 'Thêm tài liệu giảng dạy đầu tiên.')} actionLabel={t('materials.addMaterial', 'Thêm tài liệu')} onAction={openCreate} />
-      ) : (
-        <>
-          <motion.div variants={staggerContainer} initial="initial" animate="animate" className="rounded-xl overflow-hidden border">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="uppercase text-xs font-semibold">{t('materials.title', 'Tiêu đề')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold">{t('materials.course', 'Khóa học')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold hidden lg:table-cell">Unit</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold hidden md:table-cell">{t('materials.visibility', 'Hiển thị')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold w-20">{t('common.actions', 'Thao tác')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {materials.map((material: any) => {
-                  return (
-                    <motion.tr key={material.id} variants={staggerItem} className="hover:bg-muted/30">
-                      <TableCell className="font-medium text-sm">{material.title}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{material.course?.name || material.courseName || '-'}</TableCell>
-                      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{material.unit || '-'}</TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <Badge className={cn('rounded-full text-xs', material.visibility === 'PUBLIC' ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400')}>
-                          {material.visibility === 'PUBLIC' ? t('materials.public', 'Công khai') : t('materials.private', 'Riêng tư')}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title={t('common.view', 'Xem')}><Eye className="h-3.5 w-3.5" /></Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title={t('common.download', 'Tải xuống')}><Download className="h-3.5 w-3.5" /></Button>
-                        </div>
-                      </TableCell>
-                    </motion.tr>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </motion.div>
-          <PaginationControls {...pageInfo} onPageIndexChange={pagination.setPageIndex} onPageSizeChange={pagination.setPageSize} />
-        </>
-      )}
+      {/* Data table (server-driven pagination, server-side search) */}
+      <DataTable
+        columns={columns}
+        data={data?.items}
+        paginationMode="server"
+        paginationState={pagination}
+        onPaginationChange={setPagination}
+        rowCount={data?.totalCount ?? 0}
+        isLoading={isLoading}
+        toolbarActions={
+          <div className="relative w-full sm:max-w-70">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              data-slot="materials-search"
+              placeholder={t('materials.searchPlaceholder', 'Tìm kiếm tài liệu...')}
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        }
+        emptyState={
+          <EmptyState
+            icon={FileText}
+            title={t('materials.noMaterials', 'Chưa có tài liệu')}
+            description={t('materials.noMaterialsDesc', 'Thêm tài liệu giảng dạy đầu tiên.')}
+            actionLabel={t('materials.addMaterial', 'Thêm tài liệu')}
+            onAction={openCreate}
+          />
+        }
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">

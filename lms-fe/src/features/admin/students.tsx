@@ -1,26 +1,24 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod/v4'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import type { PaginationState } from '@tanstack/react-table'
 import { motion } from 'framer-motion'
-import { GraduationCap, Plus, Search, Pencil, Trash2, X } from 'lucide-react'
-import { createStudentSchema, updateStudentSchema, type CreateStudentInput, type UpdateStudentInput } from '@/lib/schemas'
+import { GraduationCap, Plus, Search, X } from 'lucide-react'
+import { createStudentSchema, updateStudentSchema, type CreateStudentInput, type UpdateStudentInput, type Student } from '@/lib/schemas'
 import { getStudentsPaginated, createStudent, updateStudent, deleteStudent } from '@/lib/api'
 import { paginate } from '@/lib/query'
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ErrorState } from '@/components/shared/error-state'
+import { DataTable } from '@/components/data-table'
+import { createStudentsColumns, STATUS_MAP } from './students-columns'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
@@ -33,9 +31,6 @@ import {
 } from '@/components/ui/select'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { DatePicker } from '@/components/ui/date-picker'
-import { PaginationControls, usePagination, derivePageInfo } from '@/components/shared/pagination'
-import { cn } from '@/lib/utils'
-import { staggerContainer, staggerItem } from '@/components/shared/animations'
 import { useTranslation } from '@/lib/i18n'
 
 type StudentFormValues = z.input<typeof updateStudentSchema>
@@ -56,13 +51,6 @@ const EMPTY_STUDENT: StudentFormValues = {
   branchId: '',
   notes: '',
   status: 'ACTIVE',
-}
-
-const STATUS_MAP: Record<string, { label: string; className: string }> = {
-  ACTIVE: { label: 'Đang học', className: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400' },
-  RESERVED: { label: 'Bảo lưu', className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-  DROPPED: { label: 'Nghỉ', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
-  PENDING: { label: 'Chờ xếp', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
 }
 
 function normalizeGender(value: unknown): StudentFormValues['gender'] {
@@ -98,18 +86,25 @@ export default function AdminStudents() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const [editingStudent, setEditingStudent] = useState<any>(null)
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const pagination = usePagination(10)
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 })
 
   const form = useForm<StudentFormValues>({
     resolver: zodResolver(updateStudentSchema),
     defaultValues: EMPTY_STUDENT,
   })
 
-  // Reset to first page whenever filters change so the user doesn't land on
-  // an empty page after narrowing the result set.
-  useEffect(() => { pagination.setPageIndex(0) }, [search, statusFilter])
+  // Filters reset to page 0 directly in their change handlers (no effect needed).
+  const onSearchChange = (value: string) => {
+    setSearch(value)
+    setPagination(p => ({ ...p, pageIndex: 0 }))
+  }
+
+  const onStatusFilterChange = (value: string) => {
+    setStatusFilter(value)
+    setPagination(p => ({ ...p, pageIndex: 0 }))
+  }
 
   // Build the typed SearchOpts body. StudentFilterOpts honors top-level
   // `search` and `status` fields (see server/public/model_helper/lms.go), so
@@ -124,9 +119,6 @@ export default function AdminStudents() {
     queryKey: ['students', opts],
     queryFn: () => getStudentsPaginated(opts),
   })
-
-  const students = data?.items ?? []
-  const pageInfo = derivePageInfo(data?.totalCount ?? 0, pagination.pageIndex, pagination.pageSize, students.length)
 
   const createMutation = useMutation({
     mutationFn: (data: CreateStudentInput) => createStudent(data),
@@ -169,7 +161,7 @@ export default function AdminStudents() {
     setDialogOpen(true)
   }
 
-  const openEdit = (student: any) => {
+  const openEdit = (student: Student) => {
     setEditingStudent(student)
     form.reset({
       firstname: student.firstname || student.user?.firstname || '',
@@ -199,13 +191,17 @@ export default function AdminStudents() {
     }
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin h-8 w-8 border-4 border-sky-500 border-t-transparent rounded-full" />
-      </div>
-    )
-  }
+  const columns = useMemo(
+    () =>
+      createStudentsColumns(t, {
+        onEdit: openEdit,
+        onDelete: (student) => {
+          setDeletingId(student.id)
+          setDeleteOpen(true)
+        },
+      }),
+    [t]
+  )
 
   if (isError) {
     return <ErrorState onRetry={() => refetch()} />
@@ -226,113 +222,55 @@ export default function AdminStudents() {
         }
       />
 
-      {/* Filters */}
-      <Card className="rounded-xl p-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder={t('students.searchPlaceholder', 'Tìm theo tên, email, SĐT, tên phụ huynh...')}
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); pagination.reset() }}
-              className="pl-9"
-            />
-          </div>
-          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); pagination.reset() }}>
-            <SelectTrigger className="w-45">
-              <SelectValue placeholder={t('common.status', 'Trạng thái')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('common.allStatuses', 'Tất cả trạng thái')}</SelectItem>
-              {Object.entries(STATUS_MAP).map(([key, val]) => (
-                <SelectItem key={key} value={key}>{val.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {search && (
-            <Button variant="ghost" size="icon" onClick={() => { setSearch(''); pagination.reset() }}>
-              <X className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-      </Card>
-
-      {/* Table */}
-      {students.length === 0 ? (
-        <EmptyState
-          icon={GraduationCap}
-          title={t('students.emptyTitle', 'Chưa có học viên')}
-          description={t('students.emptyDescription', 'Nhấn nút thêm học viên để bắt đầu.')}
-          actionLabel={t('students.addStudent', 'Thêm học viên')}
-          onAction={openCreate}
-        />
-      ) : (
-        <>
-          <motion.div variants={staggerContainer} initial="initial" animate="animate" className="rounded-xl overflow-hidden border">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="uppercase text-xs font-semibold">{t('students.studentCode', 'Mã HV')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold">{t('common.name', 'Họ tên')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold hidden md:table-cell">{t('common.phone', 'SĐT')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold hidden lg:table-cell">{t('students.parent', 'Phụ huynh')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold hidden lg:table-cell">{t('students.vmgClassCode', 'Mã lớp VMG')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold hidden md:table-cell">{t('students.gender', 'Giới tính')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold hidden lg:table-cell">{t('students.school', 'Trường')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold hidden sm:table-cell">{t('students.grade', 'Lớp')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold">{t('common.status', 'Trạng thái')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold w-20">{t('common.actions', 'Thao tác')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {students.map((student: any) => {
-                  const status = STATUS_MAP[student.status]
-                  return (
-                    <motion.tr
-                      key={student.id}
-                      variants={staggerItem}
-                      className="hover:bg-muted/30"
-                    >
-                      <TableCell className="font-mono text-xs">{student.code || student.id.slice(0, 8)}</TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium text-sm">{student.name}</p>
-                          <p className="text-xs text-muted-foreground">{student.email || student.user?.email || ''}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell text-muted-foreground text-sm">{student.phone || '-'}</TableCell>
-                      <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">{student.parentName || '-'}</TableCell>
-                      <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">{student.vmgClassCode || '-'}</TableCell>
-                      <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
-                        {student.gender === 'male' ? t('students.male', 'Nam') : student.gender === 'female' ? t('students.female', 'Nữ') : t('students.other', 'Khác')}
-                      </TableCell>
-                      <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">{student.school || '-'}</TableCell>
-                      <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">
-                        {student.enrollments?.[0]?.className || '-'}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={cn('rounded-full text-xs', status.className)}>{status.label}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(student)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600" onClick={() => { setDeletingId(student.id); setDeleteOpen(true) }}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </motion.tr>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </motion.div>
-
-          <PaginationControls {...pageInfo} onPageIndexChange={pagination.setPageIndex} onPageSizeChange={pagination.setPageSize} />
-        </>
-      )}
+      {/* Data table (server-driven pagination) */}
+      <DataTable
+        columns={columns}
+        data={data?.items}
+        paginationMode="server"
+        paginationState={pagination}
+        onPaginationChange={setPagination}
+        rowCount={data?.totalCount ?? 0}
+        isLoading={isLoading}
+        toolbarActions={
+          <>
+            <div className="relative flex-1 w-full sm:w-70">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                data-slot="students-search"
+                placeholder={t('students.searchPlaceholder', 'Tìm theo tên, email, SĐT, tên phụ huynh...')}
+                value={search}
+                onChange={(e) => onSearchChange(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={onStatusFilterChange}>
+              <SelectTrigger className="w-45">
+                <SelectValue placeholder={t('common.status', 'Trạng thái')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('common.allStatuses', 'Tất cả trạng thái')}</SelectItem>
+                {Object.entries(STATUS_MAP).map(([key, val]) => (
+                  <SelectItem key={key} value={key}>{val.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {search && (
+              <Button variant="ghost" size="icon" onClick={() => onSearchChange('')}>
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </>
+        }
+        emptyState={
+          <EmptyState
+            icon={GraduationCap}
+            title={t('students.emptyTitle', 'Chưa có học viên')}
+            description={t('students.emptyDescription', 'Nhấn nút thêm học viên để bắt đầu.')}
+            actionLabel={t('students.addStudent', 'Thêm học viên')}
+            onAction={openCreate}
+          />
+        }
+      />
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

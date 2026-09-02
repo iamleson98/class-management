@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { GraduationCap, CalendarDays, ClipboardCheck, DollarSign, Clock } from 'lucide-react'
@@ -9,7 +10,8 @@ import { LoadingState } from '@/components/shared/loading-state'
 import { StatCard } from '@/components/shared/stat-card'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { DataTable } from '@/components/data-table'
+import { createParentTuitionColumns } from './dashboard-columns'
 import { useLMSStore } from '@/store/lms-store'
 import { formatVND, getDashboard, getTuitions, getSessions, getClasses } from '@/lib/api'
 import { in_, and } from '@/lib/query'
@@ -49,6 +51,13 @@ export default function ParentDashboard() {
     enabled: childIds.length > 0,
   })
 
+  const classes = classesQuery.data || []
+  const classById = new Map(classes.map((c: any) => [c.id, c]))
+  const tuitionColumns = useMemo(
+    () => createParentTuitionColumns(t, (tu) => classById.get(tu.classId)?.name || '—'),
+    [t, classes]
+  )
+
   const isLoading = childrenQuery.isLoading || tuitionsQuery.isLoading || sessionsQuery.isLoading
   if (isError) {
     return <ErrorState onRetry={() => refetch()} />
@@ -56,8 +65,6 @@ export default function ParentDashboard() {
 
   const stats = data || {}
   const tuitions = tuitionsQuery.data || []
-  const classes = classesQuery.data || []
-  const classById = new Map(classes.map((c: any) => [c.id, c]))
 
   // Children's classes are derived from their tuitions (a tuition exists only
   // for an enrolled class) — the honest link available via the current API.
@@ -194,34 +201,19 @@ export default function ParentDashboard() {
             ) : tuitions.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">{t('parent.dashboard.noTuition', 'Chưa có thông tin học phí')}</p>
             ) : (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t('parent.dashboard.class', 'Lớp')}</TableHead>
-                      <TableHead className="text-right">{t('common.total', 'Tổng')}</TableHead>
-                      <TableHead className="text-right">{t('parent.dashboard.paid', 'Đã thu')}</TableHead>
-                      <TableHead className="text-right">{t('parent.dashboard.remaining', 'Còn thiếu')}</TableHead>
-                      <TableHead>{t('common.status', 'Trạng thái')}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {tuitions.slice(0, 8).map((tu: any, idx: number) => (
-                      <TableRow key={tu.id || idx}>
-                        <TableCell className="font-medium">{classById.get(tu.classId)?.name || '—'}</TableCell>
-                        <TableCell className="text-right">{formatVND(tu.totalAmount || 0)}</TableCell>
-                        <TableCell className="text-right text-green-600">{formatVND(tu.paidAmount || 0)}</TableCell>
-                        <TableCell className="text-right text-red-600">{formatVND(tu.remainingAmount || 0)}</TableCell>
-                        <TableCell>
-                          {tu.status === 'PAID' && <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Đã thanh toán</Badge>}
-                          {tu.status === 'PARTIAL' && <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100">Còn thiếu</Badge>}
-                          {(tu.status === 'PENDING' || tu.status === 'OVERDUE') && <Badge className="bg-red-100 text-red-700 hover:bg-red-100">Chưa thanh toán</Badge>}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+              <DataTable
+                columns={tuitionColumns}
+                data={tuitions}
+                paginationMode="client"
+                initialPageSize={8}
+                showViewOptions={false}
+                tableClassName="rounded-md"
+                emptyState={
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    {t('parent.dashboard.noTuition', 'Chưa có thông tin học phí')}
+                  </p>
+                }
+              />
             )}
           </CardContent>
         </Card>

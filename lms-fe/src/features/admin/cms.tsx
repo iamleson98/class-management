@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod/v4'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import type { PaginationState } from '@tanstack/react-table'
 import { motion } from 'framer-motion'
 import { Newspaper, Plus, Pencil, Trash2, Eye } from 'lucide-react'
 import { createPostSchema, updatePostSchema, postCategorySchema, type CreatePostInput, type UpdatePostInput, type PostCategoryInput } from '@/lib/schemas'
@@ -15,13 +16,12 @@ import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ErrorState } from '@/components/shared/error-state'
+import { DataTable } from '@/components/data-table'
+import { createPostColumns, CMS_STATUS_MAP, type PostRow } from './cms-columns'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog'
@@ -37,16 +37,9 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { PaginationControls, usePagination, derivePageInfo } from '@/components/shared/pagination'
-import { cn } from '@/lib/utils'
-import { staggerContainer, staggerItem } from '@/components/shared/animations'
 import { useTranslation } from '@/lib/i18n'
 
-const STATUS_MAP: Record<string, { label: string; className: string }> = {
-  DRAFT: { label: 'Nháp', className: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400' },
-  PENDING: { label: 'Chờ duyệt', className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-  PUBLISHED: { label: 'Đã xuất bản', className: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400' },
-}
+const STATUS_MAP = CMS_STATUS_MAP
 
 type PostFormValues = z.input<typeof createPostSchema>
 
@@ -64,10 +57,10 @@ export default function AdminCMS() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [viewOpen, setViewOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const [editingPost, setEditingPost] = useState<any>(null)
-  const [viewingPost, setViewingPost] = useState<any>(null)
+  const [editingPost, setEditingPost] = useState<PostRow | null>(null)
+  const [viewingPost, setViewingPost] = useState<PostRow | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const pagination = usePagination(10)
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 })
 
   // Category dialog state
   const [catDialogOpen, setCatDialogOpen] = useState(false)
@@ -91,9 +84,6 @@ export default function AdminCMS() {
     queryKey: ['posts', opts],
     queryFn: () => getPostsPaginated(opts),
   })
-
-  const posts = data?.items ?? []
-  const pageInfo = derivePageInfo(data?.totalCount ?? 0, pagination.pageIndex, pagination.pageSize, posts.length)
 
   const { data: categories = [], isLoading: isLoadingCategories, isError: isCategoriesError } = useQuery({
     queryKey: ['post-categories'],
@@ -208,16 +198,29 @@ export default function AdminCMS() {
     setDialogOpen(true)
   }
 
-  const openEdit = (post: any) => {
+  const openEdit = (post: PostRow) => {
     setEditingPost(post)
     form.reset({
       title: post.title || '', slug: post.slug || '', content: post.content || '',
-      excerpt: post.excerpt || '', categoryId: post.categoryId || '', status: post.status || 'DRAFT',
+      excerpt: post.excerpt || '', categoryId: post.categoryId || '',
+      status: (post.status as PostFormValues['status']) || 'DRAFT',
       seoTitle: post.seoTitle || '', seoDescription: post.seoDescription || '', seoKeywords: post.seoKeywords || '',
       authorId: post.authorId || post.author?.id || authUser?.id || '',
     })
     setDialogOpen(true)
   }
+
+  const columns = useMemo(
+    () =>
+      createPostColumns(t, {
+        onView: (post) => { setViewingPost(post); setViewOpen(true) },
+        onEdit: openEdit,
+        onDelete: (post) => { setDeletingId(post.id); setDeleteOpen(true) },
+        getCategoryName: (post) => categories.find((c: any) => c.id === post.categoryId)?.name || '-',
+        getAuthorFallback: () => getUserDisplayName(authUser),
+      }),
+    [t, categories, authUser]
+  )
 
   const handleImageUpload = async (file: File): Promise<string> => {
     try {
@@ -237,14 +240,6 @@ export default function AdminCMS() {
     } else {
       createMutation.mutate(createPostSchema.parse(data))
     }
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin h-8 w-8 border-4 border-sky-500 border-t-transparent rounded-full" />
-      </div>
-    )
   }
 
   if (isError) {
@@ -268,64 +263,29 @@ export default function AdminCMS() {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
-          <TabsTrigger value="posts">{t('cms.posts', 'Bài viết')} ({pageInfo.totalItems})</TabsTrigger>
+          <TabsTrigger value="posts">{t('cms.posts', 'Bài viết')} ({data?.totalCount ?? 0})</TabsTrigger>
           <TabsTrigger value="categories">{t('cms.categories', 'Chuyên mục')} ({categories.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="posts" className="mt-4">
-          {posts.length === 0 ? (
-            <EmptyState icon={Newspaper} title={t('cms.noPosts', 'Chưa có bài viết')} description={t('cms.noPostsDesc', 'Viết bài viết đầu tiên.')} actionLabel={t('cms.writePost', 'Viết bài')} onAction={openCreate} />
-          ) : (
-            <>
-              <motion.div variants={staggerContainer} initial="initial" animate="animate" className="rounded-xl overflow-hidden border">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50 hover:bg-muted/50">
-                      <TableHead className="uppercase text-xs font-semibold">{t('cms.title', 'Tiêu đề')}</TableHead>
-                      <TableHead className="uppercase text-xs font-semibold hidden md:table-cell">{t('cms.category', 'Chuyên mục')}</TableHead>
-                      <TableHead className="uppercase text-xs font-semibold hidden lg:table-cell">{t('cms.author', 'Tác giả')}</TableHead>
-                      <TableHead className="uppercase text-xs font-semibold">{t('common.status', 'Trạng thái')}</TableHead>
-                      <TableHead className="uppercase text-xs font-semibold hidden lg:table-cell">{t('cms.publishDate', 'Ngày đăng')}</TableHead>
-                      <TableHead className="uppercase text-xs font-semibold w-30">{t('common.actions', 'Thao tác')}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {posts.map((post: any) => {
-                      const status = STATUS_MAP[post.status] || STATUS_MAP.DRAFT
-                      const catName = categories.find((c: any) => c.id === post.categoryId)?.name || '-'
-                      return (
-                        <motion.tr key={post.id} variants={staggerItem} className="hover:bg-muted/30">
-                          <TableCell className="font-medium text-sm">{post.title}</TableCell>
-                          <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{catName}</TableCell>
-                          <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{post.authorName || post.author?.nickname || getUserDisplayName(post.author) || getUserDisplayName(authUser) || '-'}</TableCell>
-                          <TableCell>
-                            <Badge className={cn('rounded-full text-xs', status.className)}>{status.label}</Badge>
-                          </TableCell>
-                          <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                            {post.createdAt ? new Date(post.createdAt).toLocaleDateString('vi-VN') : '-'}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setViewingPost(post); setViewOpen(true) }}>
-                                <Eye className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(post)}>
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => { setDeletingId(post.id); setDeleteOpen(true) }}>
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </motion.tr>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
-              </motion.div>
-              <PaginationControls {...pageInfo} onPageIndexChange={pagination.setPageIndex} onPageSizeChange={pagination.setPageSize} />
-            </>
-          )}
+          <DataTable
+            columns={columns}
+            data={data?.items}
+            paginationMode="server"
+            paginationState={pagination}
+            onPaginationChange={setPagination}
+            rowCount={data?.totalCount ?? 0}
+            isLoading={isLoading}
+            emptyState={
+              <EmptyState
+                icon={Newspaper}
+                title={t('cms.noPosts', 'Chưa có bài viết')}
+                description={t('cms.noPostsDesc', 'Viết bài viết đầu tiên.')}
+                actionLabel={t('cms.writePost', 'Viết bài')}
+                onAction={openCreate}
+              />
+            }
+          />
         </TabsContent>
 
         <TabsContent value="categories" className="mt-4">

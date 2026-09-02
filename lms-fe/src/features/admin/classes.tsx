@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod/v4'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import type { PaginationState } from '@tanstack/react-table'
 import { motion } from 'framer-motion'
-import { School, Plus, Pencil, Trash2, UserPlus, Users, Eye, Camera, Calendar, Play, Upload } from 'lucide-react'
-import { createClassSchema, type CreateClassInput, type UpdateClassInput } from '@/lib/schemas'
+import { School, Plus, Trash2, Users, Camera, Calendar, Play, Upload } from 'lucide-react'
+import { createClassSchema, type CreateClassInput, type UpdateClassInput, type Class } from '@/lib/schemas'
 import { getClassesPaginated, createClass, updateClass, deleteClass, enrollStudents, getStudents, getClassDetail, getClassMedia, createClassMedia, deleteClassMedia, getSessions } from '@/lib/api'
 import { uploadLmsFile, lmsMediaSrc, type LmsUploadProgress } from '@/lib/file-upload'
 import { eq, and, paginate } from '@/lib/query'
@@ -16,6 +17,14 @@ import { useLMSStore } from '@/store/lms-store'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ErrorState } from '@/components/shared/error-state'
+import { DataTable } from '@/components/data-table'
+import {
+  createClassColumns,
+  createEnrollmentColumns,
+  createAttendanceMatrixColumns,
+  buildAttendanceMatrixRows,
+  CLASS_STATUS_MAP,
+} from './classes-columns'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -23,9 +32,6 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog'
@@ -36,19 +42,8 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { PaginationControls, usePagination, derivePageInfo } from '@/components/shared/pagination'
-import { cn } from '@/lib/utils'
-import { staggerContainer, staggerItem } from '@/components/shared/animations'
 import { useTranslation } from '@/lib/i18n'
 import ClassForm from './components/class-form'
-
-const STATUS_MAP: Record<string, { label: string; className: string }> = {
-  OPEN: { label: 'Chờ mở', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
-  ACTIVE: { label: 'Đang học', className: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400' },
-  PAUSED: { label: 'Tạm dừng', className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-  COMPLETED: { label: 'Hoàn thành', className: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' },
-  CLOSED: { label: 'Đã đóng', className: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400' },
-}
 
 type ClassFormValues = z.input<typeof createClassSchema>
 
@@ -295,20 +290,21 @@ export default function AdminClasses() {
   const [detailOpen, setDetailOpen] = useState(false)
   const [detailTab, setDetailTab] = useState('students')
   const [viewingClassId, setViewingClassId] = useState<string | null>(null)
-  const [editingClass, setEditingClass] = useState<any>(null)
+  const [editingClass, setEditingClass] = useState<Class | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [enrollingClassId, setEnrollingClassId] = useState<string | null>(null)
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([])
-  const pagination = usePagination(10)
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 })
 
   const form = useForm<ClassFormValues>({
     resolver: zodResolver(createClassSchema),
     defaultValues: EMPTY_CLASS,
   })
 
-  // Reset to first page whenever filters change so the user doesn't land on
-  // an empty page after narrowing the result set.
-  useEffect(() => { pagination.setPageIndex(0) }, [statusFilter])
+  const onStatusFilterChange = (value: string) => {
+    setStatusFilter(value)
+    setPagination(p => ({ ...p, pageIndex: 0 }))
+  }
 
   // Build the typed SearchOpts body. ClassFilterOpts honors a top-level
   // `search` field (see server/public/model_helper/lms.go); the status filter
@@ -323,9 +319,6 @@ export default function AdminClasses() {
     queryKey: ['classes', opts],
     queryFn: () => getClassesPaginated(opts),
   })
-
-  const classes = data?.items ?? []
-  const pageInfo = derivePageInfo(data?.totalCount ?? 0, pagination.pageIndex, pagination.pageSize, classes.length)
 
   const { data: students = [], isLoading: isLoadingStudents, isError: isStudentsError } = useQuery({
     queryKey: ['students-enroll'],
@@ -415,23 +408,23 @@ export default function AdminClasses() {
     setDialogOpen(true)
   }
 
-  const openEdit = (cls: any) => {
+  const openEdit = (cls: Class) => {
     setEditingClass(cls)
     form.reset({
       code: cls.code || '', name: cls.name || '', courseId: cls.courseId || '',
       teacherId: cls.teacherId || '', room: cls.room || '',
       status: cls.status || 'OPEN', startDate: cls.startDate || '', branchId: cls.branchId || '',
-    })
+    } as ClassFormValues)
     setDialogOpen(true)
   }
 
-  const openEnroll = (cls: any) => {
+  const openEnroll = (cls: Class) => {
     setEnrollingClassId(cls.id)
     setSelectedStudentIds([])
     setEnrollOpen(true)
   }
 
-  const openDetail = (cls: any) => {
+  const openDetail = (cls: Class) => {
     setViewingClassId(cls.id)
     setDetailTab('students')
     setDetailOpen(true)
@@ -442,13 +435,42 @@ export default function AdminClasses() {
     enrollMutation.mutate({ classId: enrollingClassId, studentIds: selectedStudentIds })
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin h-8 w-8 border-4 border-sky-500 border-t-transparent rounded-full" />
-      </div>
-    )
-  }
+  const columns = useMemo(
+    () =>
+      createClassColumns(t, {
+        onView: openDetail,
+        onEnroll: openEnroll,
+        onEdit: openEdit,
+        onDelete: (cls) => {
+          setDeletingId(cls.id)
+          setDeleteOpen(true)
+        },
+      }),
+    [t]
+  )
+
+  // Detail modal: enrolled-students table columns
+  const enrollmentColumns = useMemo(
+    () => createEnrollmentColumns(t),
+    [t]
+  )
+
+  // Detail modal: attendance matrix (columns built from the roster, rows from sessions)
+  const matrixStudentNames = useMemo(
+    () =>
+      (classDetail?.studentEnrollments ?? []).slice(0, 10).map(
+        (e) => e.student?.user?.name ?? e.student?.name ?? ''
+      ),
+    [classDetail]
+  )
+  const attendanceColumns = useMemo(
+    () => createAttendanceMatrixColumns(t, matrixStudentNames),
+    [t, matrixStudentNames]
+  )
+  const attendanceRows = useMemo(
+    () => buildAttendanceMatrixRows(classSessions ?? [], classDetail?.studentEnrollments ?? []),
+    [classSessions, classDetail]
+  )
 
   if (isError) {
     return <ErrorState onRetry={() => refetch()} />
@@ -469,93 +491,38 @@ export default function AdminClasses() {
         }
       />
 
-      {/* Filter */}
-      <Card className="rounded-xl p-4">
-        <div className="flex gap-3">
-          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); pagination.reset() }}>
+      {/* Data table (server-driven pagination) */}
+      <DataTable
+        columns={columns}
+        data={data?.items}
+        paginationMode="server"
+        paginationState={pagination}
+        onPaginationChange={setPagination}
+        rowCount={data?.totalCount ?? 0}
+        isLoading={isLoading}
+        toolbarActions={
+          <Select value={statusFilter} onValueChange={onStatusFilterChange}>
             <SelectTrigger className="w-45">
               <SelectValue placeholder={t('common.status', 'Trạng thái')} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('common.allStatuses', 'Tất cả trạng thái')}</SelectItem>
-              {Object.entries(STATUS_MAP).map(([key, val]) => (
+              {Object.entries(CLASS_STATUS_MAP).map(([key, val]) => (
                 <SelectItem key={key} value={key}>{val.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </div>
-      </Card>
-
-      {/* Table */}
-      {classes.length === 0 ? (
-        <EmptyState
-          icon={School}
-          title={t('classes.emptyTitle', 'Chưa có lớp học')}
-          description={t('classes.emptyDescription', 'Tạo lớp học đầu tiên để bắt đầu.')}
-          actionLabel={t('classes.createClass', 'Tạo lớp')}
-          onAction={openCreate}
-        />
-      ) : (
-        <>
-          <motion.div variants={staggerContainer} initial="initial" animate="animate" className="rounded-xl overflow-hidden border">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="uppercase text-xs font-semibold">{t('classes.classCode', 'Mã lớp')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold">{t('common.name', 'Tên')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold hidden lg:table-cell">{t('classes.course', 'Khóa học')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold hidden md:table-cell">{t('classes.teacher', 'Giáo viên')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold hidden lg:table-cell">{t('classes.room', 'Phòng')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold hidden sm:table-cell">{t('classes.classSize', 'Sĩ số')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold">{t('common.status', 'Trạng thái')}</TableHead>
-                  <TableHead className="uppercase text-xs font-semibold w-30">{t('common.actions', 'Thao tác')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {classes.map((cls: any) => {
-                  const status = STATUS_MAP[cls.status] || STATUS_MAP.OPEN
-                  const enrolled = cls._count?.studentEnrollments || cls.enrollments?.length || cls.studentCount || 0
-                  return (
-                    <motion.tr key={cls.id} variants={staggerItem} className="hover:bg-muted/30">
-                      <TableCell className="font-mono text-xs">{cls.code || cls.id.slice(0, 8)}</TableCell>
-                      <TableCell className="font-medium text-sm">{cls.name}</TableCell>
-                      <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">{cls.course?.name || '-'}</TableCell>
-                      <TableCell className="hidden md:table-cell text-muted-foreground text-sm">{cls.teacher?.name || '-'}</TableCell>
-                      <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">{cls.room || '-'}</TableCell>
-                      <TableCell className="hidden sm:table-cell">
-                        <div className="flex items-center gap-1.5 text-sm">
-                          <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span>{enrolled}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={cn('rounded-full text-xs', status.className)}>{status.label}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-sky-500" onClick={() => openDetail(cls)} title={t('common.details', 'Chi tiết')}>
-                            <Eye className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEnroll(cls)} title={t('classes.enroll', 'Ghi danh')}>
-                            <UserPlus className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(cls)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => { setDeletingId(cls.id); setDeleteOpen(true) }}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </motion.tr>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </motion.div>
-          <PaginationControls {...pageInfo} onPageIndexChange={pagination.setPageIndex} onPageSizeChange={pagination.setPageSize} />
-        </>
-      )}
+        }
+        emptyState={
+          <EmptyState
+            icon={School}
+            title={t('classes.emptyTitle', 'Chưa có lớp học')}
+            description={t('classes.emptyDescription', 'Tạo lớp học đầu tiên để bắt đầu.')}
+            actionLabel={t('classes.createClass', 'Tạo lớp')}
+            onAction={openCreate}
+          />
+        }
+      />
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog() }}>
@@ -564,7 +531,7 @@ export default function AdminClasses() {
             <DialogTitle>{editingClass ? t('classes.editClass', 'Chỉnh sửa lớp') : t('classes.createNewClass', 'Tạo lớp mới')}</DialogTitle>
             <DialogDescription />
           </DialogHeader>
-          <ClassForm onDone={closeDialog} editingClass={editingClass} editingClassId={editingClass ? editingClass.id : undefined} />
+          <ClassForm onDone={closeDialog} editingClass={Boolean(editingClass)} editingClassId={editingClass ? editingClass.id : undefined} />
         </DialogContent>
       </Dialog>
 
@@ -666,43 +633,14 @@ export default function AdminClasses() {
                   </div>
                 ) : (
                   <ScrollArea className="h-[65vh] min-h-100">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-muted/50 hover:bg-muted/50">
-                          <TableHead className="text-xs font-semibold">#</TableHead>
-                          <TableHead className="text-xs font-semibold">{t('common.name', 'Họ tên')}</TableHead>
-                          <TableHead className="text-xs font-semibold hidden md:table-cell">{t('common.phone', 'SĐT')}</TableHead>
-                          <TableHead className="text-xs font-semibold hidden md:table-cell">{t('classes.parent', 'Phụ huynh')}</TableHead>
-                          <TableHead className="text-xs font-semibold hidden lg:table-cell">{t('classes.vmgClassCode', 'Mã lớp VMG')}</TableHead>
-                          <TableHead className="text-xs font-semibold">{t('common.status', 'Trạng thái')}</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {classDetail?.studentEnrollments?.map((enrollment: any, idx: number) => {
-                          const s = enrollment.student
-                          const user = s?.user
-                          return (
-                            <TableRow key={enrollment.id || idx}>
-                              <TableCell className="text-xs text-muted-foreground">{idx + 1}</TableCell>
-                              <TableCell className="font-medium text-sm">{user?.name || s?.code || '-'}</TableCell>
-                              <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{user?.phone || s?.phone || '-'}</TableCell>
-                              <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{s?.parentName || '-'}</TableCell>
-                              <TableCell className="hidden lg:table-cell text-sm text-muted-foreground font-mono">{s?.vmgClassCode || '-'}</TableCell>
-                              <TableCell>
-                                <Badge className={cn(
-                                  'rounded-full text-xs',
-                                  enrollment.status === 'ACTIVE' ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400' :
-                                    enrollment.status === 'DROPPED' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                                      'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400'
-                                )}>
-                                  {enrollment.status === 'ACTIVE' ? t('classes.studying', 'Đang học') : enrollment.status === 'DROPPED' ? t('classes.dropped', 'Đã nghỉ') : enrollment.status || '-'}
-                                </Badge>
-                              </TableCell>
-                            </TableRow>
-                          )
-                        })}
-                      </TableBody>
-                    </Table>
+                    <DataTable
+                      columns={enrollmentColumns}
+                      data={classDetail?.studentEnrollments ?? []}
+                      paginationMode="none"
+                      showToolbar={false}
+                      animateRows={false}
+                      className="[&_[data-slot=table-container]]:rounded-none [&_[data-slot=table-container]]:border-0"
+                    />
                   </ScrollArea>
                 )}
               </TabsContent>
@@ -731,34 +669,14 @@ export default function AdminClasses() {
                           {classDetail?.studentEnrollments?.length || 0} {t('classes.students', 'học viên')}
                         </Badge>
                       </div>
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-muted/50 hover:bg-muted/50">
-                            <TableHead className="text-xs font-semibold sticky left-0 bg-background z-10">{t('classes.date', 'Ngày')}</TableHead>
-                            {classDetail?.studentEnrollments?.slice(0, 10).map((enrollment: any, idx: number) => (
-                              <TableHead key={idx} className="text-xs font-semibold text-center min-w-20">
-                                <span className="block truncate max-w-17.5" title={enrollment.student?.user?.name}>
-                                  {enrollment.student?.user?.name?.split(' ').pop() || `HV${idx + 1}`}
-                                </span>
-                              </TableHead>
-                            ))}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {classSessions.slice(0, 20).map((session: any) => (
-                            <TableRow key={session.id}>
-                              <TableCell className="text-xs font-medium sticky left-0 bg-background z-10">
-                                {session.date ? new Date(session.date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : '-'}
-                              </TableCell>
-                              {classDetail?.studentEnrollments?.slice(0, 10).map(() => (
-                                <TableCell key={Math.random()} className="text-center text-xs text-muted-foreground">
-                                  —
-                                </TableCell>
-                              ))}
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                      <DataTable
+                        columns={attendanceColumns}
+                        data={attendanceRows}
+                        paginationMode="none"
+                        showToolbar={false}
+                        animateRows={false}
+                        tableClassName="rounded-none border-0"
+                      />
                       <p className="text-xs text-muted-foreground mt-2">
                         * {t('classes.attendanceNote', 'Dữ liệu điểm danh chi tiết cần tải từng buổi. Hiển thị tối đa 10 học viên.')}
                       </p>
