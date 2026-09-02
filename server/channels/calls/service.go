@@ -131,7 +131,7 @@ func (s *CallService) initRTCDManagerWithRetry(url string) {
                 maxWait    = 5 * time.Minute
                 minBackoff = 2 * time.Second
                 maxBackoff = 15 * time.Second
-        }
+        )
 
         deadline := time.Now().Add(maxWait)
         backoff := minBackoff
