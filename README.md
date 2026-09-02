@@ -6,8 +6,8 @@ homework, weekly reviews, class media, CMS/marketing site, role-based
 dashboards for 8 LMS roles, real-time chat, and native voice/video/screen-share
 calls (WebRTC via the `rtcd` SFU).
 
-The backend is a fork of the Mattermost server (Go) extended with the LMS
-domain; the frontend is Next.js 16. Everything deploys as Docker containers.
+The backend is a Go chat/messaging core extended with the LMS domain;
+the frontend is Next.js 16. Everything deploys as Docker containers.
 
 ```
                         ┌──────────────────────────────────────────────┐
@@ -16,8 +16,8 @@ domain; the frontend is Next.js 16. Everything deploys as Docker containers.
                                 │                           │
               app.domain  ┌─────▼─────┐            ┌────────▼────────┐
               (users)     │   lms-fe  │  /api/v4/* │    lms-server   │ api.domain
-                         │  Next.js  │───────────▶ │  (Go, Mattermost│ (direct API +
-                         │   :3000   │  (proxied)  │     fork) :8065  │  WebSocket)
+                         │  Next.js  │───────────▶ │   (Go) :8065    │ (direct API +
+                         │   :3000   │  (proxied)  │                  │  WebSocket)
                          └───────────┘             └───┬─────────┬───┘
                                                        │         │
                                           ┌────────────▼──┐   ┌──▼────────────┐
@@ -42,9 +42,9 @@ domain; the frontend is Next.js 16. Everything deploys as Docker containers.
 
 | Path | What it is |
 |---|---|
-| `server/` | Go backend — Mattermost fork + native LMS API (`/api/v4/lms/*`), auth, chat, native Calls control plane (`server/channels/calls`) |
+| `server/` | Go backend — chat core + native LMS API (`/api/v4/lms/*`), auth, chat, native Calls control plane (`server/channels/calls`) |
 | `lms-fe/` | Next.js 16 frontend (dashboard for 8 roles + public marketing site + chat + calls UI) |
-| `rtcd/` | WebRTC SFU (mattermost/rtcd, vendored) — runs as its own container, owns all call media |
+| `rtcd/` | WebRTC SFU (vendored) — runs as its own container, owns all call media |
 | `docker-compose.yml` | Single-host deployment (local/dev/small prod — rustfs, same as Swarm) |
 | `deploy/swarm/` | Production: Docker Swarm stack (Contabo), secrets, deploy/rollback scripts |
 | `deploy/images/` | Dockerfiles for the images CI builds (rtcd image + its env-rendered config) |
@@ -462,7 +462,7 @@ cd infrastructure/terraform-contabo && terraform destroy -var-file=envs/contabo.
 
 ## Appendix: key environment variables (backend)
 
-All `MM_*` variables follow the Mattermost convention
+All `MM_*` variables follow the server convention
 (`MM_<SECTION>_<FIELD>`). The ones you're most likely to touch:
 
 | Variable | Purpose |

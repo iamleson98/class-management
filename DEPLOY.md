@@ -787,8 +787,8 @@ Notes:
   and `turns:` is TURN over TLS — the last resort that passes networks
   which only allow HTTPS-style traffic.
 - TURN credentials in `MM_CALLSSETTINGS_ICESERVERS` are visible to
-  authenticated users via `GET /api/v4/calls/config` (same as the
-  Mattermost calls plugin). Rotate the secret if it leaks; prefer
+  authenticated users via `GET /api/v4/calls/config`. Rotate the secret
+  if it leaks; prefer
   network-level restrictions on who can reach coturn (`allowed-peer-ip`).
 - rtcd's OWN ICE servers (`RTCD_ICE_SERVERS`) are separate: they only
   affect the SFU's own gathering and public-IP discovery.
@@ -971,7 +971,7 @@ docker run --rm -v lms_rustfs_data:/data -v $(pwd):/backup alpine \
 
 # Postgres-consistent dump alternative (preferred for the DB):
 docker exec $(docker ps -qf name=lms_postgres) \
-    pg_dump -U mmuser mattermost | gzip > mattermost-$(date +%F).sql.gz
+    pg_dump -U mmuser mattermost | gzip > lms-$(date +%F).sql.gz
 ```
 
 Restore: stop the service (`docker service scale lms_postgres=0`),
@@ -980,7 +980,7 @@ cron/systemd-timers on the db node; ship archives off-node (Contabo
 Object Storage, rsync, …). Example nightly cron on the db node:
 
 ```cron
-0 3 * * * docker exec $(docker ps -qf name=lms_postgres) pg_dump -U mmuser mattermost | gzip > /var/backups/lms/mattermost-$(date +\%F).sql.gz && find /var/backups/lms -mtime +14 -delete
+0 3 * * * docker exec $(docker ps -qf name=lms_postgres) pg_dump -U mmuser mattermost | gzip > /var/backups/lms/lms-$(date +\%F).sql.gz && find /var/backups/lms -mtime +14 -delete
 ```
 
 ---
