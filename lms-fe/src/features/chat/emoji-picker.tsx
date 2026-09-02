@@ -28,7 +28,7 @@ import { Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import {
   Emojis, getEmojiIndicesByCategory, unifiedToUnicode, emojiMap,
-  getEmojiImageUrl, isSystemEmoji, type SystemEmoji,
+  getEmojiImageUrl, isSystemEmoji, isServerCustomEmoji, type SystemEmoji,
 } from '@/lib/chat/emoji-data'
 import { useCustomEmojis, useSkinTone, useRecentEmojis, useCurrentUserId } from '@/lib/chat/hooks'
 import { useTranslation } from '@/lib/i18n'
@@ -127,9 +127,12 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
           if (out.length >= 200) break
         }
       }
-      // Matching custom emojis (search by name substring).
+      // Matching custom emojis (search by name substring) — only ones that
+      // actually exist on the server (skips the static "mattermost" placeholder,
+      // which would 404 as a reaction).
       for (const [name, emoji] of emojiMap) {
-        if (!isSystemEmoji(emoji) && name.toLowerCase().includes(q)) {
+        if (!isServerCustomEmoji(emoji)) continue
+        if (name.toLowerCase().includes(q)) {
           out.push({ name, unified: '', isSystem: false, customName: name })
           if (out.length >= 240) break
         }
@@ -145,15 +148,16 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
         const e = emojiMap.get(name)
         if (!e) continue
         if (isSystemEmoji(e)) recents.push({ name, unified: unifiedForTone(e, skinTone), isSystem: true })
-        else recents.push({ name, unified: '', isSystem: false, customName: name })
+        else if (isServerCustomEmoji(e)) recents.push({ name, unified: '', isSystem: false, customName: name })
       }
       pushSection('recent', t('chat.emoji.recent', 'Dùng gần đây'), recents)
     }
 
-    // Custom emojis (if any) next.
+    // Custom emojis (if any) next — only server-defined ones (the static
+    // "mattermost" placeholder is not reactable and renders a broken image).
     const customCells: EmojiCell[] = []
     for (const [name, emoji] of emojiMap) {
-      if (!isSystemEmoji(emoji)) customCells.push({ name, unified: '', isSystem: false, customName: name })
+      if (isServerCustomEmoji(emoji)) customCells.push({ name, unified: '', isSystem: false, customName: name })
     }
     pushSection('custom', t('chat.emoji.custom', 'Tùy chỉnh'), customCells.slice(0, 40))
 

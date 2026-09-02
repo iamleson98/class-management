@@ -40,6 +40,17 @@ export function isSystemEmoji(emoji: Emoji): emoji is SystemEmoji {
   return !('id' in emoji)
 }
 
+/**
+ * True for custom emojis that actually exist on the server (loaded via the
+ * /api/v4/emoji endpoints — they always carry a creator_id field). The static
+ * dataset contains one placeholder custom entry ("mattermost", no creator_id)
+ * which is NOT usable for reactions: the server would reject its name with a
+ * 404. Use this wherever the picker offers a custom emoji for selection.
+ */
+export function isServerCustomEmoji(emoji: Emoji): emoji is CustomEmoji {
+  return !isSystemEmoji(emoji) && 'creator_id' in emoji
+}
+
 /** The full system emoji array (auto-generated data, do not edit). */
 export const Emojis = rawData as SystemEmoji[]
 

@@ -39,8 +39,11 @@ interface PostListProps {
 const HEIGHT_TRIGGER_FOR_MORE_POSTS = 1000 // px from an edge to trigger paging
 const BUFFER_TO_BE_CONSIDERED_BOTTOM = 100 // px: within this of the bottom = "at bottom"
 
-// A small set of quick reactions shown under each post.
-const QUICK_EMOJIS = ['👍', '❤️', '🎉', '😂', '👀']
+// Quick-reaction emoji bar (hover actions). These MUST be Mattermost emoji
+// shortcode names (server-side reaction validation), NOT unicode glyphs —
+// the server rejects unknown names with 404 (app.emoji.get_by_name.no_result).
+// Rendered as glyphs via shortcodeToUnicode() below.
+const QUICK_EMOJIS = ['+1', 'heart', 'tada', 'joy', 'eyes']
 const EMPTY_POST_MAP: Record<string, ChatPost> = Object.freeze({})
 const EMPTY_POST_ORDER = Object.freeze([])
 
@@ -561,9 +564,10 @@ function PostRow(props: PostRowProps) {
                     <button
                       key={emoji}
                       onClick={() => { onToggleReaction(emoji); setShowEmoji(false) }}
+                      title={`:${emoji}:`}
                       className="h-7 w-7 rounded hover:bg-muted flex items-center justify-center text-base"
                     >
-                      {emoji}
+                      {shortcodeToUnicode(emoji) ?? `:${emoji}:`}
                     </button>
                   ))}
                 </div>
