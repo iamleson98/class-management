@@ -59,13 +59,14 @@ type AdminView =
   | 'homework'
   | 'reviews'
   | 'chat'
+  | 'account'
 
-type CounselorView = 'dashboard' | 'crm' | 'students' | 'chat'
-type TeacherView = 'dashboard' | 'schedule' | 'attendance' | 'materials' | 'submissions' | 'students-view' | 'homework' | 'reviews' | 'chat'
-type AccountantView = 'dashboard' | 'tuition' | 'payments' | 'reports-finance' | 'chat'
-type MarketingView = 'dashboard' | 'cms' | 'banners' | 'reports-marketing' | 'chat'
-type ParentView = 'dashboard' | 'child-info' | 'schedule' | 'attendance' | 'tuition-view' | 'notifications' | 'reviews' | 'homework' | 'media' | 'chat'
-type StudentView = 'dashboard' | 'schedule' | 'attendance' | 'materials' | 'submissions' | 'homework' | 'reviews' | 'chat'
+type CounselorView = 'dashboard' | 'crm' | 'students' | 'chat' | 'account'
+type TeacherView = 'dashboard' | 'schedule' | 'attendance' | 'materials' | 'submissions' | 'students-view' | 'homework' | 'reviews' | 'chat' | 'account'
+type AccountantView = 'dashboard' | 'tuition' | 'payments' | 'reports-finance' | 'chat' | 'account'
+type MarketingView = 'dashboard' | 'cms' | 'banners' | 'reports-marketing' | 'chat' | 'account'
+type ParentView = 'dashboard' | 'child-info' | 'schedule' | 'attendance' | 'tuition-view' | 'notifications' | 'reviews' | 'homework' | 'media' | 'chat' | 'account'
+type StudentView = 'dashboard' | 'schedule' | 'attendance' | 'materials' | 'submissions' | 'homework' | 'reviews' | 'chat' | 'account'
 
 export type ActiveView =
   | AdminView

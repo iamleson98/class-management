@@ -94,7 +94,7 @@ export function AppShell() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
-          <div className="h-8 w-8 border-2 border-sky-500/30 border-t-sky-500 rounded-full animate-spin" />
+          <div className="h-8 w-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
           <p className="text-sm text-muted-foreground">{t('auth.checking')}</p>
         </div>
       </div>
@@ -105,7 +105,7 @@ export function AppShell() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
-          <div className="h-8 w-8 border-2 border-sky-500/30 border-t-sky-500 rounded-full animate-spin" />
+          <div className="h-8 w-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
           <p className="text-sm text-muted-foreground">{t('auth.redirecting')}</p>
         </div>
       </div>
@@ -120,8 +120,8 @@ export function AppShell() {
 
   return (
     <div className="min-h-screen flex bg-background">
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:w-65 lg:flex-col lg:fixed lg:inset-y-0 border-r bg-card overflow-hidden">
+      {/* Desktop Sidebar — the Sidebar component paints its own dark ink gradient */}
+      <aside className="hidden lg:flex lg:w-65 lg:flex-col lg:fixed lg:inset-y-0 overflow-hidden">
         <Sidebar
           navItems={navItems}
           activeView={activeView!}
@@ -136,7 +136,7 @@ export function AppShell() {
 
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-70 p-0">
+        <SheetContent side="left" className="w-70 p-0 bg-transparent border-white/10">
           <SheetTitle className="sr-only">Menu điều hướng</SheetTitle>
           <Sidebar
             navItems={navItems}
@@ -154,7 +154,7 @@ export function AppShell() {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 lg:pl-65">
         {/* Header */}
-        <header className="sticky top-0 z-40 h-14 border-b bg-background/80 backdrop-blur supports-backdrop-filter:bg-background/60 flex items-center px-4 gap-3">
+        <header className="sticky top-0 z-40 h-14 border-b bg-background/80 backdrop-blur supports-backdrop-filter:bg-background/60 shadow-[0_1px_12px_oklch(0.45_0.1_267/6%)] flex items-center px-4 gap-3">
           <Button variant="ghost" size="icon" className="h-9 w-9 lg:hidden" onClick={toggleSidebar}>
             <Menu className="h-5 w-5" />
           </Button>

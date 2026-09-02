@@ -9,7 +9,7 @@ import {
   LayoutDashboard, Users, GraduationCap, BookOpen, School, CalendarDays,
   ClipboardCheck, ChevronRight, Menu, Sun, Moon, BarChart3, Bell, LogOut,
   Phone, FileText, DollarSign, ListTodo, Image, Settings, CreditCard,
-  Newspaper, MessageSquare,
+  Newspaper, MessageSquare, UserCircle, KeyRound,
 } from 'lucide-react'
 import type { ActiveView } from '@/store/lms-store'
 
@@ -39,6 +39,7 @@ export const ADMIN_NAV: NavItem[] = [
   { id: 'reports', labelKey: 'nav.reports', labelDefault: 'Báo cáo', icon: BarChart3, sectionKey: 'section.system', sectionDefault: 'Hệ thống' },
   { id: 'settings', labelKey: 'nav.settings', labelDefault: 'Cấu hình', icon: Settings },
   { id: 'chat', labelKey: 'nav.chat', labelDefault: 'Trò chuyện', icon: MessageSquare, sectionKey: 'section.communication', sectionDefault: 'Giao tiếp' },
+  { id: 'account', labelKey: 'nav.account', labelDefault: 'Tài khoản của tôi', icon: UserCircle, sectionKey: 'section.account', sectionDefault: 'Tài khoản' },
 ]
 
 export const COUNSELOR_NAV: NavItem[] = [
@@ -46,6 +47,7 @@ export const COUNSELOR_NAV: NavItem[] = [
   { id: 'crm', labelKey: 'nav.crm', labelDefault: 'CRM Tuyển sinh', icon: Phone, sectionKey: 'section.admissions', sectionDefault: 'Tuyển sinh' },
   { id: 'students', labelKey: 'nav.students', labelDefault: 'Học viên', icon: Users },
   { id: 'chat', labelKey: 'nav.chat', labelDefault: 'Trò chuyện', icon: MessageSquare, sectionKey: 'section.communication', sectionDefault: 'Giao tiếp' },
+  { id: 'account', labelKey: 'nav.account', labelDefault: 'Tài khoản của tôi', icon: UserCircle, sectionKey: 'section.account', sectionDefault: 'Tài khoản' },
 ]
 
 export const TEACHER_NAV: NavItem[] = [
@@ -56,6 +58,7 @@ export const TEACHER_NAV: NavItem[] = [
   { id: 'homework', labelKey: 'nav.homework', labelDefault: 'Bài tập', icon: ListTodo },
   { id: 'reviews', labelKey: 'nav.reviews', labelDefault: 'Nhận xét', icon: CreditCard },
   { id: 'chat', labelKey: 'nav.chat', labelDefault: 'Trò chuyện', icon: MessageSquare, sectionKey: 'section.communication', sectionDefault: 'Giao tiếp' },
+  { id: 'account', labelKey: 'nav.account', labelDefault: 'Tài khoản của tôi', icon: UserCircle, sectionKey: 'section.account', sectionDefault: 'Tài khoản' },
 ]
 
 export const ACCOUNTANT_NAV: NavItem[] = [
@@ -64,6 +67,7 @@ export const ACCOUNTANT_NAV: NavItem[] = [
   { id: 'payments', labelKey: 'nav.payments', labelDefault: 'Thanh toán', icon: CreditCard },
   { id: 'reports-finance', labelKey: 'nav.reports', labelDefault: 'Báo cáo', icon: BarChart3 },
   { id: 'chat', labelKey: 'nav.chat', labelDefault: 'Trò chuyện', icon: MessageSquare, sectionKey: 'section.communication', sectionDefault: 'Giao tiếp' },
+  { id: 'account', labelKey: 'nav.account', labelDefault: 'Tài khoản của tôi', icon: UserCircle, sectionKey: 'section.account', sectionDefault: 'Tài khoản' },
 ]
 
 export const MARKETING_NAV: NavItem[] = [
@@ -72,6 +76,7 @@ export const MARKETING_NAV: NavItem[] = [
   { id: 'banners', labelKey: 'nav.banners', labelDefault: 'Banner', icon: Image },
   { id: 'reports-marketing', labelKey: 'nav.reports', labelDefault: 'Báo cáo', icon: BarChart3 },
   { id: 'chat', labelKey: 'nav.chat', labelDefault: 'Trò chuyện', icon: MessageSquare, sectionKey: 'section.communication', sectionDefault: 'Giao tiếp' },
+  { id: 'account', labelKey: 'nav.account', labelDefault: 'Tài khoản của tôi', icon: UserCircle, sectionKey: 'section.account', sectionDefault: 'Tài khoản' },
 ]
 
 export const PARENT_NAV: NavItem[] = [
@@ -85,6 +90,7 @@ export const PARENT_NAV: NavItem[] = [
   { id: 'media', labelKey: 'nav.media', labelDefault: 'Hình ảnh/Video', icon: Image },
   { id: 'notifications', labelKey: 'nav.notifications', labelDefault: 'Thông báo', icon: Bell },
   { id: 'chat', labelKey: 'nav.chat', labelDefault: 'Trò chuyện', icon: MessageSquare, sectionKey: 'section.communication', sectionDefault: 'Giao tiếp' },
+  { id: 'account', labelKey: 'nav.account', labelDefault: 'Tài khoản của tôi', icon: UserCircle, sectionKey: 'section.account', sectionDefault: 'Tài khoản' },
 ]
 
 export const STUDENT_NAV: NavItem[] = [
@@ -95,6 +101,7 @@ export const STUDENT_NAV: NavItem[] = [
   { id: 'homework', labelKey: 'nav.homework', labelDefault: 'Bài tập', icon: ListTodo },
   { id: 'reviews', labelKey: 'nav.reviews', labelDefault: 'Nhận xét', icon: CreditCard },
   { id: 'chat', labelKey: 'nav.chat', labelDefault: 'Trò chuyện', icon: MessageSquare, sectionKey: 'section.communication', sectionDefault: 'Giao tiếp' },
+  { id: 'account', labelKey: 'nav.account', labelDefault: 'Tài khoản của tôi', icon: UserCircle, sectionKey: 'section.account', sectionDefault: 'Tài khoản' },
 ]
 
 export const NAV_MAP: Record<string, NavItem[]> = {

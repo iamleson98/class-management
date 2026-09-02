@@ -1,29 +1,31 @@
 'use client'
 
 /**
- * Emoji picker — full-fidelity port of the vendored emoji_picker, driven by the
- * real emoji data system (src/lib/chat/emoji-data). Renders all system emojis
- * grouped by their actual categories (smileys-emotion, people-body, etc.) with
- * search across short_names, plus any custom emojis loaded into the EmojiMap.
+ * Emoji picker — Mattermost-style redesign, driven by the real emoji data
+ * system (src/lib/chat/emoji-data).
  *
- * Parity features ported from the vendored picker:
- *   - skin-tone selector (preference "emoji/emoji_skintone"), applied to emojis
- *     that have skin_variations (emoji_picker_skin.tsx)
- *   - recent-emoji section, persisted to preference "emoji/recent_emojis"
- *     (emoji_picker.tsx RECENT handling)
- *   - preview footer showing the hovered/keyboard-selected emoji
- *     (emoji_picker_preview.tsx)
+ * Layout borrows from Mattermost's emoji_picker component:
+ *   - header: search input + skin-tone selector (popover) on the right
+ *   - body: scrollable grid with sticky category headers (9 per row)
+ *   - footer: preview bar — large glyph + :shortcode:
+ *   - bottom bar: category shortcut tabs (icon buttons, MM's exact set:
+ *     recent / smileys / people / animals / food / activities / travel /
+ *     objects / symbols / flags) with scroll-spy highlight and smooth
+ *     scroll-to-category on click
+ *
+ * Behavior parity with the previous port:
+ *   - skin-tone preference "emoji/emoji_skintone" applied to emojis with
+ *     skin_variations
+ *   - recent-emoji section persisted to "emoji/recent_emojis"
  *   - keyboard grid navigation: arrows move the cursor, Enter selects, the
- *     active emoji scrolls into view (handleKeyboardEmojiNavigation)
+ *     active emoji scrolls into view; Escape closes
  *
  * The selected emoji is returned by short_name (for reactions) or :shortcode:.
  */
 
 import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
-import { Search, X } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Button } from '@/components/ui/button'
 import {
   Emojis, getEmojiIndicesByCategory, unifiedToUnicode, emojiMap,
   getEmojiImageUrl, isSystemEmoji, type SystemEmoji,
@@ -36,31 +38,32 @@ interface EmojiPickerProps {
   onClose: () => void
 }
 
-// Standard category order (mirrors the picker's EMOJI_CATEGORIES, minus recent/searchResults/custom
-// which are handled specially). Labels are localized.
-const CATEGORIES: { key: string; labelKey: string; label: string }[] = [
-  { key: 'smileys-emotion', labelKey: 'chat.emoji.smileys', label: 'Cảm xúc' },
-  { key: 'people-body', labelKey: 'chat.emoji.people', label: 'Con người' },
-  { key: 'animals-nature', labelKey: 'chat.emoji.animals', label: 'Động vật' },
-  { key: 'food-drink', labelKey: 'chat.emoji.food', label: 'Đồ ăn' },
-  { key: 'travel-places', labelKey: 'chat.emoji.travel', label: 'Du lịch' },
-  { key: 'activities', labelKey: 'chat.emoji.activities', label: 'Hoạt động' },
-  { key: 'objects', labelKey: 'chat.emoji.objects', label: 'Đồ vật' },
-  { key: 'symbols', labelKey: 'chat.emoji.symbols', label: 'Ký hiệu' },
-  { key: 'flags', labelKey: 'chat.emoji.flags', label: 'Cờ' },
+// Standard category order (mirrors the picker's EMOJI_CATEGORIES, minus
+// recent/searchResults/custom which are handled specially). Each category has
+// the Mattermost shortcut icon shown in the bottom tab bar.
+const CATEGORIES: { key: string; labelKey: string; label: string; icon: string }[] = [
+  { key: 'smileys-emotion', labelKey: 'chat.emoji.smileys', label: 'Cảm xúc', icon: '😀' },
+  { key: 'people-body', labelKey: 'chat.emoji.people', label: 'Con người', icon: '👋' },
+  { key: 'animals-nature', labelKey: 'chat.emoji.animals', label: 'Động vật', icon: '🐻' },
+  { key: 'food-drink', labelKey: 'chat.emoji.food', label: 'Đồ ăn', icon: '🍔' },
+  { key: 'travel-places', labelKey: 'chat.emoji.travel', label: 'Du lịch', icon: '🚌' },
+  { key: 'activities', labelKey: 'chat.emoji.activities', label: 'Hoạt động', icon: '⚽' },
+  { key: 'objects', labelKey: 'chat.emoji.objects', label: 'Đồ vật', icon: '💡' },
+  { key: 'symbols', labelKey: 'chat.emoji.symbols', label: 'Ký hiệu', icon: '❤️' },
+  { key: 'flags', labelKey: 'chat.emoji.flags', label: 'Cờ', icon: '🏁' },
 ]
 
 // Skin-tone options (Fitzpatrick scale). 'default' = no skin tone modifier.
 const SKIN_TONES: { key: string; label: string; glyph: string }[] = [
-  { key: 'default', label: 'Mặc định', glyph: '🖐' },
+  { key: 'default', label: 'Mặc định', glyph: '✋' },
   { key: '1F3FB', label: 'Sáng', glyph: '🏻' },
   { key: '1F3FC', label: 'Sáng vừa', glyph: '🏼' },
   { key: '1F3FD', label: 'Trung bình', glyph: '🏽' },
-  { key: '1F3FE', label: 'Nâu', glyph: '🏾' },
+  { key: '1F3FE', label: 'Sâu', glyph: '🏾' },
   { key: '1F3FF', label: 'Tối', glyph: '🏿' },
 ]
 
-const EMOJI_PER_ROW = 8 // grid-cols-8
+const EMOJI_PER_ROW = 9 // grid-cols-9 (Mattermost density)
 
 /** Resolve the unified codepoint to render for an emoji given the skin tone. */
 function unifiedForTone(emoji: SystemEmoji, skinTone: string): string {
@@ -82,6 +85,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
   const userId = useCurrentUserId()
   const [query, setQuery] = useState('')
   const [activeCat, setActiveCat] = useState<string>('smileys-emotion')
+  const [toneOpen, setToneOpen] = useState(false)
   const { skinTone, setSkinTone } = useSkinTone(userId)
   const { recent, addRecent } = useRecentEmojis(userId)
   useCustomEmojis()
@@ -89,7 +93,10 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
   // Keyboard cursor (a stable key like `${name}`) for grid navigation.
   const [cursor, setCursor] = useState<string | null>(null)
   const gridRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
+  const sectionRefs = useRef<Map<string, HTMLElement>>(new Map())
+  const spyGuard = useRef(0)
 
   // Focus the search input on mount (ports the picker's requestAnimationFrame focus).
   useEffect(() => {
@@ -97,15 +104,15 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
   }, [])
 
   // Build the flat, ordered list of emoji cells actually shown in the grid.
-  // Sections are: [recent?, custom?, category1, category2, ...] — each prefixed
-  // with a header so we can compute row/column for keyboard navigation.
+  // Sections are: [recent?, custom?, category1, category2, ...] — each rendered
+  // with a header (and data-section anchor for scroll-to-category + scroll-spy).
   const { cells, sections } = useMemo(() => {
     const cells: EmojiCell[] = []
-    const sections: { title: string; startIndex: number }[] = []
+    const sections: { key: string; title: string; startIndex: number }[] = []
 
-    const pushSection = (title: string, items: EmojiCell[]) => {
+    const pushSection = (key: string, title: string, items: EmojiCell[]) => {
       if (items.length === 0) return
-      sections.push({ title, startIndex: cells.length })
+      sections.push({ key, title, startIndex: cells.length })
       cells.push(...items)
     }
 
@@ -127,7 +134,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
           if (out.length >= 240) break
         }
       }
-      pushSection(t('chat.emoji.searchResults', 'Kết quả'), out)
+      pushSection('search', t('chat.emoji.searchResults', 'Kết quả'), out)
       return { cells, sections }
     }
 
@@ -140,7 +147,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
         if (isSystemEmoji(e)) recents.push({ name, unified: unifiedForTone(e, skinTone), isSystem: true })
         else recents.push({ name, unified: '', isSystem: false, customName: name })
       }
-      pushSection(t('chat.emoji.recent', 'Dùng gần đây'), recents)
+      pushSection('recent', t('chat.emoji.recent', 'Dùng gần đây'), recents)
     }
 
     // Custom emojis (if any) next.
@@ -148,7 +155,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
     for (const [name, emoji] of emojiMap) {
       if (!isSystemEmoji(emoji)) customCells.push({ name, unified: '', isSystem: false, customName: name })
     }
-    pushSection(t('chat.emoji.custom', 'Tùy chỉnh'), customCells.slice(0, 40))
+    pushSection('custom', t('chat.emoji.custom', 'Tùy chỉnh'), customCells.slice(0, 40))
 
     // Standard categories.
     for (const cat of CATEGORIES) {
@@ -159,7 +166,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
         const name = (e.short_names ?? [e.short_name])[0]
         return { name, unified: unifiedForTone(e, skinTone), isSystem: true }
       })
-      pushSection(t(cat.labelKey, cat.label), items)
+      pushSection(cat.key, t(cat.labelKey, cat.label), items)
     }
 
     return { cells, sections }
@@ -187,6 +194,12 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
 
   // ── Keyboard grid navigation (ports handleKeyboardEmojiNavigation) ──
   const onKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      if (toneOpen) { setToneOpen(false); return }
+      onClose()
+      return
+    }
     if (cells.length === 0) return
     const idx = effectiveCursor ? cells.findIndex((c) => c.name === effectiveCursor) : -1
 
@@ -199,7 +212,6 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
       setCursor(cells[idx - 1].name)
     } else if (e.key === 'ArrowDown') {
       e.preventDefault()
-      // Skip over any section header rows between this row and the one EMOJI_PER_ROW down.
       setCursor(cells[Math.min(idx + EMOJI_PER_ROW, cells.length - 1)].name)
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
@@ -209,11 +221,8 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
       e.preventDefault()
       const cell = idx >= 0 ? cells[idx] : cells[0]
       if (cell) choose(cell)
-    } else if (e.key === 'Escape') {
-      e.preventDefault()
-      onClose()
     }
-  }, [cells, effectiveCursor, choose, onClose])
+  }, [cells, effectiveCursor, choose, onClose, toneOpen])
 
   // The emoji currently under the cursor (for the preview footer).
   const previewEmoji = effectiveCursor ? cells.find((c) => c.name === effectiveCursor) : null
@@ -221,60 +230,105 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
     ? previewEmoji.isSystem ? unifiedToUnicode(previewEmoji.unified) : null
     : null
 
+  // Scroll-spy: while scrolling the grid, highlight the tab of the section
+  // closest to the top of the viewport. (Reading spyGuard inside the handler
+  // — not during render — suppresses spy right after a programmatic jump.)
+  const onGridScroll = useCallback(() => {
+    if (query.trim() || Date.now() <= spyGuard.current) return
+    const container = scrollRef.current
+    if (!container) return
+    const top = container.scrollTop
+    let current = sections[0]?.key ?? activeCat
+    for (const s of sections) {
+      const el = sectionRefs.current.get(s.key)
+      if (el && el.offsetTop - 44 <= top) current = s.key
+    }
+    if (current !== activeCat) setActiveCat(current)
+  }, [query, sections, activeCat])
+
+  // Click a category tab → smooth-scroll to that section (suppress spy briefly).
+  const goToCategory = useCallback((key: string) => {
+    const el = sectionRefs.current.get(key)
+    if (!el) return
+    spyGuard.current = Date.now() + 600
+    setActiveCat(key)
+    // Scroll so the section header sits just below the header bar.
+    scrollRef.current?.scrollTo({ top: Math.max(0, el.offsetTop - 4), behavior: 'smooth' })
+    // Move the cursor to the first emoji of this category.
+    const sec = sections.find((s) => s.key === key)
+    if (sec) setCursor(cells[sec.startIndex]?.name ?? null)
+  }, [sections, cells])
+
   // Render the grid, inserting a section header before each section's start index.
-  const sectionStarts = new Set(sections.map((s) => s.startIndex))
-  const sectionTitleByStart = useMemo(() => {
+  const sectionStarts = useMemo(() => new Set(sections.map((s) => s.startIndex)), [sections])
+  const sectionByKey = useMemo(() => {
     const m = new Map<number, string>()
-    for (const s of sections) m.set(s.startIndex, s.title)
+    for (const s of sections) m.set(s.startIndex, s.key)
     return m
   }, [sections])
 
+  const activeTone = SKIN_TONES.find((tone) => tone.key === skinTone) ?? SKIN_TONES[0]
+
   return (
-    <div className="w-72 rounded-lg border bg-popover shadow-lg" onKeyDown={onKeyDown}>
-      <div className="flex items-center gap-2 p-2 border-b">
-        <Search className="h-3.5 w-3.5 text-muted-foreground" />
-        <Input
-          ref={searchRef}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={t('chat.searchEmoji', 'Tìm emoji…')}
-          className="h-7 text-xs border-0 focus-visible:ring-0"
-        />
-        <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={onClose}>
-          <X className="h-3.5 w-3.5" />
-        </Button>
+    <div
+      className="w-[26rem] max-w-[calc(100vw-2rem)] rounded-xl border bg-popover shadow-2xl overflow-hidden select-none"
+      onKeyDown={onKeyDown}
+    >
+      {/* ── Header: search + skin tone ── */}
+      <div className="relative flex items-center gap-1.5 p-2 border-b">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            ref={searchRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t('chat.searchEmoji', 'Tìm emoji…')}
+            className="h-8 pl-8 text-xs rounded-lg"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setToneOpen(!toneOpen)}
+          title={t('chat.emoji.skinTone', 'Tông màu da')}
+          className={`h-8 w-8 shrink-0 rounded-lg flex items-center justify-center text-base transition-colors ${toneOpen ? 'bg-primary/10 ring-1 ring-primary/40' : 'hover:bg-muted'}`}
+        >
+          <span className="leading-none">{activeTone.glyph}</span>
+        </button>
+        {toneOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setToneOpen(false)} />
+            <div className="absolute right-2 top-full mt-1 z-50 flex items-center gap-1 rounded-lg border bg-popover shadow-lg p-1.5">
+              {SKIN_TONES.map((tone) => (
+                <button
+                  key={tone.key}
+                  type="button"
+                  onClick={() => { setSkinTone(tone.key); setToneOpen(false) }}
+                  title={tone.label}
+                  className={`h-7 w-7 rounded-md flex items-center justify-center text-sm transition-all ${skinTone === tone.key ? 'bg-primary/15 ring-1 ring-primary/50 scale-110' : 'hover:bg-muted'}`}
+                >
+                  {tone.key === 'default' ? '✋' : tone.glyph}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
-      {!query.trim() && (
-        <div className="flex gap-0.5 px-1.5 py-1 border-b overflow-x-auto">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat.key}
-              onClick={() => {
-                setActiveCat(cat.key)
-                // Jump the cursor to the first emoji of this category.
-                const sec = sections.find((s) => s.title === t(cat.labelKey, cat.label))
-                if (sec) setCursor(cells[sec.startIndex]?.name ?? null)
-              }}
-              className={`shrink-0 px-2 py-1 rounded text-[10px] font-medium transition-colors ${activeCat === cat.key ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/60'}`}
-            >
-              {t(cat.labelKey, cat.label)}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <ScrollArea className="h-64">
-        <div ref={gridRef} className="p-2">
+      {/* ── Body: emoji grid with sticky section headers ── */}
+      <div ref={scrollRef} onScroll={onGridScroll} className="h-64 overflow-y-auto overscroll-contain custom-scrollbar">
+        <div ref={gridRef} className="pb-1">
           {cells.length === 0 ? (
-            <div className="py-8 text-center text-xs text-muted-foreground">{t('chat.noEmoji', 'Không tìm thấy emoji')}</div>
+            <div className="py-10 text-center text-xs text-muted-foreground">{t('chat.noEmoji', 'Không tìm thấy emoji')}</div>
           ) : (
-            <div className="grid grid-cols-8 gap-0.5">
+            <div className="grid grid-cols-9 gap-0.5 px-1.5 pt-1.5">
               {cells.map((cell, i) => (
                 <div key={cell.name + i} className="contents">
                   {sectionStarts.has(i) && (
-                    <div className="col-span-8 px-1 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">
-                      {sectionTitleByStart.get(i)}
+                    <div
+                      ref={(el) => { if (el) sectionRefs.current.set(sectionByKey.get(i) ?? '', el) }}
+                      className="col-span-9 sticky top-0 z-10 -mx-1.5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/80 bg-popover/95 backdrop-blur-sm border-b border-border/40"
+                    >
+                      {sections.find((s) => s.startIndex === i)?.title}
                     </div>
                   )}
                   <EmojiCellButton
@@ -288,12 +342,11 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
             </div>
           )}
         </div>
-      </ScrollArea>
+      </div>
 
-      {/* Skin-tone selector + preview footer (ports emoji_picker_footer). */}
-      <div className="flex items-center gap-2 px-2 py-1.5 border-t">
-        {/* Preview */}
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+      {/* ── Footer: preview ── */}
+      <div className="flex items-center gap-2.5 px-3 py-2 border-t bg-muted/30">
+        <div className="h-8 w-8 rounded-lg bg-background border flex items-center justify-center shrink-0">
           {previewEmoji ? (
             previewGlyph ? (
               <span className="text-xl leading-none">{previewGlyph}</span>
@@ -303,27 +356,59 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
           ) : (
             <span className="text-xl leading-none opacity-30">🙂</span>
           )}
-          <span className="text-xs text-muted-foreground truncate">
-            {previewEmoji ? `:${previewEmoji.name}:` : ''}
-          </span>
         </div>
-        {/* Skin tones */}
-        {!query.trim() && (
-          <div className="flex items-center gap-0.5">
-            {SKIN_TONES.map((tone) => (
-              <button
-                key={tone.key}
-                onClick={() => setSkinTone(tone.key)}
-                title={tone.label}
-                className={`h-5 w-5 rounded-full flex items-center justify-center text-xs transition-transform ${skinTone === tone.key ? 'bg-muted ring-1 ring-ring scale-110' : 'hover:bg-muted/60'}`}
-              >
-                {tone.key === 'default' ? <span className="text-[10px]">🚫</span> : <span>{tone.glyph}</span>}
-              </button>
-            ))}
-          </div>
-        )}
+        <span className="text-xs font-medium text-muted-foreground truncate">
+          {previewEmoji ? `:${previewEmoji.name}:` : ''}
+        </span>
       </div>
+
+      {/* ── Bottom bar: category shortcut tabs (Mattermost style) ── */}
+      {!query.trim() && (
+        <div className="flex items-center justify-around px-1.5 py-1 border-t">
+          {recent.length > 0 && (
+            <CategoryTab
+              icon="🕘"
+              label={t('chat.emoji.recent', 'Dùng gần đây')}
+              active={activeCat === 'recent'}
+              onClick={() => goToCategory('recent')}
+            />
+          )}
+          {CATEGORIES.map((cat) => (
+            <CategoryTab
+              key={cat.key}
+              icon={cat.icon}
+              label={t(cat.labelKey, cat.label)}
+              active={activeCat === cat.key}
+              onClick={() => goToCategory(cat.key)}
+            />
+          ))}
+        </div>
+      )}
     </div>
+  )
+}
+
+/** A bottom-bar category shortcut tab. */
+function CategoryTab({ icon, label, active, onClick }: {
+  icon: string
+  label: string
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      className={`relative h-8 w-8 rounded-lg flex items-center justify-center text-lg leading-none transition-all press-effect ${active
+        ? 'bg-primary/12 text-foreground'
+        : 'hover:bg-muted text-muted-foreground'
+        }`}
+    >
+      <span className="leading-none">{icon}</span>
+      {active && <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 h-0.5 w-4 rounded-full bg-primary" />}
+    </button>
   )
 }
 
@@ -336,10 +421,11 @@ function EmojiCellButton({ cell, active, onSelect, onHover }: {
 }) {
   return (
     <button
+      type="button"
       data-emoji-name={cell.name}
       onClick={() => onSelect(cell)}
       onMouseEnter={() => onHover(cell.name)}
-      className={`h-8 w-8 rounded flex items-center justify-center text-lg leading-none ${active ? 'bg-muted ring-1 ring-ring' : 'hover:bg-muted'}`}
+      className={`h-8 w-8 rounded-md flex items-center justify-center text-lg leading-none transition-colors ${active ? 'bg-primary/15 ring-1 ring-primary/40' : 'hover:bg-primary/10'}`}
       title={`:${cell.name}:`}
     >
       {cell.isSystem ? (

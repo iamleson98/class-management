@@ -5,8 +5,8 @@ export * from './enums'
 export * from './types'
 
 // ─── Auth ───────────────────────────────────────────────────────────
-export { loginSchema, forgotPasswordSchema, resetPasswordSchema } from './auth.schema'
-export type { LoginInput } from './auth.schema'
+export { loginSchema, forgotPasswordSchema, resetPasswordSchema, changePasswordSchema } from './auth.schema'
+export type { LoginInput, ChangePasswordInput } from './auth.schema'
 
 // ─── User ────────────────────────────────────────────────────────────
 export { createUserSchema, updateUserSchema } from './user.schema'

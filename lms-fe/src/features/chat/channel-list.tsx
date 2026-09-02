@@ -17,7 +17,6 @@
 import { useMemo, useState, useCallback } from 'react'
 import { Hash, Lock, Users, Search, MessageSquare, Star, MoreHorizontal, CheckCheck, LogOut, PhoneCall } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -109,7 +108,9 @@ export function ChannelList({ selectedChannelId, onSelect }: ChannelListProps) {
         </div>
       </div>
 
-      <ScrollArea className="flex-1 min-h-0">
+      {/* Native overflow scrolling — the Radix ScrollArea custom viewport breaks
+          mouse-wheel scrolling in some browsers; native overflow always works. */}
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar overscroll-contain">
         <div className="p-2">
           {channelsQuery.isLoading ? (
             <div className="space-y-2 p-1">
@@ -188,7 +189,7 @@ export function ChannelList({ selectedChannelId, onSelect }: ChannelListProps) {
             ))
           )}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   )
 }

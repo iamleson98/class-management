@@ -12,7 +12,7 @@ import dynamic from 'next/dynamic'
 function LoadingView() {
   return (
     <div className="flex items-center justify-center h-64">
-      <div className="h-8 w-8 border-3 border-sky-200 border-t-sky-600 rounded-full animate-spin" />
+      <div className="h-8 w-8 border-3 border-primary/25 border-t-primary rounded-full animate-spin" />
     </div>
   )
 }
@@ -71,6 +71,9 @@ const StudentAttendance = load(() => import('@/features/student/attendance'))
 // Chat (shared across staff/parent/student roles)
 const ChatView = load(() => import('@/features/chat/chat-view'))
 
+// Account management (shared by every role)
+const AccountView = load(() => import('@/features/account/account-view'))
+
 function NotFoundView() {
   return <div className="p-6"><h2 className="text-xl font-bold">Trang không tồn tại</h2></div>
 }
@@ -106,6 +109,7 @@ export function renderView(role: string, view: string) {
         case 'homework': return <AdminHomework />
         case 'reviews': return <AdminReviews />
         case 'chat': return <ChatView />
+        case 'account': return <AccountView />
         default: return <NotFoundView />
       }
     }
@@ -115,6 +119,7 @@ export function renderView(role: string, view: string) {
         case 'crm': return <CounselorCRM />
         case 'students': return <AdminStudents />
         case 'chat': return <ChatView />
+        case 'account': return <AccountView />
         default: return <NotFoundView />
       }
     }
@@ -128,6 +133,7 @@ export function renderView(role: string, view: string) {
         case 'homework': return <AdminHomework />
         case 'reviews': return <AdminReviews />
         case 'chat': return <ChatView />
+        case 'account': return <AccountView />
         default: return <NotFoundView />
       }
     }
@@ -138,6 +144,7 @@ export function renderView(role: string, view: string) {
         case 'payments': return <AccountantTuition />
         case 'reports-finance': return <AdminReports />
         case 'chat': return <ChatView />
+        case 'account': return <AccountView />
         default: return <NotFoundView />
       }
     }
@@ -151,6 +158,7 @@ export function renderView(role: string, view: string) {
         case 'banners': return <AdminSettings mode="banners" />
         case 'reports-marketing': return <AdminReports />
         case 'chat': return <ChatView />
+        case 'account': return <AccountView />
         default: return <NotFoundView />
       }
     }
@@ -166,6 +174,7 @@ export function renderView(role: string, view: string) {
         case 'media': return <ParentMedia />
         case 'notifications': return <ComingSoonView title="Thông báo" />
         case 'chat': return <ChatView />
+        case 'account': return <AccountView />
         default: return <NotFoundView />
       }
     }
@@ -179,6 +188,7 @@ export function renderView(role: string, view: string) {
         case 'submissions': return <StudentHomework />
         case 'reviews': return <StudentReviews />
         case 'chat': return <ChatView />
+        case 'account': return <AccountView />
         default: return <NotFoundView />
       }
     }

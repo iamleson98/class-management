@@ -82,21 +82,22 @@ export default function PublicLoginPage() {
       {/* ============================================================ */}
       {/*  Left branding panel — desktop only                          */}
       {/* ============================================================ */}
-      <div className="hidden lg:flex lg:w-1/2 bg-linear-to-br from-sky-600 via-teal-600 to-cyan-700 p-12 flex-col justify-between relative overflow-hidden">
-        {/* Decorative circles */}
-        <div className="absolute -top-20 -right-20 w-80 h-80 bg-white/10 rounded-full" />
-        <div className="absolute -bottom-15 -left-15 w-64 h-64 bg-white/10 rounded-full" />
-        <div className="absolute top-1/2 left-1/3 w-32 h-32 bg-white/5 rounded-full blur-xl" />
+      <div className="hidden lg:flex lg:w-1/2 bg-linear-to-br from-indigo-700 via-indigo-600 to-sky-500 p-12 flex-col justify-between relative overflow-hidden">
+        {/* Decorative aurora blobs */}
+        <div className="absolute -top-20 -right-20 w-80 h-80 bg-white/10 rounded-full blur-2xl" />
+        <div className="absolute -bottom-15 -left-15 w-64 h-64 bg-cyan-300/20 rounded-full blur-2xl" />
+        <div className="absolute top-1/2 right-1/4 w-72 h-72 bg-violet-400/15 rounded-full blur-3xl" />
+        <div className="absolute inset-0 dot-pattern opacity-15" />
 
         {/* Top: Logo */}
         <div className="relative z-10">
           <Link href="/home" className="inline-flex items-center gap-3">
-            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl">
+            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl ring-1 ring-white/30 shadow-lg">
               <GraduationCap className="h-8 w-8 text-white" />
             </div>
             <div>
               <span className="font-bold text-2xl text-white tracking-tight">VMG</span>
-              <p className="text-sky-100 text-sm font-medium">{t('layout.brand', 'Việt Mỹ Global')}</p>
+              <p className="text-indigo-100 text-sm font-medium">{t('layout.brand', 'Việt Mỹ Global')}</p>
             </div>
           </Link>
         </div>
@@ -108,9 +109,9 @@ export default function PublicLoginPage() {
             <br />
             {t('login.hero.leftTitleLine2', 'tiếng Anh')}
             <br />
-            <span className="text-sky-200">{t('login.hero.leftTitleLine3', 'cùng bạn')}</span>
+            <span className="bg-linear-to-r from-cyan-200 to-white bg-clip-text text-transparent">{t('login.hero.leftTitleLine3', 'cùng bạn')}</span>
           </h1>
-          <p className="text-sky-100 text-lg max-w-md leading-relaxed">
+          <p className="text-indigo-100 text-lg max-w-md leading-relaxed">
             {t('login.hero.leftDescription', 'Nền tảng quản lý học tập thông minh, giúp bạn theo dõi tiến độ và đạt mục tiêu tiếng Anh nhanh hơn.')}
           </p>
 
@@ -119,17 +120,17 @@ export default function PublicLoginPage() {
             {STATS.map((stat) => (
               <div key={stat.label} className="text-center">
                 <div className="flex items-center justify-center mb-2">
-                  <stat.icon className="h-5 w-5 text-sky-200 mr-1.5" />
+                  <stat.icon className="h-5 w-5 text-cyan-200 mr-1.5" />
                   <span className="text-2xl font-bold text-white">{stat.value}</span>
                 </div>
-                <span className="text-sky-200 text-sm">{t(stat.label, '')}</span>
+                <span className="text-indigo-200 text-sm">{t(stat.label, '')}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Bottom: Copyright */}
-        <div className="relative z-10 text-sky-200/60 text-sm">
+        <div className="relative z-10 text-indigo-200/70 text-sm">
           &copy; {new Date().getFullYear()} {t('layout.brand', 'Việt Mỹ Global')}. {t('layout.footer.copyright', 'Tất cả quyền được bảo lưu.')}
         </div>
       </div>
@@ -145,11 +146,11 @@ export default function PublicLoginPage() {
         >
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-4">
-            <div className="p-2.5 bg-sky-100 dark:bg-sky-900/30 rounded-xl">
-              <GraduationCap className="h-7 w-7 text-sky-600" />
+            <div className="p-2.5 bg-linear-to-br from-indigo-500 to-sky-400 rounded-xl shadow-lg shadow-indigo-500/25">
+              <GraduationCap className="h-7 w-7 text-white" />
             </div>
             <div>
-              <span className="font-bold text-xl text-sky-600">VMG</span>
+              <span className="font-bold text-xl gradient-text">VMG</span>
               <p className="text-xs text-muted-foreground">{t('layout.brand', 'Việt Mỹ Global')}</p>
             </div>
           </div>
@@ -198,7 +199,7 @@ export default function PublicLoginPage() {
                       <FormLabel>{t('auth.password', 'Mật khẩu')}</FormLabel>
                       <Link
                         href="/forgot-password"
-                        className="text-xs text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300 font-medium"
+                        className="text-xs text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium"
                       >
                         {t('auth.forgotPassword', 'Quên mật khẩu?')}
                       </Link>
@@ -239,7 +240,7 @@ export default function PublicLoginPage() {
                 <motion.div
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="p-3 rounded-lg bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 text-sm"
+                  className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm"
                 >
                   {error}
                 </motion.div>
@@ -248,7 +249,7 @@ export default function PublicLoginPage() {
               {/* Submit */}
               <Button
                 type="submit"
-                className="w-full bg-sky-600 hover:bg-sky-700 rounded-lg h-11 font-semibold text-white"
+                className="w-full h-11 rounded-xl font-semibold text-white bg-linear-to-r from-indigo-600 to-sky-500 hover:from-indigo-700 hover:to-sky-600 shadow-lg shadow-indigo-500/25"
                 disabled={loginMutation.isPending}
               >
                 {loginMutation.isPending ? (
@@ -271,7 +272,7 @@ export default function PublicLoginPage() {
             {t('auth.noAccount', 'Chưa có tài khoản?')}{' '}
             <Link
               href="/register"
-              className="text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300 font-medium inline-flex items-center gap-0.5"
+              className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium inline-flex items-center gap-0.5"
             >
               {t('auth.registerNow', 'Đăng ký ngay')}
               <ChevronRight className="h-3.5 w-3.5" />
@@ -279,7 +280,7 @@ export default function PublicLoginPage() {
           </p>
 
           {/* Demo hint */}
-          <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-2">
+          <div className="rounded-xl border border-dashed bg-muted/20 p-4 text-sm space-y-2">
             <p className="font-medium text-muted-foreground">{t('login.demoAccount', 'Tài khoản dùng thử')}</p>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>

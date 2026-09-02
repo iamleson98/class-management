@@ -44,19 +44,21 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   return (
     <div className="min-h-screen flex">
       {/* Left panel - desktop only */}
-      <div className="hidden lg:flex lg:w-1/2 bg-linear-to-br from-sky-600 via-teal-600 to-cyan-700 p-12 flex-col justify-between relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 bg-linear-to-br from-indigo-700 via-indigo-600 to-sky-500 p-12 flex-col justify-between relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-20 left-20 w-72 h-72 bg-white rounded-full blur-3xl" />
-          <div className="absolute bottom-20 right-20 w-96 h-96 bg-yellow-300 rounded-full blur-3xl" />
+          <div className="absolute bottom-20 right-20 w-96 h-96 bg-cyan-300 rounded-full blur-3xl" />
+          <div className="absolute top-1/2 right-1/3 w-64 h-64 bg-violet-300 rounded-full blur-3xl" />
         </div>
+        <div className="absolute inset-0 dot-pattern opacity-20" />
         <div className="relative z-10">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
+            <div className="p-3 bg-white/20 backdrop-blur rounded-xl ring-1 ring-white/30">
               <GraduationCap className="h-8 w-8 text-white" />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-white">{t('layout.brand', 'Việt Mỹ Global')}</h1>
-              <p className="text-sky-100 text-sm">{t('layout.subtitle', 'Hệ thống Quản lý Trung tâm Anh ngữ')}</p>
+              <p className="text-indigo-100 text-sm">{t('layout.subtitle', 'Hệ thống Quản lý Trung tâm Anh ngữ')}</p>
             </div>
           </div>
         </div>
@@ -66,7 +68,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
             <br />
             {t('login.hero.titleLine2', 'tiếng Anh toàn diện')}
           </h2>
-          <p className="text-sky-100 text-lg max-w-md">
+          <p className="text-indigo-100 text-lg max-w-md">
             {t('login.hero.description', 'Website tuyển sinh, CRM, quản lý học viên, học phí, điểm danh, giáo án, báo cáo — tất cả trong một hệ thống.')}
           </p>
           <div className="flex gap-8 text-white/80">
@@ -95,8 +97,8 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         >
           {/* Mobile logo */}
           <div className="flex items-center gap-3 lg:hidden justify-center mb-8">
-            <div className="p-2.5 bg-sky-100 dark:bg-sky-900/30 rounded-xl">
-              <GraduationCap className="h-7 w-7 text-sky-600 dark:text-sky-400" />
+            <div className="p-2.5 bg-indigo-100 dark:bg-indigo-950/40 rounded-xl">
+              <GraduationCap className="h-7 w-7 text-indigo-600 dark:text-indigo-400" />
             </div>
             <h1 className="text-xl font-bold">{t('layout.brand', 'Việt Mỹ Global')}</h1>
           </div>
@@ -175,12 +177,12 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
               </AnimatePresence>
 
               <div className="flex justify-end">
-                <Link href="/forgot-password" className="text-sm text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300">
+                <Link href="/forgot-password" className="text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300">
                   {t('auth.forgotPassword', 'Quên mật khẩu?')}
                 </Link>
               </div>
 
-              <Button type="submit" className="w-full bg-sky-600 hover:bg-sky-700 rounded-lg h-11" disabled={loginMutation.isPending}>
+              <Button type="submit" className="w-full h-11 rounded-xl bg-linear-to-r from-indigo-600 to-sky-500 hover:from-indigo-700 hover:to-sky-600 text-white shadow-lg shadow-indigo-500/25" disabled={loginMutation.isPending}>
                 {loginMutation.isPending ? (
                   <span className="flex items-center gap-2">
                     <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
