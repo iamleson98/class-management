@@ -48,6 +48,39 @@ const EVT = {
 let listenerBound = false
 let reconnectBound = false
 let firstConnectBound = false
+let missedEventBound = false
+
+/**
+ * Resync the given channel's posts after events were possibly missed
+ * (reconnect, sequence-mismatch, server restart). Fetches everything since
+ * the newest locally-known post and merges it into the store — the same
+ * getPostsSince recovery the upstream webapp performs on reconnect. This is
+ * the safety net that keeps other users' messages visible even when a
+ * `posted` event is dropped in transit.
+ */
+async function resyncChannelPosts(channelId: string): Promise<void> {
+  const state = useChatStore.getState()
+  const cp = state.postsByChannel[channelId]
+  if (!cp || cp.loading) return
+  // `since` = newest known post's create_at (order is newest-first).
+  const newest = cp.order.length > 0 ? cp.byId[cp.order[0]] : undefined
+  const since = newest?.create_at ?? 0
+  try {
+    const list = await client4.getPostsSince(channelId, since)
+    const posts = (list.order ?? []).map((id: string) => list.posts[id]).filter(Boolean) as ChatPost[]
+    if (posts.length > 0) {
+      useChatStore.getState().setChannelPosts(channelId, posts, { nextPostId: list.next_post_id })
+    }
+  } catch {
+    // Best-effort: the periodic posts refresh + window focus refetch cover us.
+  }
+}
+
+/** Resync every channel we hold posts for (lightweight: at most a few). */
+function resyncAllKnownChannels(): void {
+  const ids = Object.keys(useChatStore.getState().postsByChannel)
+  for (const id of ids) void resyncChannelPosts(id)
+}
 
 /** Parse the JSON-encoded post string from a `posted`/`post_edited` event. */
 function parsePost(msg: WebSocketMessage): ChatPost | null {
@@ -310,11 +343,21 @@ export function bindChatWebSocket(): () => void {
   }
   if (!reconnectBound) {
     wsClient.addReconnectListener(() => {
-      // On reconnect, the active channel's posts are re-synced by the posts
-      // hook via getPostsSince; here we just flag connectivity.
+      // On reconnect the connection may have missed events while down (or
+      // the server restarted, handing us a fresh connection id): resync the
+      // channels we hold posts for via getPostsSince.
       useChatStore.getState().setConnected(true)
+      resyncAllKnownChannels()
     })
     reconnectBound = true
+  }
+  if (!missedEventBound) {
+    // The server sent a hello with a different connection id / an unknown
+    // sequence — events were lost. Refetch what we missed.
+    wsClient.addMissedMessageListener(() => {
+      resyncAllKnownChannels()
+    })
+    missedEventBound = true
   }
   if (!firstConnectBound) {
     wsClient.addFirstConnectListener(() => useChatStore.getState().setConnected(true))

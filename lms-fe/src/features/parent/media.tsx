@@ -53,9 +53,10 @@ export default function ParentMedia() {
     return <ErrorState onRetry={() => { childrenQuery.refetch(); mediaQuery.refetch() }} />
   }
 
-  const media = (mediaQuery.data || []) as Array<any>
+  const media = ((mediaQuery.data || []) as Array<any>).filter(Boolean)
 
   function openMediaDialog(item: any) {
+    if (!item || !lmsMediaSrc(item)) return
     setSelectedMedia(item)
     setDialogOpen(true)
   }

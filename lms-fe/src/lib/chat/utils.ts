@@ -231,10 +231,19 @@ export function sortUnreadChannels(
 
 // ─── Display name helpers ───────────────────────────────────────────
 
+/** Safely read a user's first/last name from either JSON key convention. */
+function userNameParts(user: ChatUser): { first: string; last: string } {
+  const u = user as unknown as Record<string, unknown>
+  const first = (u.first_name ?? u.firstname ?? '') as string
+  const last = (u.last_name ?? u.lastname ?? '') as string
+  return { first, last }
+}
+
 /** Resolve a username to a display name from the loaded profiles. */
 export function displayUsername(user: ChatUser | undefined, fallback = 'Không xác định'): string {
   if (!user) return fallback
-  return user.nickname || `${user.first_name} ${user.last_name}`.trim() || user.username
+  const { first, last } = userNameParts(user)
+  return user.nickname || `${first} ${last}`.trim() || user.username
 }
 
 // ─── Permalink detection (ports utils/url.tsx isPermalinkURL) ─────────
@@ -275,18 +284,20 @@ export function parsePermalink(href: string): { teamName?: string; channelName?:
 export function getMentionSearchTerms(user: ChatUser | undefined): string[] {
   if (!user) return []
   const terms: string[] = []
-  const notifyProps = (user.notify_props ?? {}) as Record<string, string>
+  const raw = user as unknown as Record<string, unknown>
+  const notifyProps = ((raw.notify_props ?? raw.notifyprops) ?? {}) as Record<string, string>
   if (notifyProps.mention_keys) {
-    for (const raw of notifyProps.mention_keys.split(',')) {
-      const key = raw.trim()
+    for (const rawKey of notifyProps.mention_keys.split(',')) {
+      const key = rawKey.trim()
       // Skip broadcast mentions — they're not per-user search terms.
       if (key && key !== '@channel' && key !== '@all' && key !== '@here') {
         terms.push(key.startsWith('@') ? key : `@${key}`)
       }
     }
   }
-  if (notifyProps.first_name === 'true' && user.first_name) {
-    terms.push(user.first_name)
+  const first = (raw.first_name ?? raw.firstname ?? '') as string
+  if (notifyProps.first_name === 'true' && first) {
+    terms.push(first)
   }
   // Always include the @username (deduped).
   const usernameKey = `@${user.username}`
@@ -335,13 +346,16 @@ export function getSuggestionsSplitByMultiple(term: string, splitStrs: string[])
  */
 export function getProfileSuggestions(profile: ChatUser): string[] {
   const out: string[] = []
+  const raw = profile as unknown as Record<string, unknown>
+  const firstName = (raw.first_name ?? raw.firstname ?? '') as string
+  const lastName = (raw.last_name ?? raw.lastname ?? '') as string
   if (profile.username) {
     out.push(...getSuggestionsSplitByMultiple(profile.username.toLowerCase(), AUTOCOMPLETE_SPLIT_CHARACTERS))
   }
-  for (const property of [profile.first_name, profile.last_name, profile.nickname]) {
+  for (const property of [firstName, lastName, profile.nickname]) {
     out.push(...getSuggestionsSplitBy((property ?? '').toLowerCase(), ' '))
   }
-  out.push(`${profile.first_name} ${profile.last_name}`.toLowerCase())
+  out.push(`${firstName} ${lastName}`.toLowerCase())
   return out
 }
 

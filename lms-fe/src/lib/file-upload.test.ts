@@ -44,6 +44,12 @@ describe('lmsMediaSrc', () => {
     expect(lmsMediaSrc({ fileUrl: 'https://cdn.example.com/pic.jpg' })).toBe('https://cdn.example.com/pic.jpg')
     expect(lmsMediaSrc({})).toBe('')
   })
+
+  it('returns "" for null/undefined rows instead of throwing (media tab crash fix)', () => {
+    expect(() => lmsMediaSrc(null)).not.toThrow()
+    expect(lmsMediaSrc(null)).toBe('')
+    expect(lmsMediaSrc(undefined)).toBe('')
+  })
 })
 
 describe('uploadLmsFile (upload-session path, >5MB)', () => {

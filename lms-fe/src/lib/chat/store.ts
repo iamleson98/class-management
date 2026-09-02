@@ -22,6 +22,7 @@ import type {
   PresenceStatus,
 } from './types'
 import type { ChatThread, ChatThreadCounts } from './threads'
+import { normalizeChatUser } from './user-normalize'
 
 // ─── Store state shape ──────────────────────────────────────────────
 
@@ -309,7 +310,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
   upsertUsers: (users) =>
     set((s) => {
       const next = { ...s.users }
-      for (const u of users) next[u.id] = u
+      // Normalize at the boundary: the server's user JSON uses lowercase-
+      // concatenated keys (firstname, notifyprops, …) while the UI reads the
+      // UserProfile snake_case shape (first_name, notify_props, …).
+      for (const u of users) next[u.id] = normalizeChatUser(u)
       return { users: next }
     }),
   setStatuses: (statuses) => set((s) => ({ statuses: { ...s.statuses, ...statuses } })),

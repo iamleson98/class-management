@@ -313,9 +313,12 @@ export async function uploadFile(file: File): Promise<{ fileName: string; fileTy
  * Resolve the display URL for an LMS media row: rows with a fileId always use
  * the canonical LMS media route (fixes legacy rows whose file_url stored the
  * old, nonexistent `/api/v4/files/{id}/{name}` path); rows without one fall
- * back to their stored (external) URL.
+ * back to their stored (external) URL. Null/undefined rows yield '' — callers
+ * render a placeholder instead of crashing (the gallery previously threw
+ * "Cannot read properties of null (reading 'fileId')" on broken rows).
  */
-export function lmsMediaSrc(item: { fileId?: string; fileUrl?: string }): string {
+export function lmsMediaSrc(item: { fileId?: string; fileUrl?: string } | null | undefined): string {
+  if (!item) return ''
   if (item.fileId) return `/api/v4/lms/media/${item.fileId}`
   return item.fileUrl ?? ''
 }

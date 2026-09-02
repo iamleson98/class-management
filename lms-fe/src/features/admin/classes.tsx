@@ -208,20 +208,30 @@ function ClassMediaTab({ media, classId, onDelete, isAuthenticated }: {
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-          {media.map((item: any, idx: number) => (
+          {media.map((item: any, idx: number) => {
+            // Skip broken rows defensively (null items / rows with no source):
+            // they previously crashed the tab ("reading 'fileId' of null").
+            if (!item) return null
+            const src = lmsMediaSrc(item)
+            return (
             <motion.div
               key={item.id || idx}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: idx * 0.04 }}
-              onClick={() => { setSelectedMedia(item); setDialogOpen(true) }}
+              onClick={() => { if (src) { setSelectedMedia(item); setDialogOpen(true) } }}
               className="cursor-pointer group relative"
             >
               <Card className="overflow-hidden hover:shadow-md transition-shadow">
                 <div className="relative aspect-video bg-muted">
-                  {item.fileType === 'VIDEO' ? (
+                  {!src ? (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground/60">
+                      <Camera className="h-6 w-6 mb-1" />
+                      <span className="text-[10px]">{t('classes.mediaUnavailable', 'Không xem được')}</span>
+                    </div>
+                  ) : item.fileType === 'VIDEO' ? (
                     <>
-                      <video src={lmsMediaSrc(item)} className="w-full h-full object-cover" preload="metadata" muted />
+                      <video src={src} className="w-full h-full object-cover" preload="metadata" muted />
                       <div className="absolute inset-0 flex items-center justify-center bg-black/20">
                         <div className="p-2 rounded-full bg-white/90">
                           <Play className="h-5 w-5 text-sky-600 fill-sky-600" />
@@ -229,7 +239,7 @@ function ClassMediaTab({ media, classId, onDelete, isAuthenticated }: {
                       </div>
                     </>
                   ) : (
-                    <img src={lmsMediaSrc(item)} alt={item.title || 'Class photo'} className="w-full h-full object-cover" />
+                    <img src={src} alt={item.title || 'Class photo'} className="w-full h-full object-cover" />
                   )}
                 </div>
                 <div className="p-2 flex items-center justify-between">
@@ -247,7 +257,8 @@ function ClassMediaTab({ media, classId, onDelete, isAuthenticated }: {
                 </div>
               </Card>
             </motion.div>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -262,9 +273,9 @@ function ClassMediaTab({ media, classId, onDelete, isAuthenticated }: {
           <div className="w-full">
             {selectedMedia?.fileType === 'VIDEO' ? (
               <video src={lmsMediaSrc(selectedMedia)} controls className="w-full rounded-lg" />
-            ) : (
+            ) : selectedMedia ? (
               <img src={lmsMediaSrc(selectedMedia)} alt={selectedMedia?.title || 'Preview'} className="w-full rounded-lg" />
-            )}
+            ) : null}
           </div>
         </DialogContent>
       </Dialog>

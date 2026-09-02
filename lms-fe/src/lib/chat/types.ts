@@ -30,5 +30,9 @@ export type PresenceStatus = typeof STATUS_ONLINE | typeof STATUS_AWAY | typeof 
 /** A user id → display-name resolver helper used across the UI. */
 export function userDisplayName(u?: ChatUser | null): string {
   if (!u) return 'Không xác định'
-  return (u.nickname || `${u.first_name} ${u.last_name}`.trim() || u.username).trim()
+  // Tolerate both JSON key conventions (server sends `firstname`/`lastname`).
+  const raw = u as unknown as Record<string, unknown>
+  const first = (raw.first_name ?? raw.firstname ?? '') as string
+  const last = (raw.last_name ?? raw.lastname ?? '') as string
+  return (u.nickname || `${first} ${last}`.trim() || u.username).trim()
 }

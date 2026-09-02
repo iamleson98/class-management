@@ -133,7 +133,9 @@ function playSound(_kind: 'mention' | 'default'): void {
 
 /** Resolve the author display name for a post (best-effort from the store). */
 export function resolveAuthorName(post: ChatPost, users: Record<string, ChatUser>): string {
-  const u = users[post.user_id]
+  const u = users[post.user_id] as (ChatUser & { firstname?: string; lastname?: string }) | undefined
   if (!u) return 'Ai đó'
-  return u.nickname || `${u.first_name} ${u.last_name}`.trim() || u.username || 'Ai đó'
+  const first = u.first_name ?? u.firstname ?? ''
+  const last = u.last_name ?? u.lastname ?? ''
+  return u.nickname || `${first} ${last}`.trim() || u.username || 'Ai đó'
 }
