@@ -202,19 +202,6 @@ endif
 		cp bin/manifest.txt $(DIST_PATH); \
 	fi
 
-fetch-prepackaged-plugins:
-	@# Import Mattermost plugin public key, ignoring errors. In FIPS mode, GPG fails to start
-	@# the gpg-agent, but still imports the key. If it really fails, it will fail validation later.
-	-gpg --import build/plugin-production-public-key.gpg
-	@# Download prepackaged plugins
-	mkdir -p tmpprepackaged
-	@echo "Downloading prepackaged plugins ... "
-	@cd tmpprepackaged && for plugin_package in $(PLUGIN_PACKAGES) ; do \
-		curl -f -O -L https://plugins.releases.mattermost.com/release/$$plugin_package-$(PLUGIN_ARCH).tar.gz; \
-		curl -f -O -L https://plugins.releases.mattermost.com/release/$$plugin_package-$(PLUGIN_ARCH).tar.gz.sig; \
-	done
-	@echo "Done"
-
 package-general:
 	@# Create needed directories
 	mkdir -p $(DIST_PATH_GENERIC)/bin
@@ -226,22 +213,6 @@ ifeq ($(BUILDER_GOOS_GOARCH),"$(CURRENT_PACKAGE_ARCH)")
 else
 	cp $(GOBIN)/$(CURRENT_PACKAGE_ARCH)/$(MM_BIN_NAME) $(GOBIN)/$(CURRENT_PACKAGE_ARCH)/$(MMCTL_BIN_NAME) $(DIST_PATH_GENERIC)/bin # from cross-compiled bin dir
 endif
-
-package-plugins: fetch-prepackaged-plugins
-	@# Create needed directories
-	mkdir -p $(DIST_PATH_GENERIC)/prepackaged_plugins
-
-	@# Prepackage plugins
-	@for plugin_package in $(PLUGIN_PACKAGES) ; do \
-		ARCH=$(PLUGIN_ARCH); \
-		cp tmpprepackaged/$$plugin_package-$$ARCH.tar.gz $(DIST_PATH_GENERIC)/prepackaged_plugins; \
-		cp tmpprepackaged/$$plugin_package-$$ARCH.tar.gz.sig $(DIST_PATH_GENERIC)/prepackaged_plugins; \
-		gpg --verify $(DIST_PATH_GENERIC)/prepackaged_plugins/$$plugin_package-$$ARCH.tar.gz.sig $(DIST_PATH_GENERIC)/prepackaged_plugins/$$plugin_package-$$ARCH.tar.gz; \
-		if [ $$? -ne 0 ]; then \
-			echo "Failed to verify $$plugin_package-$$ARCH.tar.gz|$$plugin_package-$$ARCH.tar.gz.sig"; \
-			exit 1; \
-		fi; \
-	done
 
 package-osx-amd64: package-prep
 	DIST_PATH_GENERIC=$(DIST_PATH_OSX_AMD64) CURRENT_PACKAGE_ARCH=darwin_amd64 MM_BIN_NAME=mattermost MMCTL_BIN_NAME=mmctl $(MAKE) package-general
@@ -276,7 +247,6 @@ package-freebsd-arm64: package-prep
 package-freebsd: package-freebsd-amd64 package-freebsd-arm64
 
 package-linux-amd64: package-prep
-	DIST_PATH_GENERIC=$(DIST_PATH_LIN_AMD64) PLUGIN_ARCH=linux-amd64 $(MAKE) package-plugins
 	DIST_PATH_GENERIC=$(DIST_PATH_LIN_AMD64) CURRENT_PACKAGE_ARCH=linux_amd64 MM_BIN_NAME=mattermost MMCTL_BIN_NAME=mmctl $(MAKE) package-general
 	@# Package
 	tar -C $(DIST_PATH_LIN_AMD64)/.. -czf $(DIST_PATH)-$(BUILD_TYPE_NAME)-linux-amd64.tar.gz mattermost ../mattermost
