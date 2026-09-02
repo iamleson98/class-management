@@ -29,16 +29,16 @@ services:
     image: postgres:14-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-mmuser}
+      POSTGRES_USER: ${POSTGRES_USER:-lms}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
-      POSTGRES_DB: ${POSTGRES_DB:-mattermost}
+      POSTGRES_DB: ${POSTGRES_DB:-lms}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER:-mmuser} -d ${POSTGRES_DB:-mattermost}",
+          "pg_isready -U ${POSTGRES_USER:-lms} -d ${POSTGRES_DB:-lms}",
         ]
       interval: 10s
       timeout: 5s
@@ -142,9 +142,12 @@ services:
       MM_INSTALL_TYPE: docker
       TZ: ${TZ:-UTC}
     volumes:
-      - mmdata:/mattermost/data
-      - mmlogs:/mattermost/logs
-      - mmconfig:/mattermost/config
+      # /sitename/{data,logs,config} are the image's VOLUME dirs (see
+      # server/Dockerfile) — the mounts must target those, not the old
+      # upstream paths (which silently held nothing).
+      - lms-data:/sitename/data
+      - lms-logs:/sitename/logs
+      - lms-config:/sitename/config
     ports:
       - "${BACKEND_PORT:-8065}:8065"
     expose:
@@ -252,9 +255,9 @@ networks:
 volumes:
   pgdata:
   rustfs_data:
-  mmdata:
-  mmlogs:
-  mmconfig:
+  lms-data:
+  lms-logs:
+  lms-config:
   promdata:
   grafana-data:
   grafana-dashboards:
