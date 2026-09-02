@@ -1,15 +1,19 @@
 # LMS CD — build & push images to GHCR, then deploy to the Contabo Swarm.
 #
-# Trigger: push to master (after LMS CI passes) or manual dispatch.
+# Trigger: a GitHub Release being PUBLISHED (tag vMAJOR.MINOR.PATCH on
+# master), or manual dispatch as a break-glass option. Pushes to master
+# and PR merges NEVER deploy — production is release-driven only.
 #
 # Pipeline:
-#   1. changes      diffs github.event.before..sha and marks which images
-#                   actually need rebuilding (server / frontend / rtcd).
+#   1. changes      diffs previous-release-tag..this-release-tag and marks
+#                   which images actually need rebuilding (server / frontend
+#                   / rtcd). Manual dispatch has no diff window -> build all.
 #   2. build-push   matrix job builds ONLY the changed images and pushes
-#                   them to ghcr.io/iamleson98/* with TWO tags:
+#                   them to ghcr.io/iamleson98/* with THREE tags:
 #                     sha-<short>   immutable — what the deploy pins
+#                     <release tag> release alias (v1.2.3) when applicable
 #                     master        rolling alias
-#                   Unchanged images are NOT rebuilt: the previous sha's
+#                   Unchanged images are NOT rebuilt: the previous release's
 #                   image is retagged to the new sha (layers are already
 #                   in the registry, so this is a manifest-only push —
 #                   seconds instead of minutes).
@@ -20,13 +24,13 @@
 #                   smoke-tests the public endpoints.
 #
 # Fast-path behavior:
-#   - frontend-only push  -> only lms-fe is rebuilt; server/rtcd retagged
-#   - docs-only push      -> nothing rebuilt, all images retagged, deploy
-#                            bundle still rolled out
+#   - frontend-only release  -> only lms-fe is rebuilt; server/rtcd retagged
+#   - docs-only release      -> nothing rebuilt, all images retagged, deploy
+#                               bundle still rolled out
 #   - Swarm resolves a retagged image to the same digest as the running
 #     one -> that service is NOT restarted (no rolling update, no rtcd
 #     reconnect race). Only genuinely changed services roll.
-#   - Anything that looks unusual (manual dispatch, force-push, missing
+#   - Anything that looks unusual (manual dispatch, first release, missing
 #     previous image, workflow file changed) falls back to build-all.
 #
 # Required GitHub configuration:
@@ -50,12 +54,15 @@
 name: LMS Deploy
 
 on:
-  push:
-    branches: [master]
+  # Production deploys are release-driven: publishing a GitHub Release is
+  # the ONLY automatic trigger. Merges/pushes to master deploy nothing.
+  release:
+    types: [published]
+  # Manual escape hatch only — never runs automatically.
   workflow_dispatch:
 
 concurrency:
-  # One deploy at a time; queued pushes supersede each other (last wins).
+  # One deploy at a time; queued releases supersede each other (last wins).
   group: lms-deploy
   cancel-in-progress: false
 
@@ -80,39 +87,48 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       rtcd: ${{ steps.filter.outputs.rtcd }}
       workflow: ${{ steps.filter.outputs.workflow }}
+      # Commit the previous release tag points at; empty -> build all.
+      # Consumed by build-push for the retag fast path.
+      before_sha: ${{ steps.filter.outputs.before_sha }}
     steps:
       - uses: actions/checkout@v7
         with:
-          # Full history: the diff is github.event.before..github.sha,
-          # and a push can carry many commits.
+          # Full history + tags: the diff window for a release is
+          # previous-release-tag..this-release-tag.
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Path filter
         id: filter
         env:
-          BEFORE: ${{ github.event.before }}
-          AFTER: ${{ github.sha }}
           EVENT: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          AFTER: ${{ github.sha }}
         run: |
           set -eu
           build_all() {
-            printf 'server=true\nfrontend=true\nrtcd=true\nworkflow=true\n' | tee -a "$GITHUB_OUTPUT"
+            printf 'server=true\nfrontend=true\nrtcd=true\nworkflow=true\nbefore_sha=\n' | tee -a "$GITHUB_OUTPUT"
           }
 
-          if [ "${EVENT}" != "push" ] \
-             || [ -z "${BEFORE}" ] \
-             || [ "${BEFORE}" = "0000000000000000000000000000000000000000" ]; then
-            echo "::notice::No 'before' commit (dispatch/initial) — building all images"
+          if [ "${EVENT}" != "release" ]; then
+            echo "::notice::Manual dispatch (no diff window) — building all images"
             build_all
             exit 0
           fi
 
-          if ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
-            echo "::notice::before-commit not reachable (force push?) — building all images"
+          # Diff window: previous release tag -> this release's commit.
+          # Tags are ordered by creation date; the newest tag that is not
+          # THIS release is the previous release.
+          PREV_TAG=$(git for-each-ref --sort=-creatordate \
+                       --format='%(refname:short)' refs/tags \
+                       | grep -v "^${RELEASE_TAG}$" | head -n 1 || true)
+          if [ -z "${PREV_TAG}" ]; then
+            echo "::notice::First release (no previous tag) — building all images"
             build_all
             exit 0
           fi
 
+          BEFORE=$(git rev-parse "${PREV_TAG}^{commit}")
           files=$(git diff --name-only "${BEFORE}" "${AFTER}")
 
           server=false frontend=false rtcd=false workflow=false
@@ -126,13 +142,15 @@ jobs:
             esac
           done <<< "${files}"
 
-          # rtcd builds from the repo root and replaces mattermost modules
-          # with ../server, and vice versa — server and rtcd move together.
+          # rtcd builds from the repo root and replace-directs the server
+          # modules with ../server, and vice versa — server and rtcd move
+          # together.
           if [ "${rtcd}" = "true" ]; then server=true; fi
 
-          printf 'server=%s\nfrontend=%s\nrtcd=%s\nworkflow=%s\n' \
-            "$server" "$frontend" "$rtcd" "$workflow" | tee -a "$GITHUB_OUTPUT"
+          printf 'server=%s\nfrontend=%s\nrtcd=%s\nworkflow=%s\nbefore_sha=%s\n' \
+            "$server" "$frontend" "$rtcd" "$workflow" "$BEFORE" | tee -a "$GITHUB_OUTPUT"
 
+          echo "Diff window: ${PREV_TAG} -> ${RELEASE_TAG}" >> "$GITHUB_STEP_SUMMARY"
           echo "server=${server} frontend=${frontend} rtcd=${rtcd} workflow=${workflow}" >> "$GITHUB_STEP_SUMMARY"
 
   # ── Build & push (or retag) ─────────────────────────────────────────
@@ -181,7 +199,10 @@ jobs:
           images: ${{ env.REGISTRY_PREFIX }}/${{ matrix.name }}
           tags: |
             type=sha,prefix=sha-,format=short
-            type=ref,event=branch
+            # release events run on refs/tags/vX.Y.Z — keep a readable alias
+            type=semver,pattern={{raw}}
+            # rolling "last deployed" alias (matches the retag fast path)
+            type=raw,value=master
 
       # ── Fast path: unchanged image -> retag the previous sha's image ──
       # A retag only writes new manifests; the layers are already in GHCR,
@@ -192,7 +213,9 @@ jobs:
         env:
           CHANGED: ${{ needs.changes.outputs[matrix.filter] }}
           WORKFLOW_CHANGED: ${{ needs.changes.outputs.workflow }}
-          BEFORE: ${{ github.event.before }}
+          # Previous release's commit (empty on dispatch) — the image to
+          # retag from when this component did not change.
+          BEFORE: ${{ needs.changes.outputs.before_sha }}
           IMAGE: ${{ env.REGISTRY_PREFIX }}/${{ matrix.name }}
         run: |
           set -eu
@@ -216,14 +239,21 @@ jobs:
           IMAGE: ${{ env.REGISTRY_PREFIX }}/${{ matrix.name }}
           PREV_TAG: ${{ steps.decide.outputs.prev_tag }}
           GITHUB_SHA: ${{ github.sha }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           set -eu
-          # Same tag the metadata-action would generate for this push.
+          # Same tags the metadata-action would generate for this release.
           NEW_TAG="sha-$(printf '%s' "${GITHUB_SHA}" | cut -c1-7)"
           docker tag "${IMAGE}:${PREV_TAG}" "${IMAGE}:${NEW_TAG}"
           docker tag "${IMAGE}:${PREV_TAG}" "${IMAGE}:master"
+          if [ -n "${RELEASE_TAG:-}" ]; then
+            docker tag "${IMAGE}:${PREV_TAG}" "${IMAGE}:${RELEASE_TAG}"
+          fi
           docker push "${IMAGE}:${NEW_TAG}"
           docker push "${IMAGE}:master"
+          if [ -n "${RELEASE_TAG:-}" ]; then
+            docker push "${IMAGE}:${RELEASE_TAG}"
+          fi
           echo "::notice::Reused ${IMAGE}:${PREV_TAG} as ${NEW_TAG} (no rebuild)"
 
       - name: Build & push (changed)

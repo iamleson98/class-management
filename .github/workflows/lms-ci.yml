@@ -1,8 +1,10 @@
 # LMS CI — tests and image build validation for the fork's own code.
 #
-# Trigger: pull requests and manual dispatch. Master pushes do NOT run this —
-# the LMS Deploy workflow rebuilds everything from source on every master
-# push anyway, so a second test pass would only duplicate work.
+# Trigger: pull requests ONLY (opened / new commits pushed / reopened) and
+# manual dispatch. Nothing runs on master pushes: code reaches master only
+# through a PR that passed this workflow, and production deploys are
+# release-driven (see lms-deploy.yml) — re-testing the same commits would
+# only duplicate work.
 #
 # Jobs (each is skipped — cheaply — when its code paths did not change):
 #   changes    path filter; every other job gates on its outputs
@@ -16,12 +18,16 @@
 #   images     docker build of all three production images (no push) —
 #              validates the Dockerfiles
 #
-# The upstream Mattermost workflows that came with the fork were removed;
-# this is the only test workflow this repository uses.
+# This is the only test workflow this repository uses.
 name: LMS CI
 
 on:
   pull_request:
+    # A PR is (re)validated when it is opened, when new commits are pushed
+    # to its branch (synchronize) and when it is reopened. Labeled/closed
+    # etc. do NOT re-run the pipeline.
+    types: [opened, synchronize, reopened]
+  # Manual escape hatch only — never runs automatically.
   workflow_dispatch:
 
 concurrency:
@@ -44,7 +50,7 @@ jobs:
   # Every job below gates on these outputs so a frontend-only PR does not
   # burn Go build minutes (and vice versa). The filter job itself is a
   # few seconds; skipped downstream jobs report as neutral, not failed.
-  # NOTE: `master` pushes never reach this workflow, so a filter base of
+  # NOTE: master pushes never reach this workflow, so a filter base of
   # origin/master is always available on PRs.
   changes:
     name: Detect changed areas
@@ -165,7 +171,7 @@ jobs:
       # Bun's global install cache — keyed on the lockfile so dependency
       # installs are ~instant unless bun.lock changes.
       - name: Cache bun dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('lms-fe/bun.lock') }}

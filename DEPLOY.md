@@ -630,18 +630,23 @@ Three workflows (`.github/workflows/`):
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| `lms-ci.yml` | PR + push to master | Go build/vet/tests (calls suite with `-race`, model suite), rtcd build/tests, frontend lint/tests/build, docker build of all 3 images (no push) |
-| `lms-deploy.yml` | push to master + manual | Builds & pushes `lms-server`, `lms-fe`, `lms-rtcd` to GHCR (`sha-<short>` immutable + `master` rolling tags), then deploys over SSH |
+| `lms-ci.yml` | pull request (+ manual) | Go build/vet/tests (calls suite with `-race`, model suite), rtcd build/tests, frontend lint/tests/build, docker build of all 3 images (no push) |
+| `lms-deploy.yml` | **release published** (+ manual) | Builds & pushes `lms-server`, `lms-fe`, `lms-rtcd` to GHCR (`sha-<short>` immutable + release `vX.Y.Z` + `master` rolling tags), then deploys over SSH |
 | `lms-rollback.yml` | manual | Quick stack rollback or redeploy of a pinned tag |
 
 ### Pipeline flow
 
 ```
-push to master
-  → LMS CI (tests + image build validation)
+pull request
+  → LMS CI (tests + image build validation)   [only automatic CI trigger]
+merge to master
+publish Release vX.Y.Z (tag on master)        [the ONLY deploy trigger]
   → LMS Deploy
+      ├─ changes: diff previous-release-tag..this-release-tag
+      │    (unchanged images are retagged — manifest-only push, no rebuild)
       ├─ build-push (matrix: 3 images) → ghcr.io/iamleson98/*
-      │    tags: sha-abc1234 (immutable, what gets deployed) + master
+      │    tags: sha-abc1234 (immutable, what gets deployed)
+      │        + vX.Y.Z (release alias) + master (rolling alias)
       └─ deploy (needs: build-push)
            ├─ tar deploy/swarm + deploy/images + observability → scp to manager
            ├─ render .env from GitHub vars/secrets → scp (secrets never in ps)

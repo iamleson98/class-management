@@ -393,8 +393,11 @@ ssh deploy@<node-ip>                            # node-level access
 
 ### Updating a release
 
-CI path (recommended): merge to `master` — tests, images, deploy and smoke
-tests run automatically, pinned to the immutable `sha-<commit>` tag.
+CI path (recommended): open a PR — LMS CI tests it; merge to `master`;
+publish a GitHub Release (tag `vX.Y.Z` on master) — LMS Deploy then builds
+and pushes images pinned to the immutable `sha-<commit>` tag, rolls the
+stack and smoke-tests the public endpoints. Plain pushes and merges never
+deploy: a published release is the only automatic deploy trigger.
 
 ```bash
 # manual path:
