@@ -423,7 +423,8 @@ func NewServer(options ...Option) (*Server, error) {
         s.platform.EnableLoggingMetrics()
 
         // if enabled - perform initial product notices fetch
-        if *s.platform.Config().AnnouncementSettings.AdminNoticesEnabled || *s.platform.Config().AnnouncementSettings.UserNoticesEnabled {
+        if (*s.platform.Config().AnnouncementSettings.AdminNoticesEnabled || *s.platform.Config().AnnouncementSettings.UserNoticesEnabled) &&
+                *s.platform.Config().AnnouncementSettings.NoticesURL != "" {
                 s.platform.Go(func() {
                         appInstance := New(ServerConnector(s.Channels()))
                         if err := appInstance.UpdateProductNotices(); err != nil {
