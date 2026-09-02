@@ -45,7 +45,6 @@ domain; the frontend is Next.js 16. Everything deploys as Docker containers.
 | `server/` | Go backend — Mattermost fork + native LMS API (`/api/v4/lms/*`), auth, chat, native Calls control plane (`server/channels/calls`) |
 | `lms-fe/` | Next.js 16 frontend (dashboard for 8 roles + public marketing site + chat + calls UI) |
 | `rtcd/` | WebRTC SFU (mattermost/rtcd, vendored) — runs as its own container, owns all call media |
-| `plugin-calls/` | Reference only — the upstream Calls plugin we ported the protocol from (not deployed) |
 | `docker-compose.yml` | Single-host deployment (local/dev/small prod — rustfs, same as Swarm) |
 | `deploy/swarm/` | Production: Docker Swarm stack (Contabo), secrets, deploy/rollback scripts |
 | `deploy/images/` | Dockerfiles for the images CI builds (rtcd image + its env-rendered config) |
