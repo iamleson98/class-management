@@ -3486,52 +3486,6 @@ func (_c *Store_ReadReceipt_Call) RunAndReturn(run func() store.ReadReceiptStore
 	return _c
 }
 
-// Recap provides a mock function for the type Store
-func (_mock *Store) Recap() store.RecapStore {
-	ret := _mock.Called()
-
-	if len(ret) == 0 {
-		panic("no return value specified for Recap")
-	}
-
-	var r0 store.RecapStore
-	if returnFunc, ok := ret.Get(0).(func() store.RecapStore); ok {
-		r0 = returnFunc()
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(store.RecapStore)
-		}
-	}
-	return r0
-}
-
-// Store_Recap_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Recap'
-type Store_Recap_Call struct {
-	*mock.Call
-}
-
-// Recap is a helper method to define mock.On call
-func (_e *Store_Expecter) Recap() *Store_Recap_Call {
-	return &Store_Recap_Call{Call: _e.mock.On("Recap")}
-}
-
-func (_c *Store_Recap_Call) Run(run func()) *Store_Recap_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run()
-	})
-	return _c
-}
-
-func (_c *Store_Recap_Call) Return(recapStore store.RecapStore) *Store_Recap_Call {
-	_c.Call.Return(recapStore)
-	return _c
-}
-
-func (_c *Store_Recap_Call) RunAndReturn(run func() store.RecapStore) *Store_Recap_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // RecycleDBConnections provides a mock function for the type Store
 func (_mock *Store) RecycleDBConnections(d time.Duration) {
 	_mock.Called(d)

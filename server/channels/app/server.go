@@ -1,1559 +1,1538 @@
 package app
 
 import (
-	"bytes"
-	"context"
-	"crypto/tls"
-	"fmt"
-	"net"
-	"net/http"
-	"net/url"
-	"os"
-	"os/exec"
-	"path"
-	"strings"
-	"sync"
-	"syscall"
-	"time"
+        "bytes"
+        "context"
+        "crypto/tls"
+        "fmt"
+        "net"
+        "net/http"
+        "net/url"
+        "os"
+        "os/exec"
+        "path"
+        "strings"
+        "sync"
+        "syscall"
+        "time"
 
-	"github.com/getsentry/sentry-go"
-	sentryhttp "github.com/getsentry/sentry-go/http"
-	"github.com/go-chi/chi/v5"
-	"github.com/pkg/errors"
-	"github.com/rs/cors"
-	"golang.org/x/crypto/acme/autocert"
+        "github.com/getsentry/sentry-go"
+        sentryhttp "github.com/getsentry/sentry-go/http"
+        "github.com/go-chi/chi/v5"
+        "github.com/pkg/errors"
+        "github.com/rs/cors"
+        "golang.org/x/crypto/acme/autocert"
 
-	"github.com/iamleson98/sitename/server/public/model"
-	"github.com/iamleson98/sitename/server/public/shared/httpservice"
-	"github.com/iamleson98/sitename/server/public/shared/i18n"
-	"github.com/iamleson98/sitename/server/public/shared/mlog"
-	"github.com/iamleson98/sitename/server/public/shared/request"
-	"github.com/iamleson98/sitename/server/public/shared/timezones"
-	"github.com/iamleson98/sitename/server/v8/channels/app/email"
-	"github.com/iamleson98/sitename/server/v8/channels/app/lms"
-	"github.com/iamleson98/sitename/server/v8/channels/app/platform"
-	"github.com/iamleson98/sitename/server/v8/channels/app/properties"
-	"github.com/iamleson98/sitename/server/v8/channels/app/teams"
-	"github.com/iamleson98/sitename/server/v8/channels/app/users"
-	"github.com/iamleson98/sitename/server/v8/channels/audit"
-	"github.com/iamleson98/sitename/server/v8/channels/calls"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs/active_users"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs/cleanup_desktop_tokens"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs/delete_dms_preferences_migration"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs/delete_empty_drafts_migration"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs/delete_expired_posts"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs/delete_orphan_drafts_migration"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs/export_delete"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs/export_process"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs/export_users_to_csv"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs/extract_content"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs/hosted_purchase_screening"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs/import_delete"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs/import_process"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs/last_accessible_file"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs/last_accessible_post"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs/migrations"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs/mobile_session_metadata"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs/notify_admin"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs/plugins"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs/post_persistent_notifications"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs/recap"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs/refresh_materialized_views"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs/resend_invitation_email"
-	"github.com/iamleson98/sitename/server/v8/channels/jobs/s3_path_migration"
-	"github.com/iamleson98/sitename/server/v8/channels/store"
-	"github.com/iamleson98/sitename/server/v8/channels/utils"
-	"github.com/iamleson98/sitename/server/v8/config"
-	"github.com/iamleson98/sitename/server/v8/einterfaces"
-	"github.com/iamleson98/sitename/server/v8/platform/services/awsmeter"
-	"github.com/iamleson98/sitename/server/v8/platform/services/cache"
-	"github.com/iamleson98/sitename/server/v8/platform/services/remotecluster"
-	"github.com/iamleson98/sitename/server/v8/platform/services/searchengine/bleveengine"
-	"github.com/iamleson98/sitename/server/v8/platform/services/searchengine/bleveengine/indexer"
-	"github.com/iamleson98/sitename/server/v8/platform/services/sharedchannel"
-	"github.com/iamleson98/sitename/server/v8/platform/services/telemetry"
-	"github.com/iamleson98/sitename/server/v8/platform/services/upgrader"
-	"github.com/iamleson98/sitename/server/v8/platform/shared/filestore"
-	"github.com/iamleson98/sitename/server/v8/platform/shared/mail"
-	"github.com/iamleson98/sitename/server/v8/platform/shared/templates"
+        "github.com/iamleson98/sitename/server/public/model"
+        "github.com/iamleson98/sitename/server/public/shared/httpservice"
+        "github.com/iamleson98/sitename/server/public/shared/i18n"
+        "github.com/iamleson98/sitename/server/public/shared/mlog"
+        "github.com/iamleson98/sitename/server/public/shared/request"
+        "github.com/iamleson98/sitename/server/public/shared/timezones"
+        "github.com/iamleson98/sitename/server/v8/channels/app/email"
+        "github.com/iamleson98/sitename/server/v8/channels/app/lms"
+        "github.com/iamleson98/sitename/server/v8/channels/app/platform"
+        "github.com/iamleson98/sitename/server/v8/channels/app/properties"
+        "github.com/iamleson98/sitename/server/v8/channels/app/teams"
+        "github.com/iamleson98/sitename/server/v8/channels/app/users"
+        "github.com/iamleson98/sitename/server/v8/channels/audit"
+        "github.com/iamleson98/sitename/server/v8/channels/calls"
+        "github.com/iamleson98/sitename/server/v8/channels/jobs"
+        "github.com/iamleson98/sitename/server/v8/channels/jobs/active_users"
+        "github.com/iamleson98/sitename/server/v8/channels/jobs/cleanup_desktop_tokens"
+        "github.com/iamleson98/sitename/server/v8/channels/jobs/delete_dms_preferences_migration"
+        "github.com/iamleson98/sitename/server/v8/channels/jobs/delete_empty_drafts_migration"
+        "github.com/iamleson98/sitename/server/v8/channels/jobs/delete_expired_posts"
+        "github.com/iamleson98/sitename/server/v8/channels/jobs/delete_orphan_drafts_migration"
+        "github.com/iamleson98/sitename/server/v8/channels/jobs/export_delete"
+        "github.com/iamleson98/sitename/server/v8/channels/jobs/export_process"
+        "github.com/iamleson98/sitename/server/v8/channels/jobs/export_users_to_csv"
+        "github.com/iamleson98/sitename/server/v8/channels/jobs/extract_content"
+        "github.com/iamleson98/sitename/server/v8/channels/jobs/hosted_purchase_screening"
+        "github.com/iamleson98/sitename/server/v8/channels/jobs/import_delete"
+        "github.com/iamleson98/sitename/server/v8/channels/jobs/import_process"
+        "github.com/iamleson98/sitename/server/v8/channels/jobs/last_accessible_file"
+        "github.com/iamleson98/sitename/server/v8/channels/jobs/last_accessible_post"
+        "github.com/iamleson98/sitename/server/v8/channels/jobs/migrations"
+        "github.com/iamleson98/sitename/server/v8/channels/jobs/mobile_session_metadata"
+        "github.com/iamleson98/sitename/server/v8/channels/jobs/notify_admin"
+        "github.com/iamleson98/sitename/server/v8/channels/jobs/plugins"
+        "github.com/iamleson98/sitename/server/v8/channels/jobs/post_persistent_notifications"
+        "github.com/iamleson98/sitename/server/v8/channels/jobs/refresh_materialized_views"
+        "github.com/iamleson98/sitename/server/v8/channels/jobs/resend_invitation_email"
+        "github.com/iamleson98/sitename/server/v8/channels/jobs/s3_path_migration"
+        "github.com/iamleson98/sitename/server/v8/channels/store"
+        "github.com/iamleson98/sitename/server/v8/channels/utils"
+        "github.com/iamleson98/sitename/server/v8/config"
+        "github.com/iamleson98/sitename/server/v8/einterfaces"
+        "github.com/iamleson98/sitename/server/v8/platform/services/awsmeter"
+        "github.com/iamleson98/sitename/server/v8/platform/services/cache"
+        "github.com/iamleson98/sitename/server/v8/platform/services/remotecluster"
+        "github.com/iamleson98/sitename/server/v8/platform/services/searchengine/bleveengine"
+        "github.com/iamleson98/sitename/server/v8/platform/services/searchengine/bleveengine/indexer"
+        "github.com/iamleson98/sitename/server/v8/platform/services/sharedchannel"
+        "github.com/iamleson98/sitename/server/v8/platform/services/telemetry"
+        "github.com/iamleson98/sitename/server/v8/platform/services/upgrader"
+        "github.com/iamleson98/sitename/server/v8/platform/shared/filestore"
+        "github.com/iamleson98/sitename/server/v8/platform/shared/mail"
+        "github.com/iamleson98/sitename/server/v8/platform/shared/templates"
 )
 
 const (
-	scheduledPostJobInterval      = 5 * time.Minute
-	debugScheduledPostJobInterval = 2 * time.Second
+        scheduledPostJobInterval      = 5 * time.Minute
+        debugScheduledPostJobInterval = 2 * time.Second
 )
 
 var SentryDSN = "https://eaf281226106b5bba68694d1316da21c@o94110.ingest.us.sentry.io/5212327"
 
 type Server struct {
-	// RootRouter is the starting point for all HTTP requests to the server.
-	RootRouter *chi.Mux
+        // RootRouter is the starting point for all HTTP requests to the server.
+        RootRouter *chi.Mux
 
-	// LocalRouter is the starting point for all the local UNIX socket
-	// requests to the server
-	LocalRouter *chi.Mux
+        // LocalRouter is the starting point for all the local UNIX socket
+        // requests to the server
+        LocalRouter *chi.Mux
 
-	// Router is the starting point for all web, api4 and ws requests to the server. It differs
-	// from RootRouter only if the SiteURL contains a /subpath.
-	Router *chi.Mux
+        // Router is the starting point for all web, api4 and ws requests to the server. It differs
+        // from RootRouter only if the SiteURL contains a /subpath.
+        Router *chi.Mux
 
-	Server      *http.Server
-	ListenAddr  *net.TCPAddr
-	RateLimiter *RateLimiter
+        Server      *http.Server
+        ListenAddr  *net.TCPAddr
+        RateLimiter *RateLimiter
 
-	localModeServer *http.Server
+        localModeServer *http.Server
 
-	didFinishListen chan struct{}
+        didFinishListen chan struct{}
 
-	EmailService email.ServiceInterface
+        EmailService email.ServiceInterface
 
-	httpService            httpservice.HTTPService
-	PushNotificationsHub   PushNotificationsHub
-	pushNotificationClient *http.Client // TODO: move this to it's own package
-	outgoingWebhookClient  *http.Client
+        httpService            httpservice.HTTPService
+        PushNotificationsHub   PushNotificationsHub
+        pushNotificationClient *http.Client // TODO: move this to it's own package
+        outgoingWebhookClient  *http.Client
 
-	runEssentialJobs bool
-	Jobs             *jobs.JobServer
+        runEssentialJobs bool
+        Jobs             *jobs.JobServer
 
-	timezones *timezones.Timezones
+        timezones *timezones.Timezones
 
-	htmlTemplates           *templates.Container
-	seenPendingPostIdsCache cache.Cache
-	openGraphDataCache      cache.Cache
-	clusterLeaderListenerId string
-	// loggerLicenseListenerId string
+        htmlTemplates           *templates.Container
+        seenPendingPostIdsCache cache.Cache
+        openGraphDataCache      cache.Cache
+        clusterLeaderListenerId string
+        // loggerLicenseListenerId string
 
-	platform              *platform.PlatformService
-	platformOptions       []platform.Option
-	telemetryService      *telemetry.TelemetryService
-	userService           *users.UserService
-	teamService           *teams.TeamService
-	propertyAccessService *PropertyAccessService
-	lmsApp                *lms.LMSApp
-	callsService          *calls.CallService
-	// booking               *booking.BookingService
+        platform              *platform.PlatformService
+        platformOptions       []platform.Option
+        telemetryService      *telemetry.TelemetryService
+        userService           *users.UserService
+        teamService           *teams.TeamService
+        propertyAccessService *PropertyAccessService
+        lmsApp                *lms.LMSApp
+        callsService          *calls.CallService
+        // booking               *booking.BookingService
 
-	serviceMux           sync.RWMutex
-	remoteClusterService remotecluster.RemoteClusterServiceIFace
-	sharedChannelService SharedChannelServiceIFace // TODO: platform: move to platform package
+        serviceMux           sync.RWMutex
+        remoteClusterService remotecluster.RemoteClusterServiceIFace
+        sharedChannelService SharedChannelServiceIFace // TODO: platform: move to platform package
 
-	phase2PermissionsMigrationComplete bool
+        phase2PermissionsMigrationComplete bool
 
-	Audit *audit.Audit
+        Audit *audit.Audit
 
-	joinCluster  bool
-	skipPostInit bool
+        joinCluster  bool
+        skipPostInit bool
 
-	Cloud                   einterfaces.CloudInterface
-	IPFiltering             einterfaces.IPFilteringInterface
-	OutgoingOAuthConnection einterfaces.OutgoingOAuthConnectionInterface
-	PushProxy               einterfaces.PushProxyInterface
-	AutoTranslation         einterfaces.AutoTranslationInterface
+        Cloud                   einterfaces.CloudInterface
+        IPFiltering             einterfaces.IPFilteringInterface
+        OutgoingOAuthConnection einterfaces.OutgoingOAuthConnectionInterface
+        PushProxy               einterfaces.PushProxyInterface
+        AutoTranslation         einterfaces.AutoTranslationInterface
 
-	ch *Channels
+        ch *Channels
 }
 
 func (s *Server) Store() store.Store {
-	if s.platform != nil {
-		return s.platform.Store
-	}
+        if s.platform != nil {
+                return s.platform.Store
+        }
 
-	return nil
+        return nil
 }
 
 func (s *Server) SetStore(st store.Store) {
-	if s.platform != nil {
-		s.platform.Store = st
-	}
+        if s.platform != nil {
+                s.platform.Store = st
+        }
 }
 
 func NewServer(options ...Option) (*Server, error) {
-	rootRouter := chi.NewRouter()
-	localRouter := chi.NewRouter()
+        rootRouter := chi.NewRouter()
+        localRouter := chi.NewRouter()
 
-	s := &Server{
-		RootRouter:  rootRouter,
-		LocalRouter: localRouter,
-		timezones:   timezones.New(),
-	}
+        s := &Server{
+                RootRouter:  rootRouter,
+                LocalRouter: localRouter,
+                timezones:   timezones.New(),
+        }
 
-	for _, option := range options {
-		if err := option(s); err != nil {
-			return nil, errors.Wrap(err, "failed to apply option")
-		}
-	}
+        for _, option := range options {
+                if err := option(s); err != nil {
+                        return nil, errors.Wrap(err, "failed to apply option")
+                }
+        }
 
-	// Following outlines the specific set of steps
-	// performed during server bootup. They are sensitive to order
-	// and has dependency requirements with the previous step.
-	//
-	// Step 1: Platform.
-	if s.platform == nil {
-		ps, sErr := platform.New(platform.ServiceConfig{}, s.platformOptions...)
-		if sErr != nil {
-			return nil, errors.Wrap(sErr, "failed to initialize platform")
-		}
-		s.platform = ps
-	}
+        // Following outlines the specific set of steps
+        // performed during server bootup. They are sensitive to order
+        // and has dependency requirements with the previous step.
+        //
+        // Step 1: Platform.
+        if s.platform == nil {
+                ps, sErr := platform.New(platform.ServiceConfig{}, s.platformOptions...)
+                if sErr != nil {
+                        return nil, errors.Wrap(sErr, "failed to initialize platform")
+                }
+                s.platform = ps
+        }
 
-	subpath, err := utils.GetSubpathFromConfig(s.platform.Config())
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse SiteURL subpath")
-	}
+        subpath, err := utils.GetSubpathFromConfig(s.platform.Config())
+        if err != nil {
+                return nil, errors.Wrap(err, "failed to parse SiteURL subpath")
+        }
 
-	s.Router = chi.NewRouter()
-	s.RootRouter.Mount(subpath, s.Router)
+        s.Router = chi.NewRouter()
+        s.RootRouter.Mount(subpath, s.Router)
 
-	s.httpService = httpservice.MakeHTTPService(s.platform)
+        s.httpService = httpservice.MakeHTTPService(s.platform)
 
-	// Step 2: Init Enterprise
-	// Depends on step 1 (s.Platform must be non-nil)
-	s.initEnterprise()
+        // Step 2: Init Enterprise
+        // Depends on step 1 (s.Platform must be non-nil)
+        s.initEnterprise()
 
-	// Needed to run before loading license.
-	s.userService, err = users.New(users.ServiceConfig{
-		UserStore:    s.Store().User(),
-		SessionStore: s.Store().Session(),
-		OAuthStore:   s.Store().OAuth(),
-		ConfigFn:     s.platform.Config,
-		Metrics:      s.GetMetrics(),
-		Cluster:      s.platform.Cluster(),
-	})
-	if err != nil {
-		return nil, errors.Wrapf(err, "unable to create users service")
-	}
+        // Needed to run before loading license.
+        s.userService, err = users.New(users.ServiceConfig{
+                UserStore:    s.Store().User(),
+                SessionStore: s.Store().Session(),
+                OAuthStore:   s.Store().OAuth(),
+                ConfigFn:     s.platform.Config,
+                Metrics:      s.GetMetrics(),
+                Cluster:      s.platform.Cluster(),
+        })
+        if err != nil {
+                return nil, errors.Wrapf(err, "unable to create users service")
+        }
 
-	s.teamService, err = teams.New(teams.ServiceConfig{
-		TeamStore:    s.Store().Team(),
-		ChannelStore: s.Store().Channel(),
-		GroupStore:   s.Store().Group(),
-		Users:        s.userService,
-		WebHub:       s.platform,
-		ConfigFn:     s.platform.Config,
-	})
-	if err != nil {
-		return nil, errors.Wrapf(err, "unable to create teams service")
-	}
+        s.teamService, err = teams.New(teams.ServiceConfig{
+                TeamStore:    s.Store().Team(),
+                ChannelStore: s.Store().Channel(),
+                GroupStore:   s.Store().Group(),
+                Users:        s.userService,
+                WebHub:       s.platform,
+                ConfigFn:     s.platform.Config,
+        })
+        if err != nil {
+                return nil, errors.Wrapf(err, "unable to create teams service")
+        }
 
-	propertyService, err := properties.New(properties.ServiceConfig{
-		PropertyGroupStore: s.Store().PropertyGroup(),
-		PropertyFieldStore: s.Store().PropertyField(),
-		PropertyValueStore: s.Store().PropertyValue(),
-	})
-	if err != nil {
-		return nil, errors.Wrapf(err, "unable to create properties service")
-	}
+        propertyService, err := properties.New(properties.ServiceConfig{
+                PropertyGroupStore: s.Store().PropertyGroup(),
+                PropertyFieldStore: s.Store().PropertyField(),
+                PropertyValueStore: s.Store().PropertyValue(),
+        })
+        if err != nil {
+                return nil, errors.Wrapf(err, "unable to create properties service")
+        }
 
-	// Wrap PropertyService with access control layer to enforce caller-based permissions
-	s.propertyAccessService = NewPropertyAccessService(propertyService, func(pluginID string) bool {
-		_, err := s.ch.GetPluginStatus(pluginID)
-		return err == nil
-	})
+        // Wrap PropertyService with access control layer to enforce caller-based permissions
+        s.propertyAccessService = NewPropertyAccessService(propertyService, func(pluginID string) bool {
+                _, err := s.ch.GetPluginStatus(pluginID)
+                return err == nil
+        })
 
-	// It is important to initialize the hub only after the global logger is set
-	// to avoid race conditions while logging from inside the hub.
-	// Step 4: Start platform
-	if err = s.platform.Start(s.makeBroadcastHooks()); err != nil {
-		return nil, errors.Wrap(err, "failed to start platform")
-	}
+        // It is important to initialize the hub only after the global logger is set
+        // to avoid race conditions while logging from inside the hub.
+        // Step 4: Start platform
+        if err = s.platform.Start(s.makeBroadcastHooks()); err != nil {
+                return nil, errors.Wrap(err, "failed to start platform")
+        }
 
-	// NOTE: There should be no call to App.Srv().Channels() before step 5 is done
-	// otherwise it will throw a panic.
+        // NOTE: There should be no call to App.Srv().Channels() before step 5 is done
+        // otherwise it will throw a panic.
 
-	// Step 5: Initialize channels.
-	// Depends on s.httpService, and depends on the hub to be initialized.
-	// Otherwise we run into race conditions.
-	channels, err := NewChannels(s)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to initialize channels")
-	}
-	s.ch = channels
+        // Step 5: Initialize channels.
+        // Depends on s.httpService, and depends on the hub to be initialized.
+        // Otherwise we run into race conditions.
+        channels, err := NewChannels(s)
+        if err != nil {
+                return nil, errors.Wrap(err, "failed to initialize channels")
+        }
+        s.ch = channels
 
-	// After channel is initialized set it to the App object
-	app := New(ServerConnector(channels))
+        // After channel is initialized set it to the App object
+        app := New(ServerConnector(channels))
 
-	// -------------------------------------------------------------------------
-	// Everything below this is not order sensitive and safe to be moved around.
-	// If you are adding a new field that is non-channels specific, please add
-	// below this. Otherwise, please add it to Channels struct in app/channels.go.
-	// -------------------------------------------------------------------------
+        // -------------------------------------------------------------------------
+        // Everything below this is not order sensitive and safe to be moved around.
+        // If you are adding a new field that is non-channels specific, please add
+        // below this. Otherwise, please add it to Channels struct in app/channels.go.
+        // -------------------------------------------------------------------------
 
-	if *s.platform.Config().LogSettings.EnableDiagnostics && *s.platform.Config().LogSettings.EnableSentry {
-		switch model.GetServiceEnvironment() {
-		case model.ServiceEnvironmentDev:
-			mlog.Warn("Sentry reporting is enabled, but service environment is dev. Disabling reporting.")
-		case model.ServiceEnvironmentProduction, model.ServiceEnvironmentTest:
-			if err2 := sentry.Init(sentry.ClientOptions{
-				Dsn:              SentryDSN,
-				Release:          model.BuildHash,
-				AttachStacktrace: true,
-				BeforeSend: func(event *sentry.Event, hint *sentry.EventHint) *sentry.Event {
-					// sanitize data sent to sentry to reduce exposure of PII
-					if event.Request != nil {
-						event.Request.Cookies = ""
-						event.Request.QueryString = ""
-						event.Request.Headers = nil
-						event.Request.Data = ""
-					}
-					return event
-				},
-				EnableTracing: false,
-				TracesSampler: sentry.TracesSampler(func(ctx sentry.SamplingContext) float64 {
-					return 0.0
-				}),
-			}); err2 != nil {
-				mlog.Warn("Sentry could not be initiated, probably bad DSN?", mlog.Err(err2))
-			}
-		}
-	}
+        if *s.platform.Config().LogSettings.EnableDiagnostics && *s.platform.Config().LogSettings.EnableSentry {
+                switch model.GetServiceEnvironment() {
+                case model.ServiceEnvironmentDev:
+                        mlog.Warn("Sentry reporting is enabled, but service environment is dev. Disabling reporting.")
+                case model.ServiceEnvironmentProduction, model.ServiceEnvironmentTest:
+                        if err2 := sentry.Init(sentry.ClientOptions{
+                                Dsn:              SentryDSN,
+                                Release:          model.BuildHash,
+                                AttachStacktrace: true,
+                                BeforeSend: func(event *sentry.Event, hint *sentry.EventHint) *sentry.Event {
+                                        // sanitize data sent to sentry to reduce exposure of PII
+                                        if event.Request != nil {
+                                                event.Request.Cookies = ""
+                                                event.Request.QueryString = ""
+                                                event.Request.Headers = nil
+                                                event.Request.Data = ""
+                                        }
+                                        return event
+                                },
+                                EnableTracing: false,
+                                TracesSampler: sentry.TracesSampler(func(ctx sentry.SamplingContext) float64 {
+                                        return 0.0
+                                }),
+                        }); err2 != nil {
+                                mlog.Warn("Sentry could not be initiated, probably bad DSN?", mlog.Err(err2))
+                        }
+                }
+        }
 
-	s.pushNotificationClient = s.httpService.MakeClient(true)
-	s.outgoingWebhookClient = s.httpService.MakeClient(false)
+        s.pushNotificationClient = s.httpService.MakeClient(true)
+        s.outgoingWebhookClient = s.httpService.MakeClient(false)
 
-	if err2 := utils.TranslationsPreInit(); err2 != nil {
-		return nil, errors.Wrapf(err2, "unable to load Mattermost translation files")
-	}
-	model.AppErrorInit(i18n.T)
+        if err2 := utils.TranslationsPreInit(); err2 != nil {
+                return nil, errors.Wrapf(err2, "unable to load Mattermost translation files")
+        }
+        model.AppErrorInit(i18n.T)
 
-	if s.seenPendingPostIdsCache, err = s.platform.CacheProvider().NewCache(&cache.CacheOptions{
-		Name: "seen_pending_post_ids",
-		Size: PendingPostIDsCacheSize,
-	}); err != nil {
-		return nil, errors.Wrap(err, "Unable to create pending post ids cache")
-	}
-	if s.openGraphDataCache, err = s.platform.CacheProvider().NewCache(&cache.CacheOptions{
-		Name: "opengraph_data",
-		Size: openGraphMetadataCacheSize,
-	}); err != nil {
-		return nil, errors.Wrap(err, "Unable to create opengraphdata cache")
-	}
+        if s.seenPendingPostIdsCache, err = s.platform.CacheProvider().NewCache(&cache.CacheOptions{
+                Name: "seen_pending_post_ids",
+                Size: PendingPostIDsCacheSize,
+        }); err != nil {
+                return nil, errors.Wrap(err, "Unable to create pending post ids cache")
+        }
+        if s.openGraphDataCache, err = s.platform.CacheProvider().NewCache(&cache.CacheOptions{
+                Name: "opengraph_data",
+                Size: openGraphMetadataCacheSize,
+        }); err != nil {
+                return nil, errors.Wrap(err, "Unable to create opengraphdata cache")
+        }
 
-	s.createPushNotificationsHub(request.EmptyContext(s.Log()))
+        s.createPushNotificationsHub(request.EmptyContext(s.Log()))
 
-	if err2 := i18n.InitTranslations(*s.platform.Config().LocalizationSettings.DefaultServerLocale, *s.platform.Config().LocalizationSettings.DefaultClientLocale); err2 != nil {
-		return nil, errors.Wrapf(err2, "unable to load Mattermost translation files")
-	}
+        if err2 := i18n.InitTranslations(*s.platform.Config().LocalizationSettings.DefaultServerLocale, *s.platform.Config().LocalizationSettings.DefaultClientLocale); err2 != nil {
+                return nil, errors.Wrapf(err2, "unable to load Mattermost translation files")
+        }
 
-	templatesDir, ok := templates.GetTemplateDirectory()
-	if !ok {
-		return nil, errors.New("Failed find server templates in \"templates\" directory")
-	}
-	htmlTemplates, err2 := templates.New(templatesDir)
-	if err2 != nil {
-		return nil, errors.Wrap(err2, "cannot initialize server templates")
-	}
-	s.htmlTemplates = htmlTemplates
+        templatesDir, ok := templates.GetTemplateDirectory()
+        if !ok {
+                return nil, errors.New("Failed find server templates in \"templates\" directory")
+        }
+        htmlTemplates, err2 := templates.New(templatesDir)
+        if err2 != nil {
+                return nil, errors.Wrap(err2, "cannot initialize server templates")
+        }
+        s.htmlTemplates = htmlTemplates
 
-	s.telemetryService, err = telemetry.New(New(ServerConnector(s.Channels())), s.Store(), s.Log())
-	if err != nil {
-		return nil, errors.Wrapf(err, "unable to initialize telemetry service")
-	}
+        s.telemetryService, err = telemetry.New(New(ServerConnector(s.Channels())), s.Store(), s.Log())
+        if err != nil {
+                return nil, errors.Wrapf(err, "unable to initialize telemetry service")
+        }
 
-	s.platform.SetTelemetryId(s.ServerId()) // TODO: move this into platform once telemetry service moved to platform.
+        s.platform.SetTelemetryId(s.ServerId()) // TODO: move this into platform once telemetry service moved to platform.
 
-	emailService, err := email.NewService(email.ServiceConfig{
-		ConfigFn:           s.platform.Config,
-		TemplatesContainer: s.TemplatesContainer(),
-		UserService:        s.userService,
-		Store:              s.GetStore(),
-	})
-	if err != nil {
-		return nil, errors.Wrapf(err, "unable to initialize email service")
-	}
-	s.EmailService = emailService
+        emailService, err := email.NewService(email.ServiceConfig{
+                ConfigFn:           s.platform.Config,
+                TemplatesContainer: s.TemplatesContainer(),
+                UserService:        s.userService,
+                Store:              s.GetStore(),
+        })
+        if err != nil {
+                return nil, errors.Wrapf(err, "unable to initialize email service")
+        }
+        s.EmailService = emailService
 
-	s.platform.SetupFeatureFlags()
+        s.platform.SetupFeatureFlags()
 
-	s.initJobs()
+        s.initJobs()
 
-	if ipFilteringInterface != nil {
-		s.IPFiltering = ipFilteringInterface(app)
-	}
+        if ipFilteringInterface != nil {
+                s.IPFiltering = ipFilteringInterface(app)
+        }
 
-	if outgoingOauthConnectionInterface != nil {
-		s.OutgoingOAuthConnection = outgoingOauthConnectionInterface(app)
-	}
+        if outgoingOauthConnectionInterface != nil {
+                s.OutgoingOAuthConnection = outgoingOauthConnectionInterface(app)
+        }
 
-	s.clusterLeaderListenerId = s.AddClusterLeaderChangedListener(func() {
-		mlog.Info("Cluster leader changed. Determining if job schedulers should be running:", mlog.Bool("isLeader", s.IsLeader()))
-		if s.Jobs != nil {
-			s.Jobs.HandleClusterLeaderChange(s.IsLeader())
-		}
-		s.platform.SetupFeatureFlags()
-	})
+        s.clusterLeaderListenerId = s.AddClusterLeaderChangedListener(func() {
+                mlog.Info("Cluster leader changed. Determining if job schedulers should be running:", mlog.Bool("isLeader", s.IsLeader()))
+                if s.Jobs != nil {
+                        s.Jobs.HandleClusterLeaderChange(s.IsLeader())
+                }
+                s.platform.SetupFeatureFlags()
+        })
 
-	// If configured with a subpath, redirect 404s at the root back into the subpath.
-	if subpath != "/" {
-		// s.RootRouter.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// 	r.URL.Path = path.Join(subpath, r.URL.Path)
-		// 	http.Redirect(w, r, r.URL.String(), http.StatusFound)
-		// })
+        // If configured with a subpath, redirect 404s at the root back into the subpath.
+        if subpath != "/" {
+                // s.RootRouter.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                //      r.URL.Path = path.Join(subpath, r.URL.Path)
+                //      http.Redirect(w, r, r.URL.String(), http.StatusFound)
+                // })
 
-		s.RootRouter.NotFound(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			r.URL.Path = path.Join(subpath, r.URL.Path)
-			http.Redirect(w, r, r.URL.String(), http.StatusFound)
-		}))
-	}
+                s.RootRouter.NotFound(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                        r.URL.Path = path.Join(subpath, r.URL.Path)
+                        http.Redirect(w, r, r.URL.String(), http.StatusFound)
+                }))
+        }
 
-	if _, err = url.ParseRequestURI(*s.platform.Config().ServiceSettings.SiteURL); err != nil {
-		// Don't spam the logs when in CI or local testing mode
-		if !(os.Getenv("IS_CI") == "true" || os.Getenv("IS_LOCAL_TESTING") == "true") {
-			mlog.Error("SiteURL must be set. Some features will operate incorrectly if the SiteURL is not set. See documentation for details: https://mattermost.com/pl/configure-site-url")
-		}
-	}
+        if _, err = url.ParseRequestURI(*s.platform.Config().ServiceSettings.SiteURL); err != nil {
+                // Don't spam the logs when in CI or local testing mode
+                if !(os.Getenv("IS_CI") == "true" || os.Getenv("IS_LOCAL_TESTING") == "true") {
+                        mlog.Error("SiteURL must be set. Some features will operate incorrectly if the SiteURL is not set.")
+                }
+        }
 
-	// Start email batching because it's not like the other jobs
-	s.platform.AddConfigListener(func(_, _ *model.Config) {
-		s.EmailService.InitEmailBatching()
-	})
+        // Start email batching because it's not like the other jobs
+        s.platform.AddConfigListener(func(_, _ *model.Config) {
+                s.EmailService.InitEmailBatching()
+        })
 
-	pwd, _ := os.Getwd()
-	mlog.Info("Printing current working", mlog.String("directory", pwd))
-	mlog.Info("Loaded config", mlog.String("source", s.platform.DescribeConfig()))
+        pwd, _ := os.Getwd()
+        mlog.Info("Printing current working", mlog.String("directory", pwd))
+        mlog.Info("Loaded config", mlog.String("source", s.platform.DescribeConfig()))
 
-	if s.Audit == nil {
-		s.Audit = &audit.Audit{}
-		s.Audit.Init(audit.DefMaxQueueSize)
-		if err = s.configureAudit(s.Audit, true); err != nil {
-			mlog.Error("Error configuring audit", mlog.Err(err))
-		}
-	}
+        if s.Audit == nil {
+                s.Audit = &audit.Audit{}
+                s.Audit.Init(audit.DefMaxQueueSize)
+                if err = s.configureAudit(s.Audit, true); err != nil {
+                        mlog.Error("Error configuring audit", mlog.Err(err))
+                }
+        }
 
-	s.platform.RemoveUnlicensedLogTargets()
-	s.platform.EnableLoggingMetrics()
+        s.platform.RemoveUnlicensedLogTargets()
+        s.platform.EnableLoggingMetrics()
 
-	// if enabled - perform initial product notices fetch
-	if *s.platform.Config().AnnouncementSettings.AdminNoticesEnabled || *s.platform.Config().AnnouncementSettings.UserNoticesEnabled {
-		s.platform.Go(func() {
-			appInstance := New(ServerConnector(s.Channels()))
-			if err := appInstance.UpdateProductNotices(); err != nil {
-				mlog.Warn("Failed to perform initial product notices fetch", mlog.Err(err))
-			}
-		})
-	}
+        // if enabled - perform initial product notices fetch
+        if *s.platform.Config().AnnouncementSettings.AdminNoticesEnabled || *s.platform.Config().AnnouncementSettings.UserNoticesEnabled {
+                s.platform.Go(func() {
+                        appInstance := New(ServerConnector(s.Channels()))
+                        if err := appInstance.UpdateProductNotices(); err != nil {
+                                mlog.Warn("Failed to perform initial product notices fetch", mlog.Err(err))
+                        }
+                })
+        }
 
-	if s.skipPostInit {
-		return s, nil
-	}
+        if s.skipPostInit {
+                return s, nil
+        }
 
-	s.platform.AddConfigListener(func(oldCfg, newCfg *model.Config) {
-		appInstance := New(ServerConnector(s.Channels()))
-		if *oldCfg.GuestAccountsSettings.Enable && !*newCfg.GuestAccountsSettings.Enable {
-			c := request.EmptyContext(s.Log())
-			if appErr := appInstance.DeactivateGuests(c); appErr != nil {
-				mlog.Error("Unable to deactivate guest accounts", mlog.Err(appErr))
-			}
-		} else if *oldCfg.GuestAccountsSettings.EnableGuestMagicLink && !*newCfg.GuestAccountsSettings.EnableGuestMagicLink {
-			// Only run this if guest magic link accounts are still enabled
-			c := request.EmptyContext(s.Log())
-			if appErr := appInstance.DeactivateMagicLinkGuests(c); appErr != nil {
-				mlog.Error("Unable to deactivate guest magic link accounts", mlog.Err(appErr))
-			}
-		}
-	})
+        s.platform.AddConfigListener(func(oldCfg, newCfg *model.Config) {
+                appInstance := New(ServerConnector(s.Channels()))
+                if *oldCfg.GuestAccountsSettings.Enable && !*newCfg.GuestAccountsSettings.Enable {
+                        c := request.EmptyContext(s.Log())
+                        if appErr := appInstance.DeactivateGuests(c); appErr != nil {
+                                mlog.Error("Unable to deactivate guest accounts", mlog.Err(appErr))
+                        }
+                } else if *oldCfg.GuestAccountsSettings.EnableGuestMagicLink && !*newCfg.GuestAccountsSettings.EnableGuestMagicLink {
+                        // Only run this if guest magic link accounts are still enabled
+                        c := request.EmptyContext(s.Log())
+                        if appErr := appInstance.DeactivateMagicLinkGuests(c); appErr != nil {
+                                mlog.Error("Unable to deactivate guest magic link accounts", mlog.Err(appErr))
+                        }
+                }
+        })
 
-	// Disable active guest accounts on first run if guest accounts are disabled
-	if !*s.platform.Config().GuestAccountsSettings.Enable {
-		appInstance := New(ServerConnector(s.Channels()))
-		c := request.EmptyContext(s.Log())
-		if appErr := appInstance.DeactivateGuests(c); appErr != nil {
-			mlog.Error("Unable to deactivate guest accounts", mlog.Err(appErr))
-		}
-	} else if !*s.platform.Config().GuestAccountsSettings.EnableGuestMagicLink {
-		// Disable guest magic link accounts on first run if guest magic link accounts are disabled
-		// and only if guest accounts are still enabled
-		appInstance := New(ServerConnector(s.Channels()))
-		c := request.EmptyContext(s.Log())
-		if appErr := appInstance.DeactivateMagicLinkGuests(c); appErr != nil {
-			mlog.Error("Unable to deactivate guest magic link accounts", mlog.Err(appErr))
-		}
-	}
+        // Disable active guest accounts on first run if guest accounts are disabled
+        if !*s.platform.Config().GuestAccountsSettings.Enable {
+                appInstance := New(ServerConnector(s.Channels()))
+                c := request.EmptyContext(s.Log())
+                if appErr := appInstance.DeactivateGuests(c); appErr != nil {
+                        mlog.Error("Unable to deactivate guest accounts", mlog.Err(appErr))
+                }
+        } else if !*s.platform.Config().GuestAccountsSettings.EnableGuestMagicLink {
+                // Disable guest magic link accounts on first run if guest magic link accounts are disabled
+                // and only if guest accounts are still enabled
+                appInstance := New(ServerConnector(s.Channels()))
+                c := request.EmptyContext(s.Log())
+                if appErr := appInstance.DeactivateMagicLinkGuests(c); appErr != nil {
+                        mlog.Error("Unable to deactivate guest magic link accounts", mlog.Err(appErr))
+                }
+        }
 
-	if s.runEssentialJobs {
-		s.runJobs()
-	}
+        if s.runEssentialJobs {
+                s.runJobs()
+        }
 
-	s.doAppMigrations()
+        s.doAppMigrations()
 
-	s.initPostMetadata()
+        s.initPostMetadata()
 
-	// Dump the image cache if the proxy settings have changed. (need switch URLs to the correct proxy)
-	s.platform.AddConfigListener(func(oldCfg, newCfg *model.Config) {
-		if (oldCfg.ImageProxySettings.Enable != newCfg.ImageProxySettings.Enable) ||
-			(oldCfg.ImageProxySettings.ImageProxyType != newCfg.ImageProxySettings.ImageProxyType) ||
-			(oldCfg.ImageProxySettings.RemoteImageProxyURL != newCfg.ImageProxySettings.RemoteImageProxyURL) ||
-			(oldCfg.ImageProxySettings.RemoteImageProxyOptions != newCfg.ImageProxySettings.RemoteImageProxyOptions) {
-			if err = s.openGraphDataCache.Purge(); err != nil {
-				mlog.Error("Failed to purge Open Graph data cache after config change", mlog.Err(err))
-			}
-		}
-	})
+        // Dump the image cache if the proxy settings have changed. (need switch URLs to the correct proxy)
+        s.platform.AddConfigListener(func(oldCfg, newCfg *model.Config) {
+                if (oldCfg.ImageProxySettings.Enable != newCfg.ImageProxySettings.Enable) ||
+                        (oldCfg.ImageProxySettings.ImageProxyType != newCfg.ImageProxySettings.ImageProxyType) ||
+                        (oldCfg.ImageProxySettings.RemoteImageProxyURL != newCfg.ImageProxySettings.RemoteImageProxyURL) ||
+                        (oldCfg.ImageProxySettings.RemoteImageProxyOptions != newCfg.ImageProxySettings.RemoteImageProxyOptions) {
+                        if err = s.openGraphDataCache.Purge(); err != nil {
+                                mlog.Error("Failed to purge Open Graph data cache after config change", mlog.Err(err))
+                        }
+                }
+        })
 
-	// init lms app
-	s.lmsApp = lms.NewLMSApp(s.Store(), app)
+        // init lms app
+        s.lmsApp = lms.NewLMSApp(s.Store(), app)
 
-	// init calls service (realtime call control plane). The service is always
-	// constructed so the routes and API are available; it only activates when
-	// CallsSettings.Enable is true and an rtcd URL is configured.
-	callsService, err := calls.New(calls.ServiceConfig{
-		StoreFn: func() calls.StoreBridge { return calls.NewStoreBridge(s.Store()) },
-		ConfigFn: func() *model.Config {
-			return s.platform.Config()
-		},
-		Hub:      callsHubAdapter{ps: s.platform},
-		Cluster:  s.platform.Cluster(),
-		KVStore:  &callsKVAdapter{store: s.Store().Plugin(), log: s.Log().With(mlog.String("component", "calls"))},
-		ClientID: s.ServerId(),
-		Log:      s.Log().With(mlog.String("component", "calls")),
-		Metrics:  s.GetMetrics(),
-		PostCreatorFn: func() calls.PostCreator {
-			return callsPostAdapter{ch: s.Channels()}
-		},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create calls service: %w", err)
-	}
-	s.callsService = callsService
+        // init calls service (realtime call control plane). The service is always
+        // constructed so the routes and API are available; it only activates when
+        // CallsSettings.Enable is true and an rtcd URL is configured.
+        callsService, err := calls.New(calls.ServiceConfig{
+                StoreFn: func() calls.StoreBridge { return calls.NewStoreBridge(s.Store()) },
+                ConfigFn: func() *model.Config {
+                        return s.platform.Config()
+                },
+                Hub:      callsHubAdapter{ps: s.platform},
+                Cluster:  s.platform.Cluster(),
+                KVStore:  &callsKVAdapter{store: s.Store().Plugin(), log: s.Log().With(mlog.String("component", "calls"))},
+                ClientID: s.ServerId(),
+                Log:      s.Log().With(mlog.String("component", "calls")),
+                Metrics:  s.GetMetrics(),
+                PostCreatorFn: func() calls.PostCreator {
+                        return callsPostAdapter{ch: s.Channels()}
+                },
+        })
+        if err != nil {
+                return nil, fmt.Errorf("failed to create calls service: %w", err)
+        }
+        s.callsService = callsService
 
-	return s, nil
+        return s, nil
 }
 
 func (s *Server) runJobs() {
-	s.Go(func() {
-		appInstance := New(ServerConnector(s.Channels()))
-		runDNDStatusExpireJob(appInstance)
-		runPostReminderJob(appInstance)
-		runScheduledPostJob(appInstance)
-	})
-	s.Go(func() {
-		runSecurityJob(s)
-	})
-	s.Go(func() {
-		runSessionCleanupJob(s)
-	})
-	s.Go(func() {
-		runJobsCleanupJob(s)
-	})
-	s.Go(func() {
-		runTokenCleanupJob(s)
-	})
-	s.Go(func() {
-		runCommandWebhookCleanupJob(s)
-	})
-	s.Go(func() {
-		runConfigCleanupJob(s)
-	})
-	s.Go(func() {
-		runCloudUserCountReportJob(s)
-	})
+        s.Go(func() {
+                appInstance := New(ServerConnector(s.Channels()))
+                runDNDStatusExpireJob(appInstance)
+                runPostReminderJob(appInstance)
+                runScheduledPostJob(appInstance)
+        })
+        s.Go(func() {
+                runSessionCleanupJob(s)
+        })
+        s.Go(func() {
+                runJobsCleanupJob(s)
+        })
+        s.Go(func() {
+                runTokenCleanupJob(s)
+        })
+        s.Go(func() {
+                runCommandWebhookCleanupJob(s)
+        })
+        s.Go(func() {
+                runConfigCleanupJob(s)
+        })
+        s.Go(func() {
+                runCloudUserCountReportJob(s)
+        })
 
-	if complianceI := s.Channels().Compliance; complianceI != nil {
-		go complianceI.StartComplianceDailyJob()
-	}
+        if complianceI := s.Channels().Compliance; complianceI != nil {
+                go complianceI.StartComplianceDailyJob()
+        }
 
-	if *s.platform.Config().JobSettings.RunJobs && s.Jobs != nil {
-		if err := s.Jobs.StartWorkers(); err != nil {
-			mlog.Error("Failed to start job server workers", mlog.Err(err))
-		}
-	}
-	if *s.platform.Config().JobSettings.RunScheduler && s.Jobs != nil {
-		if err := s.Jobs.StartSchedulers(); err != nil {
-			mlog.Error("Failed to start job server schedulers", mlog.Err(err))
-		}
-	}
+        if *s.platform.Config().JobSettings.RunJobs && s.Jobs != nil {
+                if err := s.Jobs.StartWorkers(); err != nil {
+                        mlog.Error("Failed to start job server workers", mlog.Err(err))
+                }
+        }
+        if *s.platform.Config().JobSettings.RunScheduler && s.Jobs != nil {
+                if err := s.Jobs.StartSchedulers(); err != nil {
+                        mlog.Error("Failed to start job server schedulers", mlog.Err(err))
+                }
+        }
 
-	if *s.platform.Config().ServiceSettings.EnableAWSMetering {
-		runReportToAWSMeterJob(s)
-	}
+        if *s.platform.Config().ServiceSettings.EnableAWSMetering {
+                runReportToAWSMeterJob(s)
+        }
 }
 
 // Global app options that should be applied to apps created by this server
 func (s *Server) AppOptions() []AppOption {
-	return []AppOption{
-		ServerConnector(s.Channels()),
-	}
+        return []AppOption{
+                ServerConnector(s.Channels()),
+        }
 }
 
 func (s *Server) Channels() *Channels {
-	return s.ch
+        return s.ch
 }
 
 func (s *Server) startInterClusterServices() error {
-	// Config check
-	if !*s.platform.Config().ConnectedWorkspacesSettings.EnableRemoteClusterService && !*s.platform.Config().ConnectedWorkspacesSettings.EnableSharedChannels {
-		mlog.Debug("Remote Cluster Service disabled via config")
-		return nil
-	}
+        // Config check
+        if !*s.platform.Config().ConnectedWorkspacesSettings.EnableRemoteClusterService && !*s.platform.Config().ConnectedWorkspacesSettings.EnableSharedChannels {
+                mlog.Debug("Remote Cluster Service disabled via config")
+                return nil
+        }
 
-	var err error
-	appInstance := New(ServerConnector(s.Channels()))
-	rcs, err := remotecluster.NewRemoteClusterService(s, appInstance)
-	if err != nil {
-		return err
-	}
+        var err error
+        appInstance := New(ServerConnector(s.Channels()))
+        rcs, err := remotecluster.NewRemoteClusterService(s, appInstance)
+        if err != nil {
+                return err
+        }
 
-	if err = rcs.Start(); err != nil {
-		return err
-	}
+        if err = rcs.Start(); err != nil {
+                return err
+        }
 
-	s.serviceMux.Lock()
-	s.remoteClusterService = rcs
-	s.serviceMux.Unlock()
+        s.serviceMux.Lock()
+        s.remoteClusterService = rcs
+        s.serviceMux.Unlock()
 
-	// Config check
-	if !*s.platform.Config().ConnectedWorkspacesSettings.EnableSharedChannels {
-		mlog.Debug("Shared Channels Service disabled via config")
-		return nil
-	}
+        // Config check
+        if !*s.platform.Config().ConnectedWorkspacesSettings.EnableSharedChannels {
+                mlog.Debug("Shared Channels Service disabled via config")
+                return nil
+        }
 
-	scs, err := sharedchannel.NewSharedChannelService(s, s.Platform(), appInstance)
-	if err != nil {
-		return err
-	}
-	s.platform.SetSharedChannelService(scs)
+        scs, err := sharedchannel.NewSharedChannelService(s, s.Platform(), appInstance)
+        if err != nil {
+                return err
+        }
+        s.platform.SetSharedChannelService(scs)
 
-	if err = scs.Start(); err != nil {
-		return err
-	}
+        if err = scs.Start(); err != nil {
+                return err
+        }
 
-	s.serviceMux.Lock()
-	s.sharedChannelService = scs
-	s.serviceMux.Unlock()
+        s.serviceMux.Lock()
+        s.sharedChannelService = scs
+        s.serviceMux.Unlock()
 
-	return nil
+        return nil
 }
 
 const TimeToWaitForConnectionsToCloseOnServerShutdown = time.Second
 
 func (s *Server) StopHTTPServer() {
-	if s.Server != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), TimeToWaitForConnectionsToCloseOnServerShutdown)
-		defer cancel()
-		didShutdown := false
-		for s.didFinishListen != nil && !didShutdown {
-			if err := s.Server.Shutdown(ctx); err != nil {
-				mlog.Warn("Unable to shutdown server", mlog.Err(err))
-			}
-			timer := time.NewTimer(time.Millisecond * 50)
-			select {
-			case <-s.didFinishListen:
-				didShutdown = true
-			case <-timer.C:
-			}
-			timer.Stop()
-		}
-		s.Server.Close()
-		s.Server = nil
-	}
+        if s.Server != nil {
+                ctx, cancel := context.WithTimeout(context.Background(), TimeToWaitForConnectionsToCloseOnServerShutdown)
+                defer cancel()
+                didShutdown := false
+                for s.didFinishListen != nil && !didShutdown {
+                        if err := s.Server.Shutdown(ctx); err != nil {
+                                mlog.Warn("Unable to shutdown server", mlog.Err(err))
+                        }
+                        timer := time.NewTimer(time.Millisecond * 50)
+                        select {
+                        case <-s.didFinishListen:
+                                didShutdown = true
+                        case <-timer.C:
+                        }
+                        timer.Stop()
+                }
+                s.Server.Close()
+                s.Server = nil
+        }
 }
 
 func (s *Server) Shutdown() {
-	s.Log().Info("Stopping Server...")
+        s.Log().Info("Stopping Server...")
 
-	defer sentry.Flush(2 * time.Second)
+        defer sentry.Flush(2 * time.Second)
 
-	s.RemoveClusterLeaderChangedListener(s.clusterLeaderListenerId)
+        s.RemoveClusterLeaderChangedListener(s.clusterLeaderListenerId)
 
-	var err error
-	s.serviceMux.RLock()
-	if s.sharedChannelService != nil {
-		if err = s.sharedChannelService.Shutdown(); err != nil {
-			s.Log().Error("Error shutting down shared channel services", mlog.Err(err))
-		}
-	}
-	if s.remoteClusterService != nil {
-		if err = s.remoteClusterService.Shutdown(); err != nil {
-			s.Log().Error("Error shutting down intercluster services", mlog.Err(err))
-		}
-	}
-	if s.AutoTranslation != nil {
-		if err = s.AutoTranslation.Shutdown(); err != nil {
-			s.Log().Error("Error shutting down auto-translation service", mlog.Err(err))
-		}
-	}
-	s.serviceMux.RUnlock()
+        var err error
+        s.serviceMux.RLock()
+        if s.sharedChannelService != nil {
+                if err = s.sharedChannelService.Shutdown(); err != nil {
+                        s.Log().Error("Error shutting down shared channel services", mlog.Err(err))
+                }
+        }
+        if s.remoteClusterService != nil {
+                if err = s.remoteClusterService.Shutdown(); err != nil {
+                        s.Log().Error("Error shutting down intercluster services", mlog.Err(err))
+                }
+        }
+        if s.AutoTranslation != nil {
+                if err = s.AutoTranslation.Shutdown(); err != nil {
+                        s.Log().Error("Error shutting down auto-translation service", mlog.Err(err))
+                }
+        }
+        s.serviceMux.RUnlock()
 
-	s.StopHTTPServer()
-	s.stopLocalModeServer()
-	// Push notification hub needs to be shutdown after HTTP server
-	// to prevent stray requests from generating a push notification after it's shut down.
-	s.StopPushNotificationsHubWorkers()
+        s.StopHTTPServer()
+        s.stopLocalModeServer()
+        // Push notification hub needs to be shutdown after HTTP server
+        // to prevent stray requests from generating a push notification after it's shut down.
+        s.StopPushNotificationsHubWorkers()
 
-	s.platform.StopSearchEngine()
+        s.platform.StopSearchEngine()
 
-	if err = s.Audit.Shutdown(); err != nil {
-		s.Log().Warn("Failed to shut down audit", mlog.Err(err))
-	}
+        if err = s.Audit.Shutdown(); err != nil {
+                s.Log().Warn("Failed to shut down audit", mlog.Err(err))
+        }
 
-	s.platform.StopFeatureFlagUpdateJob()
+        s.platform.StopFeatureFlagUpdateJob()
 
-	if err = s.platform.ShutdownConfig(); err != nil {
-		s.Log().Warn("Failed to shut down config store", mlog.Err(err))
-	}
+        if err = s.platform.ShutdownConfig(); err != nil {
+                s.Log().Warn("Failed to shut down config store", mlog.Err(err))
+        }
 
-	if s.platform.Cluster() != nil {
-		s.platform.Cluster().StopInterNodeCommunication()
-	}
+        if s.platform.Cluster() != nil {
+                s.platform.Cluster().StopInterNodeCommunication()
+        }
 
-	if err = s.platform.ShutdownMetrics(); err != nil {
-		s.Log().Warn("Failed to stop metrics server", mlog.Err(err))
-	}
+        if err = s.platform.ShutdownMetrics(); err != nil {
+                s.Log().Warn("Failed to stop metrics server", mlog.Err(err))
+        }
 
-	// Stopping email service after HTTP server has stopped to prevent
-	// any stray notifications from being queued.
-	s.EmailService.Stop()
+        // Stopping email service after HTTP server has stopped to prevent
+        // any stray notifications from being queued.
+        s.EmailService.Stop()
 
-	// This must be done after the cluster is stopped.
-	if s.Jobs != nil {
-		// For simplicity we don't check if workers and schedulers are active
-		// before stopping them as both calls essentially become no-ops
-		// if nothing is running.
-		if err = s.Jobs.StopWorkers(); err != nil && !errors.Is(err, jobs.ErrWorkersNotRunning) {
-			s.Log().Warn("Failed to stop job server workers", mlog.Err(err))
-		}
-		if err = s.Jobs.StopSchedulers(); err != nil && !errors.Is(err, jobs.ErrSchedulersNotRunning) {
-			s.Log().Warn("Failed to stop job server schedulers", mlog.Err(err))
-		}
-	}
+        // This must be done after the cluster is stopped.
+        if s.Jobs != nil {
+                // For simplicity we don't check if workers and schedulers are active
+                // before stopping them as both calls essentially become no-ops
+                // if nothing is running.
+                if err = s.Jobs.StopWorkers(); err != nil && !errors.Is(err, jobs.ErrWorkersNotRunning) {
+                        s.Log().Warn("Failed to stop job server workers", mlog.Err(err))
+                }
+                if err = s.Jobs.StopSchedulers(); err != nil && !errors.Is(err, jobs.ErrSchedulersNotRunning) {
+                        s.Log().Warn("Failed to stop job server schedulers", mlog.Err(err))
+                }
+        }
 
-	// Stop channels.
-	// This needs to happen last because channels are dependent
-	// on parent services.
-	if err = s.Channels().Stop(); err != nil {
-		s.Log().Warn("Unable to cleanly stop channels", mlog.Err(err))
-	}
+        // Stop channels.
+        // This needs to happen last because channels are dependent
+        // on parent services.
+        if err = s.Channels().Stop(); err != nil {
+                s.Log().Warn("Unable to cleanly stop channels", mlog.Err(err))
+        }
 
-	if err = s.platform.Shutdown(); err != nil {
-		s.Log().Warn("Failed to stop platform", mlog.Err(err))
-	}
+        if err = s.platform.Shutdown(); err != nil {
+                s.Log().Warn("Failed to stop platform", mlog.Err(err))
+        }
 
-	s.Log().Info("Server stopped")
+        s.Log().Info("Server stopped")
 
-	// shutdown main and notification loggers which will flush any remaining log records.
-	timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), time.Second*15)
-	defer timeoutCancel()
-	if err = s.Log().ShutdownWithTimeout(timeoutCtx); err != nil {
-		fmt.Fprintf(os.Stderr, "Error shutting down main logger: %v", err)
-	}
+        // shutdown main and notification loggers which will flush any remaining log records.
+        timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), time.Second*15)
+        defer timeoutCancel()
+        if err = s.Log().ShutdownWithTimeout(timeoutCtx); err != nil {
+                fmt.Fprintf(os.Stderr, "Error shutting down main logger: %v", err)
+        }
 }
 
 func (s *Server) Restart() error {
-	percentage, err := s.UpgradeToE0Status()
-	if err != nil || percentage != 100 {
-		return errors.Wrap(err, "unable to restart because the system has not been upgraded")
-	}
-	s.Shutdown()
+        percentage, err := s.UpgradeToE0Status()
+        if err != nil || percentage != 100 {
+                return errors.Wrap(err, "unable to restart because the system has not been upgraded")
+        }
+        s.Shutdown()
 
-	argv0, err := exec.LookPath(os.Args[0])
-	if err != nil {
-		return err
-	}
+        argv0, err := exec.LookPath(os.Args[0])
+        if err != nil {
+                return err
+        }
 
-	if _, err = os.Stat(argv0); err != nil {
-		return err
-	}
+        if _, err = os.Stat(argv0); err != nil {
+                return err
+        }
 
-	mlog.Info("Restarting server")
-	return syscall.Exec(argv0, os.Args, os.Environ())
+        mlog.Info("Restarting server")
+        return syscall.Exec(argv0, os.Args, os.Environ())
 }
 
 func (s *Server) CanIUpgradeToE0() error {
-	return upgrader.CanIUpgradeToE0()
+        return upgrader.CanIUpgradeToE0()
 }
 
 func (s *Server) UpgradeToE0() error {
-	if err := upgrader.UpgradeToE0(); err != nil {
-		return err
-	}
-	upgradedFromTE := &model.System{Name: model.SystemUpgradedFromTeId, Value: "true"}
-	if err := s.Store().System().Save(upgradedFromTE); err != nil {
-		return err
-	}
-	return nil
+        if err := upgrader.UpgradeToE0(); err != nil {
+                return err
+        }
+        upgradedFromTE := &model.System{Name: model.SystemUpgradedFromTeId, Value: "true"}
+        if err := s.Store().System().Save(upgradedFromTE); err != nil {
+                return err
+        }
+        return nil
 }
 
 func (s *Server) UpgradeToE0Status() (int64, error) {
-	return upgrader.UpgradeToE0Status()
+        return upgrader.UpgradeToE0Status()
 }
 
 // Go creates a goroutine, but maintains a record of it to ensure that execution completes before
 // the server is shutdown.
 func (s *Server) Go(f func()) {
-	s.platform.Go(f)
+        s.platform.Go(f)
 }
 
 // GoBuffered acts like a semaphore which creates a goroutine, but maintains a record of it
 // to ensure that execution completes before the server is shutdown.
 func (s *Server) GoBuffered(f func()) {
-	s.platform.GoBuffered(f)
+        s.platform.GoBuffered(f)
 }
 
 var corsAllowedMethods = []string{
-	"POST",
-	"GET",
-	"OPTIONS",
-	"PUT",
-	"PATCH",
-	"DELETE",
+        "POST",
+        "GET",
+        "OPTIONS",
+        "PUT",
+        "PATCH",
+        "DELETE",
 }
 
 // golang.org/x/crypto/acme/autocert/autocert.go
 func handleHTTPRedirect(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" && r.Method != "HEAD" {
-		http.Error(w, "Use HTTPS", http.StatusBadRequest)
-		return
-	}
-	target := "https://" + stripPort(r.Host) + r.URL.RequestURI()
-	http.Redirect(w, r, target, http.StatusFound)
+        if r.Method != "GET" && r.Method != "HEAD" {
+                http.Error(w, "Use HTTPS", http.StatusBadRequest)
+                return
+        }
+        target := "https://" + stripPort(r.Host) + r.URL.RequestURI()
+        http.Redirect(w, r, target, http.StatusFound)
 }
 
 // golang.org/x/crypto/acme/autocert/autocert.go
 func stripPort(hostport string) string {
-	host, _, err := net.SplitHostPort(hostport)
-	if err != nil {
-		return hostport
-	}
-	return net.JoinHostPort(host, "443")
+        host, _, err := net.SplitHostPort(hostport)
+        if err != nil {
+                return hostport
+        }
+        return net.JoinHostPort(host, "443")
 }
 
 func (s *Server) Start() error {
-	// Start channels.
-	// This needs to happen before because channels is dependent on the HTTP server.
-	if err := s.Channels().Start(); err != nil {
-		return errors.Wrap(err, "Unable to start channels")
-	}
+        // Start channels.
+        // This needs to happen before because channels is dependent on the HTTP server.
+        if err := s.Channels().Start(); err != nil {
+                return errors.Wrap(err, "Unable to start channels")
+        }
 
-	if s.joinCluster && s.platform.Cluster() != nil {
-		s.registerClusterHandlers()
-		s.platform.Cluster().StartInterNodeCommunication()
-	}
+        if s.joinCluster && s.platform.Cluster() != nil {
+                s.registerClusterHandlers()
+                s.platform.Cluster().StartInterNodeCommunication()
+        }
 
-	if err := s.ensureInstallationDate(); err != nil {
-		return errors.Wrapf(err, "unable to ensure installation date")
-	}
+        if err := s.ensureInstallationDate(); err != nil {
+                return errors.Wrapf(err, "unable to ensure installation date")
+        }
 
-	if err := s.ensureFirstServerRunTimestamp(); err != nil {
-		return errors.Wrapf(err, "unable to ensure first run timestamp")
-	}
+        if err := s.ensureFirstServerRunTimestamp(); err != nil {
+                return errors.Wrapf(err, "unable to ensure first run timestamp")
+        }
 
-	if err := s.Store().Status().ResetAll(); err != nil {
-		mlog.Error("Error to reset the server status.", mlog.Err(err))
-	}
+        if err := s.Store().Status().ResetAll(); err != nil {
+                mlog.Error("Error to reset the server status.", mlog.Err(err))
+        }
 
-	if s.MailServiceConfig().SendEmailNotifications {
-		if err := mail.TestConnection(s.MailServiceConfig()); err != nil {
-			mlog.Error("Mail server connection test failed", mlog.Err(err))
-		}
-	}
+        if s.MailServiceConfig().SendEmailNotifications {
+                if err := mail.TestConnection(s.MailServiceConfig()); err != nil {
+                        mlog.Error("Mail server connection test failed", mlog.Err(err))
+                }
+        }
 
-	if s.AutoTranslation != nil {
-		if err := s.AutoTranslation.Start(); err != nil {
-			return errors.Wrap(err, "Unable to start auto-translation service")
-		}
-	}
+        if s.AutoTranslation != nil {
+                if err := s.AutoTranslation.Start(); err != nil {
+                        return errors.Wrap(err, "Unable to start auto-translation service")
+                }
+        }
 
-	// Start the realtime calls service. Non-fatal: calls are optional, and a
-	// missing rtcd URL should not prevent server startup.
-	if s.callsService != nil {
-		if err := s.callsService.Start(); err != nil {
-			mlog.Error("Failed to start calls service; calls will be unavailable.", mlog.Err(err))
-		}
-	}
+        // Start the realtime calls service. Non-fatal: calls are optional, and a
+        // missing rtcd URL should not prevent server startup.
+        if s.callsService != nil {
+                if err := s.callsService.Start(); err != nil {
+                        mlog.Error("Failed to start calls service; calls will be unavailable.", mlog.Err(err))
+                }
+        }
 
-	err := s.FileBackend().TestConnection()
-	if err != nil {
-		if _, ok := err.(*filestore.S3FileBackendNoBucketError); ok {
-			err = s.FileBackend().(*filestore.S3FileBackend).MakeBucket()
-		}
-		if err != nil {
-			mlog.Error("Problem with file storage settings", mlog.Err(err))
-		}
-	}
+        err := s.FileBackend().TestConnection()
+        if err != nil {
+                if _, ok := err.(*filestore.S3FileBackendNoBucketError); ok {
+                        err = s.FileBackend().(*filestore.S3FileBackend).MakeBucket()
+                }
+                if err != nil {
+                        mlog.Error("Problem with file storage settings", mlog.Err(err))
+                }
+        }
 
-	s.checkPushNotificationServerURL()
+        s.checkPushNotificationServerURL()
 
-	if err = s.platform.ReloadConfig(); err != nil {
-		mlog.Error("Failed to reload config on server start", mlog.Err(err))
-	}
+        if err = s.platform.ReloadConfig(); err != nil {
+                mlog.Error("Failed to reload config on server start", mlog.Err(err))
+        }
 
-	mlog.Info("Starting Server...")
+        mlog.Info("Starting Server...")
 
-	var handler http.Handler = s.RootRouter
+        var handler http.Handler = s.RootRouter
 
-	switch model.GetServiceEnvironment() {
-	case model.ServiceEnvironmentProduction, model.ServiceEnvironmentTest:
-		if *s.platform.Config().LogSettings.EnableDiagnostics && *s.platform.Config().LogSettings.EnableSentry {
-			sentryHandler := sentryhttp.New(sentryhttp.Options{
-				Repanic: true,
-			})
-			handler = sentryHandler.Handle(handler)
-		}
-	case model.ServiceEnvironmentDev:
-	}
+        switch model.GetServiceEnvironment() {
+        case model.ServiceEnvironmentProduction, model.ServiceEnvironmentTest:
+                if *s.platform.Config().LogSettings.EnableDiagnostics && *s.platform.Config().LogSettings.EnableSentry {
+                        sentryHandler := sentryhttp.New(sentryhttp.Options{
+                                Repanic: true,
+                        })
+                        handler = sentryHandler.Handle(handler)
+                }
+        case model.ServiceEnvironmentDev:
+        }
 
-	if allowedOrigins := *s.platform.Config().ServiceSettings.AllowCorsFrom; allowedOrigins != "" {
-		exposedCorsHeaders := *s.platform.Config().ServiceSettings.CorsExposedHeaders
-		allowCredentials := *s.platform.Config().ServiceSettings.CorsAllowCredentials
-		debug := *s.platform.Config().ServiceSettings.CorsDebug
-		corsWrapper := cors.New(cors.Options{
-			AllowedOrigins:   strings.Fields(allowedOrigins),
-			AllowedMethods:   corsAllowedMethods,
-			AllowedHeaders:   []string{"*"},
-			ExposedHeaders:   strings.Fields(exposedCorsHeaders),
-			MaxAge:           86400,
-			AllowCredentials: allowCredentials,
-			Debug:            debug,
-		})
+        if allowedOrigins := *s.platform.Config().ServiceSettings.AllowCorsFrom; allowedOrigins != "" {
+                exposedCorsHeaders := *s.platform.Config().ServiceSettings.CorsExposedHeaders
+                allowCredentials := *s.platform.Config().ServiceSettings.CorsAllowCredentials
+                debug := *s.platform.Config().ServiceSettings.CorsDebug
+                corsWrapper := cors.New(cors.Options{
+                        AllowedOrigins:   strings.Fields(allowedOrigins),
+                        AllowedMethods:   corsAllowedMethods,
+                        AllowedHeaders:   []string{"*"},
+                        ExposedHeaders:   strings.Fields(exposedCorsHeaders),
+                        MaxAge:           86400,
+                        AllowCredentials: allowCredentials,
+                        Debug:            debug,
+                })
 
-		// If we have debugging of CORS turned on then forward messages to logs
-		if debug {
-			corsWrapper.Log = s.Log().With(mlog.String("source", "cors")).StdLogger(mlog.LvlDebug)
-		}
+                // If we have debugging of CORS turned on then forward messages to logs
+                if debug {
+                        corsWrapper.Log = s.Log().With(mlog.String("source", "cors")).StdLogger(mlog.LvlDebug)
+                }
 
-		handler = corsWrapper.Handler(handler)
-	}
+                handler = corsWrapper.Handler(handler)
+        }
 
-	if *s.platform.Config().RateLimitSettings.Enable {
-		mlog.Info("RateLimiter is enabled")
+        if *s.platform.Config().RateLimitSettings.Enable {
+                mlog.Info("RateLimiter is enabled")
 
-		rateLimiter, err2 := NewRateLimiter(&s.platform.Config().RateLimitSettings, s.platform.Config().ServiceSettings.TrustedProxyIPHeader)
-		if err2 != nil {
-			return err2
-		}
+                rateLimiter, err2 := NewRateLimiter(&s.platform.Config().RateLimitSettings, s.platform.Config().ServiceSettings.TrustedProxyIPHeader)
+                if err2 != nil {
+                        return err2
+                }
 
-		s.RateLimiter = rateLimiter
-		handler = rateLimiter.RateLimitHandler(handler)
-	}
+                s.RateLimiter = rateLimiter
+                handler = rateLimiter.RateLimitHandler(handler)
+        }
 
-	// Creating a logger for logging errors from http.Server at error level
-	errStdLog := s.Log().With(mlog.String("source", "httpserver")).StdLogger(mlog.LvlError)
+        // Creating a logger for logging errors from http.Server at error level
+        errStdLog := s.Log().With(mlog.String("source", "httpserver")).StdLogger(mlog.LvlError)
 
-	s.Server = &http.Server{
-		Handler:      handler,
-		ReadTimeout:  time.Duration(*s.platform.Config().ServiceSettings.ReadTimeout) * time.Second,
-		WriteTimeout: time.Duration(*s.platform.Config().ServiceSettings.WriteTimeout) * time.Second,
-		IdleTimeout:  time.Duration(*s.platform.Config().ServiceSettings.IdleTimeout) * time.Second,
-		ErrorLog:     errStdLog,
-	}
+        s.Server = &http.Server{
+                Handler:      handler,
+                ReadTimeout:  time.Duration(*s.platform.Config().ServiceSettings.ReadTimeout) * time.Second,
+                WriteTimeout: time.Duration(*s.platform.Config().ServiceSettings.WriteTimeout) * time.Second,
+                IdleTimeout:  time.Duration(*s.platform.Config().ServiceSettings.IdleTimeout) * time.Second,
+                ErrorLog:     errStdLog,
+        }
 
-	addr := *s.platform.Config().ServiceSettings.ListenAddress
-	if addr == "" {
-		if *s.platform.Config().ServiceSettings.ConnectionSecurity == model.ConnSecurityTLS {
-			addr = ":https"
-		} else {
-			addr = ":http"
-		}
-	}
+        addr := *s.platform.Config().ServiceSettings.ListenAddress
+        if addr == "" {
+                if *s.platform.Config().ServiceSettings.ConnectionSecurity == model.ConnSecurityTLS {
+                        addr = ":https"
+                } else {
+                        addr = ":http"
+                }
+        }
 
-	listener, err := net.Listen("tcp", addr)
-	if err != nil {
-		return errors.Wrapf(err, i18n.T("api.server.start_server.starting.critical"), err)
-	}
-	s.ListenAddr = listener.Addr().(*net.TCPAddr)
+        listener, err := net.Listen("tcp", addr)
+        if err != nil {
+                return errors.Wrapf(err, i18n.T("api.server.start_server.starting.critical"), err)
+        }
+        s.ListenAddr = listener.Addr().(*net.TCPAddr)
 
-	logListeningPort := fmt.Sprintf("Server is listening on %v", listener.Addr().String())
-	mlog.Info(logListeningPort, mlog.String("address", listener.Addr().String()))
+        logListeningPort := fmt.Sprintf("Server is listening on %v", listener.Addr().String())
+        mlog.Info(logListeningPort, mlog.String("address", listener.Addr().String()))
 
-	m := &autocert.Manager{
-		Cache:  autocert.DirCache(*s.platform.Config().ServiceSettings.LetsEncryptCertificateCacheFile),
-		Prompt: autocert.AcceptTOS,
-	}
+        m := &autocert.Manager{
+                Cache:  autocert.DirCache(*s.platform.Config().ServiceSettings.LetsEncryptCertificateCacheFile),
+                Prompt: autocert.AcceptTOS,
+        }
 
-	if *s.platform.Config().ServiceSettings.Forward80To443 {
-		if host, port, err := net.SplitHostPort(addr); err != nil {
-			mlog.Error("Unable to setup forwarding", mlog.Err(err))
-		} else if port != "443" {
-			return fmt.Errorf(i18n.T("api.server.start_server.forward80to443.enabled_but_listening_on_wrong_port"), port)
-		} else {
-			httpListenAddress := net.JoinHostPort(host, "http")
+        if *s.platform.Config().ServiceSettings.Forward80To443 {
+                if host, port, err := net.SplitHostPort(addr); err != nil {
+                        mlog.Error("Unable to setup forwarding", mlog.Err(err))
+                } else if port != "443" {
+                        return fmt.Errorf(i18n.T("api.server.start_server.forward80to443.enabled_but_listening_on_wrong_port"), port)
+                } else {
+                        httpListenAddress := net.JoinHostPort(host, "http")
 
-			if *s.platform.Config().ServiceSettings.UseLetsEncrypt {
-				server := &http.Server{
-					Addr:     httpListenAddress,
-					Handler:  m.HTTPHandler(nil),
-					ErrorLog: s.Log().With(mlog.String("source", "le_forwarder_server")).StdLogger(mlog.LvlError),
-				}
-				go func() {
-					if err := server.ListenAndServe(); err != nil {
-						mlog.Error("Failed to serve redirect from port 80 to 443 with autocert ", mlog.Err(err))
-					}
-				}()
-			} else {
-				go func() {
-					redirectListener, err := net.Listen("tcp", httpListenAddress)
-					if err != nil {
-						mlog.Error("Unable to setup forwarding", mlog.Err(err))
-						return
-					}
-					defer redirectListener.Close()
+                        if *s.platform.Config().ServiceSettings.UseLetsEncrypt {
+                                server := &http.Server{
+                                        Addr:     httpListenAddress,
+                                        Handler:  m.HTTPHandler(nil),
+                                        ErrorLog: s.Log().With(mlog.String("source", "le_forwarder_server")).StdLogger(mlog.LvlError),
+                                }
+                                go func() {
+                                        if err := server.ListenAndServe(); err != nil {
+                                                mlog.Error("Failed to serve redirect from port 80 to 443 with autocert ", mlog.Err(err))
+                                        }
+                                }()
+                        } else {
+                                go func() {
+                                        redirectListener, err := net.Listen("tcp", httpListenAddress)
+                                        if err != nil {
+                                                mlog.Error("Unable to setup forwarding", mlog.Err(err))
+                                                return
+                                        }
+                                        defer redirectListener.Close()
 
-					server := &http.Server{
-						Handler:  http.HandlerFunc(handleHTTPRedirect),
-						ErrorLog: s.Log().With(mlog.String("source", "forwarder_server")).StdLogger(mlog.LvlError),
-					}
-					if err := server.Serve(redirectListener); err != nil {
-						mlog.Error("Failed to serve redirect from port 80 to 443", mlog.Err(err))
-					}
-				}()
-			}
-		}
-	} else if *s.platform.Config().ServiceSettings.UseLetsEncrypt {
-		return errors.New(i18n.T("api.server.start_server.forward80to443.disabled_while_using_lets_encrypt"))
-	}
+                                        server := &http.Server{
+                                                Handler:  http.HandlerFunc(handleHTTPRedirect),
+                                                ErrorLog: s.Log().With(mlog.String("source", "forwarder_server")).StdLogger(mlog.LvlError),
+                                        }
+                                        if err := server.Serve(redirectListener); err != nil {
+                                                mlog.Error("Failed to serve redirect from port 80 to 443", mlog.Err(err))
+                                        }
+                                }()
+                        }
+                }
+        } else if *s.platform.Config().ServiceSettings.UseLetsEncrypt {
+                return errors.New(i18n.T("api.server.start_server.forward80to443.disabled_while_using_lets_encrypt"))
+        }
 
-	s.didFinishListen = make(chan struct{})
-	go func() {
-		var err error
-		if *s.platform.Config().ServiceSettings.ConnectionSecurity == model.ConnSecurityTLS {
-			tlsConfig := &tls.Config{
-				PreferServerCipherSuites: true,
-				CurvePreferences:         []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
-			}
+        s.didFinishListen = make(chan struct{})
+        go func() {
+                var err error
+                if *s.platform.Config().ServiceSettings.ConnectionSecurity == model.ConnSecurityTLS {
+                        tlsConfig := &tls.Config{
+                                PreferServerCipherSuites: true,
+                                CurvePreferences:         []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
+                        }
 
-			switch *s.platform.Config().ServiceSettings.TLSMinVer {
-			case "1.0":
-				tlsConfig.MinVersion = tls.VersionTLS10
-			case "1.1":
-				tlsConfig.MinVersion = tls.VersionTLS11
-			default:
-				tlsConfig.MinVersion = tls.VersionTLS12
-			}
+                        switch *s.platform.Config().ServiceSettings.TLSMinVer {
+                        case "1.0":
+                                tlsConfig.MinVersion = tls.VersionTLS10
+                        case "1.1":
+                                tlsConfig.MinVersion = tls.VersionTLS11
+                        default:
+                                tlsConfig.MinVersion = tls.VersionTLS12
+                        }
 
-			defaultCiphers := []uint16{
-				tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-				tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-				tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-				tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-				tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
-				tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
-			}
+                        defaultCiphers := []uint16{
+                                tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+                                tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+                                tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+                                tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+                                tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
+                                tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
+                        }
 
-			if len(s.platform.Config().ServiceSettings.TLSOverwriteCiphers) == 0 {
-				tlsConfig.CipherSuites = defaultCiphers
-			} else {
-				var cipherSuites []uint16
-				for _, cipher := range s.platform.Config().ServiceSettings.TLSOverwriteCiphers {
-					value, ok := model.ServerTLSSupportedCiphers[cipher]
+                        if len(s.platform.Config().ServiceSettings.TLSOverwriteCiphers) == 0 {
+                                tlsConfig.CipherSuites = defaultCiphers
+                        } else {
+                                var cipherSuites []uint16
+                                for _, cipher := range s.platform.Config().ServiceSettings.TLSOverwriteCiphers {
+                                        value, ok := model.ServerTLSSupportedCiphers[cipher]
 
-					if !ok {
-						mlog.Warn("Unsupported cipher passed", mlog.String("cipher", cipher))
-						continue
-					}
+                                        if !ok {
+                                                mlog.Warn("Unsupported cipher passed", mlog.String("cipher", cipher))
+                                                continue
+                                        }
 
-					cipherSuites = append(cipherSuites, value)
-				}
+                                        cipherSuites = append(cipherSuites, value)
+                                }
 
-				if len(cipherSuites) == 0 {
-					mlog.Warn("No supported ciphers passed, fallback to default cipher suite")
-					cipherSuites = defaultCiphers
-				}
+                                if len(cipherSuites) == 0 {
+                                        mlog.Warn("No supported ciphers passed, fallback to default cipher suite")
+                                        cipherSuites = defaultCiphers
+                                }
 
-				tlsConfig.CipherSuites = cipherSuites
-			}
+                                tlsConfig.CipherSuites = cipherSuites
+                        }
 
-			certFile := ""
-			keyFile := ""
+                        certFile := ""
+                        keyFile := ""
 
-			if *s.platform.Config().ServiceSettings.UseLetsEncrypt {
-				tlsConfig.GetCertificate = m.GetCertificate
-				tlsConfig.NextProtos = append(tlsConfig.NextProtos, "h2")
-			} else {
-				certFile = *s.platform.Config().ServiceSettings.TLSCertFile
-				keyFile = *s.platform.Config().ServiceSettings.TLSKeyFile
-			}
+                        if *s.platform.Config().ServiceSettings.UseLetsEncrypt {
+                                tlsConfig.GetCertificate = m.GetCertificate
+                                tlsConfig.NextProtos = append(tlsConfig.NextProtos, "h2")
+                        } else {
+                                certFile = *s.platform.Config().ServiceSettings.TLSCertFile
+                                keyFile = *s.platform.Config().ServiceSettings.TLSKeyFile
+                        }
 
-			s.Server.TLSConfig = tlsConfig
-			err = s.Server.ServeTLS(listener, certFile, keyFile)
-		} else {
-			err = s.Server.Serve(listener)
-		}
+                        s.Server.TLSConfig = tlsConfig
+                        err = s.Server.ServeTLS(listener, certFile, keyFile)
+                } else {
+                        err = s.Server.Serve(listener)
+                }
 
-		if err != nil && err != http.ErrServerClosed {
-			mlog.Fatal("Error starting server", mlog.Err(err))
-			time.Sleep(time.Second)
-		}
+                if err != nil && err != http.ErrServerClosed {
+                        mlog.Fatal("Error starting server", mlog.Err(err))
+                        time.Sleep(time.Second)
+                }
 
-		close(s.didFinishListen)
-	}()
+                close(s.didFinishListen)
+        }()
 
-	if *s.platform.Config().ServiceSettings.EnableLocalMode {
-		if err := s.startLocalModeServer(); err != nil {
-			mlog.Fatal(err.Error())
-		}
-	}
+        if *s.platform.Config().ServiceSettings.EnableLocalMode {
+                if err := s.startLocalModeServer(); err != nil {
+                        mlog.Fatal(err.Error())
+                }
+        }
 
-	if err := s.startInterClusterServices(); err != nil {
-		mlog.Error("Error starting inter-cluster services", mlog.Err(err))
-	}
+        if err := s.startInterClusterServices(); err != nil {
+                mlog.Error("Error starting inter-cluster services", mlog.Err(err))
+        }
 
-	return nil
+        return nil
 }
 
 func (s *Server) startLocalModeServer() error {
-	s.localModeServer = &http.Server{
-		Handler: s.LocalRouter,
-	}
+        s.localModeServer = &http.Server{
+                Handler: s.LocalRouter,
+        }
 
-	socket := *s.platform.Config().ServiceSettings.LocalModeSocketLocation
-	if err := os.RemoveAll(socket); err != nil {
-		return errors.Wrapf(err, i18n.T("api.server.start_server.starting.critical"), err)
-	}
+        socket := *s.platform.Config().ServiceSettings.LocalModeSocketLocation
+        if err := os.RemoveAll(socket); err != nil {
+                return errors.Wrapf(err, i18n.T("api.server.start_server.starting.critical"), err)
+        }
 
-	unixListener, err := net.Listen("unix", socket)
-	if err != nil {
-		return errors.Wrapf(err, i18n.T("api.server.start_server.starting.critical"), err)
-	}
-	if err = os.Chmod(socket, 0600); err != nil {
-		return errors.Wrapf(err, i18n.T("api.server.start_server.starting.critical"), err)
-	}
+        unixListener, err := net.Listen("unix", socket)
+        if err != nil {
+                return errors.Wrapf(err, i18n.T("api.server.start_server.starting.critical"), err)
+        }
+        if err = os.Chmod(socket, 0600); err != nil {
+                return errors.Wrapf(err, i18n.T("api.server.start_server.starting.critical"), err)
+        }
 
-	go func() {
-		err = s.localModeServer.Serve(unixListener)
-		if err != nil && err != http.ErrServerClosed {
-			mlog.Fatal("Error starting unix socket server", mlog.Err(err))
-		}
-	}()
-	return nil
+        go func() {
+                err = s.localModeServer.Serve(unixListener)
+                if err != nil && err != http.ErrServerClosed {
+                        mlog.Fatal("Error starting unix socket server", mlog.Err(err))
+                }
+        }()
+        return nil
 }
 
 func (s *Server) stopLocalModeServer() {
-	if s.localModeServer != nil {
-		s.localModeServer.Close()
-	}
+        if s.localModeServer != nil {
+                s.localModeServer.Close()
+        }
 }
 
 func (a *App) OriginChecker() func(*http.Request) bool {
-	if allowed := *a.Config().ServiceSettings.AllowCorsFrom; allowed != "" {
-		if allowed != "*" {
-			siteURL, err := url.Parse(*a.Config().ServiceSettings.SiteURL)
-			if err == nil {
-				siteURL.Path = ""
-				allowed += " " + siteURL.String()
-			}
-		}
+        if allowed := *a.Config().ServiceSettings.AllowCorsFrom; allowed != "" {
+                if allowed != "*" {
+                        siteURL, err := url.Parse(*a.Config().ServiceSettings.SiteURL)
+                        if err == nil {
+                                siteURL.Path = ""
+                                allowed += " " + siteURL.String()
+                        }
+                }
 
-		return utils.OriginChecker(allowed)
-	}
+                return utils.OriginChecker(allowed)
+        }
 
-	// Overriding the default origin checker
-	return func(r *http.Request) bool {
-		origin := r.Header["Origin"]
-		if len(origin) == 0 {
-			return true
-		}
-		if origin[0] == "null" {
-			return false
-		}
-		u, err := url.Parse(origin[0])
-		if err != nil {
-			return false
-		}
+        // Overriding the default origin checker
+        return func(r *http.Request) bool {
+                origin := r.Header["Origin"]
+                if len(origin) == 0 {
+                        return true
+                }
+                if origin[0] == "null" {
+                        return false
+                }
+                u, err := url.Parse(origin[0])
+                if err != nil {
+                        return false
+                }
 
-		// To maintain the case where siteURL is not set.
-		if *a.Config().ServiceSettings.SiteURL == "" {
-			return strings.EqualFold(u.Host, r.Host)
-		}
-		siteURL, err := url.Parse(*a.Config().ServiceSettings.SiteURL)
-		if err != nil {
-			return false
-		}
-		return strings.EqualFold(u.Host, siteURL.Host) && strings.EqualFold(u.Scheme, siteURL.Scheme)
-	}
+                // To maintain the case where siteURL is not set.
+                if *a.Config().ServiceSettings.SiteURL == "" {
+                        return strings.EqualFold(u.Host, r.Host)
+                }
+                siteURL, err := url.Parse(*a.Config().ServiceSettings.SiteURL)
+                if err != nil {
+                        return false
+                }
+                return strings.EqualFold(u.Host, siteURL.Host) && strings.EqualFold(u.Scheme, siteURL.Scheme)
+        }
 }
 
 func (s *Server) checkPushNotificationServerURL() {
-	notificationServer := *s.platform.Config().EmailSettings.PushNotificationServer
-	if strings.HasPrefix(notificationServer, "http://") {
-		mlog.Warn("Your push notification server is configured with HTTP. For improved security, update to HTTPS in your configuration.")
-	}
-}
-
-func runSecurityJob(s *Server) {
-	doSecurity(s)
-	model.CreateRecurringTask("Security", func() {
-		doSecurity(s)
-	}, time.Hour*4)
+        notificationServer := *s.platform.Config().EmailSettings.PushNotificationServer
+        if strings.HasPrefix(notificationServer, "http://") {
+                mlog.Warn("Your push notification server is configured with HTTP. For improved security, update to HTTPS in your configuration.")
+        }
 }
 
 func runTokenCleanupJob(s *Server) {
-	doTokenCleanup(s)
-	model.CreateRecurringTask("Token Cleanup", func() {
-		doTokenCleanup(s)
-	}, time.Hour*1)
+        doTokenCleanup(s)
+        model.CreateRecurringTask("Token Cleanup", func() {
+                doTokenCleanup(s)
+        }, time.Hour*1)
 }
 
 func runCommandWebhookCleanupJob(s *Server) {
-	doCommandWebhookCleanup(s)
-	model.CreateRecurringTask("Command Hook Cleanup", func() {
-		doCommandWebhookCleanup(s)
-	}, time.Hour*1)
+        doCommandWebhookCleanup(s)
+        model.CreateRecurringTask("Command Hook Cleanup", func() {
+                doCommandWebhookCleanup(s)
+        }, time.Hour*1)
 }
 
 func runSessionCleanupJob(s *Server) {
-	doSessionCleanup(s)
-	model.CreateRecurringTask("Session Cleanup", func() {
-		doSessionCleanup(s)
-	}, time.Hour*24)
+        doSessionCleanup(s)
+        model.CreateRecurringTask("Session Cleanup", func() {
+                doSessionCleanup(s)
+        }, time.Hour*24)
 }
 
 func runJobsCleanupJob(s *Server) {
-	doJobsCleanup(s)
-	model.CreateRecurringTask("Job Cleanup", func() {
-		doJobsCleanup(s)
-	}, time.Hour*24)
+        doJobsCleanup(s)
+        model.CreateRecurringTask("Job Cleanup", func() {
+                doJobsCleanup(s)
+        }, time.Hour*24)
 }
 
 func runConfigCleanupJob(s *Server) {
-	doConfigCleanup(s)
-	model.CreateRecurringTask("Configuration Cleanup", func() {
-		doConfigCleanup(s)
-	}, time.Hour*24)
+        doConfigCleanup(s)
+        model.CreateRecurringTask("Configuration Cleanup", func() {
+                doConfigCleanup(s)
+        }, time.Hour*24)
 }
 
 func runReportToAWSMeterJob(s *Server) {
-	model.CreateRecurringTask("Collect and send usage report to AWS Metering Service", func() {
-		doReportUsageToAWSMeteringService(s)
-	}, time.Hour*model.AwsMeteringReportInterval)
+        model.CreateRecurringTask("Collect and send usage report to AWS Metering Service", func() {
+                doReportUsageToAWSMeteringService(s)
+        }, time.Hour*model.AwsMeteringReportInterval)
 }
 
 func doReportUsageToAWSMeteringService(s *Server) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*s.platform.Config().ServiceSettings.AWSMeteringTimeoutSeconds)*time.Second)
-	defer cancel()
+        ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*s.platform.Config().ServiceSettings.AWSMeteringTimeoutSeconds)*time.Second)
+        defer cancel()
 
-	awsMeter := awsmeter.New(ctx, s.Store(), s.platform.Config())
-	if awsMeter == nil {
-		mlog.Error("Cannot obtain instance of AWS Metering Service.")
-		return
-	}
+        awsMeter := awsmeter.New(ctx, s.Store(), s.platform.Config())
+        if awsMeter == nil {
+                mlog.Error("Cannot obtain instance of AWS Metering Service.")
+                return
+        }
 
-	dimensions := []string{model.AwsMeteringDimensionUsageHrs}
-	reports := awsMeter.GetUserCategoryUsage(dimensions, time.Now().UTC(), time.Now().Add(-model.AwsMeteringReportInterval*time.Hour).UTC())
+        dimensions := []string{model.AwsMeteringDimensionUsageHrs}
+        reports := awsMeter.GetUserCategoryUsage(dimensions, time.Now().UTC(), time.Now().Add(-model.AwsMeteringReportInterval*time.Hour).UTC())
 
-	if err := awsMeter.ReportUserCategoryUsage(ctx, reports); err != nil {
-		mlog.Error("Failed to report usage to AWS Metering Service", mlog.Err(err))
-	}
-}
-
-func doSecurity(s *Server) {
-	s.DoSecurityUpdateCheck()
+        if err := awsMeter.ReportUserCategoryUsage(ctx, reports); err != nil {
+                mlog.Error("Failed to report usage to AWS Metering Service", mlog.Err(err))
+        }
 }
 
 // Reports activated user count to the CWS every 24 hours
 func runCloudUserCountReportJob(s *Server) {
-	model.CreateRecurringTask("Report user count for cloud subscription", func() {
-		s.doReportUserCountForCloudSubscriptionJob()
-	}, time.Hour*24)
+        model.CreateRecurringTask("Report user count for cloud subscription", func() {
+                s.doReportUserCountForCloudSubscriptionJob()
+        }, time.Hour*24)
 }
 
 func doTokenCleanup(s *Server) {
-	expiry := model.GetMillis() - model.MaxTokenExipryTime
+        expiry := model.GetMillis() - model.MaxTokenExipryTime
 
-	mlog.Debug("Cleaning up token store.")
+        mlog.Debug("Cleaning up token store.")
 
-	s.Store().Token().Cleanup(expiry)
+        s.Store().Token().Cleanup(expiry)
 }
 
 func doCommandWebhookCleanup(s *Server) {
-	s.Store().CommandWebhook().Cleanup()
+        s.Store().CommandWebhook().Cleanup()
 }
 
 const (
-	sessionsCleanupBatchSize = 1000
-	jobsCleanupBatchSize     = 1000
+        sessionsCleanupBatchSize = 1000
+        jobsCleanupBatchSize     = 1000
 )
 
 func doSessionCleanup(s *Server) {
-	mlog.Debug("Cleaning up session store.")
-	err := s.Store().Session().Cleanup(model.GetMillis(), sessionsCleanupBatchSize)
-	if err != nil {
-		mlog.Warn("Error while cleaning up sessions", mlog.Err(err))
-	}
+        mlog.Debug("Cleaning up session store.")
+        err := s.Store().Session().Cleanup(model.GetMillis(), sessionsCleanupBatchSize)
+        if err != nil {
+                mlog.Warn("Error while cleaning up sessions", mlog.Err(err))
+        }
 }
 
 func doJobsCleanup(s *Server) {
-	if *s.platform.Config().JobSettings.CleanupJobsThresholdDays < 0 {
-		return
-	}
-	mlog.Debug("Cleaning up jobs store.")
+        if *s.platform.Config().JobSettings.CleanupJobsThresholdDays < 0 {
+                return
+        }
+        mlog.Debug("Cleaning up jobs store.")
 
-	dur := time.Duration(*s.platform.Config().JobSettings.CleanupJobsThresholdDays) * time.Hour * 24
-	expiry := model.GetMillisForTime(time.Now().Add(-dur))
-	err := s.Store().Job().Cleanup(expiry, jobsCleanupBatchSize)
-	if err != nil {
-		mlog.Warn("Error while cleaning up jobs", mlog.Err(err))
-	}
+        dur := time.Duration(*s.platform.Config().JobSettings.CleanupJobsThresholdDays) * time.Hour * 24
+        expiry := model.GetMillisForTime(time.Now().Add(-dur))
+        err := s.Store().Job().Cleanup(expiry, jobsCleanupBatchSize)
+        if err != nil {
+                mlog.Warn("Error while cleaning up jobs", mlog.Err(err))
+        }
 }
 
 func doConfigCleanup(s *Server) {
-	if *s.platform.Config().JobSettings.CleanupConfigThresholdDays < 0 || !config.IsDatabaseDSN(s.platform.DescribeConfig()) {
-		return
-	}
-	mlog.Info("Cleaning up configuration store.")
+        if *s.platform.Config().JobSettings.CleanupConfigThresholdDays < 0 || !config.IsDatabaseDSN(s.platform.DescribeConfig()) {
+                return
+        }
+        mlog.Info("Cleaning up configuration store.")
 
-	if err := s.platform.CleanUpConfig(); err != nil {
-		mlog.Warn("Error while cleaning up configurations", mlog.Err(err))
-	}
+        if err := s.platform.CleanUpConfig(); err != nil {
+                mlog.Warn("Error while cleaning up configurations", mlog.Err(err))
+        }
 }
 
 func (s *Server) HandleMetrics(route string, h http.Handler) {
-	s.platform.HandleMetrics(route, h)
+        s.platform.HandleMetrics(route, h)
 }
 
 func (s *Server) doReportUserCountForCloudSubscriptionJob() {
-	mlog.Debug("Reporting daily user count for cloud subscription.")
+        mlog.Debug("Reporting daily user count for cloud subscription.")
 
-	appInstance := New(ServerConnector(s.Channels()))
+        appInstance := New(ServerConnector(s.Channels()))
 
-	_, err := appInstance.SendSubscriptionHistoryEvent("")
-	if err != nil {
-		mlog.Error("an error occurred during daily user count reporting", mlog.Err(err))
-	}
+        _, err := appInstance.SendSubscriptionHistoryEvent("")
+        if err != nil {
+                mlog.Error("an error occurred during daily user count reporting", mlog.Err(err))
+        }
 
-	mlog.Debug("Daily user count reported for cloud subscription.")
+        mlog.Debug("Daily user count reported for cloud subscription.")
 }
 
 // SendRemoveExpiredLicenseEmail formats an email and uses the email service to send the email to user with link pointing to CWS
 // to renew the user license
 func (s *Server) SendRemoveExpiredLicenseEmail(email, ctaText, ctaLink, locale, siteURL string) *model.AppError {
-	if err := s.EmailService.SendRemoveExpiredLicenseEmail(ctaText, ctaLink, email, locale, siteURL); err != nil {
-		return model.NewAppError("SendRemoveExpiredLicenseEmail", "api.license.remove_expired_license.failed.error", nil, "", http.StatusInternalServerError).Wrap(err)
-	}
+        if err := s.EmailService.SendRemoveExpiredLicenseEmail(ctaText, ctaLink, email, locale, siteURL); err != nil {
+                return model.NewAppError("SendRemoveExpiredLicenseEmail", "api.license.remove_expired_license.failed.error", nil, "", http.StatusInternalServerError).Wrap(err)
+        }
 
-	return nil
+        return nil
 }
 
 func (s *Server) FileBackend() filestore.FileBackend {
-	return s.platform.FileBackend()
+        return s.platform.FileBackend()
 }
 
 func (s *Server) ExportFileBackend() filestore.FileBackend {
-	return s.platform.ExportFileBackend()
+        return s.platform.ExportFileBackend()
 }
 
 func (s *Server) TotalWebsocketConnections() int {
-	return s.Platform().TotalWebsocketConnections()
+        return s.Platform().TotalWebsocketConnections()
 }
 
 func (ch *Channels) ClientConfigHash() string {
-	return ch.srv.Platform().ClientConfigHash()
+        return ch.srv.Platform().ClientConfigHash()
 }
 
 func (s *Server) initJobs() {
-	s.Jobs = jobs.NewJobServer(s.platform, s.Store(), s.GetMetrics(), s.Log())
+        s.Jobs = jobs.NewJobServer(s.platform, s.Store(), s.GetMetrics(), s.Log())
 
-	if jobsDataRetentionJobInterface != nil {
-		builder := jobsDataRetentionJobInterface(s)
-		s.Jobs.RegisterJobType(model.JobTypeDataRetention, builder.MakeWorker(), builder.MakeScheduler())
-	}
+        if jobsDataRetentionJobInterface != nil {
+                builder := jobsDataRetentionJobInterface(s)
+                s.Jobs.RegisterJobType(model.JobTypeDataRetention, builder.MakeWorker(), builder.MakeScheduler())
+        }
 
-	if jobsMessageExportJobInterface != nil {
-		builder := jobsMessageExportJobInterface(s)
-		s.Jobs.RegisterJobType(model.JobTypeMessageExport, builder.MakeWorker(), builder.MakeScheduler())
-	}
+        if jobsMessageExportJobInterface != nil {
+                builder := jobsMessageExportJobInterface(s)
+                s.Jobs.RegisterJobType(model.JobTypeMessageExport, builder.MakeWorker(), builder.MakeScheduler())
+        }
 
-	// if jobsElasticsearchAggregatorInterface != nil {
-	// 	builder := jobsElasticsearchAggregatorInterface(s)
-	// 	s.Jobs.RegisterJobType(model.JobTypeElasticsearchPostAggregation, builder.MakeWorker(), builder.MakeScheduler())
-	// }
+        // if jobsElasticsearchAggregatorInterface != nil {
+        //      builder := jobsElasticsearchAggregatorInterface(s)
+        //      s.Jobs.RegisterJobType(model.JobTypeElasticsearchPostAggregation, builder.MakeWorker(), builder.MakeScheduler())
+        // }
 
-	// if jobsElasticsearchIndexerInterface != nil {
-	// 	builder := jobsElasticsearchIndexerInterface(s)
-	// 	s.Jobs.RegisterJobType(model.JobTypeElasticsearchPostIndexing, builder.MakeWorker(), nil)
-	// }
+        // if jobsElasticsearchIndexerInterface != nil {
+        //      builder := jobsElasticsearchIndexerInterface(s)
+        //      s.Jobs.RegisterJobType(model.JobTypeElasticsearchPostIndexing, builder.MakeWorker(), nil)
+        // }
 
-	if jobsLdapSyncInterface != nil {
-		builder := jobsLdapSyncInterface(New(ServerConnector(s.Channels())))
-		s.Jobs.RegisterJobType(model.JobTypeLdapSync, builder.MakeWorker(), builder.MakeScheduler())
-	}
+        if jobsLdapSyncInterface != nil {
+                builder := jobsLdapSyncInterface(New(ServerConnector(s.Channels())))
+                s.Jobs.RegisterJobType(model.JobTypeLdapSync, builder.MakeWorker(), builder.MakeScheduler())
+        }
 
-	if jobsAccessControlSyncJobInterface != nil {
-		builder := jobsAccessControlSyncJobInterface(s)
-		s.Jobs.RegisterJobType(model.JobTypeAccessControlSync, builder.MakeWorker(), builder.MakeScheduler())
-	}
+        if jobsAccessControlSyncJobInterface != nil {
+                builder := jobsAccessControlSyncJobInterface(s)
+                s.Jobs.RegisterJobType(model.JobTypeAccessControlSync, builder.MakeWorker(), builder.MakeScheduler())
+        }
 
-	if pushProxyInterface != nil {
-		builder := pushProxyInterface(New(ServerConnector(s.Channels())))
-		s.Jobs.RegisterJobType(model.JobTypePushProxyAuth, builder.MakeWorker(), builder.MakeScheduler())
-	}
+        if pushProxyInterface != nil {
+                builder := pushProxyInterface(New(ServerConnector(s.Channels())))
+                s.Jobs.RegisterJobType(model.JobTypePushProxyAuth, builder.MakeWorker(), builder.MakeScheduler())
+        }
 
-	if s.AutoTranslation != nil {
-		s.Jobs.RegisterJobType(model.JobTypeAutoTranslationRecovery,
-			s.AutoTranslation.MakeWorker(),
-			s.AutoTranslation.MakeScheduler())
-	}
+        if s.AutoTranslation != nil {
+                s.Jobs.RegisterJobType(model.JobTypeAutoTranslationRecovery,
+                        s.AutoTranslation.MakeWorker(),
+                        s.AutoTranslation.MakeScheduler())
+        }
 
-	s.Jobs.RegisterJobType(
-		model.JobTypeMigrations,
-		migrations.MakeWorker(s.Jobs, s.Store()),
-		migrations.MakeScheduler(s.Jobs, s.Store()),
-	)
+        s.Jobs.RegisterJobType(
+                model.JobTypeMigrations,
+                migrations.MakeWorker(s.Jobs, s.Store()),
+                migrations.MakeScheduler(s.Jobs, s.Store()),
+        )
 
-	s.Jobs.RegisterJobType(
-		model.JobTypePlugins,
-		plugins.MakeWorker(s.Jobs, New(ServerConnector(s.Channels()))),
-		plugins.MakeScheduler(s.Jobs),
-	)
+        s.Jobs.RegisterJobType(
+                model.JobTypePlugins,
+                plugins.MakeWorker(s.Jobs, New(ServerConnector(s.Channels()))),
+                plugins.MakeScheduler(s.Jobs),
+        )
 
-	// s.Jobs.RegisterJobType(
-	// 	model.JobTypeExpiryNotify,
-	// 	expirynotify.MakeWorker(s.Jobs, New(ServerConnector(s.Channels())).NotifySessionsExpired),
-	// 	expirynotify.MakeScheduler(s.Jobs),
-	// )
+        // s.Jobs.RegisterJobType(
+        //      model.JobTypeExpiryNotify,
+        //      expirynotify.MakeWorker(s.Jobs, New(ServerConnector(s.Channels())).NotifySessionsExpired),
+        //      expirynotify.MakeScheduler(s.Jobs),
+        // )
 
-	// s.Jobs.RegisterJobType(
-	// 	model.JobTypeProductNotices,
-	// 	product_notices.MakeWorker(s.Jobs, New(ServerConnector(s.Channels()))),
-	// 	product_notices.MakeScheduler(s.Jobs),
-	// )
+        // s.Jobs.RegisterJobType(
+        //      model.JobTypeProductNotices,
+        //      product_notices.MakeWorker(s.Jobs, New(ServerConnector(s.Channels()))),
+        //      product_notices.MakeScheduler(s.Jobs),
+        // )
 
-	s.Jobs.RegisterJobType(
-		model.JobTypeImportProcess,
-		import_process.MakeWorker(s.Jobs, New(ServerConnector(s.Channels()))),
-		nil,
-	)
+        s.Jobs.RegisterJobType(
+                model.JobTypeImportProcess,
+                import_process.MakeWorker(s.Jobs, New(ServerConnector(s.Channels()))),
+                nil,
+        )
 
-	s.Jobs.RegisterJobType(
-		model.JobTypeImportDelete,
-		import_delete.MakeWorker(s.Jobs, New(ServerConnector(s.Channels())), s.Store()),
-		import_delete.MakeScheduler(s.Jobs),
-	)
+        s.Jobs.RegisterJobType(
+                model.JobTypeImportDelete,
+                import_delete.MakeWorker(s.Jobs, New(ServerConnector(s.Channels())), s.Store()),
+                import_delete.MakeScheduler(s.Jobs),
+        )
 
-	s.Jobs.RegisterJobType(
-		model.JobTypeS3PathMigration,
-		s3_path_migration.MakeWorker(s.Jobs, s.Store(), s.FileBackend()),
-		nil)
+        s.Jobs.RegisterJobType(
+                model.JobTypeS3PathMigration,
+                s3_path_migration.MakeWorker(s.Jobs, s.Store(), s.FileBackend()),
+                nil)
 
-	s.Jobs.RegisterJobType(
-		model.JobTypeDeleteEmptyDraftsMigration,
-		delete_empty_drafts_migration.MakeWorker(s.Jobs, s.Store(), New(ServerConnector(s.Channels()))),
-		nil)
+        s.Jobs.RegisterJobType(
+                model.JobTypeDeleteEmptyDraftsMigration,
+                delete_empty_drafts_migration.MakeWorker(s.Jobs, s.Store(), New(ServerConnector(s.Channels()))),
+                nil)
 
-	s.Jobs.RegisterJobType(
-		model.JobTypeDeleteOrphanDraftsMigration,
-		delete_orphan_drafts_migration.MakeWorker(s.Jobs, s.Store(), New(ServerConnector(s.Channels()))),
-		nil)
+        s.Jobs.RegisterJobType(
+                model.JobTypeDeleteOrphanDraftsMigration,
+                delete_orphan_drafts_migration.MakeWorker(s.Jobs, s.Store(), New(ServerConnector(s.Channels()))),
+                nil)
 
-	s.Jobs.RegisterJobType(
-		model.JobTypeExportDelete,
-		export_delete.MakeWorker(s.Jobs, New(ServerConnector(s.Channels()))),
-		export_delete.MakeScheduler(s.Jobs),
-	)
+        s.Jobs.RegisterJobType(
+                model.JobTypeExportDelete,
+                export_delete.MakeWorker(s.Jobs, New(ServerConnector(s.Channels()))),
+                export_delete.MakeScheduler(s.Jobs),
+        )
 
-	s.Jobs.RegisterJobType(
-		model.JobTypeExportProcess,
-		export_process.MakeWorker(s.Jobs, New(ServerConnector(s.Channels()))),
-		nil,
-	)
+        s.Jobs.RegisterJobType(
+                model.JobTypeExportProcess,
+                export_process.MakeWorker(s.Jobs, New(ServerConnector(s.Channels()))),
+                nil,
+        )
 
-	s.Jobs.RegisterJobType(
-		model.JobTypeActiveUsers,
-		active_users.MakeWorker(s.Jobs, s.Store(), func() einterfaces.MetricsInterface { return s.GetMetrics() }),
-		active_users.MakeScheduler(s.Jobs),
-	)
+        s.Jobs.RegisterJobType(
+                model.JobTypeActiveUsers,
+                active_users.MakeWorker(s.Jobs, s.Store(), func() einterfaces.MetricsInterface { return s.GetMetrics() }),
+                active_users.MakeScheduler(s.Jobs),
+        )
 
-	s.Jobs.RegisterJobType(
-		model.JobTypeMobileSessionMetadata,
-		mobile_session_metadata.MakeWorker(s.Jobs, s.Store(), func() einterfaces.MetricsInterface { return s.GetMetrics() }),
-		mobile_session_metadata.MakeScheduler(s.Jobs),
-	)
+        s.Jobs.RegisterJobType(
+                model.JobTypeMobileSessionMetadata,
+                mobile_session_metadata.MakeWorker(s.Jobs, s.Store(), func() einterfaces.MetricsInterface { return s.GetMetrics() }),
+                mobile_session_metadata.MakeScheduler(s.Jobs),
+        )
 
-	s.Jobs.RegisterJobType(
-		model.JobTypeResendInvitationEmail,
-		resend_invitation_email.MakeWorker(s.Jobs, New(ServerConnector(s.Channels())), s.Store()),
-		nil,
-	)
+        s.Jobs.RegisterJobType(
+                model.JobTypeResendInvitationEmail,
+                resend_invitation_email.MakeWorker(s.Jobs, New(ServerConnector(s.Channels())), s.Store()),
+                nil,
+        )
 
-	s.Jobs.RegisterJobType(
-		model.JobTypeExtractContent,
-		extract_content.MakeWorker(s.Jobs, New(ServerConnector(s.Channels())), s.Store()),
-		nil,
-	)
+        s.Jobs.RegisterJobType(
+                model.JobTypeExtractContent,
+                extract_content.MakeWorker(s.Jobs, New(ServerConnector(s.Channels())), s.Store()),
+                nil,
+        )
 
-	s.Jobs.RegisterJobType(
-		model.JobTypeLastAccessiblePost,
-		last_accessible_post.MakeWorker(s.Jobs, New(ServerConnector(s.Channels()))),
-		last_accessible_post.MakeScheduler(s.Jobs),
-	)
+        s.Jobs.RegisterJobType(
+                model.JobTypeLastAccessiblePost,
+                last_accessible_post.MakeWorker(s.Jobs, New(ServerConnector(s.Channels()))),
+                last_accessible_post.MakeScheduler(s.Jobs),
+        )
 
-	s.Jobs.RegisterJobType(
-		model.JobTypeLastAccessibleFile,
-		last_accessible_file.MakeWorker(s.Jobs, New(ServerConnector(s.Channels()))),
-		last_accessible_file.MakeScheduler(s.Jobs),
-	)
+        s.Jobs.RegisterJobType(
+                model.JobTypeLastAccessibleFile,
+                last_accessible_file.MakeWorker(s.Jobs, New(ServerConnector(s.Channels()))),
+                last_accessible_file.MakeScheduler(s.Jobs),
+        )
 
-	// s.Jobs.RegisterJobType(
-	// 	model.JobTypeUpgradeNotifyAdmin,
-	// 	notify_admin.MakeUpgradeNotifyWorker(s.Jobs, New(ServerConnector(s.Channels()))),
-	// 	notify_admin.MakeScheduler(s.Jobs, model.JobTypeUpgradeNotifyAdmin),
-	// )
+        // s.Jobs.RegisterJobType(
+        //      model.JobTypeUpgradeNotifyAdmin,
+        //      notify_admin.MakeUpgradeNotifyWorker(s.Jobs, New(ServerConnector(s.Channels()))),
+        //      notify_admin.MakeScheduler(s.Jobs, model.JobTypeUpgradeNotifyAdmin),
+        // )
 
-	// s.Jobs.RegisterJobType(
-	// 	model.JobTypeTrialNotifyAdmin,
-	// 	notify_admin.MakeTrialNotifyWorker(s.Jobs, s.License(), New(ServerConnector(s.Channels()))),
-	// 	notify_admin.MakeScheduler(s.Jobs, s.License(), model.JobTypeTrialNotifyAdmin),
-	// )
+        // s.Jobs.RegisterJobType(
+        //      model.JobTypeTrialNotifyAdmin,
+        //      notify_admin.MakeTrialNotifyWorker(s.Jobs, s.License(), New(ServerConnector(s.Channels()))),
+        //      notify_admin.MakeScheduler(s.Jobs, s.License(), model.JobTypeTrialNotifyAdmin),
+        // )
 
-	s.Jobs.RegisterJobType(
-		model.JobTypePostPersistentNotifications,
-		post_persistent_notifications.MakeWorker(s.Jobs, New(ServerConnector(s.Channels()))),
-		post_persistent_notifications.MakeScheduler(s.Jobs),
-	)
+        s.Jobs.RegisterJobType(
+                model.JobTypePostPersistentNotifications,
+                post_persistent_notifications.MakeWorker(s.Jobs, New(ServerConnector(s.Channels()))),
+                post_persistent_notifications.MakeScheduler(s.Jobs),
+        )
 
-	s.Jobs.RegisterJobType(
-		model.JobTypeInstallPluginNotifyAdmin,
-		notify_admin.MakeInstallPluginNotifyWorker(s.Jobs, New(ServerConnector(s.Channels()))),
-		notify_admin.MakeInstallPluginScheduler(s.Jobs, model.JobTypeInstallPluginNotifyAdmin),
-	)
+        s.Jobs.RegisterJobType(
+                model.JobTypeInstallPluginNotifyAdmin,
+                notify_admin.MakeInstallPluginNotifyWorker(s.Jobs, New(ServerConnector(s.Channels()))),
+                notify_admin.MakeInstallPluginScheduler(s.Jobs, model.JobTypeInstallPluginNotifyAdmin),
+        )
 
-	s.Jobs.RegisterJobType(
-		model.JobTypeHostedPurchaseScreening,
-		hosted_purchase_screening.MakeWorker(s.Jobs, s.Store().System()),
-		hosted_purchase_screening.MakeScheduler(s.Jobs),
-	)
+        s.Jobs.RegisterJobType(
+                model.JobTypeHostedPurchaseScreening,
+                hosted_purchase_screening.MakeWorker(s.Jobs, s.Store().System()),
+                hosted_purchase_screening.MakeScheduler(s.Jobs),
+        )
 
-	s.Jobs.RegisterJobType(
-		model.JobTypeCleanupDesktopTokens,
-		cleanup_desktop_tokens.MakeWorker(s.Jobs),
-		cleanup_desktop_tokens.MakeScheduler(s.Jobs),
-	)
+        s.Jobs.RegisterJobType(
+                model.JobTypeCleanupDesktopTokens,
+                cleanup_desktop_tokens.MakeWorker(s.Jobs),
+                cleanup_desktop_tokens.MakeScheduler(s.Jobs),
+        )
 
-	s.Jobs.RegisterJobType(
-		model.JobTypeRefreshMaterializedViews,
-		refresh_materialized_views.MakeWorker(s.Jobs, *s.platform.Config().SqlSettings.DriverName),
-		refresh_materialized_views.MakeScheduler(s.Jobs, *s.platform.Config().SqlSettings.DriverName),
-	)
+        s.Jobs.RegisterJobType(
+                model.JobTypeRefreshMaterializedViews,
+                refresh_materialized_views.MakeWorker(s.Jobs, *s.platform.Config().SqlSettings.DriverName),
+                refresh_materialized_views.MakeScheduler(s.Jobs, *s.platform.Config().SqlSettings.DriverName),
+        )
 
-	s.Jobs.RegisterJobType(
-		model.JobTypeExportUsersToCSV,
-		export_users_to_csv.MakeWorker(s.Jobs, s.Store(), New(ServerConnector(s.Channels()))),
-		nil,
-	)
+        s.Jobs.RegisterJobType(
+                model.JobTypeExportUsersToCSV,
+                export_users_to_csv.MakeWorker(s.Jobs, s.Store(), New(ServerConnector(s.Channels()))),
+                nil,
+        )
 
-	s.Jobs.RegisterJobType(
-		model.JobTypeDeleteDmsPreferencesMigration,
-		delete_dms_preferences_migration.MakeWorker(s.Jobs, s.Store(), New(ServerConnector(s.Channels()))),
-		nil)
+        s.Jobs.RegisterJobType(
+                model.JobTypeDeleteDmsPreferencesMigration,
+                delete_dms_preferences_migration.MakeWorker(s.Jobs, s.Store(), New(ServerConnector(s.Channels()))),
+                nil)
 
-	s.Jobs.RegisterJobType(
-		model.JobTypeRecap,
-		recap.MakeWorker(s.Jobs, s.Store(), New(ServerConnector(s.Channels()))),
-		nil,
-	)
+        s.Jobs.RegisterJobType(
+                model.JobTypeDeleteExpiredPosts,
+                delete_expired_posts.MakeWorker(s.Jobs, s.Store(), New(ServerConnector(s.Channels()))),
+                delete_expired_posts.MakeScheduler(s.Jobs),
+        )
 
-	s.Jobs.RegisterJobType(
-		model.JobTypeDeleteExpiredPosts,
-		delete_expired_posts.MakeWorker(s.Jobs, s.Store(), New(ServerConnector(s.Channels()))),
-		delete_expired_posts.MakeScheduler(s.Jobs),
-	)
+        s.Jobs.RegisterJobType(
+                model.JobTypeBlevePostIndexing,
+                indexer.MakeWorker(s.Jobs, s.platform.SearchEngine.BleveEngine.(*bleveengine.BleveEngine)),
+                indexer.MakeScheduler(s.Jobs),
+        )
 
-	s.Jobs.RegisterJobType(
-		model.JobTypeBlevePostIndexing,
-		indexer.MakeWorker(s.Jobs, s.platform.SearchEngine.BleveEngine.(*bleveengine.BleveEngine)),
-		indexer.MakeScheduler(s.Jobs),
-	)
-
-	s.platform.Jobs = s.Jobs
+        s.platform.Jobs = s.Jobs
 }
 
 // ServerId returns the unique identifier for an installation of Mattermost servers.
@@ -1565,226 +1544,226 @@ func (s *Server) initJobs() {
 // Only one server in a cluster will succeed in writing to the database on first
 // start, after which the other servers will converge on the same value.
 func (s *Server) ServerId() string {
-	if s.telemetryService != nil && s.telemetryService.ServerID != "" {
-		return s.telemetryService.ServerID
-	}
+        if s.telemetryService != nil && s.telemetryService.ServerID != "" {
+                return s.telemetryService.ServerID
+        }
 
-	prop, err := s.Store().System().GetByNameWithContext(
-		store.RequestContextWithMaster(request.EmptyContext(s.Log())),
-		model.SystemServerId,
-	)
-	if err != nil {
-		return ""
-	}
-	return prop.Value
+        prop, err := s.Store().System().GetByNameWithContext(
+                store.RequestContextWithMaster(request.EmptyContext(s.Log())),
+                model.SystemServerId,
+        )
+        if err != nil {
+                return ""
+        }
+        return prop.Value
 }
 
 func (s *Server) HTTPService() httpservice.HTTPService {
-	return s.httpService
+        return s.httpService
 }
 
 // GetStore returns the server's Store. Exposing via a method
 // allows interfaces to be created with subsets of server APIs.
 func (s *Server) GetStore() store.Store {
-	return s.Store()
+        return s.Store()
 }
 
 // GetRemoteClusterService returns the `RemoteClusterService` instantiated by the server.
 // May be nil if the service is not enabled via license.
 func (s *Server) GetRemoteClusterService() remotecluster.RemoteClusterServiceIFace {
-	s.serviceMux.RLock()
-	defer s.serviceMux.RUnlock()
-	return s.remoteClusterService
+        s.serviceMux.RLock()
+        defer s.serviceMux.RUnlock()
+        return s.remoteClusterService
 }
 
 // GetSharedChannelSyncService returns the `SharedChannelSyncService` instantiated by the server.
 // May be nil if the service is not enabled via license.
 func (s *Server) GetSharedChannelSyncService() SharedChannelServiceIFace {
-	s.serviceMux.RLock()
-	defer s.serviceMux.RUnlock()
-	return s.sharedChannelService
+        s.serviceMux.RLock()
+        defer s.serviceMux.RUnlock()
+        return s.sharedChannelService
 }
 
 // GetMetrics returns the server's Metrics interface. Exposing via a method
 // allows interfaces to be created with subsets of server APIs.
 func (s *Server) GetMetrics() einterfaces.MetricsInterface {
-	if s.platform == nil {
-		return nil
-	}
-	return s.platform.Metrics()
+        if s.platform == nil {
+                return nil
+        }
+        return s.platform.Metrics()
 }
 
 // setSharedChannelSyncService sets the `SharedChannelSyncService` to be used by the server.
 // For testing only.
 func (s *Server) SetSharedChannelSyncService(sharedChannelService SharedChannelServiceIFace) {
-	s.serviceMux.Lock()
-	defer s.serviceMux.Unlock()
-	s.sharedChannelService = sharedChannelService
-	s.platform.SetSharedChannelService(sharedChannelService)
+        s.serviceMux.Lock()
+        defer s.serviceMux.Unlock()
+        s.sharedChannelService = sharedChannelService
+        s.platform.SetSharedChannelService(sharedChannelService)
 }
 
 func (s *Server) GetProfileImage(user *model.User) ([]byte, bool, *model.AppError) {
-	if *s.platform.Config().FileSettings.DriverName == "" {
-		img, appErr := s.GetDefaultProfileImage(user)
-		if appErr != nil {
-			return nil, false, appErr
-		}
-		return img, false, nil
-	}
+        if *s.platform.Config().FileSettings.DriverName == "" {
+                img, appErr := s.GetDefaultProfileImage(user)
+                if appErr != nil {
+                        return nil, false, appErr
+                }
+                return img, false, nil
+        }
 
-	path := getProfileImagePath(user.Id)
+        path := getProfileImagePath(user.Id)
 
-	data, err := s.ReadFile(path)
-	if err != nil {
-		img, appErr := s.GetDefaultProfileImage(user)
-		if appErr != nil {
-			return nil, false, appErr
-		}
+        data, err := s.ReadFile(path)
+        if err != nil {
+                img, appErr := s.GetDefaultProfileImage(user)
+                if appErr != nil {
+                        return nil, false, appErr
+                }
 
-		if user.LastPictureUpdate == 0 {
-			if _, err := s.writeFile(bytes.NewReader(img), path); err != nil {
-				return nil, false, err
-			}
-		}
-		return img, true, nil
-	}
+                if user.LastPictureUpdate == 0 {
+                        if _, err := s.writeFile(bytes.NewReader(img), path); err != nil {
+                                return nil, false, err
+                        }
+                }
+                return img, true, nil
+        }
 
-	return data, false, nil
+        return data, false, nil
 }
 
 func (s *Server) GetDefaultProfileImage(user *model.User) ([]byte, *model.AppError) {
-	img, err := s.userService.GetDefaultProfileImage(user)
-	if err != nil {
-		switch {
-		case errors.Is(err, users.DefaultFontError):
-			return nil, model.NewAppError("GetDefaultProfileImage", "api.user.create_profile_image.default_font.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
-		case errors.Is(err, users.UserInitialsError):
-			return nil, model.NewAppError("GetDefaultProfileImage", "api.user.create_profile_image.initial.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
-		default:
-			return nil, model.NewAppError("GetDefaultProfileImage", "api.user.create_profile_image.encode.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
-		}
-	}
+        img, err := s.userService.GetDefaultProfileImage(user)
+        if err != nil {
+                switch {
+                case errors.Is(err, users.DefaultFontError):
+                        return nil, model.NewAppError("GetDefaultProfileImage", "api.user.create_profile_image.default_font.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+                case errors.Is(err, users.UserInitialsError):
+                        return nil, model.NewAppError("GetDefaultProfileImage", "api.user.create_profile_image.initial.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+                default:
+                        return nil, model.NewAppError("GetDefaultProfileImage", "api.user.create_profile_image.encode.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+                }
+        }
 
-	return img, nil
+        return img, nil
 }
 
 func (s *Server) ReadFile(path string) ([]byte, *model.AppError) {
-	result, nErr := s.FileBackend().ReadFile(path)
-	if nErr != nil {
-		return nil, model.NewAppError("ReadFile", "api.file.read_file.app_error", nil, "", http.StatusInternalServerError).Wrap(nErr)
-	}
-	return result, nil
+        result, nErr := s.FileBackend().ReadFile(path)
+        if nErr != nil {
+                return nil, model.NewAppError("ReadFile", "api.file.read_file.app_error", nil, "", http.StatusInternalServerError).Wrap(nErr)
+        }
+        return result, nil
 }
 
 func withMut(mut *sync.Mutex, f func()) {
-	mut.Lock()
-	defer mut.Unlock()
-	f()
+        mut.Lock()
+        defer mut.Unlock()
+        f()
 }
 
 func cancelTask(mut *sync.Mutex, taskPointer **model.ScheduledTask) {
-	mut.Lock()
-	defer mut.Unlock()
-	if *taskPointer != nil {
-		(*taskPointer).Cancel()
-		*taskPointer = nil
-	}
+        mut.Lock()
+        defer mut.Unlock()
+        if *taskPointer != nil {
+                (*taskPointer).Cancel()
+                *taskPointer = nil
+        }
 }
 
 func runDNDStatusExpireJob(a *App) {
-	if a.IsLeader() {
-		withMut(&a.ch.dndTaskMut, func() {
-			a.ch.dndTask = model.CreateRecurringTaskFromNextIntervalTime("Unset DND Statuses", a.UpdateDNDStatusOfUsers, model.DNDExpiryInterval)
-		})
-	} else {
-		mlog.Debug("Skipping unset DND status job startup since this is not the leader node")
-	}
+        if a.IsLeader() {
+                withMut(&a.ch.dndTaskMut, func() {
+                        a.ch.dndTask = model.CreateRecurringTaskFromNextIntervalTime("Unset DND Statuses", a.UpdateDNDStatusOfUsers, model.DNDExpiryInterval)
+                })
+        } else {
+                mlog.Debug("Skipping unset DND status job startup since this is not the leader node")
+        }
 
-	a.ch.srv.AddClusterLeaderChangedListener(func() {
-		mlog.Info("Cluster leader changed. Determining if unset DNS status task should be running", mlog.Bool("isLeader", a.IsLeader()))
-		if a.IsLeader() {
-			withMut(&a.ch.dndTaskMut, func() {
-				a.ch.dndTask = model.CreateRecurringTaskFromNextIntervalTime("Unset DND Statuses", a.UpdateDNDStatusOfUsers, model.DNDExpiryInterval)
-			})
-		} else {
-			mlog.Debug("This is no longer leader node. Cancelling the unset DND status task", mlog.Bool("isLeader", a.IsLeader()))
-			cancelTask(&a.ch.dndTaskMut, &a.ch.dndTask)
-		}
-	})
+        a.ch.srv.AddClusterLeaderChangedListener(func() {
+                mlog.Info("Cluster leader changed. Determining if unset DNS status task should be running", mlog.Bool("isLeader", a.IsLeader()))
+                if a.IsLeader() {
+                        withMut(&a.ch.dndTaskMut, func() {
+                                a.ch.dndTask = model.CreateRecurringTaskFromNextIntervalTime("Unset DND Statuses", a.UpdateDNDStatusOfUsers, model.DNDExpiryInterval)
+                        })
+                } else {
+                        mlog.Debug("This is no longer leader node. Cancelling the unset DND status task", mlog.Bool("isLeader", a.IsLeader()))
+                        cancelTask(&a.ch.dndTaskMut, &a.ch.dndTask)
+                }
+        })
 }
 
 func runPostReminderJob(a *App) {
-	if a.IsLeader() {
-		rctx := request.EmptyContext(a.Log())
-		withMut(&a.ch.postReminderMut, func() {
-			fn := func() { a.CheckPostReminders(rctx) }
-			a.ch.postReminderTask = model.CreateRecurringTaskFromNextIntervalTime("Check Post reminders", fn, 5*time.Minute)
-		})
-	} else {
-		mlog.Debug("Skipping post reminder job startup since this is not the leader node")
-	}
+        if a.IsLeader() {
+                rctx := request.EmptyContext(a.Log())
+                withMut(&a.ch.postReminderMut, func() {
+                        fn := func() { a.CheckPostReminders(rctx) }
+                        a.ch.postReminderTask = model.CreateRecurringTaskFromNextIntervalTime("Check Post reminders", fn, 5*time.Minute)
+                })
+        } else {
+                mlog.Debug("Skipping post reminder job startup since this is not the leader node")
+        }
 
-	a.ch.srv.AddClusterLeaderChangedListener(func() {
-		mlog.Info("Cluster leader changed. Determining if post reminder task should be running", mlog.Bool("isLeader", a.IsLeader()))
-		if a.IsLeader() {
-			rctx := request.EmptyContext(a.Log())
-			withMut(&a.ch.postReminderMut, func() {
-				fn := func() { a.CheckPostReminders(rctx) }
-				a.ch.postReminderTask = model.CreateRecurringTaskFromNextIntervalTime("Check Post reminders", fn, 5*time.Minute)
-			})
-		} else {
-			mlog.Debug("This is no longer leader node. Cancelling the post reminder task", mlog.Bool("isLeader", a.IsLeader()))
-			cancelTask(&a.ch.postReminderMut, &a.ch.postReminderTask)
-		}
-	})
+        a.ch.srv.AddClusterLeaderChangedListener(func() {
+                mlog.Info("Cluster leader changed. Determining if post reminder task should be running", mlog.Bool("isLeader", a.IsLeader()))
+                if a.IsLeader() {
+                        rctx := request.EmptyContext(a.Log())
+                        withMut(&a.ch.postReminderMut, func() {
+                                fn := func() { a.CheckPostReminders(rctx) }
+                                a.ch.postReminderTask = model.CreateRecurringTaskFromNextIntervalTime("Check Post reminders", fn, 5*time.Minute)
+                        })
+                } else {
+                        mlog.Debug("This is no longer leader node. Cancelling the post reminder task", mlog.Bool("isLeader", a.IsLeader()))
+                        cancelTask(&a.ch.postReminderMut, &a.ch.postReminderTask)
+                }
+        })
 }
 
 func runScheduledPostJob(a *App) {
-	if a.IsLeader() {
-		doRunScheduledPostJob(a)
-	} else {
-		mlog.Debug("Skipping scheduled posts job startup since this is not the leader node")
-	}
+        if a.IsLeader() {
+                doRunScheduledPostJob(a)
+        } else {
+                mlog.Debug("Skipping scheduled posts job startup since this is not the leader node")
+        }
 
-	a.ch.srv.AddClusterLeaderChangedListener(func() {
-		mlog.Info("Cluster leader changed. Determining if scheduled posts task should be running", mlog.Bool("isLeader", a.IsLeader()))
-		if a.IsLeader() {
-			doRunScheduledPostJob(a)
-		} else {
-			mlog.Debug("This is no longer leader node. Cancelling the scheduled post task", mlog.Bool("isLeader", a.IsLeader()))
-			cancelTask(&a.ch.scheduledPostMut, &a.ch.scheduledPostTask)
-		}
-	})
+        a.ch.srv.AddClusterLeaderChangedListener(func() {
+                mlog.Info("Cluster leader changed. Determining if scheduled posts task should be running", mlog.Bool("isLeader", a.IsLeader()))
+                if a.IsLeader() {
+                        doRunScheduledPostJob(a)
+                } else {
+                        mlog.Debug("This is no longer leader node. Cancelling the scheduled post task", mlog.Bool("isLeader", a.IsLeader()))
+                        cancelTask(&a.ch.scheduledPostMut, &a.ch.scheduledPostTask)
+                }
+        })
 }
 
 func doRunScheduledPostJob(a *App) {
-	var jobInterval time.Duration
-	if *a.Config().ServiceSettings.EnableTesting {
-		jobInterval = debugScheduledPostJobInterval
-	} else {
-		jobInterval = scheduledPostJobInterval
-	}
+        var jobInterval time.Duration
+        if *a.Config().ServiceSettings.EnableTesting {
+                jobInterval = debugScheduledPostJobInterval
+        } else {
+                jobInterval = scheduledPostJobInterval
+        }
 
-	rctx := request.EmptyContext(a.Log())
-	withMut(&a.ch.scheduledPostMut, func() {
-		fn := func() { a.ProcessScheduledPosts(rctx) }
-		a.ch.scheduledPostTask = model.CreateRecurringTaskFromNextIntervalTime("Process Scheduled Posts", fn, jobInterval)
-	})
+        rctx := request.EmptyContext(a.Log())
+        withMut(&a.ch.scheduledPostMut, func() {
+                fn := func() { a.ProcessScheduledPosts(rctx) }
+                a.ch.scheduledPostTask = model.CreateRecurringTaskFromNextIntervalTime("Process Scheduled Posts", fn, jobInterval)
+        })
 }
 
 func (a *App) GetAppliedSchemaMigrations() ([]model.AppliedMigration, *model.AppError) {
-	table, err := a.Srv().Store().GetAppliedMigrations()
-	if err != nil {
-		return nil, model.NewAppError("GetDBSchemaTable", "api.file.read_file.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
-	}
-	return table, nil
+        table, err := a.Srv().Store().GetAppliedMigrations()
+        if err != nil {
+                return nil, model.NewAppError("GetDBSchemaTable", "api.file.read_file.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+        }
+        return table, nil
 }
 
 // Expose platform service from server, this should be replaced with server itself in time.
 func (s *Server) Platform() *platform.PlatformService {
-	return s.platform
+        return s.platform
 }
 
 func (s *Server) Log() *mlog.Logger {
-	return s.platform.Logger()
+        return s.platform.Logger()
 }

@@ -67,7 +67,7 @@ func (a *App) EnsureBot(rctx request.CTX, pluginID string, bot *model.Bot) (stri
 				"account in the CLI by running 'mattermost user convert <username> --bot'. If the user is an "+
 				"existing user account you want to preserve, change its username and restart the Mattermost server, "+
 				"after which the plugin will create a bot account with that name. For more information about bot "+
-				"accounts, see https://mattermost.com/pl/default-bot-accounts", mlog.String("username",
+				"accounts.", mlog.String("username",
 				bot.Username),
 				mlog.String("user_id",
 					user.Id),

@@ -162,6 +162,16 @@ jobs:
         with:
           bun-version: latest
 
+      # Bun's global install cache — keyed on the lockfile so dependency
+      # installs are ~instant unless bun.lock changes.
+      - name: Cache bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('lms-fe/bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 

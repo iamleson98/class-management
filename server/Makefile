@@ -1,4 +1,4 @@
-.PHONY: build package run stop run-client run-server run-node run-haserver stop-haserver stop-client stop-server restart restart-server restart-client restart-haserver start-docker update-docker clean-dist clean nuke check-style check-client-style check-server-style check-unit-tests test dist run-client-tests setup-run-client-tests cleanup-run-client-tests test-client build-linux build-osx build-freebsd build-windows package-prep package-linux package-osx package-windows internal-test-web-client vet run-server-for-web-client-tests diff-config prepackaged-plugins prepackaged-binaries test-server test-server-ee test-server-elasticsearch test-server-opensearch test-server-quick test-server-race test-mmctl-unit test-mmctl-e2e test-mmctl test-mmctl-coverage mmctl-build mmctl-docs new-migration migrations-extract test-public mocks-public run-server-faketime default-roles-permissions generated
+.PHONY: build package run stop run-client run-server run-node run-haserver stop-haserver stop-client stop-server restart restart-server restart-client restart-haserver start-docker update-docker clean-dist clean nuke check-style check-client-style check-server-style check-unit-tests test dist run-client-tests setup-run-client-tests cleanup-run-client-tests test-client build-linux build-osx build-freebsd build-windows package-prep package-linux package-osx package-windows internal-test-web-client vet run-server-for-web-client-tests diff-config prepackaged-binaries test-server test-server-ee test-server-elasticsearch test-server-opensearch test-server-quick test-server-race test-mmctl-unit test-mmctl-e2e test-mmctl test-mmctl-coverage mmctl-build mmctl-docs new-migration migrations-extract test-public mocks-public run-server-faketime default-roles-permissions generated
 
 ROOT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
@@ -171,33 +171,6 @@ MMCTL_PACKAGES=$(shell $(GO) list ./... | grep -E 'server/v8/cmd/mmctl')
 
 TEMPLATES_DIR=templates
 
-# Plugins Packages
-PLUGIN_PACKAGES ?= $(PLUGIN_PACKAGES:)
-PLUGIN_PACKAGES += mattermost-plugin-calls-v1.12.0
-PLUGIN_PACKAGES += mattermost-plugin-github-v2.7.1
-PLUGIN_PACKAGES += mattermost-plugin-gitlab-v1.13.0
-PLUGIN_PACKAGES += mattermost-plugin-jira-v4.7.1
-PLUGIN_PACKAGES += mattermost-plugin-playbooks-v2.10.0
-PLUGIN_PACKAGES += mattermost-plugin-servicenow-v2.4.0
-PLUGIN_PACKAGES += mattermost-plugin-zoom-v1.13.0
-PLUGIN_PACKAGES += mattermost-plugin-agents-v2.4.1
-PLUGIN_PACKAGES += mattermost-plugin-boards-v9.3.0-rc2
-PLUGIN_PACKAGES += mattermost-plugin-user-survey-v1.1.1
-PLUGIN_PACKAGES += mattermost-plugin-mscalendar-v1.6.1
-PLUGIN_PACKAGES += mattermost-plugin-msteams-meetings-v2.4.1
-PLUGIN_PACKAGES += mattermost-plugin-metrics-v0.7.0
-PLUGIN_PACKAGES += mattermost-plugin-channel-export-v1.3.0
-
-# Overwrite the definition of PLUGIN_PACKAGES with the list of FIPS-ready plugins
-# Note that the '+' in the file name is encoded as %2B for the URL we use to
-# download the package from to work. This will no longer be needed when we unify
-# the way we pre-package FIPS and non-FIPS plugins.
-ifeq ($(FIPS_ENABLED),true)
-        PLUGIN_PACKAGES  = mattermost-plugin-playbooks-v2.10.0%2B090a26d-fips
-        PLUGIN_PACKAGES += mattermost-plugin-agents-v2.4.1%2Bad98a52-fips
-        PLUGIN_PACKAGES += mattermost-plugin-boards-v9.3.0-rc2%2B5880c13-fips
-endif
-
 EE_PACKAGES=$(shell $(GO) list $(BUILD_ENTERPRISE_DIR)/...)
 
 ifeq ($(BUILD_ENTERPRISE_READY),true)
@@ -299,14 +272,6 @@ endif
 
 plugin-checker: setup-go-work
         $(GO) run $(GOFLAGS) ./public/plugin/checker
-
-prepackaged-plugins: ## Populate the prepackaged-plugins directory.
-        @echo Downloading prepackaged plugins: $(PLUGIN_PACKAGES)
-        mkdir -p prepackaged_plugins
-        @cd prepackaged_plugins && for plugin_package in $(PLUGIN_PACKAGES) ; do \
-                curl -f -O -L https://plugins.releases.mattermost.com/release/$$plugin_package.tar.gz; \
-                curl -f -O -L https://plugins.releases.mattermost.com/release/$$plugin_package.tar.gz.sig; \
-        done
 
 prepackaged-binaries: ## Populate the prepackaged-binaries to the bin directory
 ifeq ($(OS),Windows_NT)

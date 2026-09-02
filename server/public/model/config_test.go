@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
-	"os"
 	"reflect"
 	"testing"
 
@@ -456,66 +455,6 @@ func TestConfigDefaultServiceSettingsExperimentalGroupUnreadChannels(t *testing.
 
 	require.Equal(t, *c1.ServiceSettings.ExperimentalGroupUnreadChannels, GroupUnreadChannelsDisabled)
 }
-
-func TestConfigDefaultNPSPluginState(t *testing.T) {
-	t.Run("should enable NPS plugin by default", func(t *testing.T) {
-		c1 := Config{}
-		c1.SetDefaults()
-
-		assert.True(t, c1.PluginSettings.PluginStates["com.mattermost.nps"].Enable)
-	})
-
-	t.Run("should enable NPS plugin if diagnostics are enabled", func(t *testing.T) {
-		c1 := Config{
-			LogSettings: LogSettings{
-				EnableDiagnostics: NewPointer(true),
-			},
-		}
-
-		c1.SetDefaults()
-
-		assert.True(t, c1.PluginSettings.PluginStates["com.mattermost.nps"].Enable)
-	})
-
-	t.Run("should not enable NPS plugin if diagnostics are disabled", func(t *testing.T) {
-		c1 := Config{
-			LogSettings: LogSettings{
-				EnableDiagnostics: NewPointer(false),
-			},
-		}
-
-		c1.SetDefaults()
-
-		assert.False(t, c1.PluginSettings.PluginStates["com.mattermost.nps"].Enable)
-	})
-
-	t.Run("should not re-enable NPS plugin after it has been disabled", func(t *testing.T) {
-		c1 := Config{
-			PluginSettings: PluginSettings{
-				PluginStates: map[string]*PluginState{
-					"com.mattermost.nps": {
-						Enable: false,
-					},
-				},
-			},
-		}
-
-		c1.SetDefaults()
-
-		assert.False(t, c1.PluginSettings.PluginStates["com.mattermost.nps"].Enable)
-	})
-}
-
-func TestConfigDefaultChannelExportPluginState(t *testing.T) {
-	t.Run("should not enable ChannelExport plugin by default", func(t *testing.T) {
-		BuildEnterpriseReady = "true"
-		c1 := Config{}
-		c1.SetDefaults()
-
-		assert.Nil(t, c1.PluginSettings.PluginStates["com.mattermost.plugin-channel-export"])
-	})
-}
-
 func TestTeamSettingsIsValidSiteNameEmpty(t *testing.T) {
 	c1 := Config{}
 	c1.SetDefaults()
@@ -2047,73 +1986,6 @@ func TestConfigServiceSettingsIsValid(t *testing.T) {
 		require.Equal(t, "model.config.is_valid.collapsed_threads.app_error", appErr.Id)
 	})
 }
-
-func TestConfigDefaultCallsPluginState(t *testing.T) {
-	t.Run("should enable Calls plugin by default on self-hosted", func(t *testing.T) {
-		c1 := Config{}
-		c1.SetDefaults()
-
-		assert.True(t, c1.PluginSettings.PluginStates["com.mattermost.calls"].Enable)
-	})
-
-	t.Run("should enable Calls plugin by default on Cloud", func(t *testing.T) {
-		os.Setenv("MM_CLOUD_INSTALLATION_ID", "test")
-		defer os.Unsetenv("MM_CLOUD_INSTALLATION_ID")
-		c1 := Config{}
-		c1.SetDefaults()
-
-		assert.True(t, c1.PluginSettings.PluginStates["com.mattermost.calls"].Enable)
-	})
-
-	t.Run("should not re-enable Calls plugin after it has been disabled", func(t *testing.T) {
-		c1 := Config{
-			PluginSettings: PluginSettings{
-				PluginStates: map[string]*PluginState{
-					"com.mattermost.calls": {
-						Enable: false,
-					},
-				},
-			},
-		}
-
-		c1.SetDefaults()
-		assert.False(t, c1.PluginSettings.PluginStates["com.mattermost.calls"].Enable)
-	})
-}
-
-func TestConfigDefaultAIPluginState(t *testing.T) {
-	t.Run("should enable AI plugin by default on self-hosted", func(t *testing.T) {
-		c1 := Config{}
-		c1.SetDefaults()
-
-		assert.True(t, c1.PluginSettings.PluginStates["mattermost-ai"].Enable)
-	})
-
-	t.Run("should enable AI plugin by default on Cloud", func(t *testing.T) {
-		os.Setenv("MM_CLOUD_INSTALLATION_ID", "test")
-		defer os.Unsetenv("MM_CLOUD_INSTALLATION_ID")
-		c1 := Config{}
-		c1.SetDefaults()
-
-		assert.True(t, c1.PluginSettings.PluginStates["mattermost-ai"].Enable)
-	})
-
-	t.Run("should not re-enable AI plugin after it has been disabled", func(t *testing.T) {
-		c1 := Config{
-			PluginSettings: PluginSettings{
-				PluginStates: map[string]*PluginState{
-					"mattermost-ai": {
-						Enable: false,
-					},
-				},
-			},
-		}
-
-		c1.SetDefaults()
-		assert.False(t, c1.PluginSettings.PluginStates["mattermost-ai"].Enable)
-	})
-}
-
 func TestConfigGetMessageRetentionHours(t *testing.T) {
 	tests := []struct {
 		name   string

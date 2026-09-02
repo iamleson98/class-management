@@ -1366,12 +1366,6 @@ func autocompleteUsers(c *Context, w http.ResponseWriter, r *http.Request) {
 		autocomplete.Users = result
 	}
 
-	// Fetch agent users for autocomplete
-	agentUsers, appErr := c.App.GetUsersForAgents(c.AppContext, c.AppContext.Session().UserId)
-	if appErr == nil && agentUsers != nil {
-		autocomplete.Agents = agentUsers
-	}
-
 	if err := json.NewEncoder(w).Encode(autocomplete); err != nil {
 		c.Logger.Warn("Error while writing response", mlog.Err(err))
 	}
