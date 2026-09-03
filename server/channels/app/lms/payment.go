@@ -38,6 +38,10 @@ func (a *LMSApp) CreatePayment(payment *lms_models.Payment) (*lms_models.Payment
 		return nil, updateErr
 	}
 
+	if m := a.app.Metrics(); m != nil {
+		m.IncrementLMSPaymentCreated(payment.Method)
+	}
+
 	return saved, nil
 }
 

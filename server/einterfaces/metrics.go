@@ -145,4 +145,18 @@ type MetricsInterface interface {
 	ObserveAutoTranslateWorkerTaskDuration(elapsed float64)
 	AddAutoTranslateRecoveryStuckFound(count float64)
 	IncrementAutoTranslateNormHash(result string)
+
+	// File-upload metrics (chat attachments, class media and other
+	// uploads — the historically fragile path).
+	ObserveFileUploadDuration(success bool, elapsed float64)
+	AddFileUploadBytes(count int64)
+	IncrementFileUploadFailure(stage string)
+
+	// LMS domain metrics (payments, homework submissions, class media,
+	// students).
+	IncrementLMSClassMediaCreated()
+	IncrementLMSClassMediaDeleted()
+	IncrementLMSPaymentCreated(method string)
+	IncrementLMSHomeworkSubmission(kind string)
+	IncrementLMSStudentCreated()
 }

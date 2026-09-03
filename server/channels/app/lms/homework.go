@@ -91,19 +91,19 @@ func (a *LMSApp) BulkAssignHomework(hw *lms_models.Homework, studentIDs []string
 	count := 0
 
 	for range studentIDs {
-			// Clone the homework template for each student.
-			clone := &lms_models.Homework{
-				Title:       hw.Title,
-				Description: hw.Description,
-				SessionID:   hw.SessionID,
-				ClassID:     hw.ClassID,
-				CourseID:    hw.CourseID,
-				TeacherID:   hw.TeacherID,
-				Deadline:    hw.Deadline,
-				FileID:      hw.FileID,
-			}
+		// Clone the homework template for each student.
+		clone := &lms_models.Homework{
+			Title:       hw.Title,
+			Description: hw.Description,
+			SessionID:   hw.SessionID,
+			ClassID:     hw.ClassID,
+			CourseID:    hw.CourseID,
+			TeacherID:   hw.TeacherID,
+			Deadline:    hw.Deadline,
+			FileID:      hw.FileID,
+		}
 
-			_, err := a.store.Homework().Save(clone)
+		_, err := a.store.Homework().Save(clone)
 		if err != nil {
 			return count, model.NewAppError("BulkAssignHomework", "app.lms.homework.create.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 		}
@@ -133,9 +133,12 @@ func (a *LMSApp) UpsertHomeworkSubmission(homeworkID, studentID string, sub *lms
 		// Update existing submission.
 		sub.ID = existing.ID
 
-			updated, err := a.store.Submission().Update(sub)
+		updated, err := a.store.Submission().Update(sub)
 		if err != nil {
 			return nil, model.NewAppError("UpsertHomeworkSubmission", "app.lms.homework.update_submission.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+		}
+		if m := a.app.Metrics(); m != nil {
+			m.IncrementLMSHomeworkSubmission("updated")
 		}
 		return updated, nil
 	}
@@ -144,6 +147,9 @@ func (a *LMSApp) UpsertHomeworkSubmission(homeworkID, studentID string, sub *lms
 	saved, err := a.store.Submission().Save(sub)
 	if err != nil {
 		return nil, model.NewAppError("UpsertHomeworkSubmission", "app.lms.homework.create_submission.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+	}
+	if m := a.app.Metrics(); m != nil {
+		m.IncrementLMSHomeworkSubmission("new")
 	}
 	return saved, nil
 }

@@ -1,11 +1,17 @@
 # Auto-provision a Prometheus datasource in Grafana on first boot.
 # Mounted at /etc/grafana/provisioning/datasources/prometheus.yml
+#
+# The uid is pinned to "prometheus" — the dashboards and the provisioned
+# alert rules reference it, so it must stay stable across restarts.
 apiVersion: 1
 
 datasources:
   - name: Prometheus
+    uid: prometheus
     type: prometheus
     access: proxy
     url: http://prometheus:9090
     isDefault: true
     editable: true
+    jsonData:
+      timeInterval: 15s

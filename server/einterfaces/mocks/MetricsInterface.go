@@ -626,3 +626,43 @@ func NewMetricsInterface(t interface {
 
 	return mock
 }
+
+// ObserveFileUploadDuration provides a mock function with given fields: success, elapsed
+func (_m *MetricsInterface) ObserveFileUploadDuration(success bool, elapsed float64) {
+	_m.Called(success, elapsed)
+}
+
+// AddFileUploadBytes provides a mock function with given fields: count
+func (_m *MetricsInterface) AddFileUploadBytes(count int64) {
+	_m.Called(count)
+}
+
+// IncrementFileUploadFailure provides a mock function with given fields: stage
+func (_m *MetricsInterface) IncrementFileUploadFailure(stage string) {
+	_m.Called(stage)
+}
+
+// IncrementLMSClassMediaCreated provides a mock function with no fields
+func (_m *MetricsInterface) IncrementLMSClassMediaCreated() {
+	_m.Called()
+}
+
+// IncrementLMSClassMediaDeleted provides a mock function with no fields
+func (_m *MetricsInterface) IncrementLMSClassMediaDeleted() {
+	_m.Called()
+}
+
+// IncrementLMSPaymentCreated provides a mock function with given fields: method
+func (_m *MetricsInterface) IncrementLMSPaymentCreated(method string) {
+	_m.Called(method)
+}
+
+// IncrementLMSHomeworkSubmission provides a mock function with given fields: kind
+func (_m *MetricsInterface) IncrementLMSHomeworkSubmission(kind string) {
+	_m.Called(kind)
+}
+
+// IncrementLMSStudentCreated provides a mock function with no fields
+func (_m *MetricsInterface) IncrementLMSStudentCreated() {
+	_m.Called()
+}

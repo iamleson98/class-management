@@ -128,6 +128,9 @@ func (a *LMSApp) CreateStudent(user *model.User, props map[string]any) (*model.U
 			return nil, model.NewAppError("CreateStudent", "app.lms.student.create.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 		}
 	}
+	if m := a.app.Metrics(); m != nil {
+		m.IncrementLMSStudentCreated()
+	}
 	return saved, nil
 }
 

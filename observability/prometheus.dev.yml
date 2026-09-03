@@ -1,6 +1,9 @@
-# Prometheus scrape configuration for LOCAL DEVELOPMENT.
-# The Go server runs on the host machine, so we target host.docker.internal.
+# Prometheus scrape configuration for LOCAL DEVELOPMENT with the server
+# running natively on the host (go run ./cmd/mattermost). The rest of the
+# stack (exporters, Grafana) is started with docker compose.
+#
 # Metrics are exposed on :8067 (MetricsSettings.ListenAddress in config.json).
+# For the full production scrape set see prometheus.yml.
 global:
   scrape_interval: 15s
   evaluation_interval: 60s
@@ -13,6 +16,37 @@ scrape_configs:
         labels:
           service: "lms-server"
           env: "dev"
+
+  - job_name: "node-exporter"
+    static_configs:
+      - targets: ["node-exporter:9100"]
+        labels:
+          service: "node-exporter"
+          env: "dev"
+
+  - job_name: "cadvisor"
+    static_configs:
+      - targets: ["cadvisor:8080"]
+        labels:
+          service: "cadvisor"
+          env: "dev"
+
+  - job_name: "blackbox-api"
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - http://host.docker.internal:8065/api/v4/system/ping
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+      - target_label: probe
+        replacement: "lms-server api ping (dev)"
 
   - job_name: "prometheus"
     static_configs:

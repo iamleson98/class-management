@@ -1,0 +1,104 @@
+# Recording rules for the LMS deployment.
+#
+# Pre-computing the rates/histogram quantiles that every dashboard panel
+# needs keeps Grafana queries cheap and repeat-scrape load off Prometheus.
+# Evaluate interval: 30s (set in prometheus.yml).
+groups:
+  - name: lms-api
+    interval: 30s
+    rules:
+      - record: lms:http_requests:rate1m
+        expr: rate(mattermost_http_requests_total[1m])
+
+      - record: lms:http_errors:rate1m
+        expr: rate(mattermost_http_errors_total[1m])
+
+      - record: lms:api_p95:rate5m
+        expr: |
+          histogram_quantile(0.95,
+            sum by (handler, le) (rate(mattermost_api_time_bucket[5m]))
+          )
+
+      - record: lms:api_p50:rate5m
+        expr: |
+          histogram_quantile(0.50,
+            sum by (handler, le) (rate(mattermost_api_time_bucket[5m]))
+          )
+
+      - record: lms:api_calls:rate5m
+        expr: sum by (handler, method, status_code) (rate(mattermost_api_time_bucket[5m]))
+
+      - record: lms:store_p95:rate5m
+        expr: |
+          histogram_quantile(0.95,
+            sum by (method, le) (rate(mattermost_db_store_time_bucket[5m]))
+          )
+
+  - name: lms-chat
+    interval: 30s
+    rules:
+      - record: lms:posts:rate1m
+        expr: rate(mattermost_post_total[1m])
+
+      - record: lms:logins:rate5m
+        expr: sum(rate(mattermost_login_logins_total[5m]))
+
+      - record: lms:login_failures:rate5m
+        expr: sum(rate(mattermost_login_logins_fail_total[5m]))
+
+  - name: lms-files
+    interval: 30s
+    rules:
+      - record: lms:file_uploads:rate5m
+        expr: sum by (success) (rate(mattermost_file_upload_duration_seconds_bucket[5m]))
+
+      - record: lms:file_upload_p95:rate5m
+        expr: |
+          histogram_quantile(0.95,
+            sum by (success, le) (rate(mattermost_file_upload_duration_seconds_bucket[5m]))
+          )
+
+      - record: lms:file_upload_bytes:rate5m
+        expr: rate(mattermost_file_upload_bytes_total[5m])
+
+      - record: lms:s3_requests:rate5m
+        expr: sum by (operation, code) (rate(mattermost_filestore_s3_request_duration_seconds_bucket[5m]))
+
+      - record: lms:s3_request_p95:rate5m
+        expr: |
+          histogram_quantile(0.95,
+            sum by (operation, le) (rate(mattermost_filestore_s3_request_duration_seconds_bucket[5m]))
+          )
+
+  - name: lms-business
+    interval: 30s
+    rules:
+      - record: lms:payments:rate1h
+        expr: sum by (method) (rate(mattermost_lms_payments_created_total[1h]))
+
+      - record: lms:homework_submissions:rate1h
+        expr: sum by (kind) (rate(mattermost_lms_homework_submissions_total[1h]))
+
+      - record: lms:file_upload_failures:rate5m
+        expr: sum by (stage) (rate(mattermost_file_upload_failures_total[5m]))
+
+  - name: node
+    interval: 30s
+    rules:
+      - record: node:cpu_usage:rate1m
+        expr: |
+          100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[1m])))
+
+      - record: node:memory_used:percent
+        expr: |
+          100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))
+
+      - record: node:disk_used:percent
+        expr: |
+          100 * (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}))
+
+      - record: node:net_rx:rate1m
+        expr: rate(node_network_receive_bytes_total{device!~"lo|veth.*|docker.*|br-.*"}[1m])
+
+      - record: node:net_tx:rate1m
+        expr: rate(node_network_transmit_bytes_total{device!~"lo|veth.*|docker.*|br-.*"}[1m])

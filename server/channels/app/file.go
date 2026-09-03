@@ -767,7 +767,25 @@ func (t *UploadFileTask) init(a *App) {
 // contained the last "good" FileInfo before the execution of that plugin.
 func (a *App) UploadFileX(rctx request.CTX, channelID, name string, input io.Reader,
 	opts ...func(*UploadFileTask),
-) (*model.FileInfo, *model.AppError) {
+) (info *model.FileInfo, appErr *model.AppError) {
+	// Report the upload lifecycle to the metrics service: duration + bytes
+	// on success, failures by stage otherwise.
+	uploadStart := time.Now()
+	defer func() {
+		if a.Metrics() == nil {
+			return
+		}
+		if appErr != nil {
+			a.Metrics().IncrementFileUploadFailure("upload_file")
+			a.Metrics().ObserveFileUploadDuration(false, time.Since(uploadStart).Seconds())
+			return
+		}
+		if info != nil {
+			a.Metrics().ObserveFileUploadDuration(true, time.Since(uploadStart).Seconds())
+			a.Metrics().AddFileUploadBytes(info.Size)
+		}
+	}()
+
 	t := &UploadFileTask{
 		Logger:         rctx.Logger(),
 		ChannelId:      filepath.Base(channelID),

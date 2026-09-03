@@ -9,8 +9,9 @@
 #                to LMS_BACKEND_URL so the browser stays same-origin — chat WS
 #                and calls signaling work without CORS/cookie gymnastics
 #   dev-proxy    Caddy reverse proxy (:80) — single HTTPS-less origin for dev
-#   prometheus   scrapes lms-server metrics
-#   grafana      dashboards (read from prometheus)
+#   prometheus   scrapes lms-server/rtcd/node/cadvisor/postgres/blackbox
+#                metrics (10-day retention)
+#   grafana      provisioned dashboards (read from prometheus)
 #
 # Configure via the .env file (see .env.example).
 # Start:   docker compose up -d
@@ -207,16 +208,19 @@ services:
       - lms-net
 
   # ─────────────────────── Observability ──────────────────────────
+  # Scrapes the Go server (:8067), rtcd (:8045) plus host / container /
+  # database / synthetic-probe exporters. Retention: 10 days.
   prometheus:
     image: prom/prometheus:v2.54.1
     restart: unless-stopped
     volumes:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus-rules.yml:/etc/prometheus/rules/lms-rules.yml:ro
       - promdata:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
-      - "--storage.tsdb.retention.time=15d"
+      - "--storage.tsdb.retention.time=10d"
       - "--web.enable-lifecycle"
     expose:
       - "9090"
@@ -227,6 +231,71 @@ services:
     networks:
       - lms-net
 
+  # Host metrics (CPU, memory, disk, network, load) — the system-resource
+  # half of the Grafana "System Resources" dashboard.
+  node-exporter:
+    image: quay.io/prometheus/node-exporter:v1.8.2
+    restart: unless-stopped
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/rootfs"
+      - "--collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+)($|/)"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    expose:
+      - "9100"
+    networks:
+      - lms-net
+
+  # Per-container metrics (CPU/memory per service, network per container).
+  # Needs privileged mode + /dev/kmsg for cgroup v2 hosts (Contabo default).
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    command:
+      - "--docker_only"
+      - "--housekeeping_interval=30s"
+    expose:
+      - "8080"
+    networks:
+      - lms-net
+
+  # PostgreSQL internals beyond the Go sql.DB stats: cache hit ratio,
+  # dead tuples, table sizes, xid age, autovacuum.
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.16.0
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: postgresql://${POSTGRES_USER:-mmuser}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-mattermost}?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose:
+      - "9187"
+    networks:
+      - lms-net
+
+  # Synthetic probes: backend /api/v4/system/ping + frontend / — powers
+  # the availability panels and the site-down alert.
+  blackbox-exporter:
+    image: quay.io/prometheus/blackbox-exporter:v0.25.0
+    restart: unless-stopped
+    expose:
+      - "9115"
+    networks:
+      - lms-net
+
   grafana:
     image: grafana/grafana:10.4.2
     restart: unless-stopped
@@ -234,11 +303,17 @@ services:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
       GF_USERS_ALLOW_SIGN_UP: "false"
+      # Cost/noise reduction: no phone-home telemetry, quieter logs.
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATE: "false"
+      GF_LOG_LEVEL: warn
     volumes:
-      # Auto-provision Prometheus datasource + dashboard provider
+      # Auto-provision Prometheus datasource + dashboard provider + alerts
       - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
-      # Drop dashboard JSON files here to have them auto-loaded
-      - grafana-dashboards:/var/lib/grafana/dashboards
+      # Dashboards are checked into the repo and mounted read-only — they
+      # auto-load on boot and on file change (updateIntervalSeconds: 30).
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     ports:
       # 3001 to avoid clashing with the frontend on 3000
@@ -260,4 +335,3 @@ volumes:
   lms-config:
   promdata:
   grafana-data:
-  grafana-dashboards:

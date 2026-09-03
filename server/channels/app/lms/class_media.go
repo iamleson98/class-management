@@ -48,6 +48,9 @@ func (a *LMSApp) CreateClassMedia(cm *lms_models.ClassMedium) (*lms_models.Class
 	if err != nil {
 		return nil, model.NewAppError("CreateClassMedia", "app.lms.class_media.create.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
 	}
+	if m := a.app.Metrics(); m != nil {
+		m.IncrementLMSClassMediaCreated()
+	}
 	return result, nil
 }
 
@@ -62,6 +65,9 @@ func (a *LMSApp) DeleteClassMedia(id string) *model.AppError {
 
 	if err := a.store.ClassMedia().Delete(id); err != nil {
 		return model.NewAppError("DeleteClassMedia", "app.lms.class_media.delete.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+	}
+	if m := a.app.Metrics(); m != nil {
+		m.IncrementLMSClassMediaDeleted()
 	}
 	return nil
 }

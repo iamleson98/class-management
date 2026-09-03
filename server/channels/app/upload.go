@@ -187,7 +187,27 @@ func (a *App) GetUploadSessionsForUser(userID string) ([]*model.UploadSession, *
 	return uss, nil
 }
 
-func (a *App) UploadData(rctx request.CTX, us *model.UploadSession, rd io.Reader) (*model.FileInfo, *model.AppError) {
+func (a *App) UploadData(rctx request.CTX, us *model.UploadSession, rd io.Reader) (info *model.FileInfo, appErr *model.AppError) {
+	// Report the full upload-session lifecycle to the metrics service:
+	// duration + bytes on success, failures by stage otherwise. Incomplete
+	// (multi-chunk, still in progress) uploads are not counted until they
+	// finish.
+	uploadStart := time.Now()
+	defer func() {
+		if a.Metrics() == nil {
+			return
+		}
+		if appErr != nil {
+			a.Metrics().IncrementFileUploadFailure("upload_session")
+			a.Metrics().ObserveFileUploadDuration(false, time.Since(uploadStart).Seconds())
+			return
+		}
+		if info != nil {
+			a.Metrics().ObserveFileUploadDuration(true, time.Since(uploadStart).Seconds())
+			a.Metrics().AddFileUploadBytes(us.FileSize)
+		}
+	}()
+
 	// prevent more than one caller to upload data at the same time for a given upload session.
 	// This is to avoid possible inconsistencies.
 	a.ch.uploadLockMapMut.Lock()

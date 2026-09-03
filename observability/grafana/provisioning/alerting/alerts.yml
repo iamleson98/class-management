@@ -1,0 +1,601 @@
+apiVersion: 1
+groups:
+- orgId: 1
+  name: LMS
+  folder: LMS Alerts
+  interval: 1m
+  rules:
+  - uid: lms-scrape-down
+    title: LMS server metrics scrape is down
+    condition: B
+    data:
+    - refId: A
+      queryType: ''
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: prometheus
+      model:
+        datasource:
+          type: prometheus
+          uid: prometheus
+        editorMode: code
+        expr: up{job="lms-server"}
+        instant: true
+        intervalMs: 1000
+        legendFormat: __auto
+        maxDataPoints: 43200
+        range: false
+        refId: A
+    - refId: B
+      queryType: ''
+      relativeTimeRange:
+        from: 0
+        to: 0
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 1
+            operator: neq
+          operator:
+            type: and
+          query:
+            params:
+            - B
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        reducer: last
+        refId: B
+        settings:
+          mode: dropnn
+        type: threshold
+    dashboardUid: null
+    panelId: null
+    noDataState: OK
+    execErrState: Error
+    for: 2m
+    annotations:
+      summary: Prometheus cannot scrape the LMS server metrics endpoint (:8067).
+      description: The backend may be down, or the metrics listener died. Check `docker
+        service logs lms-server` / container health.
+    labels:
+      severity: critical
+    isPaused: false
+  - uid: lms-site-down
+    title: LMS site is unreachable (probe failed)
+    condition: B
+    data:
+    - refId: A
+      queryType: ''
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: prometheus
+      model:
+        datasource:
+          type: prometheus
+          uid: prometheus
+        editorMode: code
+        expr: probe_success{job="blackbox-api"}
+        instant: true
+        intervalMs: 1000
+        legendFormat: __auto
+        maxDataPoints: 43200
+        range: false
+        refId: A
+    - refId: B
+      queryType: ''
+      relativeTimeRange:
+        from: 0
+        to: 0
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 1
+            operator: neq
+          operator:
+            type: and
+          query:
+            params:
+            - B
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        reducer: last
+        refId: B
+        settings:
+          mode: dropnn
+        type: threshold
+    dashboardUid: null
+    panelId: null
+    noDataState: OK
+    execErrState: Error
+    for: 3m
+    annotations:
+      summary: The blackbox probe to /api/v4/system/ping failed for 3 minutes.
+      description: End users are likely unable to use the system. Check the server,
+        Traefik/Caddy routing and the frontend container.
+    labels:
+      severity: critical
+    isPaused: false
+  - uid: lms-high-error-rate
+    title: High HTTP error rate
+    condition: B
+    data:
+    - refId: A
+      queryType: ''
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: prometheus
+      model:
+        datasource:
+          type: prometheus
+          uid: prometheus
+        editorMode: code
+        expr: sum(rate(mattermost_http_errors_total[5m])) / sum(rate(mattermost_http_requests_total[5m]))
+        instant: true
+        intervalMs: 1000
+        legendFormat: __auto
+        maxDataPoints: 43200
+        range: false
+        refId: A
+    - refId: B
+      queryType: ''
+      relativeTimeRange:
+        from: 0
+        to: 0
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 0.05
+            operator: gt
+          operator:
+            type: and
+          query:
+            params:
+            - B
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        reducer: last
+        refId: B
+        settings:
+          mode: dropnn
+        type: threshold
+    dashboardUid: null
+    panelId: null
+    noDataState: OK
+    execErrState: Error
+    for: 5m
+    annotations:
+      summary: More than 5% of HTTP requests are errors.
+      description: "Look at the LMS HTTP API dashboard \u2014 top failing endpoints\
+        \ \u2014 and the server logs."
+    labels:
+      severity: critical
+    isPaused: false
+  - uid: lms-high-latency
+    title: API latency p95 above 2s
+    condition: B
+    data:
+    - refId: A
+      queryType: ''
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: prometheus
+      model:
+        datasource:
+          type: prometheus
+          uid: prometheus
+        editorMode: code
+        expr: histogram_quantile(0.95, sum(rate(mattermost_api_time_bucket[5m])))
+        instant: true
+        intervalMs: 1000
+        legendFormat: __auto
+        maxDataPoints: 43200
+        range: false
+        refId: A
+    - refId: B
+      queryType: ''
+      relativeTimeRange:
+        from: 0
+        to: 0
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 2
+            operator: gt
+          operator:
+            type: and
+          query:
+            params:
+            - B
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        reducer: last
+        refId: B
+        settings:
+          mode: dropnn
+        type: threshold
+    dashboardUid: null
+    panelId: null
+    noDataState: OK
+    execErrState: Error
+    for: 10m
+    annotations:
+      summary: API p95 latency stayed above 2 seconds for 10 minutes.
+      description: Check the database dashboard (slow store methods) and host load.
+    labels:
+      severity: warning
+    isPaused: false
+  - uid: lms-upload-failures
+    title: File uploads are failing
+    condition: B
+    data:
+    - refId: A
+      queryType: ''
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: prometheus
+      model:
+        datasource:
+          type: prometheus
+          uid: prometheus
+        editorMode: code
+        expr: sum(rate(mattermost_file_upload_failures_total[5m]))
+        instant: true
+        intervalMs: 1000
+        legendFormat: __auto
+        maxDataPoints: 43200
+        range: false
+        refId: A
+    - refId: B
+      queryType: ''
+      relativeTimeRange:
+        from: 0
+        to: 0
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 0
+            operator: gt
+          operator:
+            type: and
+          query:
+            params:
+            - B
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        reducer: last
+        refId: B
+        settings:
+          mode: dropnn
+        type: threshold
+    dashboardUid: null
+    panelId: null
+    noDataState: OK
+    execErrState: Error
+    for: 5m
+    annotations:
+      summary: File uploads (chat attachments / class media) are failing.
+      description: 'Check the Uploads & Storage dashboard: S3/RustFS errors and the
+        failing stage. This is the flow that previously broke image rendering.'
+    labels:
+      severity: warning
+    isPaused: false
+  - uid: lms-db-conn-saturated
+    title: DB connections saturated
+    condition: B
+    data:
+    - refId: A
+      queryType: ''
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: prometheus
+      model:
+        datasource:
+          type: prometheus
+          uid: prometheus
+        editorMode: code
+        expr: mattermost_db_in_use_connections{db_name="master"} / mattermost_db_open_connections{db_name="master"}
+        instant: true
+        intervalMs: 1000
+        legendFormat: __auto
+        maxDataPoints: 43200
+        range: false
+        refId: A
+    - refId: B
+      queryType: ''
+      relativeTimeRange:
+        from: 0
+        to: 0
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 0.95
+            operator: gt
+          operator:
+            type: and
+          query:
+            params:
+            - B
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        reducer: last
+        refId: B
+        settings:
+          mode: dropnn
+        type: threshold
+    dashboardUid: null
+    panelId: null
+    noDataState: OK
+    execErrState: Error
+    for: 5m
+    annotations:
+      summary: 95% of open database connections are in use for 5 minutes.
+      description: Check for long-running queries on the database dashboard and consider
+        raising MaxIdleConns / adding read replicas.
+    labels:
+      severity: critical
+    isPaused: false
+  - uid: lms-disk-almost-full
+    title: Host disk almost full
+    condition: B
+    data:
+    - refId: A
+      queryType: ''
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: prometheus
+      model:
+        datasource:
+          type: prometheus
+          uid: prometheus
+        editorMode: code
+        expr: 100 * (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}))
+        instant: true
+        intervalMs: 1000
+        legendFormat: __auto
+        maxDataPoints: 43200
+        range: false
+        refId: A
+    - refId: B
+      queryType: ''
+      relativeTimeRange:
+        from: 0
+        to: 0
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 85
+            operator: gt
+          operator:
+            type: and
+          query:
+            params:
+            - B
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        reducer: last
+        refId: B
+        settings:
+          mode: dropnn
+        type: threshold
+    dashboardUid: null
+    panelId: null
+    noDataState: OK
+    execErrState: Error
+    for: 10m
+    annotations:
+      summary: Root filesystem usage is above 85%.
+      description: Prune Docker images/volumes (the promdata volume grows with retention),
+        or expand the disk.
+    labels:
+      severity: warning
+    isPaused: false
+  - uid: lms-memory-pressure
+    title: Host memory pressure
+    condition: B
+    data:
+    - refId: A
+      queryType: ''
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: prometheus
+      model:
+        datasource:
+          type: prometheus
+          uid: prometheus
+        editorMode: code
+        expr: 100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))
+        instant: true
+        intervalMs: 1000
+        legendFormat: __auto
+        maxDataPoints: 43200
+        range: false
+        refId: A
+    - refId: B
+      queryType: ''
+      relativeTimeRange:
+        from: 0
+        to: 0
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 90
+            operator: gt
+          operator:
+            type: and
+          query:
+            params:
+            - B
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        reducer: last
+        refId: B
+        settings:
+          mode: dropnn
+        type: threshold
+    dashboardUid: null
+    panelId: null
+    noDataState: OK
+    execErrState: Error
+    for: 5m
+    annotations:
+      summary: Memory usage is above 90% for 5 minutes.
+      description: Check per-container memory on the Containers dashboard; consider
+        raising container limits or the host plan.
+    labels:
+      severity: warning
+    isPaused: false
+  - uid: lms-ws-drop
+    title: WebSocket connections dropped to zero
+    condition: B
+    data:
+    - refId: A
+      queryType: ''
+      relativeTimeRange:
+        from: 300
+        to: 0
+      datasourceUid: prometheus
+      model:
+        datasource:
+          type: prometheus
+          uid: prometheus
+        editorMode: code
+        expr: sum(mattermost_http_websockets_total)
+        instant: true
+        intervalMs: 1000
+        legendFormat: __auto
+        maxDataPoints: 43200
+        range: false
+        refId: A
+    - refId: B
+      queryType: ''
+      relativeTimeRange:
+        from: 0
+        to: 0
+      datasourceUid: __expr__
+      model:
+        conditions:
+        - evaluator:
+            params:
+            - 1
+            operator: lt
+          operator:
+            type: and
+          query:
+            params:
+            - B
+          reducer:
+            params: []
+            type: last
+          type: query
+        datasource:
+          type: __expr__
+          uid: __expr__
+        expression: A
+        intervalMs: 1000
+        maxDataPoints: 43200
+        reducer: last
+        refId: B
+        settings:
+          mode: dropnn
+        type: threshold
+    dashboardUid: null
+    panelId: null
+    noDataState: OK
+    execErrState: Error
+    for: 10m
+    annotations:
+      summary: No WebSocket connections at all for 10 minutes while the server is
+        up.
+      description: Chat may be disconnected for all users. Check the frontend proxy
+        path for /api/v4/websocket.
+    labels:
+      severity: warning
+    isPaused: false

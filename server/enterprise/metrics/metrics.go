@@ -245,6 +245,18 @@ type MetricsInterfaceImpl struct {
 	AutoTranslateWorkerTaskDuration      prometheus.Histogram
 	AutoTranslateRecoveryStuckFound      prometheus.Counter
 	AutoTranslateNormHashCounter         *prometheus.CounterVec
+
+	// LMS-domain and file-storage metrics (see lms_metrics.go).
+	FileUploadDuration *prometheus.HistogramVec
+	FileUploadBytes    prometheus.Counter
+	FileUploadFailures *prometheus.CounterVec
+	S3RequestDuration  *prometheus.HistogramVec
+
+	LMSClassMediaCreated   prometheus.Counter
+	LMSClassMediaDeleted   prometheus.Counter
+	LMSPaymentsCreated     *prometheus.CounterVec
+	LMSHomeworkSubmissions *prometheus.CounterVec
+	LMSStudentsCreated     prometheus.Counter
 }
 
 func init() {
@@ -1656,6 +1668,8 @@ func New(ps *platform.PlatformService, driver, dataSource string) *MetricsInterf
 		[]string{"result"},
 	)
 	m.Registry.MustRegister(m.AutoTranslateNormHashCounter)
+
+	m.initLMSMetrics(additionalLabels)
 
 	return m
 }

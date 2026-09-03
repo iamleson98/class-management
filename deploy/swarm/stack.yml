@@ -8,8 +8,12 @@
 #   lms-server   Go backend (REST + WebSocket :8065, metrics :8067)
 #   lms-fe       Next.js frontend (:3000)
 #   lms-rtcd     WebRTC SFU (control :8045 internal, media :8443 host mode)
-#   prometheus   metrics scraper
-#   grafana      dashboards
+#   node-exporter host metrics (global — one per node)
+#   cadvisor     per-container metrics (global — one per node)
+#   postgres-exporter PostgreSQL internals
+#   blackbox-exporter synthetic probes (api ping, frontend)
+#   prometheus   metrics scraper (10-day retention, recording rules)
+#   grafana      provisioned dashboards + alerts
 #
 # Images are pulled from GitHub Container Registry (ghcr.io) — see
 # .github/workflows/lms-deploy.yml and deploy/swarm/build-and-push.sh.
@@ -542,12 +546,14 @@ services:
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
-      - --storage.tsdb.retention.time=15d
+      - --storage.tsdb.retention.time=10d
     volumes:
       - promdata:/prometheus
     configs:
       - source: prometheus_config
         target: /etc/prometheus/prometheus.yml
+      - source: prometheus_rules
+        target: /etc/prometheus/rules/lms-rules.yml
     networks: [lms_overlay]
     logging: *default-logging
     deploy:
@@ -558,6 +564,79 @@ services:
       resources:
         limits: { cpus: "0.5", memory: 512M }
 
+  # Host metrics from every node (mode: global = one task per node).
+  # Scraped via tasks.node-exporter:9100 so Prometheus sees all instances.
+  node-exporter:
+    image: quay.io/prometheus/node-exporter:v1.8.2
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/rootfs
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+)($|/)
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks: [lms_overlay]
+    logging: *default-logging
+    deploy:
+      mode: global
+      resources:
+        limits: { cpus: "0.2", memory: 128M }
+
+  # Per-container metrics from every node. Needs privileged + /dev/kmsg
+  # for cgroup v2 hosts (Contabo default).
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    privileged: true
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    command:
+      - --docker_only
+      - --housekeeping_interval=30s
+    networks: [lms_overlay]
+    logging: *default-logging
+    deploy:
+      mode: global
+      resources:
+        limits: { cpus: "0.4", memory: 256M }
+
+  # PostgreSQL internals (cache hit ratio, dead tuples, table sizes).
+  # Credentials come from the db_password secret via the exporter's
+  # *_FILE env support — no plaintext password in the environment.
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.16.0
+    environment:
+      DATA_SOURCE_URI: postgres:5432/${POSTGRES_DB:-mattermost}?sslmode=disable
+      DATA_SOURCE_USER: ${POSTGRES_USER:-mmuser}
+      DATA_SOURCE_PASS_FILE: /run/secrets/db_password
+    secrets: [db_password]
+    networks: [lms_overlay]
+    logging: *default-logging
+    deploy:
+      <<: *stateless-update
+      replicas: 1
+      placement:
+        constraints: ["${DB_PLACEMENT:-node.role == manager}"]
+      resources:
+        limits: { cpus: "0.2", memory: 128M }
+
+  # Synthetic probes: backend /api/v4/system/ping + frontend /.
+  blackbox-exporter:
+    image: quay.io/prometheus/blackbox-exporter:v0.25.0
+    networks: [lms_overlay]
+    logging: *default-logging
+    deploy:
+      <<: *stateless-update
+      replicas: 1
+      resources:
+        limits: { cpus: "0.1", memory: 64M }
+
   grafana:
     image: grafana/grafana:10.4.2
     environment:
@@ -565,16 +644,40 @@ services:
       GF_SECURITY_ADMIN_PASSWORD_FILE: /run/secrets/grafana_admin_password
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_SERVER_ROOT_URL: https://${GRAFANA_SUBDOMAIN:-grafana}.${DOMAIN}
+      # Cost/noise reduction: no phone-home telemetry, quieter logs.
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATE: "false"
+      GF_LOG_LEVEL: warn
       TZ: ${TZ:-UTC}
     secrets: [grafana_admin_password]
     volumes:
       - grafana-data:/var/lib/grafana
-      - grafana-dashboards:/var/lib/grafana/dashboards
     configs:
       - source: grafana_datasource
         target: /etc/grafana/provisioning/datasources/prometheus.yml
       - source: grafana_dashboards_provider
         target: /etc/grafana/provisioning/dashboards/dashboards.yml
+      - source: grafana_alerts
+        target: /etc/grafana/provisioning/alerting/alerts.yml
+      - source: grafana_dash_overview
+        target: /var/lib/grafana/dashboards/lms-overview.json
+      - source: grafana_dash_system
+        target: /var/lib/grafana/dashboards/lms-system.json
+      - source: grafana_dash_containers
+        target: /var/lib/grafana/dashboards/lms-containers.json
+      - source: grafana_dash_api
+        target: /var/lib/grafana/dashboards/lms-http-api.json
+      - source: grafana_dash_chat
+        target: /var/lib/grafana/dashboards/lms-chat-ws.json
+      - source: grafana_dash_uploads
+        target: /var/lib/grafana/dashboards/lms-uploads.json
+      - source: grafana_dash_database
+        target: /var/lib/grafana/dashboards/lms-database.json
+      - source: grafana_dash_business
+        target: /var/lib/grafana/dashboards/lms-business.json
+      - source: grafana_dash_calls
+        target: /var/lib/grafana/dashboards/lms-calls.json
     networks: [lms_overlay]
     logging: *default-logging
     deploy:
@@ -627,7 +730,6 @@ volumes:
   rtcd2_data: {}
   promdata: {}
   grafana-data: {}
-  grafana-dashboards: {}
 
 # ──────────────────────────── Secrets ────────────────────────────────
 # External: created by secrets-bootstrap.sh BEFORE the first deploy.
@@ -649,7 +751,29 @@ secrets:
 configs:
   prometheus_config:
     file: ./configs/prometheus.yml
+  prometheus_rules:
+    file: ../../observability/prometheus-rules.yml
   grafana_datasource:
     file: ../../observability/grafana/provisioning/datasources/prometheus.yml
   grafana_dashboards_provider:
     file: ../../observability/grafana/provisioning/dashboards/dashboards.yml
+  grafana_alerts:
+    file: ../../observability/grafana/provisioning/alerting/alerts.yml
+  grafana_dash_overview:
+    file: ../../observability/grafana/dashboards/lms-overview.json
+  grafana_dash_system:
+    file: ../../observability/grafana/dashboards/lms-system.json
+  grafana_dash_containers:
+    file: ../../observability/grafana/dashboards/lms-containers.json
+  grafana_dash_api:
+    file: ../../observability/grafana/dashboards/lms-http-api.json
+  grafana_dash_chat:
+    file: ../../observability/grafana/dashboards/lms-chat-ws.json
+  grafana_dash_uploads:
+    file: ../../observability/grafana/dashboards/lms-uploads.json
+  grafana_dash_database:
+    file: ../../observability/grafana/dashboards/lms-database.json
+  grafana_dash_business:
+    file: ../../observability/grafana/dashboards/lms-business.json
+  grafana_dash_calls:
+    file: ../../observability/grafana/dashboards/lms-calls.json

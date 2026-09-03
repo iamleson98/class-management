@@ -4,6 +4,7 @@ import (
 	"github.com/iamleson98/sitename/server/public/model"
 	"github.com/iamleson98/sitename/server/public/shared/request"
 	"github.com/iamleson98/sitename/server/v8/channels/store"
+	"github.com/iamleson98/sitename/server/v8/einterfaces"
 )
 
 // LMSApp is the LMS application layer that wraps store access with business logic.
@@ -17,6 +18,7 @@ func NewLMSApp(s store.Store, app AppPortionIface) *LMSApp {
 }
 
 type AppPortionIface interface {
+	Metrics() einterfaces.MetricsInterface
 	GetTeamByName(name string) (*model.Team, *model.AppError)
 	GetChannel(rctx request.CTX, channelID string) (*model.Channel, *model.AppError)
 	GetUsersInTeam(options *model.UserGetOptions) ([]*model.User, *model.AppError)

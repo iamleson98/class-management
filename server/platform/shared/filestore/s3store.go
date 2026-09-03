@@ -246,7 +246,10 @@ func (b *S3FileBackend) httpClient(isCloud bool) *http.Client {
                         tr.TLSClientConfig.InsecureSkipVerify = true
                 }
                 tr.TLSClientConfig.MinVersion = tls.VersionTLS12
-                transport = tr
+                // Report every S3/RustFS round trip to the metrics observer
+                // (installed by the metrics service; no-op when metrics are
+                // disabled).
+                transport = &metricsTransport{base: tr}
         }
         return &http.Client{Transport: transport}
 }

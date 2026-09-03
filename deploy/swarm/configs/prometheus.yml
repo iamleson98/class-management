@@ -1,36 +1,118 @@
 # Prometheus scrape configuration for the LMS Swarm deployment.
 #
-# Service names resolve over the lms_overlay network (Docker DNS):
-#   lms-server :8067 — Mattermost-style metrics (MM_METRICSSETTINGS_*)
-#   lms-rtcd   :8045 — rtcd SFU metrics (same port as the control API)
+# Targets (resolved over the lms_overlay network):
+#   tasks.lms-server        :8067  — backend metrics (every replica — tasks.*
+#                                    DNS returns all task IPs, unlike the
+#                                    service VIP which round-robins)
+#   tasks.lms-rtcd          :8045  — rtcd SFU metrics (control port)
+#   tasks.node-exporter     :9100  — host CPU/mem/disk/net (mode: global,
+#                                    one task per swarm node)
+#   tasks.cadvisor          :8080  — per-container metrics (one per node)
+#   postgres-exporter       :9187  — PostgreSQL internals
+#   blackbox-exporter       :9115  — synthetic probes (api ping, frontend)
+#   localhost               :9090  — self-monitoring
 #
-# Note: with replicas > 1, service DNS round-robins between tasks; Prometheus
-# discovers them via the service name and relabels by instance as usual.
+# Retention is 10 days (set on the prometheus service command line in
+# stack.yml). Recording rules are mounted at /etc/prometheus/rules/.
+#
+# RustFS note: the pinned RustFS release exports telemetry via OpenTelemetry
+# rather than a Prometheus scrape endpoint; storage visibility comes from the
+# server-side mattermost_filestore_s3_* metrics. A commented job for the
+# MinIO-compatible endpoint is included for future RustFS versions.
 global:
   scrape_interval: 15s
-  evaluation_interval: 60s
+  scrape_timeout: 10s
+  evaluation_interval: 30s
+  external_labels:
+    env: swarm
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
 
 scrape_configs:
   - job_name: "lms-server"
     metrics_path: "/metrics"
     static_configs:
-      - targets: ["lms-server:8067"]
+      - targets: ["tasks.lms-server:8067"]
         labels:
           service: "lms-server"
 
   - job_name: "lms-rtcd"
     metrics_path: "/metrics"
     static_configs:
-      - targets: ["lms-rtcd:8045"]
+      - targets: ["tasks.lms-rtcd:8045"]
         labels:
           service: "lms-rtcd"
       # Second SFU instance: uncomment when the pool is active
       # (RTCD2_REPLICAS=1) so its metrics are scraped too.
-      # - targets: ["lms-rtcd2:8045"]
+      # - targets: ["tasks.lms-rtcd2:8045"]
       #   labels:
       #       service: "lms-rtcd2"
+
+  - job_name: "node-exporter"
+    static_configs:
+      - targets: ["tasks.node-exporter:9100"]
+        labels:
+          service: "node-exporter"
+
+  - job_name: "cadvisor"
+    static_configs:
+      - targets: ["tasks.cadvisor:8080"]
+        labels:
+          service: "cadvisor"
+
+  - job_name: "postgres-exporter"
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+        labels:
+          service: "postgres-exporter"
+
+  - job_name: "blackbox-api"
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - http://lms-server:8065/api/v4/system/ping
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+      - target_label: probe
+        replacement: "lms-server api ping"
+
+  - job_name: "blackbox-frontend"
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - http://lms-fe:3000/
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+      - target_label: probe
+        replacement: "frontend"
 
   # Self-monitor Prometheus
   - job_name: "prometheus"
     static_configs:
       - targets: ["localhost:9090"]
+
+  # ────────────────────────── RustFS (optional) ──────────────────────────
+  # Enable when your RustFS version exposes MinIO-compatible metrics
+  # (path /minio/v2/metrics/cluster on the S3 port). Bearer tokens are
+  # generated with: rc alias set local http://rustfs:9000 ... &&
+  # rc admin prometheus generate local
+  # - job_name: "rustfs"
+  #   metrics_path: /minio/v2/metrics/cluster
+  #   bearer_token: REPLACE_WITH_RUSTFS_PROMETHEUS_TOKEN
+  #   static_configs:
+  #     - targets: ["rustfs:9000"]
