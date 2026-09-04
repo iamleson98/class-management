@@ -196,6 +196,28 @@ interface ChatState {
 
 const emptyChannelPosts = (): ChannelPosts => ({ byId: {}, order: [], prevPostId: '', nextPostId: '', loading: false })
 
+/**
+ * Hydration patch for reactions: Mattermost post payloads (channel post
+ * lists, thread fetches, WS posted events) carry `metadata.reactions` on posts
+ * that have reactions. The store keeps reactions in a separate map
+ * (reactionsByPost) — without seeding it from incoming post metadata, the
+ * UI would only ever see reactions added via live WebSocket events, and they
+ * would all disappear after a reload. Returns a state patch (or null when no
+ * post in the batch carries reaction metadata — nothing to change).
+ */
+function reactionSeedPatch(s: ChatState, posts: ChatPost[]): Partial<ChatState> | null {
+  let seeds: Record<string, ChatReaction[]> | null = null
+  for (const p of posts) {
+    const reactions = (p.metadata as { reactions?: unknown } | null | undefined)?.reactions
+    if (Array.isArray(reactions)) {
+      if (!seeds) seeds = {}
+      seeds[p.id] = reactions as ChatReaction[]
+    }
+  }
+  if (!seeds) return null
+  return { reactionsByPost: { ...s.reactionsByPost, ...seeds } }
+}
+
 /** Insert/refresh a post in a channel's ordered list (newest-first). */
 function upsertOrdered(cp: ChannelPosts, post: ChatPost): ChannelPosts {
   const byId = { ...cp.byId, [post.id]: post }
@@ -330,7 +352,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         .sort((a, b) => (cp.byId[b]?.create_at ?? 0) - (cp.byId[a]?.create_at ?? 0))
       if (opts.prevPostId !== undefined) cp.prevPostId = opts.prevPostId
       if (opts.nextPostId !== undefined) cp.nextPostId = opts.nextPostId
-      return { postsByChannel: { ...s.postsByChannel, [channelId]: cp } }
+      return { postsByChannel: { ...s.postsByChannel, [channelId]: cp }, ...(reactionSeedPatch(s, posts) ?? {}) }
     }),
 
   prependPosts: (channelId, posts, prevPostId) =>
@@ -342,7 +364,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         .slice()
         .sort((a, b) => (cp.byId[b]?.create_at ?? 0) - (cp.byId[a]?.create_at ?? 0))
       if (prevPostId !== undefined) cp.prevPostId = prevPostId
-      return { postsByChannel: { ...s.postsByChannel, [channelId]: cp } }
+      return { postsByChannel: { ...s.postsByChannel, [channelId]: cp }, ...(reactionSeedPatch(s, posts) ?? {}) }
     }),
 
   appendPosts: (channelId, posts, nextPostId) =>
@@ -354,13 +376,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
         .slice()
         .sort((a, b) => (cp.byId[b]?.create_at ?? 0) - (cp.byId[a]?.create_at ?? 0))
       if (nextPostId !== undefined) cp.nextPostId = nextPostId
-      return { postsByChannel: { ...s.postsByChannel, [channelId]: cp } }
+      return { postsByChannel: { ...s.postsByChannel, [channelId]: cp }, ...(reactionSeedPatch(s, posts) ?? {}) }
     }),
 
   upsertPost: (post) =>
     set((s) => {
       const cp = s.postsByChannel[post.channel_id] ?? emptyChannelPosts()
-      return { postsByChannel: { ...s.postsByChannel, [post.channel_id]: upsertOrdered(cp, post) } }
+      return { postsByChannel: { ...s.postsByChannel, [post.channel_id]: upsertOrdered(cp, post) }, ...(reactionSeedPatch(s, [post]) ?? {}) }
     }),
 
   editPost: (post) =>

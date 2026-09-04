@@ -546,3 +546,64 @@ func TestS3BackendListDirectoryPathError(t *testing.T) {
 	var pErr *fs.PathError
 	assert.True(t, errors.As(err, &pErr), "error is not of type fs.PathError, got: %v", err)
 }
+
+// TestS3ReaderSeekEndProbing reproduces the production file-serving failure:
+// http.ServeContent sizes its content by calling Seek(0, io.SeekEnd) followed
+// by Seek(0, io.SeekStart) before streaming. The ranged GET a naive
+// implementation issues for the EOF position is rejected by S3-compatible
+// stores (416 InvalidRange — even offset == size is out of range, the last
+// valid byte is size-1), which used to surface as "seeker can't seek" 500s
+// for every GET /api/v4/files/{id}. Seeking to EOF must succeed and reads
+// from there must return io.EOF.
+func TestS3ReaderSeekEndProbing(t *testing.T) {
+	backend, _ := newFakeBackend(t)
+	require.NoError(t, backend.MakeBucket())
+
+	content := []byte("probe me")
+	_, err := backend.WriteFile(bytes.NewReader(content), "dir/probe.txt")
+	require.NoError(t, err)
+
+	r, err := backend.Reader("dir/probe.txt")
+	require.NoError(t, err)
+	defer r.Close()
+
+	// ServeContent's seekSize sequence.
+	size, err := r.Seek(0, io.SeekEnd)
+	require.NoError(t, err)
+	require.Equal(t, int64(len(content)), size)
+
+	// Reading at EOF returns io.EOF (not an error).
+	n, err := r.Read(make([]byte, 8))
+	require.Equal(t, 0, n)
+	require.Equal(t, io.EOF, err)
+
+	// Restore to start and stream the full body.
+	off, err := r.Seek(0, io.SeekStart)
+	require.NoError(t, err)
+	require.Equal(t, int64(0), off)
+	got, err := io.ReadAll(r)
+	require.NoError(t, err)
+	require.Equal(t, content, got)
+}
+
+// TestS3ReaderServeContent runs the real net/http.ServeContent (the exact
+// helper WriteFileResponse delegates to) over an S3FileBackend reader — the
+// end-to-end guarantee that file GETs no longer fail with "seeker can't seek".
+func TestS3ReaderServeContent(t *testing.T) {
+	backend, _ := newFakeBackend(t)
+	require.NoError(t, backend.MakeBucket())
+
+	content := []byte("serve me via ServeContent")
+	_, err := backend.WriteFile(bytes.NewReader(content), "dir/serve.txt")
+	require.NoError(t, err)
+
+	r, err := backend.Reader("dir/serve.txt")
+	require.NoError(t, err)
+	defer r.Close()
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v4/files/xxx", nil)
+	http.ServeContent(rec, req, "serve.txt", time.Now(), r)
+	require.Equal(t, http.StatusOK, rec.Code, "body: %q", rec.Body.String())
+	require.Equal(t, content, rec.Body.Bytes())
+}

@@ -442,9 +442,54 @@ func (sc *s3WithCancel) Read(p []byte) (int, error) {
         return n, err
 }
 
+// invalidRangeEOF holds the empty reader used when a seek lands at (or past)
+// the end of the object: reads from it return io.EOF, matching io.Seeker
+// semantics for positions at/after EOF.
+type invalidRangeEOF struct{}
+
+func (invalidRangeEOF) Read([]byte) (int, error) { return 0, io.EOF }
+func (invalidRangeEOF) Close() error            { return nil }
+
+// isInvalidRangeError reports whether err is S3's 416 InvalidRange response —
+// what every S3-compatible store (AWS included) returns for a ranged GET whose
+// start offset is at or past the object size. A Seek to EOF (or beyond) is
+// legal io.Seeker behavior — the next Read simply returns io.EOF — so callers
+// must not treat 416 as a seek failure.
+func isInvalidRangeError(err error) bool {
+        if err == nil {
+                return false
+        }
+        if code, ok := s3ErrorCode(err); ok {
+                return code == "InvalidRange"
+        }
+        var respErr *awshttp.ResponseError
+        if errors.As(err, &respErr) && respErr.HTTPStatusCode() == http.StatusRequestedRangeNotSatisfiable {
+                return true
+        }
+        return false
+}
+
+// setEOF closes any open body and parks the reader at offset with an empty
+// body, so subsequent Reads return io.EOF. It is the no-network equivalent of
+// reopen(offset) for positions at/after the end of the object.
+func (sc *s3WithCancel) setEOF(offset int64) {
+        if sc.body != nil {
+                sc.body.Close()
+        }
+        sc.cancel()
+        sc.body = invalidRangeEOF{}
+        sc.offset = offset
+        sc.cancel = func() {}
+        sc.timer.Stop()
+}
+
 // Seek repositions the reader. Seeking elsewhere than the current position
 // transparently re-opens a ranged GET; seeking to the end stats the object.
+// Seeking to a position at/after the end is legal: the reader is parked there
+// and reads return io.EOF (ranged GETs cannot address offset >= size — S3
+// answers those with 416 InvalidRange).
 func (sc *s3WithCancel) Seek(offset int64, whence int) (int64, error) {
+        var knownSize int64 = -1
         switch whence {
         case io.SeekStart:
         case io.SeekCurrent:
@@ -454,6 +499,7 @@ func (sc *s3WithCancel) Seek(offset int64, whence int) (int64, error) {
                 if err != nil {
                         return 0, errors.Wrapf(err, "unable to seek to end of %s", sc.path)
                 }
+                knownSize = size
                 offset += size
         default:
                 return 0, fmt.Errorf("invalid whence %d", whence)
@@ -462,6 +508,18 @@ func (sc *s3WithCancel) Seek(offset int64, whence int) (int64, error) {
                 return 0, fmt.Errorf("negative seek offset %d", offset)
         }
         if offset == sc.offset && sc.body != nil {
+                return sc.offset, nil
+        }
+        // The size is known (io.SeekEnd just resolved it): when the target
+        // lands at or past the end of the object, park the reader at EOF
+        // instead of issuing a ranged GET the store would reject with 416.
+        // Reads from there return io.EOF, which is what io.Seeker semantics
+        // require. http.ServeContent's size probing (Seek(0, SeekEnd) followed
+        // by Seek(0, SeekStart)) hits this on EVERY file serve, so this path
+        // must succeed for files (and thumbnails/previews) to be served at
+        // all — otherwise ServeContent fails with "seeker can't seek".
+        if knownSize >= 0 && offset >= knownSize {
+                sc.setEOF(offset)
                 return sc.offset, nil
         }
         if err := sc.reopen(offset); err != nil {
@@ -489,6 +547,11 @@ func (sc *s3WithCancel) ReadAt(p []byte, off int64) (int, error) {
                 Range:  aws.String(fmt.Sprintf("bytes=%d-%d", off, off+int64(len(p))-1)),
         })
         if err != nil {
+                // Reading at/past the end of the object is io.ReaderAt EOF,
+                // not an error (S3 answers those ranges with 416).
+                if isInvalidRangeError(err) {
+                        return 0, io.EOF
+                }
                 return 0, err
         }
         defer out.Body.Close()
@@ -513,6 +576,15 @@ func (sc *s3WithCancel) reopen(offset int64) error {
         })
         if err != nil {
                 cancel()
+                // A Seek whose target was computed without knowing the object
+                // size can land at/past EOF; S3-compatible stores answer the
+                // un-satisfiable ranged GET with 416 InvalidRange. io.Seeker
+                // allows such positions (reads then return io.EOF), so park at
+                // EOF instead of failing the seek.
+                if isInvalidRangeError(err) {
+                        sc.setEOF(offset)
+                        return nil
+                }
                 return err
         }
         sc.cancel()

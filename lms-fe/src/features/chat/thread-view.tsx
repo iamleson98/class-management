@@ -42,7 +42,15 @@ export function ThreadView({ channelId, rootId, teamId, onClose }: ThreadViewPro
   const rootPost = useChatStore((s) => s.postsByChannel[channelId]?.byId[rootId])
   const threadMeta = useChatStore((s) => s.threadsById[rootId])
   const follow = useFollowThread(teamId)
-  const markRead = useMarkThreadRead(teamId)
+  // TanStack Query's useMutation returns a NEW result object on every render
+  // (the observer result is spread into a fresh object); only `mutate` is
+  // referentially stable. Putting the mutation RESULT in the effect deps
+  // below re-fired the effect on every render — each run re-fetched
+  // getUserThread and re-ran the mutation, whose store updates re-rendered
+  // this component, creating an infinite request loop against
+  // /api/v4/users/{uid}/teams/{tid}/threads/{id}. Destructure the stable
+  // `mutate` instead.
+  const markReadMutate = useMarkThreadRead(teamId).mutate
 
   // Collect all post ids in this thread (root + replies) from the store.
   const posts = useMemo(() => {
@@ -60,7 +68,7 @@ export function ThreadView({ channelId, rootId, teamId, onClose }: ThreadViewPro
   // Mark thread read on open (gated — only if there's actually something to
   // clear, mirroring the vendored updateThreadRead gate).
   useEffect(() => {
-    markRead.mutate({ threadId: rootId })
+    markReadMutate({ threadId: rootId })
     // Fetch thread metadata so the follow button + indicators reflect server state.
     if (userId && teamId) {
       client4.getUserThread(userId, teamId, rootId, false).then((full) => {
@@ -69,7 +77,7 @@ export function ThreadView({ channelId, rootId, teamId, onClose }: ThreadViewPro
         useChatStore.getState().receiveThread(teamId, meta as import('@/lib/chat/threads').ChatThread)
       }).catch(() => { /* best-effort */ })
     }
-  }, [rootId, teamId, userId, markRead])
+  }, [rootId, teamId, userId, markReadMutate])
 
   const isFollowing = threadMeta?.is_following ?? false
   const unreadReplies = threadMeta?.unread_replies ?? 0
