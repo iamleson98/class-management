@@ -7,8 +7,9 @@
 
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { useChatStore } from '@/lib/chat/store'
 
 const AVATAR_COLORS = [
 	'bg-sky-500',
@@ -55,6 +56,22 @@ export function UserAvatar({
 	ringClassName?: string
 }) {
 	const [failed, setFailed] = useState(false)
+	// The profile image endpoint sends Cache-Control: max-age=86400 and the
+	// URL never changes when a user re-uploads their picture, so a bare URL
+	// pins the STALE avatar for a day. last_picture_update (bumped server-side
+	// on every picture change) is the canonical cache-buster; it flows through
+	// the normalized chat store users. The selector returns a number
+	// (primitive), so the useSyncExternalStore snapshot stays stable.
+	const picVersion = useChatStore((s) => {
+		const u = s.users[userId] as { last_picture_update?: number } | undefined
+		return u?.last_picture_update ?? 0
+	})
+
+	// A new picture version should retry the <img> even if an earlier fetch
+	// failed (e.g. a user uploads their first avatar).
+	useEffect(() => {
+		setFailed(false)
+	}, [picVersion])
 
 	const initials = displayName
 		.split(' ')
@@ -80,7 +97,8 @@ export function UserAvatar({
 				</span>
 			) : (
 				<img
-					src={`/api/v4/users/${userId}/image`}
+					key={picVersion}
+					src={`/api/v4/users/${userId}/image?_${picVersion}`}
 					alt={displayName}
 					data-testid="user-avatar-img"
 					onError={() => setFailed(true)}

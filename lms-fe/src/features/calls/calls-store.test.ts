@@ -4,7 +4,9 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useCallsStore } from './calls-store'
+import { renderHook } from '@testing-library/react'
+import { useShallow } from 'zustand/react/shallow'
+import { useCallsStore, selectRaisedHands } from './calls-store'
 
 const store = () => useCallsStore.getState()
 
@@ -126,5 +128,48 @@ describe('useCallsStore', () => {
 		store().markActiveCall('ch1', { callId: 'c1', startAt: 1 })
 		store().markActiveCall('ch1', null)
 		expect(store().activeCalls.ch1).toBeUndefined()
+	})
+})
+
+describe('selector snapshot stability (React #185 regression)', () => {
+	// useSyncExternalStore requires getSnapshot to return the same reference
+	// across calls while state is unchanged; a selector that derives a fresh
+	// array forces a re-render on EVERY commit and crashes React with
+	// "Maximum update depth exceeded" (#185) — this is what made the call
+	// widget blow up the moment it mounted.
+	const handSession = (raisedHand: number) => ({
+		sessionId: 'h1', userId: 'u1', unmuted: true, raisedHand,
+		video: false, voice: false, screenOn: false, isHost: false,
+	})
+
+	it('raw selectRaisedHands is UNSTABLE (documents the bug)', () => {
+		store().upsertSession(handSession(123))
+		const a = selectRaisedHands(useCallsStore.getState())
+		const b = selectRaisedHands(useCallsStore.getState())
+		expect(a).not.toBe(b) // fresh array per call — must NOT be fed to useStore raw
+	})
+
+	it('useShallow-wrapped selectRaisedHands is snapshot-stable', () => {
+		store().upsertSession(handSession(123))
+		const { result, rerender } = renderHook(() => useCallsStore(useShallow(selectRaisedHands)))
+		const a = result.current
+		rerender()
+		expect(result.current).toBe(a)
+		rerender()
+		expect(result.current).toBe(a)
+	})
+
+	it('useShallow still surfaces content changes with a new reference', () => {
+		store().upsertSession(handSession(123))
+		const { result, rerender } = renderHook(() => useCallsStore(useShallow(selectRaisedHands)))
+		const before = result.current
+		store().setSessionHand('h1', 456)
+		rerender()
+		expect(result.current).not.toBe(before)
+		expect(result.current[0].raisedHand).toBe(456)
+		// …and it re-stabilizes on subsequent renders.
+		const after = result.current
+		rerender()
+		expect(result.current).toBe(after)
 	})
 })

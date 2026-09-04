@@ -91,6 +91,8 @@ interface LMSState {
   login: (user: UserProfile) => void
   logout: () => Promise<void>
   hydrate: () => Promise<{ authenticated: boolean; user?: UserProfile; role?: UserRole }>
+  /** Refresh the cached auth profile (e.g. after an avatar upload). */
+  setAuthUser: (user: UserProfile) => void
   setCurrentRole: (role: UserRole) => void
   setActiveView: (view: ActiveView) => void
   setSelectedDate: (date: string) => void
@@ -223,6 +225,14 @@ export const useLMSStore = create<LMSState>((set) => ({
       sessionStorage.setItem('vmg-auth', JSON.stringify({ user, ts: Date.now() }))
     } catch {}
     return result
+  },
+
+  setAuthUser: (user) => {
+    set({ authUser: user })
+    // Keep the hard-navigation cache (login()/hydrate() seed it) in sync too.
+    try {
+      sessionStorage.setItem('vmg-auth', JSON.stringify({ user, ts: Date.now() }))
+    } catch {}
   },
 
   setActiveView: (view) => set({ activeView: view, selectedItemId: null, showDetail: false }),

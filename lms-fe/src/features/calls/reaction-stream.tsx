@@ -12,6 +12,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -39,7 +40,14 @@ export function ReactionStream() {
 	const { t } = useTranslation()
 	const reactions = useCallsStore((s) => s.reactions)
 	const sessions = useCallsStore((s) => s.sessions)
-	const hands = useCallsStore(selectRaisedHands)
+	// selectRaisedHands derives a fresh array on every call; feeding it raw to
+	// useStore gives useSyncExternalStore an uncached getSnapshot, which React 19
+	// detects ("getSnapshot should be cached") and answers with a
+	// forceStoreRerender after every commit — a maximum-update-depth crash
+	// (React #185) the moment the call widget mounts. useShallow returns the
+	// previous array reference while its elements are unchanged, restoring
+	// snapshot stability.
+	const hands = useCallsStore(useShallow(selectRaisedHands))
 
 	if (reactions.length === 0 && hands.length === 0) return null
 

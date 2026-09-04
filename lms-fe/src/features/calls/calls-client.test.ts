@@ -15,6 +15,11 @@ vi.mock('@/lib/chat/client', () => ({
         },
 }))
 
+// Toast spy for the missing-devices UX (calls-client imports the module-level
+// toast() so the no-hardware join surfaces as a user-visible notification).
+const toastMock = vi.fn()
+vi.mock('@/hooks/use-toast', () => ({ toast: (arg: unknown) => toastMock(arg) }))
+
 import { callsClient } from './calls-client'
 import { useCallsStore } from './calls-store'
 
@@ -177,5 +182,36 @@ describe('callsClient', () => {
                 expect(sendMock).toHaveBeenCalledWith('custom_calls_leave', { channelID: 'ch1' })
                 expect(useCallsStore.getState().channelId).toBeNull()
                 expect(useCallsStore.getState().status).toBe('disconnected')
+        })
+
+        it('missing capture hardware joins voice-only with a banner AND a toast', async () => {
+                getUserMediaMock.mockRejectedValue(
+                        Object.assign(new Error('Requested device not found'), { name: 'NotFoundError' }),
+                )
+
+                await callsClient.join('ch1')
+
+                // Still joins (the join action is sent — voice-only).
+                expect(sendMock).toHaveBeenCalledWith('custom_calls_join', { channelID: 'ch1' })
+                // In-call alert banner for the missing mic.
+                expect(useCallsStore.getState().alerts.some((a) => a.kind === 'audio-input-missing')).toBe(true)
+                // User-facing toast naming the missing devices (falls back to
+                // "both missing" when enumerateDevices is unavailable, as in jsdom).
+                await vi.waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1))
+                const arg = toastMock.mock.calls[0][0] as { title: string; variant?: string }
+                expect(arg.title).toContain('Không tìm thấy')
+                expect(arg.variant).toBe('destructive')
+        })
+
+        it('permission-denied media failures toast NOT (banner only)', async () => {
+                getUserMediaMock.mockRejectedValue(
+                        Object.assign(new Error('Permission denied'), { name: 'NotAllowedError' }),
+                )
+
+                await callsClient.join('ch2')
+                await new Promise((r) => setTimeout(r, 0))
+
+                expect(useCallsStore.getState().alerts.some((a) => a.kind === 'audio-input-permissions')).toBe(true)
+                expect(toastMock).not.toHaveBeenCalled()
         })
 })

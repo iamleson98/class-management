@@ -41,6 +41,7 @@
  */
 
 import { wsClient } from '@/lib/chat/client'
+import { toast } from '@/hooks/use-toast'
 import { useCallsStore, type CallDevice } from './calls-store'
 import { RTCQualityMonitor, type QualitySample } from './calls-quality'
 import { playCallSound } from './calls-sounds'
@@ -469,6 +470,40 @@ class CallsClient {
 		} else {
 			useCallsStore.getState().addAlert({ kind: 'audio-input-missing' })
 		}
+		// Surface missing hardware as a toast as well (not only the in-call
+		// banner): the user learns immediately WHY nobody can hear/see them
+		// instead of digging through console errors.
+		if (name === 'NotFoundError' || /not found|not\s*found|device/i.test(msg)) {
+			void this.toastMissingDevices()
+		}
+	}
+
+	/** Report which capture devices are actually absent via a toast. */
+	private async toastMissingDevices(): Promise<void> {
+		let micMissing = true
+		let camMissing = true
+		try {
+			const list = await navigator.mediaDevices?.enumerateDevices?.()
+			micMissing = !(list ?? []).some((d) => d.kind === 'audioinput')
+			camMissing = !(list ?? []).some((d) => d.kind === 'videoinput')
+		} catch {
+			// enumerateDevices blocked (no permission yet): keep both flags
+		}
+		const en = (() => {
+			try {
+				return localStorage.getItem('vmg-lang') === 'en'
+			} catch {
+				return false
+			}
+		})()
+		const both = micMissing && camMissing
+		const title = en
+			? both ? 'No microphone or camera found' : micMissing ? 'No microphone found' : 'No camera found'
+			: both ? 'Không tìm thấy micro và camera' : micMissing ? 'Không tìm thấy micro' : 'Không tìm thấy camera'
+		const description = en
+			? 'Your computer does not have these devices. The call continues in listen-only mode.'
+			: 'Máy tính của bạn không có các thiết bị này. Cuộc gọi sẽ tiếp tục ở chế độ chỉ nghe.'
+		toast({ title, description, variant: 'destructive' })
 	}
 
 	private async initLocalMedia(enableVideo: boolean): Promise<void> {

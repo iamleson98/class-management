@@ -29,7 +29,7 @@ import Link from 'next/link'
 import { client4 } from '@/lib/chat/client'
 import { changePasswordSchema, type ChangePasswordInput } from '@/lib/schemas'
 import { useLMSStore, parseAllLMSRoles, ROLE_COLORS } from '@/store/lms-store'
-import { getUserDisplayName } from '@/lib/api'
+import { getMe, getUserDisplayName } from '@/lib/api'
 import { getInitials } from '@/components/shared/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -128,16 +128,31 @@ function ProfileBanner() {
   const [imgVersion, setImgVersion] = useState(0)
   const [imgFailed, setImgFailed] = useState(false)
   const [hasServerAvatar, setHasServerAvatar] = useState(false)
-  const avatarUrl = authUser ? `/api/v4/users/${authUser.id}/image?_${imgVersion}` : ''
+  // The profile image URL is identical for every version of the picture, and
+  // the server caches it for 24h (max-age=86400). Without a per-picture
+  // cache-buster the browser happily re-serves the PREVIOUS avatar after a
+  // reload. last_picture_update (bumped by the server on every avatar change)
+  // is the canonical buster; imgVersion (Date.now() after a fresh upload)
+  // covers the same-session refresh until the refetched profile lands.
+  const serverPicVersion = userNum(authUser, 'lastpictureupdate', 'last_picture_update') ?? 0
+  const avatarVersion = imgVersion || serverPicVersion
+  const avatarUrl = authUser ? `/api/v4/users/${authUser.id}/image?_${avatarVersion}` : ''
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
       await client4.uploadProfileImage(authUser!.id, file)
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       setImgFailed(false)
       setHasServerAvatar(true)
       setImgVersion(Date.now())
+      // Refetch the profile so authUser.lastpictureupdate reflects the new
+      // picture; the bumped value becomes the stable cache-buster that keeps
+      // working across reloads (imgVersion resets to 0 on remount).
+      try {
+        const fresh = await getMe()
+        if (fresh) useLMSStore.getState().setAuthUser(fresh)
+      } catch { /* non-fatal: imgVersion still busts this session's cache */ }
       toast({ title: t('account.avatarUpdated', 'Đã cập nhật ảnh đại diện') })
     },
     onError: (err) => {
@@ -153,10 +168,18 @@ function ProfileBanner() {
     mutationFn: async () => {
       await client4.setDefaultProfileImage(authUser!.id)
     },
-    onSuccess: () => {
-      setImgFailed(true)
+    onSuccess: async () => {
+      // The server now serves the generated default image; show it (the img
+      // key changes so the failed state resets anyway).
+      setImgFailed(false)
       setHasServerAvatar(false)
       setImgVersion(Date.now())
+      // Server resets lastpictureupdate to a negative timestamp on removal;
+      // refetch so the cached profile (and reloads afterwards) see it.
+      try {
+        const fresh = await getMe()
+        if (fresh) useLMSStore.getState().setAuthUser(fresh)
+      } catch { /* non-fatal */ }
       toast({ title: t('account.avatarRemoved', 'Đã xóa ảnh đại diện') })
     },
     onError: (err) => {

@@ -15,7 +15,7 @@ import { useChatStore } from './store'
 import { notifyIfNeeded, resolveAuthorName } from './notifications'
 import { useLMSStore } from '@/store/lms-store'
 import { useCallsStore } from '@/features/calls/calls-store'
-import type { ChatPost, ChatReaction, PresenceStatus } from './types'
+import type { ChatPost, ChatReaction, ChatUser, PresenceStatus } from './types'
 
 // WebSocket event names — string literals (the WebSocketEvents const enum
 // can't be accessed under isolatedModules). Values match the server wire
@@ -29,6 +29,7 @@ const EVT = {
   ReactionRemoved: 'reaction_removed',
   Typing: 'typing',
   StatusChange: 'status_change',
+  UserUpdated: 'user_updated',
   UserAdded: 'user_added',
   UserRemoved: 'user_removed',
   ChannelUpdated: 'channel_updated',
@@ -217,6 +218,17 @@ function handleEvent(msg: WebSocketMessage): void {
       const data = (msg as WebSocketMessages.StatusChanged).data
       if (data?.user_id && data.status) {
         store.setStatus(data.user_id, data.status as PresenceStatus)
+      }
+      break
+    }
+
+    case EVT.UserUpdated: {
+      // Profile changed (name, nickname, avatar…). data.user carries the full
+      // user object; upserting keeps display names AND last_picture_update
+      // fresh so avatar URLs re-key (the image endpoint caches 24h).
+      const data = (msg as unknown as { data?: { user?: ChatUser } }).data
+      if (data?.user?.id) {
+        store.upsertUsers([data.user])
       }
       break
     }
