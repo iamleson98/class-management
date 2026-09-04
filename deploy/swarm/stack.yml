@@ -572,7 +572,10 @@ services:
       - --path.procfs=/host/proc
       - --path.sysfs=/host/sys
       - --path.rootfs=/rootfs
-      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+)($|/)
+      # NOTE: the regex ends in ($|/). Docker Compose/Swarm stack interpolation
+      # would treat a bare $ as a variable reference and abort with "invalid
+      # interpolation format" — escape it as $$ (renders as a literal $).
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+)($$|/)
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
