@@ -66,6 +66,71 @@ for f in "$HERE/configs/prometheus.yml" \
     fi
 done
 
+# ── 1b. Immutable-config drift cleanup ─────────────────────────────────
+# Docker configs cannot be updated in place ("only updates to Labels are
+# allowed"): a stack deploy whose config content differs from the version
+# already on the node aborts. This bit us when a partial/manual earlier run
+# left stale observability configs behind. Compare each stack config with
+# the bundle's file and remove it when it differs — docker config rm is
+# REFUSED while any running task still mounts the config, so this can never
+# pull a live config out from under a service.
+# NOTE: this list must mirror the `configs:` section of stack.yml.
+STACK_CONFIGS=(
+    "prometheus_config|$HERE/configs/prometheus.yml"
+    "prometheus_rules|$HERE/../../observability/prometheus-rules.yml"
+    "grafana_datasource|$HERE/../../observability/grafana/provisioning/datasources/prometheus.yml"
+    "grafana_dashboards_provider|$HERE/../../observability/grafana/provisioning/dashboards/dashboards.yml"
+    "grafana_alerts|$HERE/../../observability/grafana/provisioning/alerting/alerts.yml"
+    "grafana_dash_overview|$HERE/../../observability/grafana/dashboards/lms-overview.json"
+    "grafana_dash_system|$HERE/../../observability/grafana/dashboards/lms-system.json"
+    "grafana_dash_containers|$HERE/../../observability/grafana/dashboards/lms-containers.json"
+    "grafana_dash_api|$HERE/../../observability/grafana/dashboards/lms-http-api.json"
+    "grafana_dash_chat|$HERE/../../observability/grafana/dashboards/lms-chat-ws.json"
+    "grafana_dash_uploads|$HERE/../../observability/grafana/dashboards/lms-uploads.json"
+    "grafana_dash_database|$HERE/../../observability/grafana/dashboards/lms-database.json"
+    "grafana_dash_business|$HERE/../../observability/grafana/dashboards/lms-business.json"
+    "grafana_dash_calls|$HERE/../../observability/grafana/dashboards/lms-calls.json"
+)
+for entry in "${STACK_CONFIGS[@]}"; do
+    cfg="${STACK_NAME}_${entry%%|*}"
+    file="${entry#*|}"
+    if [ ! -f "$file" ]; then
+        echo "!! Missing config source: $file" >&2
+        exit 1
+    fi
+    remote_b64=$(docker config inspect "$cfg" --format '{{json .Spec.Data}}' 2>/dev/null | tr -d '"' || true)
+    if [ -n "$remote_b64" ]; then
+        local_b64=$(base64 -w0 "$file")
+        if [ "$remote_b64" != "$local_b64" ]; then
+            if ! docker config rm "$cfg" >/dev/null 2>&1; then
+                # The config is still mounted by a running service (a stale
+                # manual/partial deploy). Remove THIS stack's services that
+                # reference it — the stack deploy below recreates them
+                # immediately with the new config. In this stack only the
+                # observability services (prometheus / grafana) mount
+                # configs; their data lives in named volumes, not tasks.
+                consumers=$(docker stack services "$STACK_NAME" --format '{{.Name}}' 2>/dev/null | while read -r svc; do
+                    mounted=$(docker service inspect "$svc" --format '{{range .Spec.TaskTemplate.ContainerSpec.Configs}}{{.ConfigName}} {{end}}' 2>/dev/null || true)
+                    case " $mounted " in *" $cfg "*) echo "$svc";; esac
+                done)
+                if [ -z "$consumers" ]; then
+                    echo "!! Config '$cfg' changed and could not be removed (no consuming service found — resolve manually)" >&2
+                    exit 1
+                fi
+                for svc in $consumers; do
+                    echo ">> Removing '$svc' so stale config '$cfg' can be replaced (recreated below)"
+                    docker service rm "$svc" >/dev/null
+                done
+                if ! docker config rm "$cfg" >/dev/null 2>&1; then
+                    echo "!! Config '$cfg' still in use after removing consumers — resolve manually" >&2
+                    exit 1
+                fi
+            fi
+            echo ">> Replaced stale config '$cfg' (content changed)"
+        fi
+    fi
+done
+
 # ── 2. Registry login (only needed for PRIVATE GHCR packages) ─────────
 GHCR_USER="${GHCR_USER:-}"
 GHCR_TOKEN="${GHCR_TOKEN:-}"
