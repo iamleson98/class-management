@@ -14,6 +14,7 @@ import { useMemo } from 'react'
 import { useChatStore } from '@/lib/chat/store'
 import { useUsers } from '@/lib/chat/hooks'
 import { displayUsername } from '@/lib/chat/utils'
+import { MESSAGE_COLUMN_CLASS, MESSAGE_COLUMN_PADDING } from '@/features/chat/chat-layout'
 import { useTranslation } from '@/lib/i18n'
 import { useLMSStore } from '@/store/lms-store'
 
@@ -52,7 +53,7 @@ export function TypingIndicator({ channelId, rootId }: TypingIndicatorProps) {
         })
 
   return (
-    <div className="px-5 pb-1.5 h-5 flex items-center gap-2" aria-live="polite">
+    <div className={`${MESSAGE_COLUMN_CLASS} ${MESSAGE_COLUMN_PADDING} pb-1.5 h-5 flex items-center gap-2`} aria-live="polite">
       <span className="flex items-center gap-1" aria-hidden="true">
         <span className="typing-dot" />
         <span className="typing-dot [animation-delay:150ms]" />

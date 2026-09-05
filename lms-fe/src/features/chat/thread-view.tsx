@@ -129,7 +129,7 @@ export function ThreadView({ channelId, rootId, teamId, onClose }: ThreadViewPro
                 return <CallPostCard key={post.id} post={post} />
               }
               return (
-                <div key={post.id} className={`group/row relative flex gap-3 px-2 -mx-2 rounded-lg ${isRoot ? 'pb-2 border-b mb-1' : groupStart ? 'mt-2' : 'mt-0.5'} transition-colors duration-100 hover:bg-muted/60 dark:hover:bg-white/[0.04]`}>
+                <div key={post.id} className={`group/row relative flex gap-2.5 ${isRoot ? 'pb-2 border-b mb-1' : groupStart ? 'py-1.5' : 'py-0.5'} ${isOwn ? 'flex-row-reverse' : ''}`}>
                   {groupStart ? (
                     <Avatar name={name} size="sm" className="mt-0.5 shrink-0" />
                   ) : (
@@ -137,15 +137,21 @@ export function ThreadView({ channelId, rootId, teamId, onClose }: ThreadViewPro
                       <span className="hidden group-hover/row:block text-[10px] tabular-nums text-muted-foreground/80 select-none">{format(new Date(post.create_at), 'HH:mm')}</span>
                     </div>
                   )}
-                  <div className="flex-1 min-w-0">
+                  <div className={`flex flex-col max-w-[80%] ${isOwn ? 'items-end' : 'items-start'}`}>
                     {groupStart && (
                       <div className="flex items-baseline gap-2 mb-0.5 min-w-0">
-                        <span className={`text-[13px] font-semibold truncate ${nameColorClass(post.user_id)}`}>{name}</span>
+                        {!isOwn && <span className={`text-[13px] font-semibold truncate ${nameColorClass(post.user_id)}`}>{name}</span>}
                         <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">{format(new Date(post.create_at), 'HH:mm')}</span>
                         {isOwn && <span className="hidden group-hover/row:inline text-[10px] text-muted-foreground/60">· {t('chat.you', 'bạn')}</span>}
                       </div>
                     )}
-                    <div className="text-sm leading-relaxed wrap-break-word">
+                    <div
+                      className={`text-sm leading-relaxed wrap-break-word rounded-2xl px-3.5 py-2 ${
+                        isOwn
+                          ? `bg-primary text-primary-foreground rounded-br-sm ${!groupStart ? 'rounded-tr-sm' : ''}`
+                          : `bg-muted text-foreground rounded-bl-sm ${!groupStart ? 'rounded-tl-sm' : ''}`
+                      }`}
+                    >
                       <MessageContent post={post} isOwn={isOwn} />
                       {post.file_ids && post.file_ids.length > 0 && <FileAttachments post={post} isOwn={false} />}
                     </div>

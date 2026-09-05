@@ -19,6 +19,7 @@ import {
   useUsers, useCurrentUserId, usePinPost, useToggleFlag, useMarkPostUnread,
 } from '@/lib/chat/hooks'
 import { userDisplayName, type ChatPost } from '@/lib/chat/types'
+import { MESSAGE_COLUMN_CLASS, MESSAGE_COLUMN_PADDING } from './chat-layout'
 import { useTranslation } from '@/lib/i18n'
 import { TypingIndicator } from './typing-indicator'
 import { MessageContent } from './message-content'
@@ -299,7 +300,7 @@ export function PostList({ channelId, onOpenThread, onForward, onShowEditHistory
 
   if (order.length === 0 && loading) {
     return (
-      <div className="flex-1 p-4 space-y-4">
+      <div className={`flex-1 space-y-4 ${MESSAGE_COLUMN_PADDING} py-4 ${MESSAGE_COLUMN_CLASS}`}>
         {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="flex gap-3">
             <Skeleton className="h-8 w-8 rounded-full" />
@@ -316,7 +317,7 @@ export function PostList({ channelId, onOpenThread, onForward, onShowEditHistory
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <ScrollArea ref={scrollRef as never} className="flex-1 min-h-0" onScroll={handleScroll} aria-label={t('chat.messageList', 'Danh sách tin nhắn')} role="log">
-        <div className="py-4 pb-2 max-w-3xl mx-auto w-full">
+        <div className={`py-4 pb-2 ${MESSAGE_COLUMN_PADDING} ${MESSAGE_COLUMN_CLASS}`}>
           {hasNewer && (
             <div className="flex justify-center py-2">
               <Button variant="ghost" size="sm" onClick={loadNewer} disabled={loading}>
@@ -446,11 +447,12 @@ interface PostRowProps {
 }
 
 /**
- * PostRow — one message in the modern flat layout (Slack/Discord 2025
- * convention): full-width row, fixed avatar gutter, name header only on the
- * first row of a group, timestamp in the gutter on hover for continuations,
- * and a floating hover toolbar with quick reactions. Own messages are not
- * mirrored — identity comes from the name color + avatar, and moderation
+ * PostRow — one message row in the messenger layout (WhatsApp/Telegram
+ * convention, per user request): peers' messages anchor to the LEFT with
+ * their avatar, the logged-in user's messages mirror to the RIGHT. Consecutive
+ * same-sender posts group compactly (avatar + name header only on the first
+ * row; a hover timestamp replaces the avatar slot on continuations, keeping
+ * bubbles aligned). Identity comes from the per-user name color; moderation
  * affordances (edit/delete) stay hover-revealed for everyone.
  */
 function PostRow(props: PostRowProps) {
@@ -486,15 +488,16 @@ function PostRow(props: PostRowProps) {
 
   return (
     <div
-      className={`group/row relative flex gap-3 px-4 -mx-2 rounded-lg ${groupStart ? 'mt-2' : 'mt-0.5'} transition-colors duration-100 hover:bg-muted/60 dark:hover:bg-white/[0.04]`}
+      className={`group/row relative flex gap-2.5 ${groupStart ? 'py-1.5' : 'py-0.5'} ${isOwn ? 'flex-row-reverse' : ''}`}
       onMouseEnter={() => onHover?.(post)}
       onMouseLeave={() => onHover?.(null)}
       role="article"
       tabIndex={0}
       aria-label={`${authorName} ${time}`}
     >
-      {/* Avatar gutter — avatar on the group's first row, hover timestamp
-          (replacing the avatar slot) on continuation rows. */}
+      {/* Avatar gutter — avatar on the group's first row (mirrored to the
+          right for own messages), hover timestamp (replacing the avatar slot)
+          on continuation rows so bubbles stay aligned within a group. */}
       {groupStart ? (
         <Avatar name={authorName} size="sm" className="mt-0.5 shrink-0" />
       ) : (
@@ -503,11 +506,11 @@ function PostRow(props: PostRowProps) {
         </div>
       )}
 
-      {/* Content column */}
-      <div className="flex-1 min-w-0">
+      {/* Content column — right-aligned for own messages */}
+      <div className={`flex flex-col max-w-[75%] ${isOwn ? 'items-end' : 'items-start'}`}>
         {groupStart && (
           <div className="flex items-baseline gap-2 mb-0.5 min-w-0">
-            <span className={`text-[13px] font-semibold truncate ${nameColorClass(post.user_id)}`}>{authorName}</span>
+            {!isOwn && <span className={`text-[13px] font-semibold truncate ${nameColorClass(post.user_id)}`}>{authorName}</span>}
             <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">{time}</span>
             {post.edit_at > 0 && (
               <button
@@ -537,7 +540,13 @@ function PostRow(props: PostRowProps) {
             </div>
           </div>
         ) : (
-          <div className="text-sm leading-relaxed wrap-break-word">
+          <div
+            className={`text-sm leading-relaxed wrap-break-word rounded-2xl px-3.5 py-2 ${
+              isOwn
+                ? `bg-primary text-primary-foreground rounded-br-sm ${!groupStart ? 'rounded-tr-sm' : ''}`
+                : `bg-muted text-foreground rounded-bl-sm ${!groupStart ? 'rounded-tl-sm' : ''}`
+            }`}
+          >
             <MessageContent post={post} isOwn={isOwn} onJumpToPost={onJumpToPost} />
             {post.file_ids && post.file_ids.length > 0 && <FileAttachments post={post} isOwn={false} />}
           </div>
@@ -586,10 +595,11 @@ function PostRow(props: PostRowProps) {
         )}
       </div>
 
-      {/* Hover toolbar — floats over the row's top-right corner, Discord-style:
-          quick reactions + reply + overflow menu. */}
+      {/* Hover toolbar — floats over the row's top corner on the opposite
+          side of the bubbles, Discord-style: quick reactions + reply + overflow
+          menu. Mirrored for own messages so it never covers the bubble. */}
       <div
-        className="absolute -top-3 right-2 z-10 flex items-center h-8 rounded-lg border bg-popover shadow-md opacity-0 scale-95 pointer-events-none group-hover/row:opacity-100 group-hover/row:scale-100 group-hover/row:pointer-events-auto focus-within:opacity-100 focus-within:scale-100 focus-within:pointer-events-auto transition-all duration-100 ease-out"
+        className={`absolute -top-3 z-10 flex items-center h-8 rounded-lg border bg-popover shadow-md opacity-0 scale-95 pointer-events-none group-hover/row:opacity-100 group-hover/row:scale-100 group-hover/row:pointer-events-auto focus-within:opacity-100 focus-within:scale-100 focus-within:pointer-events-auto transition-all duration-100 ease-out ${isOwn ? 'left-2' : 'right-2'}`}
         role="toolbar"
         aria-label={t('chat.messageActions', 'Thao tác tin nhắn')}
       >
