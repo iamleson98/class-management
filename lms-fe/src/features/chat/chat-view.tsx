@@ -213,13 +213,18 @@ export default function ChatView() {
     if (connected) ensureNotificationPermission()
   }, [connected])
 
-  // Auto-select the first channel on mount.
+  // Auto-select the first channel once any channel exists. Subscribing to the
+  // channels map (not just teams) fixes a load race: teams land BEFORE the
+  // channels do, so a teams-only effect ran once against an empty store and
+  // never re-fired — the chat pane sat on "pick a channel" until the 20s
+  // poll replaced the teams array. The channels reference changes on every
+  // upsert, so the effect re-runs exactly when the first channel arrives.
+  const channels = useChatStore((s) => s.channels)
   useEffect(() => {
-    if (!activeChannelId && teams.length > 0) {
-      const allChannels = Object.values(useChatStore.getState().channels).filter((c) => c.delete_at === 0)
-      if (allChannels.length > 0) setActiveChannel(allChannels[0].id)
-    }
-  }, [teams, activeChannelId, setActiveChannel])
+    if (activeChannelId) return
+    const first = Object.values(channels).find((c) => c.delete_at === 0)
+    if (first) setActiveChannel(first.id)
+  }, [channels, activeChannelId, setActiveChannel])
 
   const selectChannel = (ch: ChatChannel) => {
     setActiveChannel(ch.id)

@@ -259,4 +259,35 @@ describe('callsClient', () => {
                 expect(useCallsStore.getState().alerts.some((a) => a.kind === 'audio-input-permissions')).toBe(true)
                 expect(toastMock).not.toHaveBeenCalled()
         })
+
+        it('unsatisfiable preferred constraints fall back to relaxed ones (camera still works)', async () => {
+                // Regression for "joins voice-only although my laptop has both
+                // devices": an external camera that cannot satisfy facingMode /
+                // a stale stored deviceId rejects the FIRST attempt, but the
+                // ladder retries without those constraints and succeeds.
+                const audioTrack = fakeTrack('audio', 'a1')
+                const videoTrack = fakeTrack('video', 'v1')
+                const attempts: Array<MediaStreamConstraints> = []
+                getUserMediaMock.mockImplementation(async (c: MediaStreamConstraints) => {
+                        attempts.push(c)
+                        const video = c.video as MediaTrackConstraints | undefined
+                        const preferred = !!video && ('facingMode' in video || 'deviceId' in video)
+                        if (video && preferred) {
+                                throw Object.assign(new Error('Requested device not found'), { name: 'NotFoundError' })
+                        }
+                        return mediaStream(c.audio ? [audioTrack] : [videoTrack])
+                })
+
+                await callsClient.join('ch1', { enableVideo: true })
+                await new Promise((r) => setTimeout(r, 0))
+
+                // Video acquisition retried with relaxed constraints.
+                expect(attempts.filter((c) => c.video).length).toBeGreaterThanOrEqual(2)
+                // The camera actually works: enabled, no missing-video banner,
+                // no missing-device toast.
+                expect(useCallsStore.getState().cameraEnabled).toBe(true)
+                expect(useCallsStore.getState().micEnabled).toBe(true)
+                expect(useCallsStore.getState().alerts.some((a) => a.kind === 'video-input-missing')).toBe(false)
+                expect(toastMock).not.toHaveBeenCalled()
+        })
 })

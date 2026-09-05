@@ -462,6 +462,42 @@ class CallsClient {
 	}
 
 	/**
+	 * Acquire one capture track through a constraint-relaxation ladder.
+	 *
+	 * Real classroom hardware regularly rejects the PREFERRED constraints
+	 * while the device itself works fine: a stale stored deviceId (browsers
+	 * rotate per-origin ids), an external camera that cannot satisfy
+	 * facingMode, or a driver that rejects the processing flags all
+	 * surface as NotFoundError/OverconstrainedError on machines that DO
+	 * have a working mic/camera — exactly the "joins voice-only although
+	 * my laptop has both" class of reports. Each rung relaxes one
+	 * constraint family; only the FINAL failure is classified (banners /
+	 * missing-device toast), intermediate ones are silent retries.
+	 */
+	private async acquireLocalTrack(kind: 'audio' | 'video'): Promise<MediaStreamTrack[]> {
+		const attempts: Array<MediaStreamConstraints> =
+			kind === 'audio'
+				? [{ audio: this.audioConstraints() }, { audio: true }]
+				: [
+					{ video: this.videoConstraints() },
+					// Drop deviceId + facingMode, keep the quality caps.
+					{ video: { frameRate: { ideal: 30 }, width: { ideal: 640 }, height: { ideal: 360 } } },
+					// Browser default: any camera, any mode.
+					{ video: true },
+				]
+		let lastErr: unknown
+		for (const constraints of attempts) {
+			try {
+				const stream = await navigator.mediaDevices.getUserMedia(constraints)
+				return kind === 'audio' ? stream.getAudioTracks() : stream.getVideoTracks()
+			} catch (err) {
+				lastErr = err
+			}
+		}
+		throw lastErr ?? new Error(`getUserMedia failed for ${kind}`)
+	}
+
+	/**
 	 * Classify one getUserMedia failure for the RIGHT alert banner kind
 	 * (audio vs video, missing vs permission). Returns whether the failure
 	 * says the device itself is missing — the caller decides whether that
@@ -521,25 +557,24 @@ class CallsClient {
 	}
 
 	private async initLocalMedia(enableVideo: boolean): Promise<void> {
-		// Acquire the mic and the camera INDEPENDENTLY: a single
-		// getUserMedia({audio, video}) fails wholesale when either device is
-		// missing, taking a working mic down with a missing camera. Each failure
-		// degrades that one track only and shows the right banner; a missing
-		// device additionally fires the user-facing summary toast.
+		// Acquire the mic and the camera INDEPENDENTLY (each through its
+		// constraint-relaxation ladder): a missing camera never drags a
+		// working mic down, and a stale deviceId / odd driver cannot cost
+		// the user a device that works. Each final failure degrades that
+		// one track only and shows the right banner; a missing device
+		// additionally fires the user-facing summary toast.
 		const missing: Array<'audio' | 'video'> = []
 		const tracks: MediaStreamTrack[] = []
 
 		try {
-			const stream = await navigator.mediaDevices.getUserMedia({ audio: this.audioConstraints() })
-			tracks.push(...stream.getAudioTracks())
+			tracks.push(...(await this.acquireLocalTrack('audio')))
 		} catch (err) {
 			if (this.mediaFailed('audio', err)) missing.push('audio')
 		}
 
 		if (enableVideo) {
 			try {
-				const stream = await navigator.mediaDevices.getUserMedia({ video: this.videoConstraints() })
-				tracks.push(...stream.getVideoTracks())
+				tracks.push(...(await this.acquireLocalTrack('video')))
 			} catch (err) {
 				if (this.mediaFailed('video', err)) missing.push('video')
 			}
