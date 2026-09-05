@@ -280,7 +280,7 @@ class CallsClient {
 		} catch (err) {
 			// Media failure is non-fatal: join voice-only with an alert
 			// banner; devices can be enabled later from the widget.
-			this.classifyMediaError(err)
+			this.mediaFailed('audio', err)
 			console.warn('[calls] failed to acquire local media, joining voice-only', err)
 		}
 
@@ -461,21 +461,35 @@ class CallsClient {
 		return { ...quality, facingMode: 'user' }
 	}
 
-	/** Map a getUserMedia failure to the right alert banner kind. */
-	private classifyMediaError(err: unknown): void {
+	/**
+	 * Classify one getUserMedia failure for the RIGHT alert banner kind
+	 * (audio vs video, missing vs permission). Returns whether the failure
+	 * says the device itself is missing — the caller decides whether that
+	 * merits the user-facing missing-devices toast (initLocalMedia fires it
+	 * once per join, naming what is actually absent).
+	 */
+	private mediaFailed(kind: 'audio' | 'video', err: unknown): boolean {
 		const name = (err as { name?: string })?.name ?? ''
 		const msg = String((err as Error)?.message ?? '')
-		if (name === 'NotAllowedError' || /permission|denied/i.test(msg)) {
-			useCallsStore.getState().addAlert({ kind: 'audio-input-permissions' })
+		const notFound =
+			name === 'NotFoundError' ||
+			name === 'DevicesNotFoundError' ||
+			/not found|no camera|no microphone|unrecoverable/i.test(msg)
+		const permission = name === 'NotAllowedError' || /permission|denied/i.test(msg)
+		if (kind === 'audio') {
+			useCallsStore.getState().addAlert({
+				kind: permission ? 'audio-input-permissions' : 'audio-input-missing',
+			})
 		} else {
-			useCallsStore.getState().addAlert({ kind: 'audio-input-missing' })
+			useCallsStore.getState().addAlert({
+				kind: permission ? 'video-input-permissions' : 'video-input-missing',
+			})
 		}
-		// Surface missing hardware as a toast as well (not only the in-call
-		// banner): the user learns immediately WHY nobody can hear/see them
-		// instead of digging through console errors.
-		if (name === 'NotFoundError' || /not found|not\s*found|device/i.test(msg)) {
-			void this.toastMissingDevices()
-		}
+		console.warn(
+			`[calls] failed to acquire ${kind} ${notFound ? '(device missing)' : permission ? '(permission denied)' : ''}`,
+			err,
+		)
+		return notFound
 	}
 
 	/** Report which capture devices are actually absent via a toast. */
@@ -507,13 +521,38 @@ class CallsClient {
 	}
 
 	private async initLocalMedia(enableVideo: boolean): Promise<void> {
-		this.localStream = await navigator.mediaDevices.getUserMedia({
-			audio: this.audioConstraints(),
-			video: enableVideo ? this.videoConstraints() : false,
-		})
+		// Acquire the mic and the camera INDEPENDENTLY: a single
+		// getUserMedia({audio, video}) fails wholesale when either device is
+		// missing, taking a working mic down with a missing camera. Each failure
+		// degrades that one track only and shows the right banner; a missing
+		// device additionally fires the user-facing summary toast.
+		const missing: Array<'audio' | 'video'> = []
+		const tracks: MediaStreamTrack[] = []
+
+		try {
+			const stream = await navigator.mediaDevices.getUserMedia({ audio: this.audioConstraints() })
+			tracks.push(...stream.getAudioTracks())
+		} catch (err) {
+			if (this.mediaFailed('audio', err)) missing.push('audio')
+		}
+
+		if (enableVideo) {
+			try {
+				const stream = await navigator.mediaDevices.getUserMedia({ video: this.videoConstraints() })
+				tracks.push(...stream.getVideoTracks())
+			} catch (err) {
+				if (this.mediaFailed('video', err)) missing.push('video')
+			}
+		}
+
+		// Surface missing hardware as a toast (not only the in-call banners):
+		// the user learns immediately WHY nobody can hear/see them.
+		if (missing.length > 0) void this.toastMissingDevices()
+
+		this.localStream = tracks.length > 0 ? new MediaStream(tracks) : null
 		const store = useCallsStore.getState()
-		const mic = this.localStream.getAudioTracks()[0]
-		const cam = this.localStream.getVideoTracks()[0]
+		const mic = this.localStream?.getAudioTracks()[0]
+		const cam = this.localStream?.getVideoTracks()[0]
 		store.setMic(!!mic && mic.enabled)
 		store.setCamera(!!cam)
 		// Device labels become available after the first getUserMedia.

@@ -168,8 +168,12 @@ function handleCallEvent(msg: WebSocketMessage): void {
                         if (/maximum participants/i.test(message)) kind = 'max-participants'
                         else if (/disabled for this channel/i.test(message)) kind = 'channel-disabled'
                         else if (/feature is disabled|not configured/i.test(message)) kind = 'disabled'
-                        useCallsStore.getState().setError({ message, kind: kind === 'channel-disabled' ? 'disabled' : kind })
+                        // Leave FIRST, then set the error: leave() runs the store
+                        // reset which clears any error set before it — setting the
+                        // error afterwards is what lets the error modal survive to
+                        // explain WHY the call ended instead of dying silently.
                         callsClient.leave()
+                        useCallsStore.getState().setError({ message, kind: kind === 'channel-disabled' ? 'disabled' : kind })
                         break
                 }
 

@@ -32,6 +32,7 @@ import { useChatStore } from '@/lib/chat/store'
 import { callsClient } from './calls-client'
 import { useCallsStore } from './calls-store'
 import { useCallsConfig } from './calls-config'
+import { CallErrorBoundary } from './call-error-boundary'
 import { CallTimer } from './call-timer'
 import { CallTile } from './call-tile'
 import { CallControls } from './call-controls'
@@ -191,10 +192,15 @@ export function CallWidget({ channelId }: { channelId: string }) {
 	}
 
 	if (minimized) {
-		return <CompactCallBar onExpand={() => setMinimized(false)} nameFor={nameFor} />
+		return (
+			<CallErrorBoundary>
+				<CompactCallBar onExpand={() => setMinimized(false)} nameFor={nameFor} />
+			</CallErrorBoundary>
+		)
 	}
 
 	return (
+		<CallErrorBoundary>
 		<div className="fixed inset-0 z-50 flex flex-col bg-black/95 backdrop-blur-sm">
 			<div className="flex min-h-0 flex-1">
 				<div className="flex min-w-0 flex-1 flex-col">
@@ -390,6 +396,7 @@ export function CallWidget({ channelId }: { channelId: string }) {
 				</div>
 			)}
 		</div>
+		</CallErrorBoundary>
 	)
 }
 

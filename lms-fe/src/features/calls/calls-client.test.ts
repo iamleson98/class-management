@@ -31,6 +31,21 @@ Object.defineProperty(navigator, 'mediaDevices', {
         configurable: true,
 })
 
+// jsdom also lacks the MediaStream constructor; the client re-bundles the
+// independently acquired audio/video tracks into one local stream.
+class FakeMediaStream {
+        id = 'local-stream'
+        constructor(public tracks: MediaStreamTrack[] = []) {}
+        getTracks = () => this.tracks
+        getAudioTracks = () => this.tracks.filter((t) => t.kind === 'audio')
+        getVideoTracks = () => this.tracks.filter((t) => t.kind === 'video')
+        addTrack = vi.fn()
+        removeTrack = vi.fn()
+        addEventListener = vi.fn()
+}
+// @ts-expect-error inject stub
+globalThis.MediaStream = FakeMediaStream
+
 // The client instantiates RTCPeerConnection in handleJoinAck; jsdom lacks a
 // real implementation, so stub a controllable one.
 class FakePC {
@@ -102,6 +117,36 @@ describe('callsClient', () => {
 
                 expect(sendMock).toHaveBeenCalledWith('custom_calls_join', { channelID: 'ch1' })
                 expect(useCallsStore.getState().status).toBe('connecting')
+        })
+
+        it('join with no devices still joins (voice-only) and toasts', async () => {
+                getUserMediaMock.mockRejectedValue(Object.assign(new Error('Requested device not found'), { name: 'NotFoundError' }))
+
+                await callsClient.join('ch1', { enableVideo: true })
+
+                // Non-fatal: the join action still goes out.
+                expect(sendMock).toHaveBeenCalledWith('custom_calls_join', { channelID: 'ch1' })
+                expect(useCallsStore.getState().status).toBe('connecting')
+                // The missing-device alert banner is up.
+                expect(useCallsStore.getState().alerts.some((a) => a.kind === 'audio-input-missing')).toBe(true)
+                expect(useCallsStore.getState().alerts.some((a) => a.kind === 'video-input-missing')).toBe(true)
+        })
+
+        it('join with a missing camera keeps a working mic', async () => {
+                const track = fakeTrack('audio', 'a1')
+                getUserMediaMock.mockImplementation(async (c: { video?: unknown }) => {
+                        if (c.video) {
+                                throw Object.assign(new Error('Requested device not found'), { name: 'NotFoundError' })
+                        }
+                        return mediaStream([track])
+                })
+
+                await callsClient.join('ch1', { enableVideo: true })
+
+                expect(sendMock).toHaveBeenCalledWith('custom_calls_join', { channelID: 'ch1' })
+                expect(useCallsStore.getState().micEnabled).toBe(true)
+                expect(useCallsStore.getState().cameraEnabled).toBe(false)
+                expect(useCallsStore.getState().alerts.some((a) => a.kind === 'video-input-missing')).toBe(true)
         })
 
         it('handleJoinAck stores the session, creates the PC, and offers via sdp', async () => {
