@@ -60,6 +60,12 @@ export type CallErrorKind =
 interface CallError {
         message: string
         kind: CallErrorKind
+        /**
+         * The channel the failed join targeted, captured before the teardown
+         * reset clears it. The error modal uses it to offer re-join (the
+         * store's own channelId is null after leave()).
+         */
+        channelId?: string | null
 }
 
 /** A channel with an in-progress call (for join buttons). */

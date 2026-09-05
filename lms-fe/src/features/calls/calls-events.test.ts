@@ -148,6 +148,26 @@ describe('calls event dispatcher', () => {
                 expect(store().status).toBe('error')
         })
 
+        it('error events preserve the channel for the re-join action', () => {
+                // leave()/reset() nulls the store's channelId — without the
+                // captured copy the error modal cannot offer "re-join".
+                emit('custom_calls_error', { data: 'boom', connID: 'x' })
+                expect(store().error?.channelId).toBe('ch')
+        })
+
+        it('classifies "no rtcd host available" as the disabled (service not ready) kind', () => {
+                emit('custom_calls_error', {
+                        data: 'calls: no rtcd host available: no healthy rtcd host available',
+                        connID: 'x',
+                })
+                expect(store().error?.kind).toBe('disabled')
+        })
+
+        it('classifies "maximum participants reached" as the limit kind', () => {
+                emit('custom_calls_error', { data: 'calls: maximum participants reached', connID: 'x' })
+                expect(store().error?.kind).toBe('max-participants')
+        })
+
         it('host controls act on the local client (session-gated)', () => {
                 store().setMySessionId('s')
 

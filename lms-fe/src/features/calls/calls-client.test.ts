@@ -290,4 +290,49 @@ describe('callsClient', () => {
                 expect(useCallsStore.getState().alerts.some((a) => a.kind === 'video-input-missing')).toBe(false)
                 expect(toastMock).not.toHaveBeenCalled()
         })
+
+        it('join without a server ack times out into the rtc-timeout error (re-joinable)', async () => {
+                // Regression for "stuck on connecting forever": a silently
+                // dropped join (WS blip, permission gate, server restart)
+                // previously left the call screen spinning with no error.
+                vi.useFakeTimers()
+                try {
+                        const media = mediaStream([fakeTrack('audio', 'a1')])
+                        getUserMediaMock.mockResolvedValue(media as MediaStream)
+
+                        await callsClient.join('ch1')
+                        expect(useCallsStore.getState().status).toBe('connecting')
+
+                        vi.advanceTimersByTime(15_000)
+
+                        const s = useCallsStore.getState()
+                        expect(s.status).toBe('error')
+                        expect(s.error?.kind).toBe('rtc-timeout')
+                        // The channel survives on the error for the re-join button.
+                        expect(s.error?.channelId).toBe('ch1')
+                        expect(sendMock).toHaveBeenCalledWith('custom_calls_leave', { channelID: 'ch1' })
+                } finally {
+                        vi.useRealTimers()
+                }
+        })
+
+        it('handleJoinAck cancels the join watchdog', async () => {
+                vi.useFakeTimers()
+                try {
+                        const media = mediaStream([fakeTrack('audio', 'a1')])
+                        getUserMediaMock.mockResolvedValue(media as MediaStream)
+
+                        await callsClient.join('ch1')
+                        callsClient.handleJoinAck('sess-1', [])
+
+                        vi.advanceTimersByTime(15_000)
+
+                        // No ack-timeout error: the watchdog was cleared by the ack.
+                        const s = useCallsStore.getState()
+                        expect(s.error).toBeNull()
+                        expect(s.status).toBe('joined')
+                } finally {
+                        vi.useRealTimers()
+                }
+        })
 })

@@ -319,6 +319,8 @@ func (f *fakeKV) Set(key string, value []byte) error {
 type fakeRTCDClient struct {
 	mut       sync.Mutex
 	connected bool
+	heals     int
+	healFn    func(f *fakeRTCDClient) bool
 	sends     []rtcd.ClientMessage
 	receiveCh chan rtcd.ClientMessage
 	errCh     chan error
@@ -340,6 +342,22 @@ func (f *fakeRTCDClient) Connected() bool {
 	f.mut.Lock()
 	defer f.mut.Unlock()
 	return f.connected
+}
+
+// Heal implements RTCDClient: a reconnected client by default, so the
+// manager-level heal path is observable (heals counter). healFn overrides.
+func (f *fakeRTCDClient) Heal() bool {
+	f.mut.Lock()
+	f.heals++
+	fn := f.healFn
+	f.mut.Unlock()
+	if fn != nil {
+		return fn(f)
+	}
+	f.mut.Lock()
+	f.connected = true
+	f.mut.Unlock()
+	return true
 }
 
 func (f *fakeRTCDClient) Send(msg rtcd.ClientMessage) error {

@@ -144,6 +144,10 @@ func (s *CallService) handleJoin(connID, userID string, data map[string]any) err
 		return ErrChannelCallsDisabled
 	}
 	if s.rtcdManager() == nil {
+		// The boot-time init loop may have given up (rtcd unreachable >5min
+		// at server start). Kick a background re-init so the NEXT attempt
+		// can succeed, and tell the user the service is not ready yet.
+		s.kickRTCDInit()
 		return errors.New("calls: rtcd service is not configured")
 	}
 

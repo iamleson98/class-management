@@ -392,3 +392,128 @@ func TestHostPumpSurvivesClientErrors(t *testing.T) {
 	close(client.receiveCh)
 	close(client.errCh)
 }
+
+func TestGetHostForNewCallHealsUnhealthyHost(t *testing.T) {
+	// The production failure class: the control socket died (rtcd restarted
+	// with a fresh auth store / wedged reconnect loop) and every join fails
+	// with "no healthy rtcd host". GetHostForNewCall must force one heal and
+	// succeed instead of rejecting the call.
+	client := newFakeRTCDClient()
+	const hostIP = "127.0.0.1"
+	mgr := &rtcdClientManager{
+		log:       mlog.CreateTestLogger(t),
+		store:     newFakeKV(),
+		rtcdURL:   "http://" + hostIP + ":8045",
+		rtcdPort:  "8045",
+		hosts:     map[string]*rtcdHost{hostIP: {ip: hostIP, client: client}},
+		closeCh:   make(chan struct{}),
+		newClient: func(m *rtcdClientManager, rtcdURL, host string) (RTCDClient, error) { return client, nil },
+	}
+
+	host, err := mgr.GetHostForNewCall()
+	require.NoError(t, err)
+	require.Equal(t, "127.0.0.1:8045", host)
+	require.Equal(t, 1, client.heals)
+	require.True(t, client.Connected())
+}
+
+func TestGetHostForNewCallStillFailsWhenHealFails(t *testing.T) {
+	// rtcd is actually down: healing reconnects nothing and the join must
+	// still report "no healthy rtcd host available" (a truthful error).
+	client := newFakeRTCDClient()
+	client.healFn = func(*fakeRTCDClient) bool { return false }
+	const hostIP = "127.0.0.1"
+	mgr := &rtcdClientManager{
+		log:       mlog.CreateTestLogger(t),
+		store:     newFakeKV(),
+		rtcdURL:   "http://" + hostIP + ":8045",
+		rtcdPort:  "8045",
+		hosts:     map[string]*rtcdHost{hostIP: {ip: hostIP, client: client}},
+		closeCh:   make(chan struct{}),
+		newClient: func(m *rtcdClientManager, rtcdURL, host string) (RTCDClient, error) { return client, nil },
+	}
+
+	_, err := mgr.GetHostForNewCall()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "no healthy rtcd host")
+}
+
+func TestGetHostForNewCallSkipsFlaggedHosts(t *testing.T) {
+	// A host that vanished from DNS (flagged) must not be healed or picked.
+	client := newFakeRTCDClient()
+	const hostIP = "10.9.8.7"
+	host := &rtcdHost{ip: hostIP, client: client}
+	host.setFlagged(true)
+	mgr := &rtcdClientManager{
+		log:       mlog.CreateTestLogger(t),
+		store:     newFakeKV(),
+		rtcdURL:   "http://" + hostIP + ":8045",
+		rtcdPort:  "8045",
+		hosts:     map[string]*rtcdHost{hostIP: host},
+		closeCh:   make(chan struct{}),
+		newClient: func(m *rtcdClientManager, rtcdURL, host string) (RTCDClient, error) { return client, nil },
+	}
+
+	_, err := mgr.GetHostForNewCall()
+	require.Error(t, err)
+	require.Zero(t, client.heals)
+}
+
+func TestKickRTCDInitRecoversAfterGiveUp(t *testing.T) {
+	// The boot-time init loop gave up (rtcd unreachable past its deadline).
+	// A join kicking re-init must run a fresh (short) init round and reset
+	// the single-flight flag so subsequent kicks can run again.
+	cfg := &model.Config{}
+	cfg.CallsSettings = model.CallsSettings{
+		Enable:         ptrBool(true),
+		RTCDServiceURL: ptrString("http://127.0.0.1:1"), // refuses instantly
+	}
+	store := newFakeStore()
+	s, err := New(ServiceConfig{
+		StoreFn:  func() StoreBridge { return store },
+		ConfigFn: func() *model.Config { return cfg },
+		Log:      mlog.CreateTestLogger(t),
+		Hub:      &fakeHub{},
+	})
+	require.NoError(t, err)
+	require.NoError(t, s.Start())
+	s.Stop() // stop the boot init; simulate "gave up" with nil manager
+
+	s.rtcdInitMaxWait = 10 * time.Millisecond
+	s.rtcdInitMinBackoff = time.Millisecond
+
+	s.kickRTCDInit()
+	require.True(t, s.rtcdKick.Load(), "kick should mark init in flight")
+
+	// The round is bounded by rtcdInitMaxWait; wait for the flag to reset.
+	deadline := time.Now().Add(5 * time.Second)
+	for s.rtcdKick.Load() && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	require.False(t, s.rtcdKick.Load(), "init round must finish and reset the flag")
+	require.Nil(t, s.rtcdManager(), "127.0.0.1:1 must not yield a manager")
+
+	// Kicking again after a reset runs another round (recoverable state).
+	s.kickRTCDInit()
+	require.True(t, s.rtcdKick.Load())
+	deadline = time.Now().Add(5 * time.Second)
+	for s.rtcdKick.Load() && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	require.False(t, s.rtcdKick.Load())
+}
+
+func TestKickRTCDInitNoopWithoutURL(t *testing.T) {
+	cfg := &model.Config{}
+	cfg.CallsSettings = model.CallsSettings{Enable: ptrBool(true)}
+	s, err := New(ServiceConfig{
+		StoreFn:  func() StoreBridge { return newFakeStore() },
+		ConfigFn: func() *model.Config { return cfg },
+		Log:      mlog.CreateTestLogger(t),
+		Hub:      &fakeHub{},
+	})
+	require.NoError(t, err)
+
+	s.kickRTCDInit()
+	require.False(t, s.rtcdKick.Load(), "no URL configured: nothing to kick")
+}

@@ -168,12 +168,24 @@ function handleCallEvent(msg: WebSocketMessage): void {
                         if (/maximum participants/i.test(message)) kind = 'max-participants'
                         else if (/disabled for this channel/i.test(message)) kind = 'channel-disabled'
                         else if (/feature is disabled|not configured/i.test(message)) kind = 'disabled'
+                        // "no rtcd host available" = the SFU control plane is down:
+                        // explain it as "service not ready" (more truthful than a
+                        // generic failure, and the server self-heals — retry works).
+                        else if (/no (healthy )?rtcd host/i.test(message)) kind = 'disabled'
                         // Leave FIRST, then set the error: leave() runs the store
                         // reset which clears any error set before it — setting the
                         // error afterwards is what lets the error modal survive to
                         // explain WHY the call ended instead of dying silently.
+                        // The channel is captured BEFORE leave() because reset()
+                        // also nulls it — without it the modal cannot offer the
+                        // re-join action.
+                        const channelBeforeLeave = myCallChannel
                         callsClient.leave()
-                        useCallsStore.getState().setError({ message, kind: kind === 'channel-disabled' ? 'disabled' : kind })
+                        useCallsStore.getState().setError({
+                                message,
+                                kind: kind === 'channel-disabled' ? 'disabled' : kind,
+                                channelId: channelBeforeLeave,
+                        })
                         break
                 }
 
