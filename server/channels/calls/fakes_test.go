@@ -207,7 +207,52 @@ func (f *fakeCallSessionStore) Update(session *model.CallSession) (*model.CallSe
 	return nil, fmt.Errorf("session not found: %s", session.ID)
 }
 
+// EndSession mirrors the SQL store semantics: close the open row for one
+// stable session id (callid + connid), leaving other devices of the same
+// user untouched.
+func (f *fakeCallSessionStore) EndSession(callID, connID string, endAt int64) (int64, error) {
+	f.mut.Lock()
+	defer f.mut.Unlock()
+	var closed int64
+	for _, s := range f.sessions {
+		if s.CallID == callID && s.ConnID == connID && s.EndAt == 0 {
+			s.EndAt = endAt
+			s.UpdateAt = endAt
+			closed++
+		}
+	}
+	return closed, nil
+}
+
+// EndOpenSessions closes every open row of the call (call-level teardown).
+func (f *fakeCallSessionStore) EndOpenSessions(callID string, endAt int64) (int64, error) {
+	f.mut.Lock()
+	defer f.mut.Unlock()
+	var closed int64
+	for _, s := range f.sessions {
+		if s.CallID == callID && s.EndAt == 0 {
+			s.EndAt = endAt
+			s.UpdateAt = endAt
+			closed++
+		}
+	}
+	return closed, nil
+}
+
 func (f *fakeCallSessionStore) Delete(sessionID string) error { return nil }
+
+// openForCall returns the still-open rows of a call (test assertions).
+func (f *fakeCallSessionStore) openForCall(callID string) []model.CallSession {
+	f.mut.Lock()
+	defer f.mut.Unlock()
+	var out []model.CallSession
+	for _, s := range f.sessions {
+		if s.CallID == callID && s.EndAt == 0 {
+			out = append(out, *s)
+		}
+	}
+	return out
+}
 
 type fakeCallStatStore struct {
 	mut   sync.Mutex

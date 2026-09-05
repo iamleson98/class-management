@@ -279,6 +279,117 @@ func (_c *CallSessionStore_GetByCallAndUser_Call) RunAndReturn(run func(callID s
 	return _c
 }
 
+// EndSession provides a mock function for the type CallSessionStore
+func (_mock *CallSessionStore) EndSession(callID string, connID string, endAt int64) (int64, error) {
+	ret := _mock.Called(callID, connID, endAt)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EndSession")
+	}
+
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string, string, int64) (int64, error)); ok {
+		return returnFunc(callID, connID, endAt)
+	}
+	if rf, ok := ret.Get(0).(int64); ok {
+		r0 = rf
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if rf, ok := ret.Get(1).(error); ok {
+		r1 = rf
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// CallSessionStore_EndSession_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EndSession'
+type CallSessionStore_EndSession_Call struct {
+	*mock.Call
+}
+
+// EndSession is a helper method to define mock.On call
+//   - callID string
+//   - connID string
+//   - endAt int64
+func (_e *CallSessionStore_Expecter) EndSession(callID interface{}, connID interface{}, endAt interface{}) *CallSessionStore_EndSession_Call {
+	return &CallSessionStore_EndSession_Call{Call: _e.mock.On("EndSession", callID, connID, endAt)}
+}
+
+func (_c *CallSessionStore_EndSession_Call) Run(run func(callID string, connID string, endAt int64)) *CallSessionStore_EndSession_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *CallSessionStore_EndSession_Call) Return(rows int64, err error) *CallSessionStore_EndSession_Call {
+	_c.Call.Return(rows, err)
+	return _c
+}
+
+func (_c *CallSessionStore_EndSession_Call) RunAndReturn(run func(callID string, connID string, endAt int64) (int64, error)) *CallSessionStore_EndSession_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// EndOpenSessions provides a mock function for the type CallSessionStore
+func (_mock *CallSessionStore) EndOpenSessions(callID string, endAt int64) (int64, error) {
+	ret := _mock.Called(callID, endAt)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EndOpenSessions")
+	}
+
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string, int64) (int64, error)); ok {
+		return returnFunc(callID, endAt)
+	}
+	if rf, ok := ret.Get(0).(int64); ok {
+		r0 = rf
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if rf, ok := ret.Get(1).(error); ok {
+		r1 = rf
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// CallSessionStore_EndOpenSessions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EndOpenSessions'
+type CallSessionStore_EndOpenSessions_Call struct {
+	*mock.Call
+}
+
+// EndOpenSessions is a helper method to define mock.On call
+//   - callID string
+//   - endAt int64
+func (_e *CallSessionStore_Expecter) EndOpenSessions(callID interface{}, endAt interface{}) *CallSessionStore_EndOpenSessions_Call {
+	return &CallSessionStore_EndOpenSessions_Call{Call: _e.mock.On("EndOpenSessions", callID, endAt)}
+}
+
+func (_c *CallSessionStore_EndOpenSessions_Call) Run(run func(callID string, endAt int64)) *CallSessionStore_EndOpenSessions_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *CallSessionStore_EndOpenSessions_Call) Return(rows int64, err error) *CallSessionStore_EndOpenSessions_Call {
+	_c.Call.Return(rows, err)
+	return _c
+}
+
+func (_c *CallSessionStore_EndOpenSessions_Call) RunAndReturn(run func(callID string, endAt int64) (int64, error)) *CallSessionStore_EndOpenSessions_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Save provides a mock function for the type CallSessionStore
 func (_mock *CallSessionStore) Save(session *model.CallSession) (*model.CallSession, error) {
 	ret := _mock.Called(session)

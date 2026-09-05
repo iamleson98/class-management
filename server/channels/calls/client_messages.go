@@ -354,19 +354,13 @@ func (s *CallService) teardownSession(cs *callState, sess *session, reason strin
 			mlog.String("sessionID", sess.sessionID), mlog.String("reason", reason), mlog.Err(err))
 	}
 
-	// Persist the leave boundary (best effort, but never silent).
-	stored, err := s.store.CallSession().GetByCallAndUser(sess.callID, sess.userID)
-	switch {
-	case err != nil:
-		s.log.Warn("calls: failed to load call session for end persistence",
-			mlog.String("callID", sess.callID), mlog.String("userID", sess.userID), mlog.Err(err))
-	case stored != nil && stored.EndAt == 0:
-		stored.EndAt = model.GetMillis()
-		stored.UpdateAt = stored.EndAt
-		if _, err := s.store.CallSession().Update(stored); err != nil {
-			s.log.Warn("calls: failed to persist session end",
-				mlog.String("callID", sess.callID), mlog.String("userID", sess.userID), mlog.Err(err))
-		}
+	// Persist the leave boundary (best effort, but never silent). The row
+	// is closed by the session's stable id — not by user — so a second
+	// device of the same user stays unaffected, and re-joins (which open
+	// a new row under a new session id) never leave orphans behind.
+	if _, err := s.store.CallSession().EndSession(sess.callID, sess.sessionID, model.GetMillis()); err != nil {
+		s.log.Warn("calls: failed to persist session end",
+			mlog.String("callID", sess.callID), mlog.String("sessionID", sess.sessionID), mlog.Err(err))
 	}
 
 	// Presence fan-out.

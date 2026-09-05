@@ -134,13 +134,19 @@ func (cs *callState) removeSession(sessionID string) (*session, string) {
 	if s.connID != "" {
 		delete(cs.byConn, s.connID)
 	}
-	// Re-host if the leaving participant was host.
+	// Re-host if the leaving participant was host: the longest-tenured
+	// remaining participant (earliest startAt, sessionID breaking ties) takes
+	// over — deterministic, so every node and log agrees on the successor.
 	if cs.hostSessionID == sessionID {
 		cs.hostSessionID = ""
-		for id := range cs.sessions {
-			cs.hostSessionID = id
-			break
+		var bestID string
+		var bestStart int64
+		for id, other := range cs.sessions {
+			if bestID == "" || other.startAt < bestStart || (other.startAt == bestStart && id < bestID) {
+				bestID, bestStart = id, other.startAt
+			}
 		}
+		cs.hostSessionID = bestID
 	}
 	return s, s.connID
 }

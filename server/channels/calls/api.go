@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 
+	rtcd "github.com/mattermost/rtcd/service"
+
 	"github.com/iamleson98/sitename/server/public/model"
 	"github.com/iamleson98/sitename/server/public/shared/mlog"
 )
@@ -226,9 +228,24 @@ func (s *CallService) endCallState(cs *callState, now int64) error {
 	}
 	s.endCallPost(cs.callID, postID, participants)
 
-	// Drop every session of this generation from the global index.
+	// Close every remaining session: its SFU leg (so the media session is
+	// torn down server-side, not only when each browser notices the
+	// call_end), its index entry, and its open call_sessions row. This is
+	// the path a host-initiated end (or the idle reaper) takes over
+	// still-connected participants.
 	for _, id := range sessionIDs {
+		if err := s.sendToHost(cs, rtcd.ClientMessage{
+			Type: rtcd.ClientMessageLeave,
+			Data: map[string]string{"sessionID": id},
+		}); err != nil {
+			s.log.Warn("calls: failed to close SFU session at call end",
+				mlog.String("callID", cs.callID), mlog.String("sessionID", id), mlog.Err(err))
+		}
 		s.index.unlink(id, cs.connIDFor(id))
+	}
+	if _, err := s.store.CallSession().EndOpenSessions(cs.callID, now); err != nil {
+		s.log.Warn("calls: failed to close open session boundaries at call end",
+			mlog.String("callID", cs.callID), mlog.Err(err))
 	}
 
 	// Announce the end to channel members — but never when a newer

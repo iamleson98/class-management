@@ -1218,6 +1218,7 @@ class CallsClient {
                         }
                 }
                 useCallsStore.getState().setScreenSharing(true)
+                useCallsStore.getState().setLocalScreenStream(stream)
                 sendAction('screen_on', { data: JSON.stringify({ screenStreamID: stream.id }) })
                 // Auto-stop when the user ends sharing via the browser UI.
                 track.addEventListener('ended', () => this.stopScreenShare())
@@ -1234,6 +1235,7 @@ class CallsClient {
                 this.screenAudioTrack = null
                 this.screenStream = null
                 useCallsStore.getState().setScreenSharing(false)
+                useCallsStore.getState().setLocalScreenStream(null)
                 sendAction('screen_off', {})
         }
 

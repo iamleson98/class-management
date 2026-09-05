@@ -207,6 +207,14 @@ func (errSessionStore) Update(s *model.CallSession) (*model.CallSession, error) 
 	return s, nil
 }
 
+func (errSessionStore) EndSession(callID, connID string, endAt int64) (int64, error) {
+	return 0, nil
+}
+
+func (errSessionStore) EndOpenSessions(callID string, endAt int64) (int64, error) {
+	return 0, nil
+}
+
 func (errSessionStore) Delete(string) error { return nil }
 
 // bridgeWithCallsChannel wraps nilStoreBridge with working CallsChannel and

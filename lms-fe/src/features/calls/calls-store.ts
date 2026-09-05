@@ -201,6 +201,12 @@ interface CallState {
         videoStreams: Record<string, MediaStream>
         /** The active screen-share stream + its origin session, when any. */
         screenStream: { sessionId: string; stream: MediaStream } | null
+        /**
+         * The LOCAL screen-share stream while this participant is sharing —
+         * the SFU does not loop the sharer's own track back, so the presenter
+         * views their own share from here (same presentation stage layout).
+         */
+        localScreenStream: MediaStream | null
 
         /** Channels with in-progress calls (including this one). */
         activeCalls: Record<string, ActiveCall>
@@ -294,6 +300,7 @@ interface CallState {
         setMic: (on: boolean) => void
         setCamera: (on: boolean) => void
         setScreenSharing: (on: boolean) => void
+        setLocalScreenStream: (stream: MediaStream | null) => void
         toggleHand: () => void
 
         setSessionUnmuted: (sessionId: string, unmuted: boolean) => void
@@ -396,6 +403,7 @@ const initial = {
         micEnabled: false,
         cameraEnabled: false,
         screenSharing: false,
+        localScreenStream: null,
         handRaised: false,
         status: 'disconnected' as CallConnectionStatus,
         error: null as CallError | null,
@@ -528,6 +536,7 @@ export const useCallsStore = create<CallState>((set) => ({
         setMic: (micEnabled) => set({ micEnabled }),
         setCamera: (cameraEnabled) => set({ cameraEnabled }),
         setScreenSharing: (screenSharing) => set({ screenSharing }),
+        setLocalScreenStream: (localScreenStream) => set({ localScreenStream }),
         toggleHand: () => set((state) => ({ handRaised: !state.handRaised })),
 
         setSessionUnmuted: (sessionId, unmuted) =>

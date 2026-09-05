@@ -103,11 +103,46 @@ type PlatformService struct {
 
 	pluginEnv HookRunner
 
+	// webConnDisconnect observers are notified when a client websocket
+	// connection terminates (the native equivalent of the plugin
+	// OnWebSocketDisconnect hook). Realtime products such as calls use it to
+	// release state bound to the connection. Guarded by
+	// webConnDisconnectMux.
+	webConnDisconnectMux   sync.RWMutex
+	webConnDisconnectHooks []WebConnDisconnectHandler
+
 	// This is a test mode setting used to enable Redis
 	// without a license.
 	forceEnableRedis bool
 
 	pdpService einterfaces.PolicyDecisionPointInterface
+}
+
+// WebConnDisconnectHandler is notified with the connection id and user id of
+// a websocket connection that has terminated. Handlers must be cheap or spawn
+// their own goroutine — they run on the platform's goroutine pool.
+type WebConnDisconnectHandler func(connID, userID string)
+
+// RegisterWebConnDisconnectHandler adds a native websocket-disconnect
+// observer. Registration is permanent for the lifetime of the platform
+// service (products register once at startup).
+func (ps *PlatformService) RegisterWebConnDisconnectHandler(fn WebConnDisconnectHandler) {
+	if fn == nil {
+		return
+	}
+	ps.webConnDisconnectMux.Lock()
+	defer ps.webConnDisconnectMux.Unlock()
+	ps.webConnDisconnectHooks = append(ps.webConnDisconnectHooks, fn)
+}
+
+// NotifyWebConnDisconnect invokes every registered disconnect observer.
+func (ps *PlatformService) NotifyWebConnDisconnect(connID, userID string) {
+	ps.webConnDisconnectMux.RLock()
+	hooks := ps.webConnDisconnectHooks
+	ps.webConnDisconnectMux.RUnlock()
+	for _, fn := range hooks {
+		fn(connID, userID)
+	}
 }
 
 type HookRunner interface {

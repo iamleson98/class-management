@@ -516,6 +516,14 @@ func NewServer(options ...Option) (*Server, error) {
         }
         s.callsService = callsService
 
+        // Release call state bound to dead websockets: the platform notifies
+        // the calls service when a browser connection drops, and the service
+        // tears the participant's session down after a grace window (a live
+        // websocket reconnect re-points the session and cancels the teardown
+        // — see calls.HandleWSDisconnect). This is what ends a call whose
+        // last participant's connection died without a leave message.
+        s.platform.RegisterWebConnDisconnectHandler(callsService.HandleWSDisconnect)
+
         return s, nil
 }
 

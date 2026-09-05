@@ -345,13 +345,22 @@ type CallStore interface {
 	Delete(callID string) error
 }
 
-// CallSessionStore persists per-participant join/leave records.
+// CallSessionStore persists per-participant join/leave records. A session row
+// is keyed by the (callid, connid) pair — the connid is the participant's
+// stable call session id — so boundaries close per session, never per user (a
+// user may be in the same call from two devices).
 type CallSessionStore interface {
 	Get(sessionID string) (*model.CallSession, error)
 	GetByCall(callID string) ([]*model.CallSession, error)
 	GetByCallAndUser(callID, userID string) (*model.CallSession, error)
 	Save(session *model.CallSession) (*model.CallSession, error)
 	Update(session *model.CallSession) (*model.CallSession, error)
+	// EndSession stamps the leave boundary on the (at most one) open row
+	// for the given session id and returns how many rows were closed.
+	EndSession(callID, connID string, endAt int64) (int64, error)
+	// EndOpenSessions stamps the leave boundary on every open row of the
+	// call (call teardown: host end, reaper). Returns rows closed.
+	EndOpenSessions(callID string, endAt int64) (int64, error)
 	Delete(sessionID string) error
 }
 

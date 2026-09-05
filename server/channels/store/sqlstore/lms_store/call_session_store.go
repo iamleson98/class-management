@@ -26,7 +26,7 @@ func NewSqlCallSessionStore(s store.Store) store.CallSessionStore {
 func (s *SqlCallSessionStore) Get(sessionID string) (*model.CallSession, error) {
 	row := s.sqlStore.GetReplicaExecuter().QueryRow(
 		`SELECT id, callid, userid, connid, startat, endat, createat, updateat
-		 FROM call_sessions WHERE id = $1`,
+                 FROM call_sessions WHERE id = $1`,
 		sessionID,
 	)
 	sess, err := scanCallSession(row)
@@ -43,7 +43,7 @@ func (s *SqlCallSessionStore) Get(sessionID string) (*model.CallSession, error) 
 func (s *SqlCallSessionStore) GetByCall(callID string) ([]*model.CallSession, error) {
 	rows, err := s.sqlStore.GetReplicaExecuter().Query(
 		`SELECT id, callid, userid, connid, startat, endat, createat, updateat
-		 FROM call_sessions WHERE callid = $1 ORDER BY startat ASC`,
+                 FROM call_sessions WHERE callid = $1 ORDER BY startat ASC`,
 		callID,
 	)
 	if err != nil {
@@ -57,8 +57,8 @@ func (s *SqlCallSessionStore) GetByCall(callID string) ([]*model.CallSession, er
 func (s *SqlCallSessionStore) GetByCallAndUser(callID, userID string) (*model.CallSession, error) {
 	row := s.sqlStore.GetReplicaExecuter().QueryRow(
 		`SELECT id, callid, userid, connid, startat, endat, createat, updateat
-		 FROM call_sessions WHERE callid = $1 AND userid = $2
-		 ORDER BY startat DESC LIMIT 1`,
+                 FROM call_sessions WHERE callid = $1 AND userid = $2
+                 ORDER BY startat DESC LIMIT 1`,
 		callID, userID,
 	)
 	sess, err := scanCallSession(row)
@@ -79,7 +79,7 @@ func (s *SqlCallSessionStore) Save(sess *model.CallSession) (*model.CallSession,
 	}
 	_, err := s.sqlStore.GetMasterExecuter().Exec(
 		`INSERT INTO call_sessions (id, callid, userid, connid, startat, endat, createat, updateat)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		sess.ID, sess.CallID, sess.UserID, sess.ConnID, sess.StartAt, sess.EndAt, sess.CreateAt, sess.UpdateAt,
 	)
 	if err != nil {
@@ -103,6 +103,40 @@ func (s *SqlCallSessionStore) Update(sess *model.CallSession) (*model.CallSessio
 		return nil, store.NewErrNotFound("CallSession", sess.ID)
 	}
 	return sess, nil
+}
+
+// EndSession stamps the leave boundary on the open row for one session
+// (callid + connid, where connid is the participant's stable call session id).
+// Returns the number of rows closed (0 or 1). Closing per session id — not per
+// user — keeps a second device of the same user in the call unaffected.
+func (s *SqlCallSessionStore) EndSession(callID, connID string, endAt int64) (int64, error) {
+	res, err := s.sqlStore.GetMasterExecuter().Exec(
+		`UPDATE call_sessions SET endat = $1, updateat = $1
+                 WHERE callid = $2 AND connid = $3 AND endat = 0`,
+		endAt, callID, connID,
+	)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to end call session")
+	}
+	rows, _ := res.RowsAffected()
+	return rows, nil
+}
+
+// EndOpenSessions stamps the leave boundary on every open row of the call —
+// the call-level teardown (host ends the call, idle reaper). Closing rows for
+// participants whose own leave never ran keeps durations accurate; rows whose
+// sessions already left normally have endat set and stay untouched.
+func (s *SqlCallSessionStore) EndOpenSessions(callID string, endAt int64) (int64, error) {
+	res, err := s.sqlStore.GetMasterExecuter().Exec(
+		`UPDATE call_sessions SET endat = $1, updateat = $1
+                 WHERE callid = $2 AND endat = 0`,
+		endAt, callID,
+	)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to end open call sessions")
+	}
+	rows, _ := res.RowsAffected()
+	return rows, nil
 }
 
 // Delete removes a call session record.

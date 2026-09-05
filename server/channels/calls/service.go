@@ -55,6 +55,15 @@ type CallService struct {
 	// Defaults are set in Start/kickRTCDInit; tests shrink them.
 	rtcdInitMaxWait    time.Duration
 	rtcdInitMinBackoff time.Duration
+
+	// Lifecycle watchdogs (mut-guarded like the init bounds above):
+	//   - reaperStop stops the idle-call reaper goroutine (started in
+	//     Start, closed in Stop); nil while the service is not running.
+	//   - disconnectGraceDur / reapTickDur override the ws-disconnect
+	//     grace and reaper cadence; tests shrink them (see lifecycle.go).
+	reaperStop         chan struct{}
+	disconnectGraceDur time.Duration
+	reapTickDur        time.Duration
 }
 
 // kickRTCDInit starts a background rtcd manager initialization when the
@@ -173,6 +182,14 @@ func (s *CallService) Start() error {
 		return nil
 	}
 	s.started = true
+	// Idle-call reaper: ends participant-less calls (leaked state) so their
+	// registry entries, channel mappings and SFU legs are released even when
+	// no teardown path ever fired.
+	if s.reaperStop == nil {
+		s.reaperStop = make(chan struct{})
+		stop := s.reaperStop
+		go s.reapLoop(stop)
+	}
 	s.mut.Unlock()
 
 	if s.cfg.Cluster != nil {
@@ -227,7 +244,8 @@ func (s *CallService) initRTCDManagerWithRetry(url string) {
 	}
 }
 
-// Stop tears down the rtcd manager and releases resources. Idempotent.
+// Stop tears down the rtcd manager, stops the idle-call reaper and releases
+// resources. Idempotent.
 func (s *CallService) Stop() error {
 	s.mut.Lock()
 	defer s.mut.Unlock()
@@ -237,6 +255,10 @@ func (s *CallService) Stop() error {
 	mgr := s.rtcd
 	s.rtcd = nil
 	s.started = false
+	if s.reaperStop != nil {
+		close(s.reaperStop)
+		s.reaperStop = nil
+	}
 	if mgr != nil {
 		if err := mgr.Close(); err != nil {
 			return fmt.Errorf("calls: failed to close rtcd client manager: %w", err)

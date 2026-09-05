@@ -15,15 +15,15 @@ import (
 // handleRTCDMessage is the inbound relay for messages produced by the rtcd
 // SFU pool (wired as the manager's onMessage handler in Start):
 //
-//   - rtc SDP/ICE messages  → unicast `signal` to the originating connection
-//     (the browser feeds them straight into its RTCPeerConnection).
-//   - rtc VoiceOn/VoiceOff  → channel-scoped user_voice_on/off presence (VAD
-//     runs ON the SFU; the browser never reports its own voice).
+//   - "rtc" (SDP/ICE) and "vad" (voice-activity) messages → routed to the
+//     relay: answers/candidates unicast to the originating connection, VAD
+//     becomes user_voice_on/off presence. Both envelope types carry an
+//     rtc.Message payload (see rtcd's client_msg codec).
 //   - ClientMessageClose    → the SFU closed a session (peer timeout, SFU
 //     restart); run the shared session teardown.
 func (s *CallService) handleRTCDMessage(host string, msg rtcd.ClientMessage) {
 	switch cm := msg; cm.Type {
-	case rtcd.ClientMessageRTC:
+	case rtcd.ClientMessageRTC, rtcd.ClientMessageVAD:
 		rtcMsg, ok := cm.Data.(rtc.Message)
 		if !ok {
 			s.log.Error("calls: unexpected rtc message data type",

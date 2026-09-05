@@ -422,6 +422,11 @@ func (wc *WebConn) Pump() {
 
 	userID := wc.UserId
 	wc.Platform.Go(func() {
+		// Native observers (e.g. the calls service) release per-connection
+		// state; the calls service schedules a grace-windowed teardown so a
+		// websocket reconnect does not end a live call participation.
+		wc.Platform.NotifyWebConnDisconnect(wc.GetConnectionID(), userID)
+
 		wc.HookRunner.RunMultiHook(func(hooks plugin.Hooks, _ *model.Manifest) bool {
 			hooks.OnWebSocketDisconnect(wc.GetConnectionID(), userID)
 			return true

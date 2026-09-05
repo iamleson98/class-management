@@ -64,12 +64,12 @@ function ControlButton({
                                         aria-label={label}
                                         onClick={onClick}
                                         disabled={disabled}
-                                        className={`h-11 w-11 rounded-full transition-colors ${
+                                        className={`h-12 w-12 rounded-full transition-all duration-200 ${
                                                 active
-                                                        ? 'bg-white/15 text-white hover:bg-white/25'
+                                                        ? 'bg-white text-neutral-950 shadow-lg hover:bg-white/90'
                                                         : destructive
-                                                                ? 'bg-red-500/90 text-white hover:bg-red-500'
-                                                                : 'bg-white/5 text-white/70 hover:bg-white/15'
+                                                                ? 'bg-red-500/95 text-white hover:bg-red-500'
+                                                                : 'bg-white/[0.08] text-white/75 hover:bg-white/20 hover:text-white'
                                         }`}
                                 >
                                         {active ? on : off}
@@ -78,6 +78,11 @@ function ControlButton({
                         <TooltipContent>{label}</TooltipContent>
                 </Tooltip>
         )
+}
+
+/** Vertical divider between control groups in the pill bar. */
+function Divider() {
+        return <span aria-hidden className="mx-1 hidden h-8 w-px bg-white/10 sm:block" />
 }
 
 /** Small icon button used inside a participant row of the host menu. */
@@ -199,12 +204,13 @@ export function CallControls() {
         }
 
         return (
-                <div className="flex items-center justify-center gap-1.5 px-4 py-3 border-t border-white/10 shrink-0 flex-wrap">
+                <div className="flex shrink-0 justify-center px-4 pb-4 pt-1">
+                        <div className="flex max-w-full flex-wrap items-center justify-center gap-1 rounded-3xl border border-white/10 bg-black/40 px-2.5 py-2 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl">
                         <ControlButton
                                 active={micEnabled}
                                 onClick={onToggleMute}
                                 on={<Mic className="h-5 w-5" />}
-                                off={<MicOff className="h-5 w-5" />}
+                                off={<MicOff className="h-5 w-5 text-red-400" />}
                                 label={micEnabled ? `${t('chat.mute', 'Tắt tiếng')} (${t('chat.pushToTalkHint', 'hoặc giữ Space')})` : t('chat.unmute', 'Bật tiếng')}
                         />
 
@@ -235,6 +241,8 @@ export function CallControls() {
                                 />
                         )}
 
+                        <Divider />
+
                         <ControlButton
                                 active={handRaised}
                                 onClick={onToggleHand}
@@ -245,6 +253,8 @@ export function CallControls() {
 
                         <ReactionButton />
 
+                        <Divider />
+
                         {/* Participants toggle */}
                         <Tooltip>
                                 <TooltipTrigger asChild>
@@ -254,12 +264,12 @@ export function CallControls() {
                                                 aria-pressed={participantsOpen}
                                                 aria-label={t('chat.participants', 'Thành viên')}
                                                 onClick={toggleParticipants}
-                                                className={`h-11 w-11 rounded-full relative ${
-                                                        participantsOpen ? 'bg-white/15 text-white hover:bg-white/25' : 'bg-white/5 text-white/70 hover:bg-white/15'
+                                                className={`h-12 w-12 rounded-full relative transition-all duration-200 ${
+                                                        participantsOpen ? 'bg-white text-neutral-950 shadow-lg hover:bg-white/90' : 'bg-white/[0.08] text-white/75 hover:bg-white/20 hover:text-white'
                                                 }`}
                                         >
                                                 <Users className="h-5 w-5" />
-                                                <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-white/20 text-[10px] leading-4 text-white font-semibold">
+                                                <span className={`absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full text-[10px] leading-4 font-semibold ${participantsOpen ? 'bg-neutral-900 text-white' : 'bg-white/20 text-white'}`}>
                                                         {sessionOrder.length}
                                                 </span>
                                         </Button>
@@ -276,8 +286,8 @@ export function CallControls() {
                                                 aria-pressed={chatOpen}
                                                 aria-label={t('chat.showChat', 'Xem trò chuyện')}
                                                 onClick={toggleChat}
-                                                className={`h-11 w-11 rounded-full ${
-                                                        chatOpen ? 'bg-white/15 text-white hover:bg-white/25' : 'bg-white/5 text-white/70 hover:bg-white/15'
+                                                className={`h-12 w-12 rounded-full transition-all duration-200 ${
+                                                        chatOpen ? 'bg-white text-neutral-950 shadow-lg hover:bg-white/90' : 'bg-white/[0.08] text-white/75 hover:bg-white/20 hover:text-white'
                                                 }`}
                                         >
                                                 <MessageSquare className="h-5 w-5" />
@@ -300,7 +310,7 @@ export function CallControls() {
                                                         size="icon"
                                                         aria-label={viewMode === 'speaker' ? t('chat.viewGrid', 'Xem lưới') : t('chat.viewSpeaker', 'Xem người nói')}
                                                         onClick={() => setViewMode(viewMode === 'speaker' ? 'grid' : 'speaker')}
-                                                        className="h-11 w-11 rounded-full bg-white/5 text-white/70 hover:bg-white/15"
+                                                        className="h-12 w-12 rounded-full bg-white/[0.08] text-white/75 transition-all duration-200 hover:bg-white/20 hover:text-white"
                                                 >
                                                         {viewMode === 'speaker' ? <LayoutGrid className="h-5 w-5" /> : <GalleryVerticalEnd className="h-5 w-5" />}
                                                 </Button>
@@ -308,6 +318,8 @@ export function CallControls() {
                                         <TooltipContent>{viewMode === 'speaker' ? t('chat.viewGrid', 'Xem lưới') : t('chat.viewSpeaker', 'Xem người nói')}</TooltipContent>
                                 </Tooltip>
                         )}
+
+                        <Divider />
 
                         {/* Device settings */}
                         <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
@@ -317,7 +329,7 @@ export function CallControls() {
                                                         variant="ghost"
                                                         size="icon"
                                                         aria-label={t('chat.deviceSettings', 'Thiết bị âm thanh/video')}
-                                                        className="h-11 w-11 rounded-full bg-white/5 text-white/70 hover:bg-white/15"
+                                                        className="h-12 w-12 rounded-full bg-white/[0.08] text-white/75 transition-all duration-200 hover:bg-white/20 hover:text-white"
                                                 >
                                                         <Settings2 className="h-5 w-5" />
                                                 </Button>
@@ -405,7 +417,7 @@ export function CallControls() {
                                                         variant="ghost"
                                                         size="icon"
                                                         aria-label={t('chat.callMenu', 'Tùy chọn cuộc gọi')}
-                                                        className="h-11 w-11 rounded-full bg-white/5 text-white/70 hover:bg-white/15"
+                                                        className="h-12 w-12 rounded-full bg-white/[0.08] text-white/75 transition-all duration-200 hover:bg-white/20 hover:text-white"
                                                 >
                                                         <MoreVertical className="h-5 w-5" />
                                                 </Button>
@@ -466,14 +478,14 @@ export function CallControls() {
                                                                                                                 <Hand className="h-3.5 w-3.5" />
                                                                                                         </RowButton>
                                                                                                 )}
-                                                                                                																																	{o.screenOn && (
-																																		<RowButton label={t('chat.stopShare', 'Dừng chia sẻ')} onClick={() => runHost('screen-off', { sessionID: o.sessionId })}>
-																																			<MonitorX className="h-3.5 w-3.5" />
-																																		</RowButton>
-																																	)}
-																																	<RowButton label={t('chat.remove', 'Mời ra')} onClick={() => setConfirmRemove(o)}>
-																																		<UserMinus className="h-3.5 w-3.5" />
-																																	</RowButton>
+                                                                                                {o.screenOn && (
+                                                                                                        <RowButton label={t('chat.stopShare', 'Dừng chia sẻ')} onClick={() => runHost('screen-off', { sessionID: o.sessionId })}>
+                                                                                                                <MonitorX className="h-3.5 w-3.5" />
+                                                                                                        </RowButton>
+                                                                                                )}
+                                                                                                <RowButton label={t('chat.remove', 'Mời ra')} onClick={() => setConfirmRemove(o)}>
+                                                                                                        <UserMinus className="h-3.5 w-3.5" />
+                                                                                                </RowButton>
                                                                                                 <RowButton label={t('chat.makeHost', 'Chuyển chủ trì')} onClick={() => runHost('make', { newHostID: o.userId })}>
                                                                                                         <Crown className="h-3.5 w-3.5" />
                                                                                                 </RowButton>
@@ -507,7 +519,7 @@ export function CallControls() {
                                                         <Button
                                                                 variant="destructive"
                                                                 size="icon"
-                                                                className="h-11 w-11 rounded-full ml-2"
+                                                                className="h-12 w-12 rounded-full shadow-lg transition-all duration-200 hover:bg-red-400 sm:ml-2"
                                                                 aria-label={t('chat.leaveCall', 'Rời cuộc gọi')}
                                                         >
                                                                 <PhoneOff className="h-5 w-5" />
@@ -543,6 +555,7 @@ export function CallControls() {
                                 onCancel={() => setConfirmRemove(null)}
                                 onConfirm={() => confirmRemove && runHost('remove', { sessionID: confirmRemove.sessionId })}
                         />
+                        </div>
                 </div>
         )
 }
