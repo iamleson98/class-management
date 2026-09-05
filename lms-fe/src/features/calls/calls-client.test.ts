@@ -66,7 +66,7 @@ class FakePC {
         setRemoteDescription = vi.fn(async (d: { type: string }) => {
                 this.remoteDescription = { type: d.type }
         })
-        addIceCandidate = vi.fn(async () => undefined)
+        addIceCandidate = vi.fn(async (_init: unknown) => undefined)
         restartIce = vi.fn()
         close = vi.fn()
         getSenders = vi.fn(() => [])
@@ -175,6 +175,78 @@ describe('callsClient', () => {
                 await callsClient.signal(JSON.stringify({ candidate: 'c', sdpMid: '0', sdpMLineIndex: 0 }))
                 // remoteDescription set by the answer → candidate goes straight in.
                 expect(lastPC().addIceCandidate).toHaveBeenCalled()
+        })
+
+        it('signal accepts rtcd candidate ENVELOPE: {type:"candidate", candidate:{…}}', async () => {
+                // The real SFU (rtcd/service/rtc/msg.go newICEMessage) wraps the
+                // ICECandidateInit under a "candidate" key. Constructing from the
+                // outer level instead throws "sdpMid and sdpMLineIndex are both
+                // null" and drops every SFU candidate — the call then died when
+                // the peer timed out (~30s). This pins the production wire shape.
+                const media = mediaStream([fakeTrack('audio', 'a1')])
+                getUserMediaMock.mockResolvedValue(media as MediaStream)
+                await callsClient.join('ch1')
+                callsClient.handleJoinAck('sess-1', [])
+
+                // Remote description first so candidates apply immediately.
+                await callsClient.signal(JSON.stringify({ type: 'answer', sdp: 'v=0 ans' }))
+                lastPC().addIceCandidate.mockClear()
+
+                await callsClient.signal(JSON.stringify({
+                        type: 'candidate',
+                        candidate: { candidate: 'candidate:1 1 udp 2130706431 192.168.1.4 54400 typ host generation 0', sdpMid: '0', sdpMLineIndex: 0 },
+                }))
+
+                expect(lastPC().addIceCandidate).toHaveBeenCalledTimes(1)
+                const init = lastPC().addIceCandidate.mock.calls[0]?.[0] as RTCIceCandidate
+                expect(init.candidate).toContain('typ host')
+                expect(init.sdpMid).toBe('0')
+                expect(init.sdpMLineIndex).toBe(0)
+        })
+
+        it('signal queues rtcd envelope candidates that arrive before the answer', async () => {
+                // Trickle ICE ordering is not guaranteed: candidates may land
+                // before the SDP answer. They must be buffered (and still
+                // normalized), then flushed once the answer sets the remote.
+                const media = mediaStream([fakeTrack('audio', 'a1')])
+                getUserMediaMock.mockResolvedValue(media as MediaStream)
+                await callsClient.join('ch1')
+                callsClient.handleJoinAck('sess-1', [])
+                lastPC().addIceCandidate.mockClear()
+
+                await callsClient.signal(JSON.stringify({
+                        type: 'candidate',
+                        candidate: { candidate: 'candidate:2 1 udp 2130706431 10.0.0.7 54401 typ host generation 0', sdpMid: '0', sdpMLineIndex: 0 },
+                }))
+                // No remote description yet → buffered, not applied.
+                expect(lastPC().addIceCandidate).not.toHaveBeenCalled()
+
+                await callsClient.signal(JSON.stringify({ type: 'answer', sdp: 'v=0 ans' }))
+                expect(lastPC().addIceCandidate).toHaveBeenCalledTimes(1)
+                const init = lastPC().addIceCandidate.mock.calls[0]?.[0] as RTCIceCandidate
+                expect(init.candidate).toContain('10.0.0.7')
+        })
+
+        it('signal defaults a null-mid candidate to the first m-line instead of throwing', async () => {
+                // Defensive path: a relayed candidate carrying NEITHER sdpMid
+                // NOR sdpMLineIndex must not crash the handler (the browser
+                // constructor rejects both-null).
+                const media = mediaStream([fakeTrack('audio', 'a1')])
+                getUserMediaMock.mockResolvedValue(media as MediaStream)
+                await callsClient.join('ch1')
+                callsClient.handleJoinAck('sess-1', [])
+
+                await callsClient.signal(JSON.stringify({ type: 'answer', sdp: 'v=0 ans' }))
+                lastPC().addIceCandidate.mockClear()
+
+                await callsClient.signal(JSON.stringify({
+                        type: 'candidate',
+                        candidate: { candidate: 'candidate:3 1 udp 2130706431 172.17.0.2 54402 typ host generation 0' },
+                }))
+
+                expect(lastPC().addIceCandidate).toHaveBeenCalledTimes(1)
+                const init = lastPC().addIceCandidate.mock.calls[0]?.[0] as RTCIceCandidate
+                expect(init.sdpMLineIndex).toBe(0)
         })
 
         it('mute toggles the track and sends the verb', async () => {

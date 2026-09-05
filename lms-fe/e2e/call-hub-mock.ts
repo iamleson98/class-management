@@ -38,6 +38,21 @@ export interface HubControls {
 
 /** Install the REST + WS mocks. Returns the live hub controls. */
 export async function mockCallsBackend(page: Page, script: HubScript = {}): Promise<HubControls> {
+  // ── Loopback SFU binding ──────────────────────────────────────────────
+  // A loopback RTCPeerConnection created INSIDE the page answers the
+  // browser's offer with a real SDP and trickles real ICE candidates back
+  // through the hub — in rtcd's wire format: {type:"candidate",
+  // candidate:{…ICECandidateInit}}. The previous mock never sent signal
+  // events at all, so the exact production regression (constructing
+  // RTCIceCandidate from the envelope instead of the nested init) was
+  // invisible to e2e.
+  const controlsRef: { send?: HubControls['send'] } = {}
+  await page.exposeFunction('__vmgMockSfuCandidate', (candidateJson: string) => {
+    controlsRef.send?.('custom_calls_signal', {
+      data: JSON.stringify({ type: 'candidate', candidate: JSON.parse(candidateJson) }),
+    })
+  })
+
   // ── REST (catch-all FIRST so specific mocks below win) ──────────────
   // NOTE: every specific pattern below tolerates query strings with a
   // trailing ** — Playwright glob URL matching includes the query string.
@@ -119,6 +134,7 @@ export async function mockCallsBackend(page: Page, script: HubScript = {}): Prom
     actions,
     lastConnID: () => connID,
   }
+  controlsRef.send = controls.send
 
   // Per-connection server sequence (must start at 0 and increment per event).
   let nextSeq = 0
@@ -219,12 +235,61 @@ export async function mockCallsBackend(page: Page, script: HubScript = {}): Prom
         return
       }
 
-      // Mute / signal etc. are recorded in actions; no reply needed.
+      // The browser's SDP offer: answer it from a loopback peer connection
+      // living in the page (real SDP, real trickle ICE), exactly like rtcd:
+      // unicast `signal` events carrying the answer, then candidates in the
+      // rtcd envelope shape {type:"candidate", candidate:{…}}.
+      if (msg.action === 'custom_calls_sdp') {
+        const offerJson = String(msg.data?.data ?? '')
+        void page
+          .evaluate(async (offerJson: string) => {
+            const offer = JSON.parse(offerJson)
+            const pc = new RTCPeerConnection()
+            ;(window as unknown as Record<string, unknown>).__vmgLoopbackPC = pc
+            await pc.setRemoteDescription(offer)
+            const answer = await pc.createAnswer()
+            await pc.setLocalDescription(answer)
+            pc.onicecandidate = (ev: RTCIceCandidateEventish) => {
+              if (ev.candidate) {
+                void (window as unknown as Record<string, (json: string) => void>).__vmgMockSfuCandidate(
+                  JSON.stringify(ev.candidate.toJSON()),
+                )
+              }
+            }
+            return { type: answer.type, sdp: answer.sdp }
+          }, offerJson)
+          .then((answer) => {
+            controls.send('custom_calls_signal', { data: JSON.stringify(answer) })
+          })
+          .catch(() => {
+            // Signaling is best-effort in the mock; tests assert on the
+            // actions log and console noise, not on this path.
+          })
+        return
+      }
+
+      // The browser's own trickle candidates: feed them to the loopback PC
+      // so the ICE exchange is symmetrical (like the real SFU's handleICE).
+      if (msg.action === 'custom_calls_ice') {
+        const candJson = String(msg.data?.data ?? '')
+        void page
+          .evaluate((candJson: string) => {
+            const pc = (window as unknown as Record<string, RTCPeerConnectionish | undefined>).__vmgLoopbackPC
+            if (pc) void pc.addIceCandidate(JSON.parse(candJson)).catch(() => undefined)
+          }, candJson)
+          .catch(() => undefined)
+        return
+      }
+
+      // Mute etc. are recorded in actions; no reply needed.
     })
   })
 
   return controls
 }
+
+type RTCIceCandidateEventish = { candidate: { toJSON: () => unknown } | null }
+type RTCPeerConnectionish = { addIceCandidate: (init: unknown) => Promise<void> }
 
 function jsonBody(route: Route, body: unknown) {
   return { status: 200, contentType: 'application/json', body: JSON.stringify(body) }

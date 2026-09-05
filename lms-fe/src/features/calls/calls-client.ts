@@ -1046,11 +1046,30 @@ class CallsClient {
                                         this.sendSDP(this.pc.localDescription)
                                 }
                         } else if (parsed.candidate) {
-                                const candidate = new RTCIceCandidate(parsed)
+                                // rtcd delivers candidates WRAPPED in an envelope:
+                                //   {"type":"candidate","candidate":{...ICECandidateInit}}
+                                // A flat ICECandidateInit ({"candidate":...,"sdpMid":...})
+                                // is also accepted for plugin-contract compatibility.
+                                // Constructing from the wrong level leaves sdpMid and
+                                // sdpMLineIndex both null, which makes the browser throw
+                                // "Failed to construct 'RTCIceCandidate'" — every SFU
+                                // candidate was then silently dropped, ICE could never
+                                // form, and the SFU tore the session down (~30s in).
+                                const init: RTCIceCandidateInit =
+                                        typeof parsed.candidate === 'object' && parsed.candidate !== null
+                                                ? { ...parsed.candidate }
+                                                : parsed
+                                // The constructor requires sdpMid or sdpMLineIndex to be
+                                // non-null; default to the first m-line when a relayed
+                                // candidate carries neither.
+                                if (init.sdpMid == null && init.sdpMLineIndex == null) {
+                                        init.sdpMLineIndex = 0
+                                }
+                                const candidate = new RTCIceCandidate(init)
                                 if (this.pc.remoteDescription && this.pc.remoteDescription.type) {
                                         await this.pc.addIceCandidate(candidate)
                                 } else {
-                                        this.queuedCandidates.push(parsed)
+                                        this.queuedCandidates.push(init)
                                 }
                         }
                 } catch (err) {

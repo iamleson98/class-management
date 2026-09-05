@@ -31,6 +31,19 @@ function collectPageErrors(page: Page): string[] {
   return errors
 }
 
+/** Collect console errors from the calls signal path (regression sentinel:
+ * the rtcd candidate envelope used to throw "Failed to construct
+ * 'RTCIceCandidate'" here, dropping every SFU candidate). */
+function collectSignalErrors(page: Page): string[] {
+  const errors: string[] = []
+  page.on('console', (msg) => {
+    if (msg.type() === 'error' && msg.text().includes('[calls] failed to handle signal')) {
+      errors.push(msg.text())
+    }
+  })
+  return errors
+}
+
 /** Navigate to the chat screen as an admin, open the first channel and
  * wait for the call button. */
 async function openChat(page: Page): Promise<void> {
@@ -63,6 +76,7 @@ async function assertScreenStaysAlive(page: Page, seconds = 6): Promise<void> {
 
 test('camera + mic present: call screen opens and STAYS running', async ({ page }) => {
   const errors = collectPageErrors(page)
+  const signalErrors = collectSignalErrors(page)
   const hub = await mockCallsBackend(page)
   await openChat(page)
 
@@ -83,6 +97,15 @@ test('camera + mic present: call screen opens and STAYS running', async ({ page 
   // The camera should actually be ON (self view bound to the local stream).
   await expect(page.locator('video').first()).toBeVisible({ timeout: 10_000 })
 
+  // The browser completed its half of the signaling: SDP offer + its own
+  // trickle candidates went to the (mock) SFU.
+  await expect
+    .poll(() => hub.actions.some((a) => a.action === 'custom_calls_sdp'), { timeout: 10_000 })
+    .toBe(true)
+  await expect
+    .poll(() => hub.actions.some((a) => a.action === 'custom_calls_ice'), { timeout: 10_000 })
+    .toBe(true)
+
   await assertScreenStaysAlive(page, 6)
 
   // Join hit the hub with the right channel.
@@ -90,6 +113,10 @@ test('camera + mic present: call screen opens and STAYS running', async ({ page 
 
   // No React crash (the old #185 "maximum update depth" landed as pageerror).
   expect(errors, errors.join('\n')).toEqual([])
+  // No signal-handling failures: the mock SFU answers with real SDP and
+  // rtcd-envelope candidates; a regression here is what dropped every SFU
+  // candidate in production and killed calls after ~30 seconds.
+  expect(signalErrors, signalErrors.join('\n')).toEqual([])
 })
 
 test('server error event shows the error modal (explains the death)', async ({ page }) => {

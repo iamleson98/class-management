@@ -107,6 +107,15 @@ class RTCIceCandidateMock {
         sdpMid: string | null
         sdpMLineIndex: number | null
         constructor(init: { candidate?: string; sdpMid?: string | null; sdpMLineIndex?: number | null }) {
+                // Real browsers throw here when neither field identifies the
+                // m-line; mirroring that keeps client candidate normalization
+                // honest in unit tests (a regression reproduces the exact
+                // production TypeError instead of passing silently).
+                if (init.sdpMid == null && init.sdpMLineIndex == null) {
+                        throw new TypeError(
+                                "Failed to construct 'RTCIceCandidate': sdpMid and sdpMLineIndex are both null",
+                        )
+                }
                 this.candidate = init.candidate ?? ''
                 this.sdpMid = init.sdpMid ?? null
                 this.sdpMLineIndex = init.sdpMLineIndex ?? null
