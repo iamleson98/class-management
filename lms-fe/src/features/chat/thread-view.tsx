@@ -8,14 +8,14 @@
  *   - marks the thread read on open (updateThreadReadForUser)
  */
 
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { X, CornerUpRight, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Avatar } from '@/components/shared/avatar'
-import { useThread, useUsers, useCurrentUserId, useFollowThread, useMarkThreadRead } from '@/lib/chat/hooks'
+import { useThread, useUsers, useCurrentUserId, useFollowThread, useMarkThreadRead, useToggleReaction } from '@/lib/chat/hooks'
 import { useChatStore } from '@/lib/chat/store'
 import { client4 } from '@/lib/chat/client'
 import { userDisplayName, type ChatPost } from '@/lib/chat/types'
@@ -23,10 +23,10 @@ import { displayUsername } from '@/lib/chat/utils'
 import { PostComposer } from './post-composer'
 import { MessageContent } from './message-content'
 import { FileAttachments } from './file-attachments'
+import { QuickReactionBar, ReactionPills } from './reactions'
 import { nameColorClass, MESSAGE_GROUP_WINDOW_MS } from './message-style'
 import { CallPostCard } from '@/features/calls/call-post'
 import { useTranslation } from '@/lib/i18n'
-import { useEffect } from 'react'
 
 interface ThreadViewProps {
   channelId: string
@@ -43,6 +43,10 @@ export function ThreadView({ channelId, rootId, teamId, onClose }: ThreadViewPro
   const rootPost = useChatStore((s) => s.postsByChannel[channelId]?.byId[rootId])
   const threadMeta = useChatStore((s) => s.threadsById[rootId])
   const follow = useFollowThread(teamId)
+  const toggleReaction = useToggleReaction(userId)
+  // Which thread message currently shows its extended emoji popover. Reset on
+  // row un-hover so the popover never lingers invisibly on the next hover.
+  const [emojiOpenId, setEmojiOpenId] = useState<string | null>(null)
   // TanStack Query's useMutation returns a NEW result object on every render
   // (the observer result is spread into a fresh object); only `mutate` is
   // referentially stable. Putting the mutation RESULT in the effect deps
@@ -129,7 +133,11 @@ export function ThreadView({ channelId, rootId, teamId, onClose }: ThreadViewPro
                 return <CallPostCard key={post.id} post={post} />
               }
               return (
-                <div key={post.id} className={`group/row relative flex gap-2.5 ${isRoot ? 'pb-2 border-b mb-1' : groupStart ? 'py-1.5' : 'py-0.5'} ${isOwn ? 'flex-row-reverse' : ''}`}>
+                <div
+                  key={post.id}
+                  className={`group/row relative flex gap-2.5 ${isRoot ? 'pb-2 border-b mb-1' : groupStart ? 'py-1.5' : 'py-0.5'} ${isOwn ? 'flex-row-reverse' : ''}`}
+                  onMouseLeave={() => setEmojiOpenId((id) => (id === post.id ? null : id))}
+                >
                   {groupStart ? (
                     <Avatar name={name} size="sm" className="mt-0.5 shrink-0" />
                   ) : (
@@ -146,7 +154,7 @@ export function ThreadView({ channelId, rootId, teamId, onClose }: ThreadViewPro
                       </div>
                     )}
                     <div
-                      className={`text-sm leading-relaxed wrap-break-word rounded-2xl px-3.5 py-2 ${
+                      className={`relative text-sm leading-relaxed wrap-break-word rounded-2xl px-3.5 py-2 ${
                         isOwn
                           ? `bg-primary text-primary-foreground rounded-br-sm ${!groupStart ? 'rounded-tr-sm' : ''}`
                           : `bg-muted text-foreground rounded-bl-sm ${!groupStart ? 'rounded-tl-sm' : ''}`
@@ -154,7 +162,20 @@ export function ThreadView({ channelId, rootId, teamId, onClose }: ThreadViewPro
                     >
                       <MessageContent post={post} isOwn={isOwn} />
                       {post.file_ids && post.file_ids.length > 0 && <FileAttachments post={post} isOwn={false} />}
+                      {/* Quick-reaction bar — hovers directly above the bubble,
+                          anchored to its own edge (stays close to the message). */}
+                      <QuickReactionBar
+                        onToggle={(emoji) => toggleReaction.mutate({ postId: post.id, emojiName: emoji })}
+                        align={isOwn ? 'end' : 'start'}
+                        emojiOpen={emojiOpenId === post.id}
+                        onEmojiOpenChange={(open) => setEmojiOpenId(open ? post.id : null)}
+                      />
                     </div>
+                    {/* Reactions — pill chips under the message */}
+                    <ReactionPills
+                      postId={post.id}
+                      onToggle={(emoji) => toggleReaction.mutate({ postId: post.id, emojiName: emoji })}
+                    />
                   </div>
                 </div>
               )

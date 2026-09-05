@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useCallback, useState } from 'react'
 import { format, isSameDay } from 'date-fns'
 import {
-  Hash, Lock, Pin, CornerUpRight, Smile, Loader2, Bookmark,
+  Hash, Lock, Pin, CornerUpRight, Loader2, Bookmark,
 } from 'lucide-react'
 import { Avatar } from '@/components/shared/avatar'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -24,7 +24,7 @@ import { useTranslation } from '@/lib/i18n'
 import { TypingIndicator } from './typing-indicator'
 import { MessageContent } from './message-content'
 import { PostMenu } from './post-menu'
-import { shortcodeToUnicode } from '@/lib/chat/emoji-data'
+import { QuickReactionBar, ReactionPills } from './reactions'
 import { nameColorClass, startsMessageGroup } from './message-style'
 import { CallPostCard } from '@/features/calls/call-post'
 
@@ -41,11 +41,6 @@ interface PostListProps {
 const HEIGHT_TRIGGER_FOR_MORE_POSTS = 1000 // px from an edge to trigger paging
 const BUFFER_TO_BE_CONSIDERED_BOTTOM = 100 // px: within this of the bottom = "at bottom"
 
-// Quick-reaction emoji bar (hover actions). These MUST be Mattermost emoji
-// shortcode names (server-side reaction validation), NOT unicode glyphs —
-// the server rejects unknown names with 404 (app.emoji.get_by_name.no_result).
-// Rendered as glyphs via shortcodeToUnicode() below.
-const QUICK_EMOJIS = ['+1', 'heart', 'tada', 'joy', 'eyes']
 const EMPTY_POST_MAP: Record<string, ChatPost> = Object.freeze({})
 const EMPTY_POST_ORDER = Object.freeze([])
 
@@ -458,10 +453,7 @@ interface PostRowProps {
 function PostRow(props: PostRowProps) {
   const { post, replyCount, groupStart, isOwn, authorName, isFlagged, onOpenThread, editing, draft, setDraft, onStartEdit, onSaveEdit, onCancelEdit, onDelete, onToggleReaction, onTogglePin, onToggleFlag, onMarkUnread, onForward, onShowEditHistory, onJumpToPost, onHover, canModerate } = props
   const { t } = useTranslation()
-  const EMPTY: any[] = []
-  const reactions = useChatStore((s) => s.reactionsByPost[post.id] ?? EMPTY)
   const threadMeta = useChatStore((s) => s.threadsById[post.id])
-  const currentUserId = useCurrentUserId()
   const [showEmoji, setShowEmoji] = useState(false)
   const time = format(new Date(post.create_at), 'HH:mm')
 
@@ -469,17 +461,6 @@ function PostRow(props: PostRowProps) {
   const threadUnreadReplies = threadMeta?.unread_replies ?? 0
   const threadUnreadMentions = threadMeta?.unread_mentions ?? 0
   const threadFollowing = threadMeta?.is_following ?? false
-
-  // Group reactions by emoji + whether the current user reacted.
-  const grouped = useMemo(() => {
-    const m: Record<string, { count: number; mine: boolean }> = {}
-    for (const r of reactions) {
-      if (!m[r.emoji_name]) m[r.emoji_name] = { count: 0, mine: false }
-      m[r.emoji_name].count += 1
-      if (r.user_id === currentUserId) m[r.emoji_name].mine = true
-    }
-    return m
-  }, [reactions, currentUserId])
 
   // Custom call posts render as interactive call cards.
   if ((post.type as string) === 'custom_calls') {
@@ -490,7 +471,7 @@ function PostRow(props: PostRowProps) {
     <div
       className={`group/row relative flex gap-2.5 ${groupStart ? 'py-1.5' : 'py-0.5'} ${isOwn ? 'flex-row-reverse' : ''}`}
       onMouseEnter={() => onHover?.(post)}
-      onMouseLeave={() => onHover?.(null)}
+      onMouseLeave={() => { onHover?.(null); setShowEmoji(false) }}
       role="article"
       tabIndex={0}
       aria-label={`${authorName} ${time}`}
@@ -541,7 +522,7 @@ function PostRow(props: PostRowProps) {
           </div>
         ) : (
           <div
-            className={`text-sm leading-relaxed wrap-break-word rounded-2xl px-3.5 py-2 ${
+            className={`relative text-sm leading-relaxed wrap-break-word rounded-2xl px-3.5 py-2 ${
               isOwn
                 ? `bg-primary text-primary-foreground rounded-br-sm ${!groupStart ? 'rounded-tr-sm' : ''}`
                 : `bg-muted text-foreground rounded-bl-sm ${!groupStart ? 'rounded-tl-sm' : ''}`
@@ -549,29 +530,40 @@ function PostRow(props: PostRowProps) {
           >
             <MessageContent post={post} isOwn={isOwn} onJumpToPost={onJumpToPost} />
             {post.file_ids && post.file_ids.length > 0 && <FileAttachments post={post} isOwn={false} />}
+
+            {/* Quick-reaction bar — hovers directly above the bubble, anchored
+                to the bubble's own edge, so the popular reaction icons stay
+                close to the message. Reply + overflow menu ride along in the
+                same compact cluster instead of floating at the far row corner. */}
+            <QuickReactionBar
+              onToggle={onToggleReaction}
+              align={isOwn ? 'end' : 'start'}
+              emojiOpen={showEmoji}
+              onEmojiOpenChange={setShowEmoji}
+            >
+              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" onClick={onOpenThread} title={t('chat.reply', 'Trả lời')}>
+                <CornerUpRight className="h-4 w-4" />
+              </Button>
+              <PostMenu
+                post={post}
+                canEdit={canModerate}
+                isFlagged={isFlagged}
+                onReply={onOpenThread}
+                onReact={onToggleReaction}
+                onForward={() => onForward()}
+                onMarkUnread={onMarkUnread}
+                onToggleFlag={onToggleFlag}
+                onTogglePin={onTogglePin}
+                onEdit={onStartEdit}
+                onDelete={onDelete}
+                align="end"
+              />
+            </QuickReactionBar>
           </div>
         )}
 
         {/* Reactions — pill chips under the message */}
-        {Object.keys(grouped).length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1.5">
-            {Object.entries(grouped).map(([emoji, info]) => (
-              <button
-                key={emoji}
-                onClick={() => onToggleReaction(emoji)}
-                title={`:${emoji}:`}
-                className={`inline-flex items-center gap-1 h-6 rounded-full px-2 text-xs border transition-all duration-150 active:scale-95 ${
-                  info.mine
-                    ? 'bg-primary/10 border-primary/40 text-primary dark:text-primary-foreground/90 dark:bg-primary/25 dark:border-primary/50'
-                    : 'bg-background border-border hover:border-muted-foreground/40 hover:bg-muted'
-                }`}
-              >
-                <span className="text-[13px] leading-none">{shortcodeToUnicode(emoji) ?? `:${emoji}:`}</span>
-                <span className="font-semibold tabular-nums">{info.count}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        <ReactionPills postId={post.id} onToggle={onToggleReaction} />
 
         {/* Thread footer: reply count + reply button + unread indicators (ports ThreadFooter). */}
         {replyCount > 0 && !editing && (
@@ -593,65 +585,6 @@ function PostRow(props: PostRowProps) {
             )}
           </button>
         )}
-      </div>
-
-      {/* Hover toolbar — floats over the row's top corner on the opposite
-          side of the bubbles, Discord-style: quick reactions + reply + overflow
-          menu. Mirrored for own messages so it never covers the bubble. */}
-      <div
-        className={`absolute -top-3 z-10 flex items-center h-8 rounded-lg border bg-popover shadow-md opacity-0 scale-95 pointer-events-none group-hover/row:opacity-100 group-hover/row:scale-100 group-hover/row:pointer-events-auto focus-within:opacity-100 focus-within:scale-100 focus-within:pointer-events-auto transition-all duration-100 ease-out ${isOwn ? 'left-2' : 'right-2'}`}
-        role="toolbar"
-        aria-label={t('chat.messageActions', 'Thao tác tin nhắn')}
-      >
-        {QUICK_EMOJIS.slice(0, 3).map((emoji) => (
-          <button
-            key={emoji}
-            onClick={() => onToggleReaction(emoji)}
-            title={`:${emoji}:`}
-            className="h-7 w-7 rounded-md hover:bg-muted flex items-center justify-center text-[15px] leading-none"
-          >
-            {shortcodeToUnicode(emoji) ?? `:${emoji}:`}
-          </button>
-        ))}
-        <div className="relative">
-          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" onClick={() => setShowEmoji((v) => !v)} title={t('chat.addReaction', 'Thêm cảm xúc')}>
-            <Smile className="h-4 w-4" />
-          </Button>
-          {showEmoji && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowEmoji(false)} />
-              <div className="absolute top-full right-0 z-50 mt-1 flex gap-1 rounded-lg border bg-popover shadow-lg p-1.5">
-                {QUICK_EMOJIS.map((emoji) => (
-                  <button
-                    key={emoji}
-                    onClick={() => { onToggleReaction(emoji); setShowEmoji(false) }}
-                    title={`:${emoji}:`}
-                    className="h-7 w-7 rounded hover:bg-muted flex items-center justify-center text-base"
-                  >
-                    {shortcodeToUnicode(emoji) ?? `:${emoji}:`}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" onClick={onOpenThread} title={t('chat.reply', 'Trả lời')}>
-          <CornerUpRight className="h-4 w-4" />
-        </Button>
-        <PostMenu
-          post={post}
-          canEdit={canModerate}
-          isFlagged={isFlagged}
-          onReply={onOpenThread}
-          onReact={onToggleReaction}
-          onForward={() => onForward()}
-          onMarkUnread={onMarkUnread}
-          onToggleFlag={onToggleFlag}
-          onTogglePin={onTogglePin}
-          onEdit={onStartEdit}
-          onDelete={onDelete}
-          align="end"
-        />
       </div>
     </div>
   )
