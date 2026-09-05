@@ -41,7 +41,7 @@
           "unit": "none",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -109,7 +109,7 @@
           "unit": "reqps",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -173,7 +173,7 @@
           "unit": "reqps",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -245,7 +245,7 @@
           "unit": "short",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -309,7 +309,7 @@
           "unit": "short",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -374,7 +374,7 @@
           "unit": "short",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -439,7 +439,7 @@
           "unit": "short",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -503,7 +503,7 @@
           "unit": "s",
           "mappings": [],
           "color": {
-            "mode": "value"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -638,7 +638,7 @@
           "legendFormat": "requests"
         },
         {
-          "refId": "A",
+          "refId": "B",
           "expr": "sum(rate(mattermost_http_errors_total[1m]))",
           "datasource": {
             "type": "prometheus",
@@ -739,7 +739,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.50, sum(rate(mattermost_api_time_bucket[5m])))",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(mattermost_api_time_bucket[5m])))",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -750,8 +750,8 @@
           "legendFormat": "p50"
         },
         {
-          "refId": "A",
-          "expr": "histogram_quantile(0.95, sum(rate(mattermost_api_time_bucket[5m])))",
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(mattermost_api_time_bucket[5m])))",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -946,7 +946,7 @@
           "legendFormat": "success"
         },
         {
-          "refId": "A",
+          "refId": "B",
           "expr": "sum(rate(mattermost_login_logins_fail_total[5m])) * 60",
           "datasource": {
             "type": "prometheus",
@@ -1142,7 +1142,7 @@
           "legendFormat": "goroutines"
         },
         {
-          "refId": "A",
+          "refId": "B",
           "expr": "rate(go_gc_duration_seconds_sum{job=\"lms-server\"}[5m])",
           "datasource": {
             "type": "prometheus",
@@ -1246,7 +1246,7 @@
           "legendFormat": "resident"
         },
         {
-          "refId": "A",
+          "refId": "B",
           "expr": "go_memstats_heap_inuse_bytes{job=\"lms-server\"}",
           "datasource": {
             "type": "prometheus",
@@ -1350,7 +1350,7 @@
           "legendFormat": "emails"
         },
         {
-          "refId": "A",
+          "refId": "B",
           "expr": "sum(rate(mattermost_post_pushes_sent_total[5m])) * 60",
           "datasource": {
             "type": "prometheus",

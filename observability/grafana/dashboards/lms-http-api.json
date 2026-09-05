@@ -41,7 +41,7 @@
           "unit": "reqps",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -105,7 +105,7 @@
           "unit": "reqps",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -169,7 +169,7 @@
           "unit": "percent",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -241,7 +241,7 @@
           "unit": "s",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -281,7 +281,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum(rate(mattermost_api_time_bucket[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(mattermost_api_time_bucket[5m])))",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -313,7 +313,7 @@
           "unit": "s",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -345,7 +345,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "topk(1, histogram_quantile(0.95, sum by (handler) (rate(mattermost_api_time_bucket[5m]))))",
+          "expr": "topk(1, histogram_quantile(0.95, sum by (handler, le) (rate(mattermost_api_time_bucket[5m]))))",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -377,7 +377,7 @@
           "unit": "percent",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -593,7 +593,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.50, sum(rate(mattermost_api_time_bucket[5m])))",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(mattermost_api_time_bucket[5m])))",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -604,8 +604,8 @@
           "legendFormat": "p50"
         },
         {
-          "refId": "A",
-          "expr": "histogram_quantile(0.95, sum(rate(mattermost_api_time_bucket[5m])))",
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(mattermost_api_time_bucket[5m])))",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -616,8 +616,8 @@
           "legendFormat": "p95"
         },
         {
-          "refId": "A",
-          "expr": "histogram_quantile(0.99, sum(rate(mattermost_api_time_bucket[5m])))",
+          "refId": "C",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(mattermost_api_time_bucket[5m])))",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -904,7 +904,7 @@
           "legendFormat": "hits"
         },
         {
-          "refId": "A",
+          "refId": "B",
           "expr": "sum(rate(mattermost_cache_etag_miss_total[5m]))",
           "datasource": {
             "type": "prometheus",
@@ -1012,7 +1012,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "topk(15, histogram_quantile(0.95, sum by (handler) (rate(mattermost_api_time_bucket[5m]))))",
+          "expr": "topk(15, histogram_quantile(0.95, sum by (handler, le) (rate(mattermost_api_time_bucket[5m]))))",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"

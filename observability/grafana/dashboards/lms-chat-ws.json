@@ -41,7 +41,7 @@
           "unit": "short",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -106,7 +106,7 @@
           "unit": "short",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -170,7 +170,7 @@
           "unit": "ops",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -235,7 +235,7 @@
           "unit": "short",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -300,7 +300,7 @@
           "unit": "percent",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -364,7 +364,7 @@
           "unit": "short",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -397,7 +397,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(mattermost_websocket_reconnects_total[5m])) * 60",
+          "expr": "sum(rate(mattermost_websocket_reconnects_total[5m])) * 60 or vector(0)",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -500,7 +500,7 @@
           "legendFormat": "posts"
         },
         {
-          "refId": "A",
+          "refId": "B",
           "expr": "sum(rate(mattermost_post_file_attachments_total[1m])) * 60",
           "datasource": {
             "type": "prometheus",
@@ -972,7 +972,7 @@
           "legendFormat": "hits"
         },
         {
-          "refId": "A",
+          "refId": "B",
           "expr": "sum(rate(mattermost_cache_mem_miss_total[5m]))",
           "datasource": {
             "type": "prometheus",
@@ -1264,7 +1264,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "topk(10, histogram_quantile(0.95, sum by (method) (rate(mattermost_db_store_time_bucket[5m]))))",
+          "expr": "topk(10, histogram_quantile(0.95, sum by (method, le) (rate(mattermost_db_store_time_bucket[5m]))))",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"

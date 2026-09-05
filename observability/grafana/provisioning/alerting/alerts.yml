@@ -218,7 +218,7 @@ groups:
           type: prometheus
           uid: prometheus
         editorMode: code
-        expr: histogram_quantile(0.95, sum(rate(mattermost_api_time_bucket[5m])))
+        expr: histogram_quantile(0.95, sum by (le) (rate(mattermost_api_time_bucket[5m])))
         instant: true
         intervalMs: 1000
         legendFormat: __auto

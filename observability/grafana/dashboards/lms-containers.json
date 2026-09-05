@@ -569,7 +569,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "rate(container_start_time_seconds{name=~\"$container\"}[10m]) > 0",
+          "expr": "changes(container_start_time_seconds{name=~\"$container\"}[30m])",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"

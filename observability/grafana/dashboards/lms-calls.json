@@ -41,7 +41,7 @@
           "unit": "short",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -105,7 +105,7 @@
           "unit": "short",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -169,7 +169,7 @@
           "unit": "short",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -210,7 +210,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(rtcd_rtc_errors_total[5m])) * 60",
+          "expr": "sum(rate(rtcd_rtc_errors_total[5m])) * 60 or vector(0)",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -242,7 +242,7 @@
           "unit": "short",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -306,7 +306,7 @@
           "unit": "short",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -370,7 +370,7 @@
           "unit": "bytes",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -770,7 +770,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (state) (rate(rtcd_rtc_conn_states_total[5m])) * 60",
+          "expr": "sum by (type) (rate(rtcd_rtc_conn_states_total[5m])) * 60",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -778,7 +778,7 @@
           "editorMode": "code",
           "range": true,
           "instant": false,
-          "legendFormat": "{{state}}"
+          "legendFormat": "{{type}}"
         }
       ]
     },
@@ -862,7 +862,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (error) (rate(rtcd_rtc_errors_total[5m])) * 60",
+          "expr": "sum by (type) (rate(rtcd_rtc_errors_total[5m])) * 60",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -870,7 +870,7 @@
           "editorMode": "code",
           "range": true,
           "instant": false,
-          "legendFormat": "{{error}}"
+          "legendFormat": "{{type}}"
         }
       ]
     },
@@ -954,7 +954,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(rtcd_rtc_rtt[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(rtcd_rtc_client_rtt_bucket[5m])))",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -1059,7 +1059,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(rtcd_rtc_loss_rate[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(rtcd_rtc_client_loss_rate_bucket[5m])))",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -1151,7 +1151,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(rtcd_rtc_jitter[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(rtcd_rtc_client_jitter_bucket[5m])))",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -1243,7 +1243,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(rtcd_rtc_connection_time[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(rtcd_rtc_connection_time_bucket[5m])))",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"

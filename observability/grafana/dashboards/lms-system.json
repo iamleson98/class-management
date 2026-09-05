@@ -254,7 +254,7 @@
           "unit": "short",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -298,7 +298,7 @@
           "legendFormat": "1m"
         },
         {
-          "refId": "A",
+          "refId": "B",
           "expr": "node_load5",
           "datasource": {
             "type": "prometheus",
@@ -310,7 +310,7 @@
           "legendFormat": "5m"
         },
         {
-          "refId": "A",
+          "refId": "C",
           "expr": "node_load15",
           "datasource": {
             "type": "prometheus",
@@ -343,7 +343,7 @@
           "unit": "short",
           "mappings": [],
           "color": {
-            "mode": "value"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -570,7 +570,7 @@
           "legendFormat": "load 1m"
         },
         {
-          "refId": "A",
+          "refId": "B",
           "expr": "node_load5",
           "datasource": {
             "type": "prometheus",
@@ -582,7 +582,7 @@
           "legendFormat": "load 5m"
         },
         {
-          "refId": "A",
+          "refId": "C",
           "expr": "node_load15",
           "datasource": {
             "type": "prometheus",
@@ -686,7 +686,7 @@
           "legendFormat": "used"
         },
         {
-          "refId": "A",
+          "refId": "B",
           "expr": "node_memory_MemAvailable_bytes",
           "datasource": {
             "type": "prometheus",
@@ -698,7 +698,7 @@
           "legendFormat": "available"
         },
         {
-          "refId": "A",
+          "refId": "C",
           "expr": "node_memory_Cached_bytes",
           "datasource": {
             "type": "prometheus",
@@ -902,7 +902,7 @@
           "legendFormat": "read {{device}}"
         },
         {
-          "refId": "A",
+          "refId": "B",
           "expr": "rate(node_disk_written_bytes_total{device!~\"loop.*\"}[1m])",
           "datasource": {
             "type": "prometheus",
@@ -1006,7 +1006,7 @@
           "legendFormat": "RX {{device}}"
         },
         {
-          "refId": "A",
+          "refId": "B",
           "expr": "rate(node_network_transmit_bytes_total{device!~\"lo|veth.*|docker.*|br-.*\"}[1m])",
           "datasource": {
             "type": "prometheus",
@@ -1110,8 +1110,8 @@
           "legendFormat": "established"
         },
         {
-          "refId": "A",
-          "expr": "sum(node_sockstat_tcp_tw)",
+          "refId": "B",
+          "expr": "sum(node_sockstat_TCP_tw)",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -1122,7 +1122,7 @@
           "legendFormat": "time_wait"
         },
         {
-          "refId": "A",
+          "refId": "C",
           "expr": "sum(node_sockstat_TCP_alloc)",
           "datasource": {
             "type": "prometheus",
@@ -1239,7 +1239,7 @@
           "legendFormat": "lms-server"
         },
         {
-          "refId": "A",
+          "refId": "B",
           "expr": "rate(process_cpu_seconds_total{job=\"lms-rtcd\"}[1m])",
           "datasource": {
             "type": "prometheus",
@@ -1343,7 +1343,7 @@
           "legendFormat": "lms-server"
         },
         {
-          "refId": "A",
+          "refId": "B",
           "expr": "process_resident_memory_bytes{job=\"lms-rtcd\"}",
           "datasource": {
             "type": "prometheus",
@@ -1447,7 +1447,7 @@
           "legendFormat": "lms-server"
         },
         {
-          "refId": "A",
+          "refId": "B",
           "expr": "process_open_fds{job=\"lms-rtcd\"}",
           "datasource": {
             "type": "prometheus",

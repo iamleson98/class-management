@@ -41,7 +41,7 @@
           "unit": "short",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -105,7 +105,7 @@
           "unit": "short",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -169,7 +169,7 @@
           "unit": "short",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -233,7 +233,7 @@
           "unit": "short",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -306,7 +306,7 @@
           "unit": "s",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -378,7 +378,7 @@
           "unit": "percent",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -521,7 +521,7 @@
           "legendFormat": "open"
         },
         {
-          "refId": "A",
+          "refId": "B",
           "expr": "mattermost_db_in_use_connections{db_name=\"master\"}",
           "datasource": {
             "type": "prometheus",
@@ -533,7 +533,7 @@
           "legendFormat": "in use"
         },
         {
-          "refId": "A",
+          "refId": "C",
           "expr": "mattermost_db_idle_connections{db_name=\"master\"}",
           "datasource": {
             "type": "prometheus",
@@ -637,7 +637,7 @@
           "legendFormat": "waits/min"
         },
         {
-          "refId": "A",
+          "refId": "B",
           "expr": "rate(mattermost_db_wait_duration_seconds_total{db_name=\"master\"}[5m])",
           "datasource": {
             "type": "prometheus",
@@ -732,7 +732,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "topk(10, histogram_quantile(0.95, sum by (method) (rate(mattermost_db_store_time_bucket[5m]))))",
+          "expr": "topk(10, histogram_quantile(0.95, sum by (method, le) (rate(mattermost_db_store_time_bucket[5m]))))",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -1032,7 +1032,7 @@
           "legendFormat": "deadlocks"
         },
         {
-          "refId": "A",
+          "refId": "B",
           "expr": "sum(rate(pg_stat_database_conflicts[5m])) * 60",
           "datasource": {
             "type": "prometheus",

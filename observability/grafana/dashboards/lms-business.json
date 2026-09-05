@@ -41,7 +41,7 @@
           "unit": "short",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -105,7 +105,7 @@
           "unit": "short",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -169,7 +169,7 @@
           "unit": "short",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -233,7 +233,7 @@
           "unit": "short",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -297,7 +297,7 @@
           "unit": "short",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -361,7 +361,7 @@
           "unit": "short",
           "mappings": [],
           "color": {
-            "mode": "background"
+            "mode": "thresholds"
           },
           "thresholds": {
             "mode": "absolute",
@@ -688,7 +688,7 @@
           "legendFormat": "success"
         },
         {
-          "refId": "A",
+          "refId": "B",
           "expr": "sum(increase(mattermost_login_logins_fail_total[1h]))",
           "datasource": {
             "type": "prometheus",
@@ -897,7 +897,7 @@
           "legendFormat": "created"
         },
         {
-          "refId": "A",
+          "refId": "B",
           "expr": "sum(increase(mattermost_lms_class_media_deleted_total[1d]))",
           "datasource": {
             "type": "prometheus",
