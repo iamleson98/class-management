@@ -24,7 +24,7 @@ import RichTextEditor from '@/components/ui/mdx-editor'
 import { uploadLmsFile } from '@/lib/file-upload'
 import { Textarea } from '@/components/ui/textarea'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { getPosts, createPost, updatePost } from '@/lib/api'
+import { getPosts, createPost, updatePost, getPostCategories } from '@/lib/api'
 import { contains, or } from '@/lib/query'
 import { useTranslation } from '@/lib/i18n'
 
@@ -54,6 +54,13 @@ export default function MarketingCMSPage() {
   const { data: posts, isLoading, isError, refetch } = useQuery({
     queryKey: ['posts', opts],
     queryFn: () => getPosts(opts),
+  })
+
+  // Categories for the required categoryId select (the create schema rejects
+  // an empty one; without a visible field the failure was invisible).
+  const { data: categories = [] } = useQuery({
+    queryKey: ['post-categories'],
+    queryFn: () => getPostCategories(),
   })
 
   const mutation = useMutation({
@@ -209,15 +216,18 @@ export default function MarketingCMSPage() {
                 />
                 <FormField
                   control={form.control}
-                  name="status"
+                  name="categoryId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t('common.status', 'Trạng thái')}</FormLabel>
+                      <FormLabel>{t('marketing.cms.fieldCategory', 'Chuyên mục')}</FormLabel>
                       <Select value={field.value || ''} onValueChange={field.onChange}>
-                        <FormControl><SelectTrigger><SelectValue placeholder={t('marketing.cms.selectStatus', 'Chọn trạng thái')} /></SelectTrigger></FormControl>
+                        <FormControl>
+                          <SelectTrigger><SelectValue placeholder={t('marketing.cms.selectCategory', 'Chọn chuyên mục')} /></SelectTrigger>
+                        </FormControl>
                         <SelectContent>
-                          <SelectItem value="DRAFT">{t('marketing.cms.statusDraft', 'Nháp')}</SelectItem>
-                          <SelectItem value="PUBLISHED">{t('marketing.cms.statusPublished', 'Đã xuất bản')}</SelectItem>
+                          {categories.map((c: any) => (
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -225,6 +235,23 @@ export default function MarketingCMSPage() {
                   )}
                 />
               </div>
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('common.status', 'Trạng thái')}</FormLabel>
+                    <Select value={field.value || ''} onValueChange={field.onChange}>
+                      <FormControl><SelectTrigger><SelectValue placeholder={t('marketing.cms.selectStatus', 'Chọn trạng thái')} /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="DRAFT">{t('marketing.cms.statusDraft', 'Nháp')}</SelectItem>
+                        <SelectItem value="PUBLISHED">{t('marketing.cms.statusPublished', 'Đã xuất bản')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="excerpt"

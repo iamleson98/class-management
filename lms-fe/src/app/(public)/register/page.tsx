@@ -145,12 +145,12 @@ export default function RegisterPage() {
                         <FormField control={form.control} name="name" render={({ field }) => (
                           <FormItem>
                             <FormLabel>{t('common.name', 'Họ tên')} </FormLabel>
-                            <FormControl>
-                              <div className="relative">
+                            <div className="relative">
                                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <FormControl>
                                 <Input placeholder={t('register.form.namePlaceholder', 'Nhập họ và tên')} {...field} value={field.value ?? ''} className="pl-9" />
-                              </div>
-                            </FormControl>
+                              </FormControl>
+                            </div>
                             <FormMessage />
                           </FormItem>
                         )} />
@@ -158,12 +158,12 @@ export default function RegisterPage() {
                         <FormField control={form.control} name="phone" render={({ field }) => (
                           <FormItem>
                             <FormLabel>{t('common.phone', 'Số điện thoại')} </FormLabel>
-                            <FormControl>
-                              <div className="relative">
+                            <div className="relative">
                                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <FormControl>
                                 <Input placeholder={t('register.form.phonePlaceholder', 'Nhập số điện thoại')} {...field} value={field.value ?? ''} className="pl-9" />
-                              </div>
-                            </FormControl>
+                              </FormControl>
+                            </div>
                             <FormMessage />
                           </FormItem>
                         )} />
@@ -173,12 +173,12 @@ export default function RegisterPage() {
                         <FormField control={form.control} name="email" render={({ field }) => (
                           <FormItem>
                             <FormLabel>{t('common.email', 'Email')}</FormLabel>
-                            <FormControl>
-                              <div className="relative">
+                            <div className="relative">
                                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <FormControl>
                                 <Input type="email" placeholder={t('register.form.emailPlaceholder', 'Nhập email')} {...field} value={field.value ?? ''} className="pl-9" />
-                              </div>
-                            </FormControl>
+                              </FormControl>
+                            </div>
                             <FormMessage />
                           </FormItem>
                         )} />
@@ -232,9 +232,9 @@ export default function RegisterPage() {
                       <FormField control={form.control} name="need" render={({ field }) => (
                         <FormItem>
                           <FormLabel>{t('register.form.need', 'Nhu cầu học')}</FormLabel>
-                          <FormControl>
-                            <div className="relative">
+                          <div className="relative">
                               <MessageCircle className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                            <FormControl>
                               <Textarea
                                 placeholder={t('register.form.needPlaceholder', 'Mô tả nhu cầu học của bạn (Ví dụ: Muốn giao tiếp tốt hơn, thi IELTS, tiếng Anh cho con...)')}
                                 {...field}
@@ -242,8 +242,8 @@ export default function RegisterPage() {
                                 className="pl-9"
                                 rows={3}
                               />
-                            </div>
-                          </FormControl>
+                            </FormControl>
+                          </div>
                           <FormMessage />
                         </FormItem>
                       )} />

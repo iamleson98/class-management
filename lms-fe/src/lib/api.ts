@@ -661,6 +661,8 @@ export const deleteClass = (id: string): Promise<void> => apiDelete<void>(`/lms/
 export const getClassDetail = (id: string): Promise<any> => apiGet(`/lms/classes/${id}`)
 export const enrollStudents = (classId: string, studentIds: string[]): Promise<StudentEnrollment[]> =>
   apiPost<StudentEnrollment[]>(`/lms/classes/${classId}/enroll`, { studentIds })
+export const unenrollStudent = (classId: string, studentId: string): Promise<void> =>
+  apiDelete<void>(`/lms/classes/${classId}/students/${studentId}`)
 
 // ─── Sessions ───────────────────────────────────────────────────────
 

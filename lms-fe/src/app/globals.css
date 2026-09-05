@@ -195,6 +195,23 @@
   background: oklch(0.62 0.14 267);
 }
 
+/* ========== CHAT: TYPING DOTS ========== */
+/* Three sequential bouncing dots (1.2s cycle, 150ms stagger). */
+@keyframes typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(-3px); opacity: 1; }
+}
+.typing-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 9999px;
+  background: var(--muted-foreground);
+  animation: typing-bounce 1.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .typing-dot { animation: none; opacity: 0.6; }
+}
+
 /* ========== INTERACTIVE ELEMENTS TRANSITIONS ========== */
 button,
 a,

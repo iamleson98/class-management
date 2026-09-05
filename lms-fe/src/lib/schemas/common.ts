@@ -28,7 +28,9 @@ export const phoneField = z
 
 export const optionalPhoneField = phoneField.optional().nullable()
 
-export const idField = z.string().min(1, 'ID là bắt buộc')
+// idField backs every reference Select (course/teacher/branch/student…),
+// so the failure copy is a select-style prompt, not a raw "ID" message.
+export const idField = z.string().min(1, 'Vui lòng chọn')
 
 export const positiveNumber = z
   .number()

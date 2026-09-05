@@ -9,8 +9,6 @@
  */
 
 import { useMemo } from 'react'
-import ReactMarkdown from 'react-markdown'
-import rehypeRaw from 'rehype-raw'
 import { format } from 'date-fns'
 import { X, CornerUpRight, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -23,6 +21,9 @@ import { client4 } from '@/lib/chat/client'
 import { userDisplayName, type ChatPost } from '@/lib/chat/types'
 import { displayUsername } from '@/lib/chat/utils'
 import { PostComposer } from './post-composer'
+import { MessageContent } from './message-content'
+import { FileAttachments } from './file-attachments'
+import { nameColorClass, MESSAGE_GROUP_WINDOW_MS } from './message-style'
 import { CallPostCard } from '@/features/calls/call-post'
 import { useTranslation } from '@/lib/i18n'
 import { useEffect } from 'react'
@@ -118,26 +119,35 @@ export function ThreadView({ channelId, rootId, teamId, onClose }: ThreadViewPro
               ))}
             </div>
           ) : (
-            posts.map((post) => {
+            posts.map((post, i) => {
               const author = users[post.user_id]
               const name = userDisplayName(author)
               const isOwn = post.user_id === userId
               const isRoot = post.id === rootId
+              const groupStart = i === 0 || posts[i - 1].user_id !== post.user_id || post.create_at - posts[i - 1].create_at > MESSAGE_GROUP_WINDOW_MS
               if ((post.type as string) === 'custom_calls') {
                 return <CallPostCard key={post.id} post={post} />
               }
               return (
-                <div key={post.id} className={`flex gap-2.5 ${isRoot ? 'pb-3 border-b mb-1' : ''}`}>
-                  <Avatar name={name} size="sm" className="mt-0.5" />
-                  <div className="flex flex-col max-w-[80%]">
-                    <div className="flex items-baseline gap-2 mb-0.5">
-                      <span className="text-xs font-semibold">{name}</span>
-                      <span className="text-[10px] text-muted-foreground/70">{format(new Date(post.create_at), 'HH:mm')}</span>
+                <div key={post.id} className={`group/row relative flex gap-3 px-2 -mx-2 rounded-lg ${isRoot ? 'pb-2 border-b mb-1' : groupStart ? 'mt-2' : 'mt-0.5'} transition-colors duration-100 hover:bg-muted/60 dark:hover:bg-white/[0.04]`}>
+                  {groupStart ? (
+                    <Avatar name={name} size="sm" className="mt-0.5 shrink-0" />
+                  ) : (
+                    <div className="w-8 shrink-0 pt-1 text-center">
+                      <span className="hidden group-hover/row:block text-[10px] tabular-nums text-muted-foreground/80 select-none">{format(new Date(post.create_at), 'HH:mm')}</span>
                     </div>
-                    <div className={`rounded-2xl px-3.5 py-2 text-sm wrap-break-word ${isOwn ? 'bg-sky-600 text-white rounded-br-sm' : 'bg-muted rounded-bl-sm'}`}>
-                      <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                        <ReactMarkdown rehypePlugins={[rehypeRaw]}>{post.message}</ReactMarkdown>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    {groupStart && (
+                      <div className="flex items-baseline gap-2 mb-0.5 min-w-0">
+                        <span className={`text-[13px] font-semibold truncate ${nameColorClass(post.user_id)}`}>{name}</span>
+                        <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">{format(new Date(post.create_at), 'HH:mm')}</span>
+                        {isOwn && <span className="hidden group-hover/row:inline text-[10px] text-muted-foreground/60">· {t('chat.you', 'bạn')}</span>}
                       </div>
+                    )}
+                    <div className="text-sm leading-relaxed wrap-break-word">
+                      <MessageContent post={post} isOwn={isOwn} />
+                      {post.file_ids && post.file_ids.length > 0 && <FileAttachments post={post} isOwn={false} />}
                     </div>
                   </div>
                 </div>

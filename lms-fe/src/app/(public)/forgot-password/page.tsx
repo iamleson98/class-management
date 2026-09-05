@@ -125,9 +125,9 @@ function ForgotPasswordContent() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>{t('common.email', 'Email')}</FormLabel>
-                          <FormControl>
-                            <div className="relative">
+                          <div className="relative">
                               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <FormControl>
                               <Input
                                 type="email"
                                 placeholder={t('forgotPassword.emailPlaceholder', 'Nhập email đăng ký')}
@@ -136,8 +136,8 @@ function ForgotPasswordContent() {
                                 value={field.value ?? ''}
                                 className="pl-9"
                               />
-                            </div>
-                          </FormControl>
+                            </FormControl>
+                          </div>
                           <FormMessage />
                         </FormItem>
                       )}

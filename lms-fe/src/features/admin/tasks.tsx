@@ -292,10 +292,10 @@ export default function AdminTasks() {
                 <FormField
                   control={form.control}
                   name="deadline"
-                  render={({ field }) => (
+                  render={({ field, fieldState }) => (
                     <FormItem>
                       <FormLabel>{t('tasks.deadline', 'Hạn hoàn thành')}</FormLabel>
-                      <DatePicker value={field.value || ''} onChange={(v) => field.onChange(v)} />
+                      <DatePicker value={field.value || ''} onChange={(v) => field.onChange(v)} invalid={!!fieldState.error} />
                       <FormMessage />
                     </FormItem>
                   )}

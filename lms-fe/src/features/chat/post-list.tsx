@@ -24,6 +24,7 @@ import { TypingIndicator } from './typing-indicator'
 import { MessageContent } from './message-content'
 import { PostMenu } from './post-menu'
 import { shortcodeToUnicode } from '@/lib/chat/emoji-data'
+import { nameColorClass, startsMessageGroup } from './message-style'
 import { CallPostCard } from '@/features/calls/call-post'
 
 interface PostListProps {
@@ -104,6 +105,10 @@ export function PostList({ channelId, onOpenThread, onForward, onShowEditHistory
   // Build the visible rows (root posts only; replies counted for a thread
   // indicator). Posts come newest-first from the store; render oldest→newest.
   // Also injects a "New Messages" unread divider at the last-viewed boundary.
+  type Row =
+    | { type: 'date'; key: string; at: number }
+    | { type: 'post'; key: string; post: ChatPost; replyCount: number; groupStart: boolean }
+    | { type: 'unread'; key: string }
   const rows = useMemo(() => {
     const lastViewedAt = membership?.last_viewed_at ?? 0
     // Count replies per root post from the full post map (root + replies).
@@ -118,31 +123,35 @@ export function PostList({ channelId, onOpenThread, onForward, onShowEditHistory
       .map((id) => postMap[id])
       .filter((p): p is ChatPost => !!p && p.delete_at === 0 && !p.root_id)
       .reverse() // oldest-first for display
-    type Row =
-      | { type: 'date'; key: string; at: number }
-      | { type: 'post'; key: string; post: ChatPost; replyCount: number }
-      | { type: 'unread'; key: string }
     const out: Row[] = []
     let lastDay = 0
     let unreadInserted = lastViewedAt === 0 // no divider if never viewed
+    let prev: ChatPost | null = null
     for (const post of visible) {
+      let afterDivider = false
       if (!sameDay(lastDay, post.create_at)) {
         out.push({ type: 'date', key: `d-${post.create_at}`, at: post.create_at })
         lastDay = post.create_at
+        afterDivider = true
       }
       // Insert the unread divider before the first post newer than last_viewed_at.
       if (!unreadInserted && post.create_at > lastViewedAt) {
         out.push({ type: 'unread', key: 'unread-divider' })
         unreadInserted = true
+        afterDivider = true
       }
-      out.push({ type: 'post', key: post.id, post, replyCount: replyCountByRoot[post.id] ?? post.reply_count ?? 0 })
+      // Group consecutive same-sender posts (5-min window, broken by any
+      // divider) so the avatar + name header render only on the first row.
+      const groupStart = afterDivider || startsMessageGroup(prev, post)
+      out.push({ type: 'post', key: post.id, post, replyCount: replyCountByRoot[post.id] ?? post.reply_count ?? 0, groupStart })
+      prev = post
     }
     return out
   }, [order, postMap, membership])
 
   // The latest visible post, for screen-reader announcement (aria-live).
   const latestPostAria = useMemo(() => {
-    const postRows = rows.filter((r): r is { type: 'post'; key: string; post: ChatPost; replyCount: number } => r.type === 'post')
+    const postRows = rows.filter((r): r is Extract<Row, { type: 'post' }> => r.type === 'post')
     const latest = postRows[postRows.length - 1]
     if (!latest) return ''
     const author = users[latest.post.user_id]
@@ -307,7 +316,7 @@ export function PostList({ channelId, onOpenThread, onForward, onShowEditHistory
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <ScrollArea ref={scrollRef as never} className="flex-1 min-h-0" onScroll={handleScroll} aria-label={t('chat.messageList', 'Danh sách tin nhắn')} role="log">
-        <div className="p-4 space-y-1 max-w-4xl mx-auto">
+        <div className="py-4 pb-2 max-w-3xl mx-auto w-full">
           {hasNewer && (
             <div className="flex justify-center py-2">
               <Button variant="ghost" size="sm" onClick={loadNewer} disabled={loading}>
@@ -335,23 +344,26 @@ export function PostList({ channelId, onOpenThread, onForward, onShowEditHistory
           ) : (
             rows.map((row) =>
               row.type === 'date' ? (
-                <div key={row.key} className="flex items-center justify-center py-3">
-                  <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70 bg-muted/60 rounded-full px-3 py-1">
+                <div key={row.key} className="flex items-center gap-3 py-4" role="separator" aria-label={format(new Date(row.at), 'dd/MM/yyyy')}>
+                  <div className="flex-1 h-px bg-border" />
+                  <span className="text-xs font-semibold text-muted-foreground tabular-nums">
                     {format(new Date(row.at), 'dd/MM/yyyy')}
                   </span>
+                  <div className="flex-1 h-px bg-border" />
                 </div>
               ) : row.type === 'unread' ? (
                 // "New Messages" unread separator (ports new_message_separator).
                 <div key={row.key} className="flex items-center gap-2 py-2" role="separator" aria-label={t('chat.newMessages', 'Tin nhắn mới')}>
-                  <div className="flex-1 h-px bg-sky-500/40" />
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-sky-600 dark:text-sky-400">{t('chat.newMessages', 'Tin nhắn mới')}</span>
-                  <div className="flex-1 h-px bg-sky-500/40" />
+                  <div className="flex-1 h-px bg-primary/50" />
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-primary">{t('chat.newMessages', 'Tin nhắn mới')}</span>
+                  <div className="flex-1 h-px bg-primary/50" />
                 </div>
               ) : (
                 <PostRow
                   key={row.key}
                   post={row.post}
                   replyCount={row.replyCount}
+                  groupStart={row.groupStart}
                   isOwn={row.post.user_id === userId}
                   authorName={userDisplayName(users[row.post.user_id])}
                   isFlagged={flagged.has(row.post.id)}
@@ -409,6 +421,8 @@ export function PostList({ channelId, onOpenThread, onForward, onShowEditHistory
 interface PostRowProps {
   post: ChatPost
   replyCount: number
+  /** First row of a same-sender group — renders avatar + name header. */
+  groupStart: boolean
   isOwn: boolean
   authorName: string
   isFlagged: boolean
@@ -431,14 +445,23 @@ interface PostRowProps {
   canModerate: boolean
 }
 
+/**
+ * PostRow — one message in the modern flat layout (Slack/Discord 2025
+ * convention): full-width row, fixed avatar gutter, name header only on the
+ * first row of a group, timestamp in the gutter on hover for continuations,
+ * and a floating hover toolbar with quick reactions. Own messages are not
+ * mirrored — identity comes from the name color + avatar, and moderation
+ * affordances (edit/delete) stay hover-revealed for everyone.
+ */
 function PostRow(props: PostRowProps) {
-  const { post, replyCount, isOwn, authorName, isFlagged, onOpenThread, editing, draft, setDraft, onStartEdit, onSaveEdit, onCancelEdit, onDelete, onToggleReaction, onTogglePin, onToggleFlag, onMarkUnread, onForward, onShowEditHistory, onJumpToPost, onHover, canModerate } = props
+  const { post, replyCount, groupStart, isOwn, authorName, isFlagged, onOpenThread, editing, draft, setDraft, onStartEdit, onSaveEdit, onCancelEdit, onDelete, onToggleReaction, onTogglePin, onToggleFlag, onMarkUnread, onForward, onShowEditHistory, onJumpToPost, onHover, canModerate } = props
   const { t } = useTranslation()
   const EMPTY: any[] = []
   const reactions = useChatStore((s) => s.reactionsByPost[post.id] ?? EMPTY)
   const threadMeta = useChatStore((s) => s.threadsById[post.id])
   const currentUserId = useCurrentUserId()
   const [showEmoji, setShowEmoji] = useState(false)
+  const time = format(new Date(post.create_at), 'HH:mm')
 
   // Thread unread state (drives the dot + mention badge on thread roots).
   const threadUnreadReplies = threadMeta?.unread_replies ?? 0
@@ -463,68 +486,79 @@ function PostRow(props: PostRowProps) {
 
   return (
     <div
-      className={`group flex gap-2.5 py-1.5 ${isOwn ? 'flex-row-reverse' : ''}`}
+      className={`group/row relative flex gap-3 px-4 -mx-2 rounded-lg ${groupStart ? 'mt-2' : 'mt-0.5'} transition-colors duration-100 hover:bg-muted/60 dark:hover:bg-white/[0.04]`}
       onMouseEnter={() => onHover?.(post)}
       onMouseLeave={() => onHover?.(null)}
       role="article"
       tabIndex={0}
-      aria-label={`${authorName} ${format(new Date(post.create_at), 'HH:mm')}`}
+      aria-label={`${authorName} ${time}`}
     >
-      <Avatar name={authorName} size="sm" className="mt-0.5" />
-      <div className={`flex flex-col max-w-[75%] ${isOwn ? 'items-end' : 'items-start'}`}>
-        <div className="flex items-baseline gap-2 mb-0.5">
-          {!isOwn && <span className="text-xs font-semibold">{authorName}</span>}
-          <span className="text-[10px] text-muted-foreground/70">{format(new Date(post.create_at), 'HH:mm')}</span>
-          {post.edit_at > 0 && (
-            <button
-              onClick={onShowEditHistory}
-              className="text-[10px] text-muted-foreground/50 hover:text-muted-foreground italic"
-            >
-              ({t('chat.edited', 'đã sửa')})
-            </button>
-          )}
-          {post.is_pinned && <Pin className="h-3 w-3 text-amber-500" />}
+      {/* Avatar gutter — avatar on the group's first row, hover timestamp
+          (replacing the avatar slot) on continuation rows. */}
+      {groupStart ? (
+        <Avatar name={authorName} size="sm" className="mt-0.5 shrink-0" />
+      ) : (
+        <div className="w-8 shrink-0 pt-1 text-center">
+          <span className="hidden group-hover/row:block text-[10px] tabular-nums text-muted-foreground/80 select-none">{time}</span>
         </div>
+      )}
+
+      {/* Content column */}
+      <div className="flex-1 min-w-0">
+        {groupStart && (
+          <div className="flex items-baseline gap-2 mb-0.5 min-w-0">
+            <span className={`text-[13px] font-semibold truncate ${nameColorClass(post.user_id)}`}>{authorName}</span>
+            <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">{time}</span>
+            {post.edit_at > 0 && (
+              <button
+                onClick={onShowEditHistory}
+                className="text-[11px] text-muted-foreground/60 hover:text-muted-foreground hover:underline italic shrink-0"
+              >
+                ({t('chat.edited', 'đã sửa')})
+              </button>
+            )}
+            {isFlagged && <Bookmark className="h-3 w-3 text-amber-500 shrink-0" />}
+            {post.is_pinned && <Pin className="h-3 w-3 text-amber-500 shrink-0" />}
+          </div>
+        )}
 
         {editing ? (
-          <div className="flex flex-col gap-1.5 w-full">
+          <div className="flex flex-col gap-2 w-full rounded-xl border border-primary/40 focus-within:border-primary bg-background px-3 py-2.5 shadow-sm transition-colors">
             <textarea
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              className="rounded-lg border bg-background px-3 py-2 text-sm resize-none min-h-16"
+              className="text-sm resize-none min-h-16 bg-transparent outline-none"
               autoFocus
             />
             <div className="flex gap-1.5 justify-end">
+              <span className="mr-auto text-[11px] text-muted-foreground italic">{t('chat.editing', 'Đang chỉnh sửa')}</span>
               <Button size="sm" variant="ghost" onClick={onCancelEdit}>{t('common.cancel', 'Hủy')}</Button>
               <Button size="sm" onClick={onSaveEdit}>{t('common.save', 'Lưu')}</Button>
             </div>
           </div>
         ) : (
-          <div
-            className={`rounded-2xl px-3.5 py-2 text-sm wrap-break-word ${
-              isOwn ? 'bg-sky-600 text-white rounded-br-sm' : 'bg-muted text-foreground rounded-bl-sm'
-            }`}
-          >
+          <div className="text-sm leading-relaxed wrap-break-word">
             <MessageContent post={post} isOwn={isOwn} onJumpToPost={onJumpToPost} />
-            {post.file_ids && post.file_ids.length > 0 && <FileAttachments post={post} isOwn={isOwn} />}
+            {post.file_ids && post.file_ids.length > 0 && <FileAttachments post={post} isOwn={false} />}
           </div>
         )}
 
-        {/* Reactions */}
+        {/* Reactions — pill chips under the message */}
         {Object.keys(grouped).length > 0 && (
-          <div className={`flex flex-wrap gap-1 mt-1 ${isOwn ? 'justify-end' : ''}`}>
+          <div className="flex flex-wrap gap-1 mt-1.5">
             {Object.entries(grouped).map(([emoji, info]) => (
               <button
                 key={emoji}
                 onClick={() => onToggleReaction(emoji)}
-                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs border transition-colors ${
+                title={`:${emoji}:`}
+                className={`inline-flex items-center gap-1 h-6 rounded-full px-2 text-xs border transition-all duration-150 active:scale-95 ${
                   info.mine
-                    ? 'bg-sky-50 dark:bg-sky-950/40 border-sky-300 dark:border-sky-700 text-sky-700 dark:text-sky-300'
-                    : 'bg-background border-border hover:bg-muted'
+                    ? 'bg-primary/10 border-primary/40 text-primary dark:text-primary-foreground/90 dark:bg-primary/25 dark:border-primary/50'
+                    : 'bg-background border-border hover:border-muted-foreground/40 hover:bg-muted'
                 }`}
               >
-                <span>{shortcodeToUnicode(emoji) ?? `:${emoji}:`}</span>
-                <span className="font-medium">{info.count}</span>
+                <span className="text-[13px] leading-none">{shortcodeToUnicode(emoji) ?? `:${emoji}:`}</span>
+                <span className="font-semibold tabular-nums">{info.count}</span>
               </button>
             ))}
           </div>
@@ -534,65 +568,80 @@ function PostRow(props: PostRowProps) {
         {replyCount > 0 && !editing && (
           <button
             onClick={onOpenThread}
-            className={`mt-0.5 inline-flex items-center gap-1.5 text-[11px] text-sky-600 dark:text-sky-400 hover:underline ${isOwn ? 'self-end' : 'self-start'}`}
+            className="mt-1 inline-flex items-center gap-1.5 h-7 rounded-full px-2 text-[12px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
             {/* Unread mention badge (priority) or unread dot — only when following. */}
             {threadFollowing && threadUnreadMentions > 0 ? (
-              <span className="inline-flex items-center gap-0.5 rounded-full bg-sky-600 px-1 text-[9px] font-semibold text-white">{threadUnreadMentions}</span>
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-primary px-1.5 h-4 min-w-4 text-[10px] font-semibold text-primary-foreground">{threadUnreadMentions}</span>
             ) : threadFollowing && threadUnreadReplies > 0 ? (
-              <span className="h-2 w-2 rounded-full bg-sky-500" />
+              <span className="h-2 w-2 rounded-full bg-primary" />
             ) : null}
-            <CornerUpRight className="h-3 w-3" />
-            {replyCount} {t('chat.threadReplies', 'trả lời')}
+            <CornerUpRight className="h-3.5 w-3.5" />
+            <span className="tabular-nums">{replyCount}</span>
+            {t('chat.threadReplies', 'trả lời')}
             {threadFollowing && threadUnreadReplies > 0 && (
-              <span className="text-sky-700 dark:text-sky-300 font-medium">· {threadUnreadReplies} {t('chat.new', 'mới')}</span>
+              <span className="text-primary font-semibold">· {threadUnreadReplies} {t('chat.new', 'mới')}</span>
             )}
           </button>
         )}
+      </div>
 
-        {/* Hover actions */}
-        <div className={`flex items-center gap-0.5 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity ${isOwn ? 'flex-row-reverse' : ''}`}>
-          <div className="relative">
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowEmoji((v) => !v)}>
-              <Smile className="h-3.5 w-3.5" />
-            </Button>
-            {showEmoji && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowEmoji(false)} />
-                <div className={`absolute top-full ${isOwn ? 'right-0' : 'left-0'} z-50 mt-1 flex gap-1 rounded-lg border bg-popover shadow-lg p-1.5`}>
-                  {QUICK_EMOJIS.map((emoji) => (
-                    <button
-                      key={emoji}
-                      onClick={() => { onToggleReaction(emoji); setShowEmoji(false) }}
-                      title={`:${emoji}:`}
-                      className="h-7 w-7 rounded hover:bg-muted flex items-center justify-center text-base"
-                    >
-                      {shortcodeToUnicode(emoji) ?? `:${emoji}:`}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onOpenThread} title={t('chat.reply', 'Trả lời')}>
-            <CornerUpRight className="h-3.5 w-3.5" />
+      {/* Hover toolbar — floats over the row's top-right corner, Discord-style:
+          quick reactions + reply + overflow menu. */}
+      <div
+        className="absolute -top-3 right-2 z-10 flex items-center h-8 rounded-lg border bg-popover shadow-md opacity-0 scale-95 pointer-events-none group-hover/row:opacity-100 group-hover/row:scale-100 group-hover/row:pointer-events-auto focus-within:opacity-100 focus-within:scale-100 focus-within:pointer-events-auto transition-all duration-100 ease-out"
+        role="toolbar"
+        aria-label={t('chat.messageActions', 'Thao tác tin nhắn')}
+      >
+        {QUICK_EMOJIS.slice(0, 3).map((emoji) => (
+          <button
+            key={emoji}
+            onClick={() => onToggleReaction(emoji)}
+            title={`:${emoji}:`}
+            className="h-7 w-7 rounded-md hover:bg-muted flex items-center justify-center text-[15px] leading-none"
+          >
+            {shortcodeToUnicode(emoji) ?? `:${emoji}:`}
+          </button>
+        ))}
+        <div className="relative">
+          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" onClick={() => setShowEmoji((v) => !v)} title={t('chat.addReaction', 'Thêm cảm xúc')}>
+            <Smile className="h-4 w-4" />
           </Button>
-          {isFlagged && <Bookmark className="h-3 w-3 text-amber-500" />}
-          <PostMenu
-            post={post}
-            canEdit={canModerate}
-            isFlagged={isFlagged}
-            onReply={onOpenThread}
-            onReact={onToggleReaction}
-            onForward={() => onForward()}
-            onMarkUnread={onMarkUnread}
-            onToggleFlag={onToggleFlag}
-            onTogglePin={onTogglePin}
-            onEdit={onStartEdit}
-            onDelete={onDelete}
-            align={isOwn ? 'end' : 'start'}
-          />
+          {showEmoji && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowEmoji(false)} />
+              <div className="absolute top-full right-0 z-50 mt-1 flex gap-1 rounded-lg border bg-popover shadow-lg p-1.5">
+                {QUICK_EMOJIS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => { onToggleReaction(emoji); setShowEmoji(false) }}
+                    title={`:${emoji}:`}
+                    className="h-7 w-7 rounded hover:bg-muted flex items-center justify-center text-base"
+                  >
+                    {shortcodeToUnicode(emoji) ?? `:${emoji}:`}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
+        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" onClick={onOpenThread} title={t('chat.reply', 'Trả lời')}>
+          <CornerUpRight className="h-4 w-4" />
+        </Button>
+        <PostMenu
+          post={post}
+          canEdit={canModerate}
+          isFlagged={isFlagged}
+          onReply={onOpenThread}
+          onReact={onToggleReaction}
+          onForward={() => onForward()}
+          onMarkUnread={onMarkUnread}
+          onToggleFlag={onToggleFlag}
+          onTogglePin={onTogglePin}
+          onEdit={onStartEdit}
+          onDelete={onDelete}
+          align="end"
+        />
       </div>
     </div>
   )

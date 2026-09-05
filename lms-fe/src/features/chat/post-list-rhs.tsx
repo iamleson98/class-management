@@ -21,6 +21,8 @@ import { useChatStore } from '@/lib/chat/store'
 import { userDisplayName, type ChatPost } from '@/lib/chat/types'
 import { getMentionSearchTerms } from '@/lib/chat/utils'
 import { useTranslation } from '@/lib/i18n'
+import { Hash } from 'lucide-react'
+import { nameColorClass } from './message-style'
 
 type PostListKind = 'flagged' | 'pinned' | 'mentions'
 
@@ -89,7 +91,7 @@ export function PostListRhs({ kind, channelId, teamId, onJump, onClose }: PostLi
       </div>
 
       <ScrollArea className="flex-1 min-h-0">
-        <div className="p-3 space-y-1">
+        <div className="p-3 space-y-2">
           {loading ? (
             <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}</div>
           ) : posts.length === 0 ? (
@@ -106,15 +108,20 @@ export function PostListRhs({ kind, channelId, teamId, onJump, onClose }: PostLi
                 <button
                   key={post.id}
                   onClick={() => onJump(post)}
-                  className="w-full text-left p-2.5 rounded-lg hover:bg-muted/60 transition-colors border border-transparent hover:border-border"
+                  className="w-full text-left p-3 rounded-xl hover:bg-muted/60 transition-colors duration-100 group"
                 >
-                  <div className="flex items-center gap-2 mb-1">
-                    <Avatar name={userDisplayName(author)} size="xs" />
-                    <span className="text-xs font-semibold truncate">{userDisplayName(author)}</span>
-                    <span className="text-[10px] text-muted-foreground/70 ml-auto">{format(new Date(post.create_at), 'dd/MM/yy HH:mm')}</span>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Avatar name={userDisplayName(author)} size="xs" className="mt-0.5" />
+                    <span className={`text-xs font-semibold truncate ${nameColorClass(post.user_id)}`}>{userDisplayName(author)}</span>
+                    <span className="text-[10px] text-muted-foreground/70 ml-auto tabular-nums shrink-0">{format(new Date(post.create_at), 'dd/MM/yy HH:mm')}</span>
                   </div>
-                  <p className="text-sm line-clamp-3 whitespace-pre-wrap wrap-break-word">{post.message}</p>
-                  {channel && <div className="mt-1 text-[10px] text-muted-foreground/70 truncate">#{channel.display_name}</div>}
+                  <p className="text-sm leading-relaxed line-clamp-3 whitespace-pre-wrap wrap-break-word text-foreground/90">{post.message}</p>
+                  {channel && (
+                    <div className="mt-1.5 inline-flex items-center gap-1 text-[10px] text-muted-foreground/70">
+                      <Hash className="h-2.5 w-2.5" />
+                      <span className="truncate">{channel.display_name}</span>
+                    </div>
+                  )}
                 </button>
               )
             })

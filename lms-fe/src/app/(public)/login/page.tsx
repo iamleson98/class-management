@@ -172,9 +172,9 @@ export default function PublicLoginPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t('common.email', 'Email')}</FormLabel>
-                    <FormControl>
-                      <div className="relative">
+                    <div className="relative">
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <FormControl>
                         <Input
                           type="email"
                           placeholder={t('login.hero.emailPlaceholder', 'example@vmg.edu.vn')}
@@ -183,8 +183,8 @@ export default function PublicLoginPage() {
                           value={field.value ?? ''}
                           className="pl-9"
                         />
-                      </div>
-                    </FormControl>
+                      </FormControl>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -204,9 +204,9 @@ export default function PublicLoginPage() {
                         {t('auth.forgotPassword', 'Quên mật khẩu?')}
                       </Link>
                     </div>
-                    <FormControl>
-                      <div className="relative">
+                    <div className="relative">
                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <FormControl>
                         <Input
                           type={showPassword ? 'text' : 'password'}
                           placeholder={t('auth.passwordPlaceholder', 'Nhập mật khẩu')}
@@ -215,6 +215,7 @@ export default function PublicLoginPage() {
                           value={field.value ?? ''}
                           className="pl-9 pr-10"
                         />
+                      </FormControl>
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
@@ -228,8 +229,7 @@ export default function PublicLoginPage() {
                             <Eye className="h-4 w-4" />
                           )}
                         </button>
-                      </div>
-                    </FormControl>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

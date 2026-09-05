@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod/v4'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -90,8 +90,15 @@ export default function AdminStudents() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 })
 
+  // The resolver flips with the dialog mode so validation matches what the
+  // submit path parses: the create schema requires email (the update schema
+  // accepts an empty one). With a single update-schema resolver, an empty
+  // email passed the resolver but failed the later create `.parse()` — a
+  // silent dead submit with no red fields and no toast. The cast collapses
+  // the two z.input shapes (they differ only in optionality of the same keys,
+  // and the update-shaped form values satisfy both at runtime).
   const form = useForm<StudentFormValues>({
-    resolver: zodResolver(updateStudentSchema),
+    resolver: zodResolver(editingStudent ? updateStudentSchema : createStudentSchema) as Resolver<StudentFormValues>,
     defaultValues: EMPTY_STUDENT,
   })
 

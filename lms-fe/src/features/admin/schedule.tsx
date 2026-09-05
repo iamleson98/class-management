@@ -1057,7 +1057,7 @@ function EditSessionDialog({
             <Label data-error={!!form.formState.errors.date} className="data-[error=true]:text-destructive">{t('schedule.sessionDate', 'Ngày học')}</Label>
             <DatePicker
               value={watchedDate}
-              onChange={(v) => form.setValue('date', v)}
+              onChange={(v) => form.setValue('date', v, { shouldValidate: true })}
               invalid={!!form.formState.errors.date}
             />
             {form.formState.errors.date && (
@@ -1112,7 +1112,7 @@ function EditSessionDialog({
           {/* Lớp học */}
           <div className="space-y-1.5">
             <Label data-error={!!form.formState.errors.classId} className="data-[error=true]:text-destructive">{t('schedule.className', 'Lớp học')}</Label>
-            <Select value={watchedClassId || ''} onValueChange={(v) => form.setValue('classId', v)}>
+            <Select value={watchedClassId || ''} onValueChange={(v) => form.setValue('classId', v, { shouldValidate: true })}>
               <SelectTrigger aria-invalid={!!form.formState.errors.classId || undefined}>
                 {isLoadingClasses ? (
                   <SelectValue placeholder={t('common.loading', 'Đang tải...')} />
@@ -1143,7 +1143,7 @@ function EditSessionDialog({
           {/* Giáo viên */}
           <div className="space-y-1.5">
             <Label data-error={!!form.formState.errors.teacherId} className="data-[error=true]:text-destructive">{t('schedule.teacher', 'Giáo viên')}</Label>
-            <Select value={watchedTeacherId || ''} onValueChange={(v) => form.setValue('teacherId', v)}>
+            <Select value={watchedTeacherId || ''} onValueChange={(v) => form.setValue('teacherId', v, { shouldValidate: true })}>
               <SelectTrigger aria-invalid={!!form.formState.errors.teacherId || undefined}>
                 <SelectValue placeholder={t('schedule.selectTeacherPlaceholder', 'Chọn giáo viên')} />
               </SelectTrigger>

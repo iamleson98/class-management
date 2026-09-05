@@ -52,8 +52,13 @@ export function TypingIndicator({ channelId, rootId }: TypingIndicatorProps) {
         })
 
   return (
-    <div className="px-4 pb-1 h-5 flex items-center">
-      <span className="text-[11px] text-muted-foreground italic">{text}</span>
+    <div className="px-5 pb-1.5 h-5 flex items-center gap-2" aria-live="polite">
+      <span className="flex items-center gap-1" aria-hidden="true">
+        <span className="typing-dot" />
+        <span className="typing-dot [animation-delay:150ms]" />
+        <span className="typing-dot [animation-delay:300ms]" />
+      </span>
+      <span className="text-[12px] text-muted-foreground">{text}</span>
     </div>
   )
 }

@@ -20,6 +20,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod/v4'
 import { motion } from 'framer-motion'
 import {
   User, Mail, Lock, KeyRound, Camera, Trash2, CheckCircle2, Save,
@@ -312,12 +313,22 @@ interface ProfileFormValues {
   position: string
 }
 
+/** Profile fields are optional individually, but lengths are validated so
+ *  overlong values surface in red at the field instead of a server 400. */
+const profileSchema = z.object({
+  firstName: z.string().max(50, 'Tối đa 50 ký tự'),
+  lastName: z.string().max(50, 'Tối đa 50 ký tự'),
+  nickname: z.string().max(100, 'Tối đa 100 ký tự'),
+  position: z.string().max(100, 'Tối đa 100 ký tự'),
+})
+
 function ProfileForm() {
   const { t } = useTranslation()
   const { toast } = useToast()
   const authUser = useLMSStore((s) => s.authUser)
 
   const form = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileSchema),
     defaultValues: {
       firstName: userStr(authUser, 'first_name', 'firstname'),
       lastName: userStr(authUser, 'last_name', 'lastname'),
@@ -381,7 +392,7 @@ function ProfileForm() {
         </div>
       </div>
 
-      <Form {...form}>
+      <Form {...form} schema={profileSchema}>
         <form onSubmit={form.handleSubmit((v) => saveMutation.mutate(v))} className="space-y-4 p-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField
@@ -538,7 +549,7 @@ function SecurityCard() {
         </div>
       </div>
 
-      <Form {...form}>
+      <Form {...form} schema={changePasswordSchema}>
         <form
           onSubmit={form.handleSubmit((v) => { setGeneralError(''); changeMutation.mutate(v) })}
           className="space-y-4 p-5"

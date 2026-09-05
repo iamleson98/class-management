@@ -172,7 +172,7 @@ export default function AdminMaterials() {
                 </FormItem>
               )} />
               <div className="grid grid-cols-2 gap-4 items-start">
-                <FormField control={form.control} name="fileId" render={({ field }) => (
+                <FormField control={form.control} name="fileId" render={({ field, fieldState }) => (
                   <FormItem>
                     <FormLabel>{t('materials.file', 'Tài liệu')}</FormLabel>
                     {/* Real upload via /api/v4/files — sets the fileId the
@@ -180,10 +180,11 @@ export default function AdminMaterials() {
                     <FileUpload
                       value={field.value ? { fileName: fileNameLabel, fileType: '' } : null}
                       onChange={(file) => {
-                        form.setValue('fileId', file?.fileId ?? '')
+                        form.setValue('fileId', file?.fileId ?? '', { shouldValidate: true })
                         setFileNameLabel(file?.fileName ?? '')
                       }}
                       label={t('materials.chooseFile', 'Chọn tài liệu')}
+                      invalid={!!fieldState.error}
                     />
                     <FormMessage />
                   </FormItem>

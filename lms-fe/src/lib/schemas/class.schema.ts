@@ -6,6 +6,9 @@ import { ClassStatus } from './enums'
 // Fields: id, course_id, branch_id, name, code, teacher_id, status, room,
 // start_date (time.Time, RFC3339), chat_channel_id, createat, updateat.
 // NOTE: there is NO max_size / maxSize field on the backend Class struct.
+// branch_id is a NOT NULL column with no server-side default → required
+// here so the form shows the asterisk and blocks an empty submit instead
+// of surfacing a server 500.
 export const createClassSchema = z.object({
   code: requiredString,
   name: requiredString,
@@ -14,7 +17,7 @@ export const createClassSchema = z.object({
   room: optionalString,
   status: ClassStatus.optional().default('OPEN'),
   startDate: optionalDateField,
-  branchId: optionalString,
+  branchId: idField,
 })
 
 export const updateClassSchema = z.object({

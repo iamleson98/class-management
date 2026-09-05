@@ -632,7 +632,7 @@ export default function AdminHomework() {
                 ) : bulkClassStudents.length > 0 ? (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <FormLabel>{t('homework.selectStudents', 'Chọn học sinh')}</FormLabel>
+                      <FormLabel required>{t('homework.selectStudents', 'Chọn học sinh')}</FormLabel>
                       <Button
                         type="button"
                         variant="ghost"
@@ -640,7 +640,7 @@ export default function AdminHomework() {
                         className="text-xs h-7"
                         onClick={() => {
                           const allIds = bulkClassStudents.map((s: any) => s.id)
-                          bulkForm.setValue('studentIds', allIds)
+                          bulkForm.setValue('studentIds', allIds, { shouldValidate: true })
                         }}
                       >
                         {t('homework.selectAll', 'Chọn tất cả')}
@@ -661,7 +661,7 @@ export default function AdminHomework() {
                       ))}
                     </div>
                     {bulkForm.formState.errors.studentIds && (
-                      <p className="text-xs text-red-500">{bulkForm.formState.errors.studentIds.message}</p>
+                      <p className="text-xs text-destructive">{bulkForm.formState.errors.studentIds.message}</p>
                     )}
                   </div>
                 ) : null

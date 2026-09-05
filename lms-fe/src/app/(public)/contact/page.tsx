@@ -187,12 +187,12 @@ export default function ContactPage() {
                           <FormField control={form.control} name="phone" render={({ field }) => (
                             <FormItem>
                               <FormLabel>{t('common.phone', 'Số điện thoại')}</FormLabel>
-                              <FormControl>
-                                <div className="relative">
+                              <div className="relative">
                                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <FormControl>
                                   <Input placeholder={t('contact.form.phonePlaceholder', 'Nhập số điện thoại')} {...field} value={field.value ?? ''} className="pl-9" />
-                                </div>
-                              </FormControl>
+                                </FormControl>
+                              </div>
                               <FormMessage />
                             </FormItem>
                           )} />

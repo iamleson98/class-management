@@ -22,6 +22,7 @@ func (a *LMSAPI) InitClasses() {
 	a.routes.Method(http.MethodPut, "/classes/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(updateClass))
 	a.routes.Method(http.MethodDelete, "/classes/{id:[A-Za-z0-9]+}", a.api.APISessionRequired(deleteClass))
 	a.routes.Method(http.MethodPost, "/classes/{id:[A-Za-z0-9]+}/enroll", a.api.APISessionRequired(enrollStudents))
+	a.routes.Method(http.MethodDelete, "/classes/{id:[A-Za-z0-9]+}/students/{student_id:[A-Za-z0-9]+}", a.api.APISessionRequired(unenrollStudent))
 }
 
 func getClasses(c *api4.Context, w http.ResponseWriter, r *http.Request) {
@@ -232,6 +233,42 @@ func enrollStudents(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(result); err != nil {
 		c.Logger.Warn("Error while writing response", mlog.Err(err))
 	}
+}
+
+// unenrollStudent removes a student from a class (and, via the chat sync,
+// from the class's chat channel). Requires the manage-classes permission so
+// admins control membership on both sides.
+func unenrollStudent(c *api4.Context, w http.ResponseWriter, r *http.Request) {
+	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionLmsManageClasses) {
+		c.SetPermissionError(model.PermissionLmsManageClasses)
+		return
+	}
+
+	id := c.RequireParam("id", web.RequireValidId)
+	if c.Err != nil {
+		return
+	}
+	studentID := c.RequireParam("student_id", web.RequireValidId)
+	if c.Err != nil {
+		return
+	}
+
+	if _, err := c.App.LMS().UnenrollStudent(id, studentID); err != nil {
+		c.Err = err
+		return
+	}
+
+	// Reconcile the class chat channel: the removed student is taken out of
+	// the channel (teacher + admins + remaining students stay). A chat
+	// failure never blocks the un-enrollment itself.
+	if cls, _ := c.App.LMS().GetClass(id); cls != nil {
+		if chatErr := c.App.LMS().SyncClassChannelMembership(c.AppContext, cls, classStudentUserIDs(c, id)); chatErr != nil {
+			c.Logger.Warn("LMS chat: failed to sync class channel membership on unenroll",
+				mlog.String("class_id", id), mlog.Err(chatErr))
+		}
+	}
+
+	api4.ReturnStatusOK(w)
 }
 
 // classStudentUserIDs returns the Mattermost user IDs of every student

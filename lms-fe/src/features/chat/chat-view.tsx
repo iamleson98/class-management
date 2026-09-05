@@ -254,10 +254,10 @@ export default function ChatView() {
     <TooltipProvider delayDuration={300}>
       {/* Load sidebar categories for every team (favorites/channels/DMs). */}
       <CategoryLoaders teamIds={teamIds} userId={userId} />
-      <div className="flex h-[calc(100vh-3.5rem-2rem)] lg:h-[calc(100vh-3.5rem-3rem)] -m-4 sm:-m-6 border rounded-lg overflow-hidden bg-background">
+      <div className="flex h-[calc(100vh-3.5rem-2rem)] lg:h-[calc(100vh-3.5rem-3rem)] -m-4 sm:-m-6 border rounded-xl overflow-hidden bg-background shadow-sm">
         {/* Left: channel list */}
-        <div className="w-64 shrink-0 border-r bg-card/50 hidden sm:flex sm:flex-col">
-          <div className="h-12 flex items-center gap-2 px-3 border-b">
+        <div className="w-64 shrink-0 border-r bg-muted/30 dark:bg-card/60 hidden sm:flex sm:flex-col">
+          <div className="h-12 flex items-center gap-2 px-3 border-b bg-background/60">
             <span className="font-semibold text-sm">{t('chat.title', 'Trò chuyện')}</span>
             <div className="flex-1" />
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setModal('dm')} title={t('chat.newMessage', 'Tin nhắn mới')}>
@@ -273,7 +273,14 @@ export default function ChatView() {
                 <TooltipContent>{t('chat.markAllRead', 'Đánh dấu đã đọc tất cả')}</TooltipContent>
               </Tooltip>
             )}
-            <span className={`h-2 w-2 rounded-full ${connected ? 'bg-emerald-500' : 'bg-gray-400'}`} title={connected ? t('chat.connected', 'Đã kết nối') : t('chat.connecting', 'Đang kết nối…')} />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-default" title={connected ? t('chat.connected', 'Đã kết nối') : t('chat.connecting', 'Đang kết nối…')}>
+                  <span className={`block h-2 w-2 rounded-full ${connected ? 'bg-emerald-500' : 'bg-muted-foreground/50 animate-pulse'}`} />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{connected ? t('chat.connected', 'Đã kết nối') : t('chat.connecting', 'Đang kết nối…')}</TooltipContent>
+            </Tooltip>
           </div>
           <ChannelList selectedChannelId={activeChannelId} onSelect={selectChannel} />
         </div>
@@ -284,7 +291,7 @@ export default function ChatView() {
             <NoChannelSelected />
           ) : (
             <>
-              <header className="h-12 flex items-center gap-2 px-4 border-b shrink-0">
+              <header className="h-12 flex items-center gap-2 px-4 border-b shrink-0 bg-background/80 backdrop-blur-sm">
                 <Button variant="ghost" size="icon" className="h-8 w-8 sm:hidden" onClick={() => setRhs(rhs === 'info' ? 'none' : 'info')}>
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
@@ -334,7 +341,7 @@ export default function ChatView() {
 
         {/* Right pane */}
         {rhs !== 'none' && channel && (
-          <div className="w-80 lg:w-96 shrink-0 hidden md:flex md:flex-col">
+          <div className="w-80 lg:w-96 shrink-0 hidden md:flex md:flex-col border-l bg-muted/20 dark:bg-card/40">
             {rhs === 'thread' && activeThreadRootId ? (
               <ThreadView channelId={channel.id} rootId={activeThreadRootId} teamId={teamId} onClose={() => { setRhs('none'); setActiveThread(null) }} />
             ) : rhs === 'info' ? (
@@ -406,7 +413,7 @@ function HeaderBtn({ active, onClick, icon, label, badge }: { active: boolean; o
         <Button variant="ghost" size="icon" className={`relative h-8 w-8 ${active ? 'bg-muted' : ''}`} onClick={onClick} aria-label={label}>
           {icon}
           {badge ? (
-            <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-sky-600 text-white text-[9px] font-semibold flex items-center justify-center">{badge > 99 ? '99+' : badge}</span>
+            <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-primary text-primary-foreground text-[9px] font-semibold flex items-center justify-center">{badge > 99 ? '99+' : badge}</span>
           ) : null}
         </Button>
       </TooltipTrigger>

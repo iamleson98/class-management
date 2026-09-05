@@ -2,13 +2,10 @@
 'use client'
 
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { Settings, Building2, Users, Image, Plus } from 'lucide-react'
-import { createBranchSchema, createUserSchema, type CreateBranchInput, type CreateUserInput } from '@/lib/schemas'
 import { getBranches, getUsers, updateUser, deactivateUser, reactivateUser, getBanners } from '@/lib/api'
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/shared/page-header'
@@ -50,16 +47,6 @@ export default function AdminSettings({ mode = 'full' }: { mode?: 'full' | 'bann
   const [branchDialogOpen, setBranchDialogOpen] = useState(false)
   const [userDialogOpen, setUserDialogOpen] = useState(false)
   const [includeInactive, setIncludeInactive] = useState(false)
-
-  const branchForm = useForm<CreateBranchInput>({
-    resolver: zodResolver(createBranchSchema),
-    defaultValues: { name: '', address: '', phone: '' },
-  })
-
-  const userForm = useForm<CreateUserInput>({
-    resolver: zodResolver(createUserSchema),
-    defaultValues: { firstname: '', lastname: '', email: '', phone: '', roles: 'lms_teacher', password: '' },
-  })
 
   const { data: branches = [], isLoading: branchesLoading, isError: isBranchesError, refetch: refetchBranches } = useQuery({
     queryKey: ['branches'],
@@ -140,7 +127,7 @@ export default function AdminSettings({ mode = 'full' }: { mode?: 'full' | 'bann
                 {t('settings.manageBranches', 'Quản lý chi nhánh')}
                 <Badge variant="secondary" className="text-xs">{branches.length}</Badge>
               </CardTitle>
-              <Button onClick={() => { branchForm.reset({ name: '', address: '', phone: '' }); setBranchDialogOpen(true) }} className="bg-sky-600 hover:bg-sky-700 text-white rounded-lg h-8 text-xs">
+              <Button onClick={() => { setBranchDialogOpen(true) }} className="bg-sky-600 hover:bg-sky-700 text-white rounded-lg h-8 text-xs">
                 <Plus className="h-3.5 w-3.5 mr-1" />
                 {t('settings.addBranch', 'Thêm chi nhánh')}
               </Button>
@@ -192,7 +179,7 @@ export default function AdminSettings({ mode = 'full' }: { mode?: 'full' | 'bann
                   <Checkbox id="include-inactive" checked={includeInactive} onCheckedChange={(checked) => setIncludeInactive(checked as boolean)} />
                   <Label htmlFor="include-inactive">{t('settings.includeInactive', 'Bao gồm đã vô hiệu')}</Label>
                 </Field>
-                <Button onClick={() => { userForm.reset({ firstname: '', lastname: '', email: '', phone: '', roles: 'lms_teacher', password: '' }); setUserDialogOpen(true) }} className="bg-sky-600 hover:bg-sky-700 text-white rounded-lg h-8 text-xs">
+                <Button onClick={() => { setUserDialogOpen(true) }} className="bg-sky-600 hover:bg-sky-700 text-white rounded-lg h-8 text-xs">
                   <Plus className="h-3.5 w-3.5 mr-1" />
                   {t('settings.addUser', 'Thêm người dùng')}
                 </Button>

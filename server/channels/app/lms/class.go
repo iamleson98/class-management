@@ -123,3 +123,20 @@ func (a *LMSApp) EnrollStudents(classID string, studentIDs []string) ([]*lms_mod
 
 	return enrolled, nil
 }
+
+// UnenrollStudent removes a student's enrollment from the class. It returns
+// the removed enrollment so callers can tell "was enrolled" from "was not".
+func (a *LMSApp) UnenrollStudent(classID, studentID string) (*lms_models.StudentClass, *model.AppError) {
+	existing, err := a.store.StudentClass().GetExisting(studentID, classID)
+	if err == nil && existing == nil {
+		return nil, model.NewAppError("UnenrollStudent", "app.lms.class.not_enrolled", nil, "", http.StatusNotFound)
+	}
+	if err != nil {
+		return nil, model.NewAppError("UnenrollStudent", "app.lms.class.unenroll.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+	}
+
+	if err := a.store.StudentClass().Delete(existing.ID); err != nil {
+		return nil, model.NewAppError("UnenrollStudent", "app.lms.class.unenroll.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+	}
+	return existing, nil
+}

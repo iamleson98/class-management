@@ -200,9 +200,9 @@ function ResetPasswordContent() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>{t('resetPassword.newPassword', 'Mật khẩu mới')}</FormLabel>
-                              <FormControl>
-                                <div className="relative">
+                              <div className="relative">
                                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <FormControl>
                                   <Input
                                     type={showPassword ? 'text' : 'password'}
                                     placeholder={t('resetPassword.newPasswordPlaceholder', 'Nhập mật khẩu mới')}
@@ -211,6 +211,7 @@ function ResetPasswordContent() {
                                     value={field.value ?? ''}
                                     className="pl-9 pr-10"
                                   />
+                                </FormControl>
                                   <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
@@ -223,8 +224,7 @@ function ResetPasswordContent() {
                                       <Eye className="h-4 w-4" />
                                     )}
                                   </button>
-                                </div>
-                              </FormControl>
+                              </div>
                               <FormMessage />
                             </FormItem>
                           )}
@@ -236,9 +236,9 @@ function ResetPasswordContent() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>{t('resetPassword.confirmPassword', 'Xác nhận mật khẩu')}</FormLabel>
-                              <FormControl>
-                                <div className="relative">
+                              <div className="relative">
                                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <FormControl>
                                   <Input
                                     type={showConfirm ? 'text' : 'password'}
                                     placeholder={t('resetPassword.confirmPasswordPlaceholder', 'Nhập lại mật khẩu mới')}
@@ -247,6 +247,7 @@ function ResetPasswordContent() {
                                     value={field.value ?? ''}
                                     className="pl-9 pr-10"
                                   />
+                                </FormControl>
                                   <button
                                     type="button"
                                     onClick={() => setShowConfirm(!showConfirm)}
@@ -259,8 +260,7 @@ function ResetPasswordContent() {
                                       <Eye className="h-4 w-4" />
                                     )}
                                   </button>
-                                </div>
-                              </FormControl>
+                              </div>
                               <FormMessage />
                             </FormItem>
                           )}

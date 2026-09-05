@@ -165,13 +165,13 @@ function BookmarkChip({ bookmark: bm, onEdit, onDelete }: { bookmark: ChatBookma
   return (
     <div className="group relative flex items-center gap-1.5 rounded-md bg-background border px-2 py-1 text-xs shrink-0">
       {bm.link_url ? (
-        <a href={bm.link_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 hover:text-sky-600">
+        <a href={bm.link_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 hover:text-primary">
           {bm.emoji ? <span>{bm.emoji}</span> : <Link2 className="h-3 w-3 text-muted-foreground" />}
           <span className="max-w-32 truncate">{bm.display_name}</span>
           <ExternalLink className="h-2.5 w-2.5 text-muted-foreground/60" />
         </a>
       ) : bm.file_id ? (
-        <a href={`/api/v4/files/${bm.file_id}?download=1`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 hover:text-sky-600">
+        <a href={`/api/v4/files/${bm.file_id}?download=1`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 hover:text-primary">
           {bm.emoji ? <span>{bm.emoji}</span> : <FileIcon className="h-3 w-3 text-muted-foreground" />}
           <span className="max-w-32 truncate">{bm.display_name}</span>
         </a>

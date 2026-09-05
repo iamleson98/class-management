@@ -539,7 +539,7 @@ export function PostComposer({ channelId, rootId, teamId, onSent, placeholder, o
     <div className="border-t bg-card">
       {/* Slash-command suggestions */}
       {commandQuery && commandResults.length > 0 && (
-        <div className="border-b bg-popover shadow-sm max-h-60 overflow-auto">
+        <div className="border-b bg-popover shadow-sm rounded-b-none max-h-60 overflow-auto">
           {commandResults.map((cmd, i) => (
             <button
               key={cmd.Suggestion + i}
@@ -555,7 +555,7 @@ export function PostComposer({ channelId, rootId, teamId, onSent, placeholder, o
       )}
       {/* @mention suggestions popover (special mentions + users). */}
       {showMentions && (mentionList.length > 0 || mentionLoading) && (
-        <div className="border-b bg-popover shadow-sm max-h-60 overflow-auto">
+        <div className="border-b bg-popover shadow-sm rounded-b-none max-h-60 overflow-auto">
           {mentionLoading && mentionList.length === 0 && (
             <div className="px-3 py-2 text-xs text-muted-foreground flex items-center gap-2">
               <Loader2 className="h-3 w-3 animate-spin" /> {t('chat.loading', 'Đang tải…')}
@@ -599,7 +599,7 @@ export function PostComposer({ channelId, rootId, teamId, onSent, placeholder, o
       )}
       {/* :shortcode: emoji suggestions popover (ports EmoticonProvider) */}
       {emojiQuery && emojiMatches.length > 0 && (
-        <div className="border-b bg-popover shadow-sm max-h-60 overflow-auto">
+        <div className="border-b bg-popover shadow-sm rounded-b-none max-h-60 overflow-auto">
           {emojiMatches.map((m, i) => {
             const e = m.emoji
             const isSys = isSystemEmoji(e)
@@ -622,14 +622,14 @@ export function PostComposer({ channelId, rootId, teamId, onSent, placeholder, o
         </div>
       )}
 
-      {/* Attachment chips */}
+      {/* Attachment chips — inside the composer container, above the input */}
       {attachments.length > 0 && (
-        <div className="flex flex-wrap gap-2 px-3 pt-2">
+        <div className="flex flex-wrap gap-2 px-3.5 pt-3">
           {attachments.map((file) => (
-            <div key={file.id} className="flex items-center gap-1.5 rounded-md bg-muted px-2 py-1 text-xs">
-              <Paperclip className="h-3 w-3 text-muted-foreground" />
-              <span className="max-w-32 truncate">{file.name}</span>
-              <button onClick={() => setAttachments((p) => p.filter((a) => a.id !== file.id))} className="text-muted-foreground hover:text-destructive">
+            <div key={file.id} className="group/att flex items-center gap-1.5 h-7 rounded-lg border bg-muted px-2.5 text-xs">
+              <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />
+              <span className="max-w-40 truncate">{file.name}</span>
+              <button onClick={() => setAttachments((p) => p.filter((a) => a.id !== file.id))} className="text-muted-foreground hover:text-destructive transition-colors shrink-0" aria-label={t('chat.removeAttachment', 'Xóa tệp đính kèm')}>
                 <X className="h-3 w-3" />
               </button>
             </div>
@@ -637,50 +637,74 @@ export function PostComposer({ channelId, rootId, teamId, onSent, placeholder, o
         </div>
       )}
 
-      <div className="flex items-end gap-2 p-3">
+      {/* Composer — single-row modern layout (Discord 2025 convention, which
+          A/B-tested and rejected the two-row variant): a rounded-xl container
+          with the attachment + emoji buttons integrated on the left, the
+          auto-growing input in the middle, and the send button on the right.
+          The whole container lifts on focus (ring + border). */}
+      <div className="p-3">
         <input ref={fileInputRefCb} type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = '' }} disabled={uploading} />
-        <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => fileInputRefCb.current?.click()} disabled={uploading} title={t('chat.attach', 'Đính kèm file')}>
-          {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
-        </Button>
-        {/* Emoji picker button (ports use_editor_emoji_picker toggle). */}
-        <div className="relative shrink-0">
-          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setShowEmojiPicker((v) => !v)} title={t('chat.emoji.button', 'Chọn emoji')}>
-            <Smile className="h-4 w-4" />
+        <div className="flex items-end gap-1.5 rounded-2xl border border-input bg-background focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/25 transition-all duration-100 px-1.5 py-1.5">
+          <Button
+            variant="ghost" size="icon"
+            className="h-8 w-8 shrink-0 rounded-xl text-muted-foreground hover:text-foreground"
+            onClick={() => fileInputRefCb.current?.click()}
+            disabled={uploading}
+            title={t('chat.attach', 'Đính kèm file')}
+          >
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
           </Button>
-          {showEmojiPicker && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowEmojiPicker(false)} />
-              <div className="absolute bottom-full left-0 z-50 mb-2">
-                <EmojiPicker
-                  onSelect={(name) => { insertEmojiFromPicker(name); setShowEmojiPicker(false) }}
-                  onClose={() => setShowEmojiPicker(false)}
-                />
-              </div>
-            </>
-          )}
+          {/* Emoji picker button (ports use_editor_emoji_picker toggle). */}
+          <div className="relative shrink-0">
+            <Button
+              variant="ghost" size="icon"
+              className="h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground"
+              onClick={() => setShowEmojiPicker((v) => !v)}
+              title={t('chat.emoji.button', 'Chọn emoji')}
+            >
+              <Smile className="h-4 w-4" />
+            </Button>
+            {showEmojiPicker && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowEmojiPicker(false)} />
+                <div className="absolute bottom-full left-0 z-50 mb-2">
+                  <EmojiPicker
+                    onSelect={(name) => { insertEmojiFromPicker(name); setShowEmojiPicker(false) }}
+                    onClose={() => setShowEmojiPicker(false)}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          <div className="flex-1 min-w-0 pb-1">
+            <Textarea
+              ref={textareaRef}
+              value={message}
+              onChange={(e) => handleMessageChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
+              placeholder={placeholder ?? t('chat.placeholder', 'Nhập tin nhắn…')}
+              rows={1}
+              data-composer=""
+              className="min-h-8 max-h-32 resize-none border-0 bg-transparent p-0 px-2 shadow-none focus-visible:ring-0 focus-visible:border-0 dark:bg-transparent"
+            />
+          </div>
+          <Button
+            onClick={() => send()}
+            disabled={!canSend}
+            className="h-8 w-8 shrink-0 rounded-xl transition-all duration-150"
+            size="icon"
+            aria-label={t('chat.send', 'Gửi')}
+          >
+            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          </Button>
         </div>
-        <div className="flex-1 min-w-0">
-          <Textarea
-            ref={textareaRef}
-            value={message}
-            onChange={(e) => handleMessageChange(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onPaste={handlePaste}
-            placeholder={placeholder ?? t('chat.placeholder', 'Nhập tin nhắn… (Enter để gửi, Shift+Enter xuống dòng)')}
-            rows={1}
-            data-composer=""
-            className="min-h-9 max-h-32 resize-none"
-          />
-          {/* Character counter — visible near the limit (ports characterLimit). */}
-          {nearLimit && (
-            <div className={`text-right text-[10px] mt-0.5 ${overLimit ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-              {charCount}/{MAX_POST_CHARS}
-            </div>
-          )}
-        </div>
-        <Button onClick={() => send()} disabled={!canSend} className="h-9 w-9 shrink-0" size="icon">
-          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-        </Button>
+        {/* Character counter — visible near the limit (ports characterLimit). */}
+        {nearLimit && (
+          <div className={`text-right text-[10px] mt-1.5 tabular-nums ${overLimit ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
+            {charCount}/{MAX_POST_CHARS}
+          </div>
+        )}
       </div>
     </div>
   )

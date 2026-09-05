@@ -1,15 +1,13 @@
 'use client'
 
 import { useState, useMemo, useRef } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod/v4'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { PaginationState } from '@tanstack/react-table'
 import { motion } from 'framer-motion'
-import { School, Plus, Trash2, Users, Camera, Calendar, Play, Upload } from 'lucide-react'
-import { createClassSchema, type CreateClassInput, type UpdateClassInput, type Class } from '@/lib/schemas'
-import { getClassesPaginated, createClass, updateClass, deleteClass, enrollStudents, getStudents, getClassDetail, getClassMedia, createClassMedia, deleteClassMedia, getSessions } from '@/lib/api'
+import { School, Plus, Trash2, Users, Camera, Calendar, Play, Upload, UserPlus, BookOpen, UserRound, MapPin, ImagePlay, Loader2 } from 'lucide-react'
+import { type CreateClassInput, type UpdateClassInput, type Class } from '@/lib/schemas'
+import { getClassesPaginated, createClass, updateClass, deleteClass, enrollStudents, unenrollStudent, getStudents, getClassDetail, getClassMedia, createClassMedia, deleteClassMedia, getSessions } from '@/lib/api'
 import { uploadLmsFile, lmsMediaSrc, type LmsUploadProgress } from '@/lib/file-upload'
 import { eq, and, paginate } from '@/lib/query'
 import { useToast } from '@/hooks/use-toast'
@@ -45,12 +43,6 @@ import {
 import { useTranslation } from '@/lib/i18n'
 import ClassForm from './components/class-form'
 
-type ClassFormValues = z.input<typeof createClassSchema>
-
-const EMPTY_CLASS: ClassFormValues = {
-  code: '', name: '', courseId: '', teacherId: '', room: '', status: 'OPEN', startDate: '', branchId: '',
-}
-
 // ── Class Media Tab Component ──────────────────────────
 function ClassMediaTab({ media, classId, onDelete, isAuthenticated }: {
   media: any[]
@@ -70,6 +62,7 @@ function ClassMediaTab({ media, classId, onDelete, isAuthenticated }: {
   const [uploadFileId, setUploadFileId] = useState('')
   const [isFileUploading, setIsFileUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<LmsUploadProgress | null>(null)
+  const [isDragOver, setIsDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const uploadMutation = useMutation({
@@ -86,9 +79,8 @@ function ClassMediaTab({ media, classId, onDelete, isAuthenticated }: {
 
   /** Upload a local file (Mattermost-style: simple upload ≤5MB, resumable
    *  upload session for larger files, with server-confirmed progress). */
-  async function handleFilePicked(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
+  async function uploadFileObject(file: File) {
+    if (isFileUploading) return
     setIsFileUploading(true)
     setUploadProgress(null)
     try {
@@ -102,8 +94,13 @@ function ClassMediaTab({ media, classId, onDelete, isAuthenticated }: {
     } finally {
       setIsFileUploading(false)
       setUploadProgress(null)
-      e.target.value = ''
     }
+  }
+
+  function handleFilePicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) void uploadFileObject(file)
+    e.target.value = ''
   }
 
   function handleUpload() {
@@ -121,42 +118,83 @@ function ClassMediaTab({ media, classId, onDelete, isAuthenticated }: {
 
   return (
     <div className="space-y-4">
-      {/* Upload form */}
+      {/* Upload area — click, drag & drop, or paste a URL. The file is stored
+          through the Mattermost file API (resumable >5MB) before the media
+          row is created, so the gallery always renders server-backed bytes. */}
       {isAuthenticated && (
-        <Card className="rounded-xl p-4">
+        <Card
+          className={`rounded-xl p-4 border-dashed transition-colors ${isDragOver ? 'border-primary bg-primary/5' : ''}`}
+          onDragOver={(e) => { e.preventDefault(); setIsDragOver(true) }}
+          onDragLeave={() => setIsDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault()
+            setIsDragOver(false)
+            const file = e.dataTransfer.files?.[0]
+            if (file) void uploadFileObject(file)
+          }}
+        >
           <div className="space-y-3">
-            <p className="text-sm font-medium">{t('classes.uploadNewMedia', 'Tải lên hình ảnh/video mới')}</p>
-            <div className="flex gap-2">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*,video/*"
-                className="hidden"
-                onChange={handleFilePicked}
-              />
-              <Button
-                variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isFileUploading}
-                className="shrink-0"
-              >
-                <Upload className="h-4 w-4 mr-1.5" />
-                {isFileUploading ? t('common.loading', 'Đang tải...') : t('classes.chooseFile', 'Chọn file')}
-              </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*"
+              className="hidden"
+              onChange={handleFilePicked}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isFileUploading}
+              className="w-full flex flex-col items-center justify-center gap-2 rounded-lg py-6 text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors disabled:opacity-60"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                {isFileUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
+              </span>
+              <span className="text-sm font-medium">
+                {isFileUploading
+                  ? t('classes.uploadingProgress', 'Đang tải lên...')
+                  : t('classes.dropzoneHint', 'Kéo thả ảnh/video vào đây, hoặc bấm để chọn file')}
+              </span>
+              <span className="text-xs text-muted-foreground/70">
+                {t('classes.dropzoneFormats', 'Hỗ trợ ảnh (JPG, PNG, GIF, WebP) và video (MP4, WebM)')}
+              </span>
+            </button>
+            {isFileUploading && uploadProgress && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{t('classes.uploadingProgress', 'Đang tải lên...')}</span>
+                  <span className="font-mono tabular-nums">{uploadProgress.percent}%</span>
+                </div>
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all duration-300"
+                    style={{ width: `${uploadProgress.percent}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground tabular-nums">
+                  {(uploadProgress.uploadedBytes / (1024 * 1024)).toFixed(1)} / {(uploadProgress.totalBytes / (1024 * 1024)).toFixed(1)} MB
+                  {uploadProgress.uploadedBytes > 5 * 1024 * 1024 && t('classes.uploadResumable', ' · hỗ trợ tiếp tục khi mất mạng')}
+                </p>
+              </div>
+            )}
+            {/* External URL fallback — hidden once a file has been picked
+                (its stored fileId replaces the URL). */}
+            <div className="flex flex-wrap gap-2 items-center">
               <Input
-                placeholder={t('classes.uploadUrlPlaceholder', 'Dán URL hình ảnh hoặc video...')}
-                value={uploadUrl}
+                placeholder={t('classes.uploadUrlPlaceholder', 'Hoặc dán URL hình ảnh/video...')}
+                value={uploadFileId ? '' : uploadUrl}
                 onChange={(e) => { setUploadUrl(e.target.value); setUploadFileId('') }}
-                className="flex-1"
+                className="flex-1 min-w-56 h-9"
+                disabled={!!uploadFileId || isFileUploading}
               />
               <Input
                 placeholder={t('classes.uploadTitlePlaceholder', 'Tiêu đề (tuỳ chọn)')}
                 value={uploadTitle}
                 onChange={(e) => setUploadTitle(e.target.value)}
-                className="w-40"
+                className="w-52 h-9"
               />
               <Select value={uploadType} onValueChange={(v) => setUploadType(v as 'PHOTO' | 'VIDEO')}>
-                <SelectTrigger className="w-28">
+                <SelectTrigger className="w-28 h-9">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -166,31 +204,13 @@ function ClassMediaTab({ media, classId, onDelete, isAuthenticated }: {
               </Select>
               <Button
                 onClick={handleUpload}
-                disabled={!uploadUrl || uploadMutation.isPending}
-                className="bg-sky-600 hover:bg-sky-700 text-white"
+                disabled={(!uploadUrl && !uploadFileId) || uploadMutation.isPending}
+                className="h-9"
               >
-                <Camera className="h-4 w-4 mr-1.5" />
-                {t('classes.upload', 'Tải lên')}
+                {uploadMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Camera className="h-4 w-4 mr-1.5" />}
+                {uploadMutation.isPending ? t('common.saving', 'Đang lưu...') : t('classes.upload', 'Lưu vào lớp')}
               </Button>
             </div>
-            {isFileUploading && uploadProgress && (
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{t('classes.uploadingProgress', 'Đang tải lên...')}</span>
-                  <span className="font-mono">{uploadProgress.percent}%</span>
-                </div>
-                <div className="h-2 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-sky-500 transition-all duration-300"
-                    style={{ width: `${uploadProgress.percent}%` }}
-                  />
-                </div>
-                <p className="text-[10px] text-muted-foreground">
-                  {(uploadProgress.uploadedBytes / (1024 * 1024)).toFixed(1)} / {(uploadProgress.totalBytes / (1024 * 1024)).toFixed(1)} MB
-                  {uploadProgress.uploadedBytes > 5 * 1024 * 1024 && t('classes.uploadResumable', ' · hổ trợ tiếp tục khi mất mạng')}
-                </p>
-              </div>
-            )}
           </div>
         </Card>
       )}
@@ -202,7 +222,7 @@ function ClassMediaTab({ media, classId, onDelete, isAuthenticated }: {
           <p className="text-sm">{t('classes.noMedia', 'Chưa có hình ảnh/video nào')}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
           {media.map((item: any, idx: number) => {
             // Skip broken rows defensively (null items / rows with no source):
             // they previously crashed the tab ("reading 'fileId' of null").
@@ -234,7 +254,7 @@ function ClassMediaTab({ media, classId, onDelete, isAuthenticated }: {
                       </div>
                     </>
                   ) : (
-                    <img src={src} alt={item.title || 'Class photo'} className="w-full h-full object-cover" />
+                    <img src={src} alt={item.title || 'Class photo'} loading="lazy" className="w-full h-full object-cover bg-muted animate-in fade-in duration-500" />
                   )}
                 </div>
                 <div className="p-2 flex items-center justify-between">
@@ -290,16 +310,12 @@ export default function AdminClasses() {
   const [detailOpen, setDetailOpen] = useState(false)
   const [detailTab, setDetailTab] = useState('students')
   const [viewingClassId, setViewingClassId] = useState<string | null>(null)
+  const [viewingClass, setViewingClass] = useState<Class | null>(null)
   const [editingClass, setEditingClass] = useState<Class | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [enrollingClassId, setEnrollingClassId] = useState<string | null>(null)
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([])
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 })
-
-  const form = useForm<ClassFormValues>({
-    resolver: zodResolver(createClassSchema),
-    defaultValues: EMPTY_CLASS,
-  })
 
   const onStatusFilterChange = (value: string) => {
     setStatusFilter(value)
@@ -389,6 +405,7 @@ export default function AdminClasses() {
     mutationFn: ({ classId, studentIds }: { classId: string; studentIds: string[] }) => enrollStudents(classId, studentIds),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['classes'] })
+      queryClient.invalidateQueries({ queryKey: ['class-detail'] })
       toast({ title: t('classes.enrollSuccess', 'Ghi danh thành công') })
       setEnrollOpen(false)
       setSelectedStudentIds([])
@@ -396,25 +413,30 @@ export default function AdminClasses() {
     onError: (err: unknown) => toast({ title: (err as Error)?.message || t('classes.enrollFail', 'Ghi danh thất bại'), variant: 'destructive' }),
   })
 
+  // Remove a student from the class — the server also takes them out of the
+  // class chat channel (membership sync on un-enroll).
+  const unenrollMutation = useMutation({
+    mutationFn: ({ classId, studentId }: { classId: string; studentId: string }) => unenrollStudent(classId, studentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['class-detail'] })
+      queryClient.invalidateQueries({ queryKey: ['classes'] })
+      toast({ title: t('classes.removeStudentSuccess', 'Đã xóa học viên khỏi lớp') })
+    },
+    onError: (err: unknown) => toast({ title: (err as Error)?.message || t('classes.removeStudentFail', 'Xóa học viên thất bại'), variant: 'destructive' }),
+  })
+
   const closeDialog = () => {
     setDialogOpen(false)
     setEditingClass(null)
-    form.reset(EMPTY_CLASS)
   }
 
   const openCreate = () => {
     setEditingClass(null)
-    form.reset(EMPTY_CLASS)
     setDialogOpen(true)
   }
 
   const openEdit = (cls: Class) => {
     setEditingClass(cls)
-    form.reset({
-      code: cls.code || '', name: cls.name || '', courseId: cls.courseId || '',
-      teacherId: cls.teacherId || '', room: cls.room || '',
-      status: cls.status || 'OPEN', startDate: cls.startDate || '', branchId: cls.branchId || '',
-    } as ClassFormValues)
     setDialogOpen(true)
   }
 
@@ -425,9 +447,15 @@ export default function AdminClasses() {
   }
 
   const openDetail = (cls: Class) => {
+    setViewingClass(cls)
     setViewingClassId(cls.id)
     setDetailTab('students')
     setDetailOpen(true)
+  }
+
+  // Enrollment launched from the detail modal targets the viewed class.
+  const enrollFromDetail = () => {
+    if (viewingClass) openEnroll(viewingClass)
   }
 
   const handleEnroll = () => {
@@ -449,10 +477,19 @@ export default function AdminClasses() {
     [t]
   )
 
-  // Detail modal: enrolled-students table columns
+  // Detail modal: enrolled-students table columns (+ remove-from-class
+  // action so the tab doubles as the membership manager)
+  const unenrollMutate = unenrollMutation.mutate
   const enrollmentColumns = useMemo(
-    () => createEnrollmentColumns(t),
-    [t]
+    () => createEnrollmentColumns(t, {
+      onRemove: (enrollment) => {
+        if (!viewingClassId || !enrollment?.studentId) return
+        unenrollMutate({ classId: viewingClassId, studentId: enrollment.studentId })
+      },
+    }),
+    // unenrollMutate is referentially stable (useMutation exposes a stable
+    // mutate), so the columns only rebuild when the language/class changes.
+    [t, viewingClassId, unenrollMutate],
   )
 
   // Detail modal: attendance matrix (columns built from the roster, rows from sessions)
@@ -547,7 +584,7 @@ export default function AdminClasses() {
             <ScrollArea className="h-75 border rounded-lg p-2">
               {isLoadingStudents ? (
                 <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin h-6 w-6 border-2 border-sky-500 border-t-transparent rounded-full" />
+                  <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
                 </div>
               ) : isStudentsError ? (
                 <div className="py-8 text-center">
@@ -589,22 +626,54 @@ export default function AdminClasses() {
         </DialogContent>
       </Dialog>
 
-      {/* Class Detail Dialog */}
+      {/* Class Detail Dialog — near-full-screen workspace (80rem max, 92vh)
+          so the students/attendance/media tabs have room to breathe. */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-6xl w-[min(72rem,calc(100vw-2rem))] max-h-[92vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg">
-              <School className="h-5 w-5 text-sky-500" />
-              {classDetail?.code || ''} — {classDetail?.name || ''}
+        <DialogContent className="w-[min(80rem,calc(100vw-2rem))] max-w-none h-[92vh] max-h-[92vh] overflow-hidden flex flex-col p-0 gap-0">
+          <DialogHeader className="px-6 pt-5 pb-4 border-b bg-muted/30 dark:bg-card/50 shrink-0">
+            <DialogTitle className="flex items-center gap-2.5 text-lg">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
+                <School className="h-5 w-5" />
+              </span>
+              <span className="truncate">{classDetail?.code || ''} — {classDetail?.name || ''}</span>
             </DialogTitle>
-            <DialogDescription className="text-sm">
-              {classDetail?.course?.name || t('classes.noCourse', 'Không có khóa học')} · {classDetail?.teacher?.name || t('classes.noTeacherAssigned', 'Chưa phân công')} · {classDetail?.room || '-'}
+            <DialogDescription className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm mt-1.5">
+              <span className="inline-flex items-center gap-1.5">
+                <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
+                {classDetail?.course?.name || t('classes.noCourse', 'Không có khóa học')}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <UserRound className="h-3.5 w-3.5 text-muted-foreground" />
+                {classDetail?.teacher?.name || t('classes.noTeacherAssigned', 'Chưa phân công')}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                {classDetail?.room || '-'}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="tabular-nums font-semibold">{classDetail?.studentEnrollments?.length || 0}</span>
+                {t('classes.students', 'học viên')}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Camera className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="tabular-nums font-semibold">{(classMedia as any[])?.length || 0}</span>
+                media
+              </span>
+              {classDetail?.status && (
+                <Badge variant="secondary" className="rounded-full">{CLASS_STATUS_MAP[classDetail.status]?.label || classDetail.status}</Badge>
+              )}
+              <span className="flex-1" />
+              <Button size="sm" onClick={enrollFromDetail} className="rounded-lg">
+                <UserPlus className="h-4 w-4 mr-1.5" />
+                {t('classes.enrollStudents', 'Ghi danh học viên')}
+              </Button>
             </DialogDescription>
           </DialogHeader>
 
           {detailLoading ? (
             <div className="flex-1 flex items-center justify-center py-12">
-              <div className="animate-spin h-8 w-8 border-4 border-sky-500 border-t-transparent rounded-full" />
+              <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
             </div>
           ) : isDetailError ? (
             <div className="flex-1 flex items-center justify-center py-12">
@@ -612,7 +681,7 @@ export default function AdminClasses() {
             </div>
           ) : (
             <Tabs value={detailTab} onValueChange={setDetailTab} className="flex-1 min-h-0 flex flex-col">
-              <TabsList className="grid w-full grid-cols-3 max-w-md mx-auto">
+              <TabsList className="grid w-full grid-cols-3 max-w-md mx-auto my-4">
                 <TabsTrigger value="students" className="gap-1.5">
                   <Users className="h-3.5 w-3.5" /> {t('classes.students', 'Học viên')}
                 </TabsTrigger>
@@ -625,14 +694,14 @@ export default function AdminClasses() {
               </TabsList>
 
               {/* Tab: Student List */}
-              <TabsContent value="students" className="flex-1 min-h-0 mt-4">
+              <TabsContent value="students" className="flex-1 min-h-0 px-6 pb-6 flex flex-col">
                 {classDetail?.studentEnrollments?.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
                     <Users className="h-10 w-10 mb-2 opacity-40" />
                     <p className="text-sm">{t('classes.noEnrolledStudents', 'Chưa có học viên ghi danh')}</p>
                   </div>
                 ) : (
-                  <ScrollArea className="h-[65vh] min-h-100">
+                  <ScrollArea className="h-full min-h-0 flex-1">
                     <DataTable
                       columns={enrollmentColumns}
                       data={classDetail?.studentEnrollments ?? []}
@@ -646,10 +715,10 @@ export default function AdminClasses() {
               </TabsContent>
 
               {/* Tab: Attendance Summary */}
-              <TabsContent value="attendance" className="flex-1 min-h-0 mt-4">
+              <TabsContent value="attendance" className="flex-1 min-h-0 px-6 pb-6 flex flex-col">
                 {isLoadingSessions ? (
                   <div className="flex items-center justify-center py-10">
-                    <div className="animate-spin h-6 w-6 border-2 border-sky-500 border-t-transparent rounded-full" />
+                    <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
                   </div>
                 ) : isSessionsError ? (
                   <div className="py-10 text-center">
@@ -661,7 +730,7 @@ export default function AdminClasses() {
                     <p className="text-sm">{t('classes.noSessions', 'Chưa có buổi học')}</p>
                   </div>
                 ) : (
-                  <ScrollArea className="h-[65vh] min-h-100">
+                  <ScrollArea className="h-full min-h-0 flex-1">
                     <div className="space-y-3">
                       <div className="flex items-center gap-2 mb-2">
                         <Badge variant="secondary" className="rounded-full">{classSessions.length} {t('classes.sessions', 'buổi học')}</Badge>
@@ -686,17 +755,17 @@ export default function AdminClasses() {
               </TabsContent>
 
               {/* Tab: Media Gallery */}
-              <TabsContent value="media" className="flex-1 min-h-0 mt-4">
+              <TabsContent value="media" className="flex-1 min-h-0 px-6 pb-6 flex flex-col">
                 {isLoadingMedia ? (
                   <div className="flex items-center justify-center py-10">
-                    <div className="animate-spin h-6 w-6 border-2 border-sky-500 border-t-transparent rounded-full" />
+                    <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
                   </div>
                 ) : isMediaError ? (
                   <div className="py-10 text-center">
                     <p className="text-sm text-destructive">{t('common.loadFailed', 'Tải thất bại')}</p>
                   </div>
                 ) : (
-                  <ScrollArea className="h-[65vh] min-h-100 pr-3">
+                  <ScrollArea className="h-full min-h-0 flex-1 pr-3">
                     <ClassMediaTab
                       media={classMedia as any[]}
                       classId={viewingClassId!}

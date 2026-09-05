@@ -17,6 +17,8 @@ interface FileUploadProps {
   folder?: string
   className?: string
   label?: string
+  /** Error state — reddens the dropzone border to match form validation UX. */
+  invalid?: boolean
 }
 
 export function FileUpload({
@@ -28,6 +30,7 @@ export function FileUpload({
   folder = 'materials',
   className,
   label = 'Upload File',
+  invalid,
 }: FileUploadProps) {
   const { t } = useTranslation()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -90,7 +93,7 @@ export function FileUpload({
   // Has a file selected/uploaded
   if (value?.fileName) {
     return (
-      <div className={cn('rounded-xl border border-border bg-muted/20 p-4', className)}>
+      <div className={cn('rounded-xl border border-border bg-muted/20 p-4', invalid && 'border-destructive/60', className)}>
         <div className="flex items-center gap-3">
           <FileTypeIcon fileType={value.fileType} className="shrink-0" />
           <div className="flex-1 min-w-0">
@@ -114,7 +117,14 @@ export function FileUpload({
 
   // Upload area
   return (
-    <div className={cn('rounded-xl border border-dashed p-6 text-center transition-colors', className)} style={undefined}>
+    <div
+      className={cn(
+        'rounded-xl border border-dashed p-6 text-center transition-colors',
+        invalid ? 'border-destructive/60 bg-destructive/5' : isDragging ? 'border-primary bg-primary/5' : 'border-border',
+        className,
+      )}
+      aria-invalid={invalid || undefined}
+    >
       <input
         ref={inputRef}
         type="file"

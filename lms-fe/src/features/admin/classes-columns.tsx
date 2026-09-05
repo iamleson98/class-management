@@ -6,7 +6,7 @@
  */
 
 import { createColumnHelper } from '@tanstack/react-table'
-import { Eye, Pencil, Trash2, UserPlus, Users } from 'lucide-react'
+import { Eye, Pencil, Trash2, UserMinus, UserPlus, Users } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -178,8 +178,11 @@ export function createClassColumns(
 
 const enrollmentHelper = createColumnHelper<DataTableFeatures, StudentEnrollment>()
 
-export function createEnrollmentColumns(t: (key: string, fallback?: string) => string) {
-  return [
+export function createEnrollmentColumns(
+  t: (key: string, fallback?: string) => string,
+  actions?: { onRemove?: (enrollment: StudentEnrollment) => void },
+) {
+  const columns = [
     enrollmentHelper.display({
       id: 'index',
       header: () => <span className="text-xs font-semibold">#</span>,
@@ -249,6 +252,32 @@ export function createEnrollmentColumns(t: (key: string, fallback?: string) => s
       filterFn: 'equalsString',
     }),
   ]
+
+  // Remove-from-class action (admin-only) — appended so the modal's students
+  // tab doubles as the membership manager.
+  if (actions?.onRemove) {
+    columns.push(
+      enrollmentHelper.display({
+        id: 'actions',
+        header: () => <span className="text-xs font-semibold sr-only">{t('common.actions', 'Thao tác')}</span>,
+        cell: ({ row }) => (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            title={t('classes.removeStudent', 'Xóa khỏi lớp')}
+            aria-label={t('classes.removeStudent', 'Xóa khỏi lớp')}
+            onClick={() => actions.onRemove?.(row.original)}
+          >
+            <UserMinus className="h-4 w-4" />
+          </Button>
+        ),
+        enableSorting: false,
+        enableHiding: false,
+      }),
+    )
+  }
+  return columns
 }
 
 // ─── Class-detail modal: attendance matrix (sessions × students) ───────

@@ -97,7 +97,7 @@ export function ThreadsInbox({ teamId, onOpenThread, onClose }: ThreadsInboxProp
         <MessageSquare className="h-4 w-4 text-muted-foreground" />
         <span className="font-medium text-sm">{t('chat.threads', 'Chuỗi')}</span>
         {totalUnread > 0 && (
-          <span className="rounded-full bg-sky-600 px-1.5 text-[10px] font-semibold text-white">{totalUnread}</span>
+          <span className="rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">{totalUnread}</span>
         )}
         <div className="flex-1" />
         {totalUnread > 0 && (
@@ -137,17 +137,17 @@ export function ThreadsInbox({ teamId, onOpenThread, onClose }: ThreadsInboxProp
                 <button
                   key={th.id}
                   onClick={() => handleOpen(th.id)}
-                  className={`w-full text-left p-2.5 rounded-lg border transition-colors ${hasUnread ? 'border-sky-200 dark:border-sky-800 bg-sky-50/50 dark:bg-sky-950/20 hover:bg-sky-50 dark:hover:bg-sky-950/40' : 'border-transparent hover:bg-muted/60'}`}
+                  className={`w-full text-left p-2.5 rounded-lg border transition-colors ${hasUnread ? 'border-primary/25 bg-primary/5 hover:bg-primary/10' : 'border-transparent hover:bg-muted/60'}`}
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <Avatar name={userDisplayName(author)} size="xs" />
                     <span className="text-xs font-semibold truncate">{userDisplayName(author)}</span>
                     {th.unread_mentions > 0 ? (
-                      <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-sky-600 px-1.5 text-[10px] font-semibold text-white">
+                      <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
                         <Bell className="h-2.5 w-2.5" />{th.unread_mentions}
                       </span>
                     ) : hasUnread ? (
-                      <span className="ml-auto h-2 w-2 rounded-full bg-sky-500" />
+                      <span className="ml-auto h-2 w-2 rounded-full bg-primary" />
                     ) : null}
                     <span className="text-[10px] text-muted-foreground/70 shrink-0">{format(new Date(th.last_reply_at || th.last_viewed_at), 'dd/MM HH:mm')}</span>
                   </div>
@@ -163,7 +163,7 @@ export function ThreadsInbox({ teamId, onOpenThread, onClose }: ThreadsInboxProp
                       tabIndex={0}
                       onClick={(e) => { e.stopPropagation(); follow.mutate({ threadId: th.id, follow: !th.is_following }) }}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); follow.mutate({ threadId: th.id, follow: !th.is_following }) } }}
-                      className={`inline-flex items-center gap-1 text-[10px] cursor-pointer ${th.is_following ? 'text-sky-600 dark:text-sky-400' : 'text-muted-foreground hover:text-foreground'}`}
+                      className={`inline-flex items-center gap-1 text-[10px] cursor-pointer ${th.is_following ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
                       title={th.is_following ? t('chat.unfollow', 'Bỏ theo dõi') : t('chat.follow', 'Theo dõi')}
                     >
                       <Star className={`h-3 w-3 ${th.is_following ? 'fill-current' : ''}`} />
