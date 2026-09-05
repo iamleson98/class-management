@@ -17,6 +17,10 @@ import (
 // CallService is the singleton realtime call control plane. It owns:
 //   - the sharded in-memory call-state registry (hot path),
 //   - the global session index (connID/sessionID -> call, hot path),
+//   - the channel index (channelID -> live call) plus per-channel start
+//     locks that arbitrate the one-live-call-per-channel invariant now that
+//     call identities are fresh model.NewId()s instead of channel-derived
+//     keys,
 //   - the rtcd client manager (external SFU, DNS-discovered pool),
 //   - the persistence bridge (durable boundaries only),
 //   - the realtime hub (presence + signaling fan-out).
@@ -27,11 +31,13 @@ type CallService struct {
 	cfg ServiceConfig
 	log mlog.LoggerIFace
 
-	shards shardRegistry
-	index  *sessionRegistry
-	rtcd   *rtcdClientManager
-	store  StoreBridge
-	hub    HubBroadcaster
+	shards       shardRegistry
+	index        *sessionRegistry
+	channelCalls *channelIndex
+	chanLocks    *channelLockTable
+	rtcd         *rtcdClientManager
+	store        StoreBridge
+	hub          HubBroadcaster
 
 	// mut guards the lifecycle fields below (started, rtcd). It is held only
 	// for pointer swaps and flag flips — never across network I/O — so the
@@ -66,16 +72,28 @@ func (s *CallService) kickRTCDInit() {
 	if !s.rtcdKick.CompareAndSwap(false, true) {
 		return // already initializing
 	}
+	go func() {
+		defer s.rtcdKick.Store(false)
+		s.initRTCDManagerWithRetry(url)
+	}()
+}
+
+// rtcdInitBounds snapshots the rtcd init retry bounds, applying defaults for
+// unset values. mut-guarded: the init goroutines (boot round and kicked
+// rounds) read the bounds at round start while tests shrink them between
+// rounds — routing every access through this lock keeps those
+// write-while-running scenarios race-free. The lock is held only for two
+// field reads (and first-touch defaults), never across I/O.
+func (s *CallService) rtcdInitBounds() (maxWait, minBackoff time.Duration) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
 	if s.rtcdInitMaxWait == 0 {
 		s.rtcdInitMaxWait = 5 * time.Minute
 	}
 	if s.rtcdInitMinBackoff == 0 {
 		s.rtcdInitMinBackoff = 2 * time.Second
 	}
-	go func() {
-		defer s.rtcdKick.Store(false)
-		s.initRTCDManagerWithRetry(url)
-	}()
+	return s.rtcdInitMaxWait, s.rtcdInitMinBackoff
 }
 
 // storeBridge adapts a store.Store to the narrowed StoreBridge view.
@@ -114,12 +132,14 @@ func New(cfg ServiceConfig) (*CallService, error) {
 	}
 
 	s := &CallService{
-		cfg:    cfg,
-		log:    cfg.Log,
-		store:  storeBridgeInstance,
-		hub:    cfg.Hub,
-		shards: newShardRegistry(shardCountFor(&cfgSnapshot.CallsSettings)),
-		index:  newSessionRegistry(),
+		cfg:          cfg,
+		log:          cfg.Log,
+		store:        storeBridgeInstance,
+		hub:          cfg.Hub,
+		shards:       newShardRegistry(shardCountFor(&cfgSnapshot.CallsSettings)),
+		index:        newSessionRegistry(),
+		channelCalls: newChannelIndex(),
+		chanLocks:    newChannelLockTable(shardCountFor(&cfgSnapshot.CallsSettings)),
 	}
 	return s, nil
 }
@@ -140,12 +160,6 @@ func (s *CallService) Start() error {
 		// server restart. Initialize in the background with retries so the
 		// boot path is never blocked and a startup race can never disable
 		// calls permanently.
-		if s.rtcdInitMaxWait == 0 {
-			s.rtcdInitMaxWait = 5 * time.Minute
-		}
-		if s.rtcdInitMinBackoff == 0 {
-			s.rtcdInitMinBackoff = 2 * time.Second
-		}
 		go s.initRTCDManagerWithRetry(url)
 	} else {
 		s.log.Warn("calls: rtcd service URL not set; calls media is unavailable until configured")
@@ -174,19 +188,9 @@ func (s *CallService) Start() error {
 // attempt can kick a fresh round via kickRTCDInit, so "gave up" is not a
 // permanent state while the server keeps running.
 func (s *CallService) initRTCDManagerWithRetry(url string) {
-	const (
-		defaultMaxWait    = 5 * time.Minute
-		defaultMinBackoff = 2 * time.Second
-		defaultMaxBackoff = 15 * time.Second
-	)
-	maxWait := s.rtcdInitMaxWait
-	if maxWait == 0 {
-		maxWait = defaultMaxWait
-	}
-	minBackoff := s.rtcdInitMinBackoff
-	if minBackoff == 0 {
-		minBackoff = defaultMinBackoff
-	}
+	const defaultMaxBackoff = 15 * time.Second
+
+	maxWait, minBackoff := s.rtcdInitBounds()
 	maxBackoff := defaultMaxBackoff
 	if minBackoff > maxBackoff {
 		maxBackoff = minBackoff

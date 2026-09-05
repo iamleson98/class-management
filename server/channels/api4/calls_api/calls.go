@@ -8,7 +8,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"strings"
 
 	"github.com/iamleson98/sitename/server/public/model"
 	"github.com/iamleson98/sitename/server/public/shared/mlog"
@@ -57,17 +56,15 @@ type startCallRequest struct {
 	PostID string `json:"post_id,omitempty"`
 }
 
-// requireCallID validates the {call_id} route param. Call ids are
-// "ch:"-prefixed channel ids (see calls.CallIDForChannel), NOT 26-char
-// Mattermost ids — a plain RequireValidId here would reject every real call
-// id and make the host-control surface unreachable.
+// requireCallID validates the {call_id} route param. Call ids are 26-char
+// model.NewId()s — the same identity convention as every other model row —
+// so the standard id validator applies directly.
 var requireCallID web.RequireFunc[string] = func(value any) (string, bool) {
 	strValue, ok := web.RequireString(value)
 	if !ok {
 		return "", false
 	}
-	// "ch:" + a valid channel id.
-	if !strings.HasPrefix(strValue, "ch:") || !model.IsValidId(strings.TrimPrefix(strValue, "ch:")) {
+	if !model.IsValidId(strValue) {
 		return "", false
 	}
 	return strValue, true
@@ -135,9 +132,9 @@ func getCallByChannel(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The active call for a channel is keyed by channel; reuse StartCall's keying.
-	callID := calls.CallIDForChannel(channelID)
-	state, err := c.App.Calls().GetCallState(callID)
+	// The channel -> live-call mapping is runtime state in the service
+	// (fresh NewId identities; nothing derivable from the channel id).
+	state, err := c.App.Calls().GetCallStateByChannel(channelID)
 	if err != nil {
 		c.Err = callsToAppError(err)
 		return

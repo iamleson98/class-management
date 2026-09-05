@@ -26,7 +26,7 @@ func TestHostControlAuthorization(t *testing.T) {
 	s, _, _ := newTestServiceWithStore(t)
 	attachFakeRTCD(t, s)
 	hostConn, c2, _ := joinedTriad(t, s)
-	callID := CallIDForChannel("chan1")
+	callID := liveCallID(t, s, "chan1")
 
 	// Non-hosts are rejected.
 	err := s.MuteSession(callID, "user2", hostConn)
@@ -41,8 +41,8 @@ func TestHostControlAuthorization(t *testing.T) {
 	// Host may act.
 	require.NoError(t, s.MuteSession(callID, "host", c2))
 
-	// Unknown call.
-	err = s.MuteSession("ch:unknown", "host", c2)
+	// Unknown call: a well-formed 26-char id that matches no generation.
+	err = s.MuteSession(model.NewId(), "host", c2)
 	require.ErrorIs(t, err, ErrCallNotFound)
 }
 
@@ -50,7 +50,7 @@ func TestMakeHost(t *testing.T) {
 	s, _, hub := newTestServiceWithStore(t)
 	attachFakeRTCD(t, s)
 	hostConn, _, _ := joinedTriad(t, s)
-	callID := CallIDForChannel("chan1")
+	callID := liveCallID(t, s, "chan1")
 
 	// Transferring to a user not in the call fails.
 	err := s.MakeHost(callID, "host", "absent")
@@ -74,7 +74,7 @@ func TestMuteSessionAndMuteOthers(t *testing.T) {
 	s, _, hub := newTestServiceWithStore(t)
 	attachFakeRTCD(t, s)
 	hostConn, c2, c3 := joinedTriad(t, s)
-	callID := CallIDForChannel("chan1")
+	callID := liveCallID(t, s, "chan1")
 
 	// Host mutes user2: unicast notice + channel presence.
 	hub.reset()
@@ -105,7 +105,7 @@ func TestHostScreenOffAndLowerHand(t *testing.T) {
 	s, _, hub := newTestServiceWithStore(t)
 	attachFakeRTCD(t, s)
 	_, c2, _ := joinedTriad(t, s)
-	callID := CallIDForChannel("chan1")
+	callID := liveCallID(t, s, "chan1")
 
 	// user2 shares and raises a hand.
 	mustSend(t, s, c2, "user2", msgScreenOn, nil)
@@ -137,7 +137,7 @@ func TestRemoveSession(t *testing.T) {
 	s, _, hub := newTestServiceWithStore(t)
 	attachFakeRTCD(t, s)
 	hostConn, c2, _ := joinedTriad(t, s)
-	callID := CallIDForChannel("chan1")
+	callID := liveCallID(t, s, "chan1")
 
 	hub.reset()
 	require.NoError(t, s.RemoveSession(callID, "host", c2))
@@ -164,13 +164,15 @@ func TestEndCallByHost(t *testing.T) {
 	s, _, hub := newTestServiceWithStore(t)
 	attachFakeRTCD(t, s)
 	joinedTriad(t, s)
-	callID := CallIDForChannel("chan1")
+	callID := liveCallID(t, s, "chan1")
 
 	hub.reset()
 	require.NoError(t, s.EndCallByHost(callID, "host"))
 	require.Equal(t, 1, hub.count(eventCallEnd))
 	_, ok := s.shards.get(callID)
 	require.False(t, ok)
+	_, ok = s.channelCalls.get("chan1")
+	require.False(t, ok, "the channel's live-call mapping must be gone too")
 
 	// The call is gone: further host actions are not-found.
 	require.ErrorIs(t, s.EndCallByHost(callID, "host"), ErrCallNotFound)
@@ -180,14 +182,14 @@ func TestEndCallProtectsNewGeneration(t *testing.T) {
 	s, _, hub := newTestServiceWithStore(t)
 	attachFakeRTCD(t, s)
 	_, c2, _ := joinedTriad(t, s)
-	callID := CallIDForChannel("chan1")
+	callID := liveCallID(t, s, "chan1")
 
 	// Grab the OLD generation's state, then end the call through the API.
 	oldCS, ok := s.shards.get(callID)
 	require.True(t, ok)
 	require.NoError(t, s.EndCall(callID))
 
-	// A new call starts on the same channel (new generation).
+	// A new call starts on the same channel (new generation, fresh id).
 	mustSend(t, s, "newconn", "newuser", msgJoin, map[string]any{"channelID": "chan1"})
 
 	hub.reset()
@@ -198,8 +200,11 @@ func TestEndCallProtectsNewGeneration(t *testing.T) {
 	require.ErrorIs(t, err, ErrCallEnded)
 	require.Equal(t, 0, hub.count(eventCallEnd))
 
-	newCS, ok := s.shards.get(callID)
+	// The new generation lives under a FRESH id in its own shard slot;
+	// the channel index points at it.
+	newCS, ok := s.channelCalls.get("chan1")
 	require.True(t, ok)
+	require.NotEqual(t, callID, newCS.callID, "the new generation must have a fresh identity")
 	require.Equal(t, 1, newCS.participants(), "the new generation must survive")
 	require.Equal(t, "newuser", newCS.hostUserID())
 

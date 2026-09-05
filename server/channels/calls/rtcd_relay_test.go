@@ -29,7 +29,7 @@ func TestRelayVoicePresence(t *testing.T) {
 	voiceOn := requireChannelBroadcast(t, hub, eventUserVoiceOn, "chan1")
 	require.Equal(t, "u1", voiceOn.data["userID"], "plugin contract: voice events key the user as userID")
 	require.Equal(t, conn, voiceOn.data["session_id"])
-	cs, _ := s.shards.get(CallIDForChannel("chan1"))
+	cs, _ := s.channelCalls.get("chan1")
 	sess, _ := cs.get(conn)
 	require.True(t, sess.voiceOn)
 
@@ -88,6 +88,7 @@ func TestRTCDCloseTeardown(t *testing.T) {
 	s, store, hub := newTestServiceWithStore(t)
 	attachFakeRTCD(t, s)
 	conn := joinCall(t, s, "chan1", "u1")
+	callID := liveCallID(t, s, "chan1")
 
 	hub.reset()
 	s.handleRTCDMessage("127.0.0.1:8045", rtcd.ClientMessage{
@@ -98,9 +99,9 @@ func TestRTCDCloseTeardown(t *testing.T) {
 	// Full teardown: session gone, leave boundary persisted, call ended.
 	require.Equal(t, 1, hub.count(eventUserLeft))
 	require.Equal(t, 1, hub.count(eventCallEnd))
-	_, ok := s.shards.get(CallIDForChannel("chan1"))
+	_, ok := s.channelCalls.get("chan1")
 	require.False(t, ok)
-	sess, err := store.sess.GetByCallAndUser(CallIDForChannel("chan1"), "u1")
+	sess, err := store.sess.GetByCallAndUser(callID, "u1")
 	require.NoError(t, err)
 	require.NotZero(t, sess.EndAt)
 
@@ -254,14 +255,15 @@ func TestParseURL(t *testing.T) {
 }
 
 func TestRTCEnvelope(t *testing.T) {
-	msg := rtcEnvelope("sess1", "ch:chan1", "u1", rtc.SDPMessage, []byte("payload"))
+	callID := model.NewId()
+	msg := rtcEnvelope("sess1", callID, "u1", rtc.SDPMessage, []byte("payload"))
 	require.Equal(t, rtcd.ClientMessageRTC, msg.Type)
 	rtcMsg, ok := msg.Data.(rtc.Message)
 	require.True(t, ok)
 	require.Equal(t, "default", rtcMsg.GroupID)
 	require.Equal(t, "u1", rtcMsg.UserID)
 	require.Equal(t, "sess1", rtcMsg.SessionID)
-	require.Equal(t, "ch:chan1", rtcMsg.CallID)
+	require.Equal(t, callID, rtcMsg.CallID)
 	require.Equal(t, rtc.SDPMessage, rtcMsg.Type)
 	require.Equal(t, []byte("payload"), rtcMsg.Data)
 }
@@ -347,7 +349,7 @@ func TestRtcdConfigStoreKVError(t *testing.T) {
 
 func TestSendToHostWithoutSFU(t *testing.T) {
 	s, _, _ := newTestServiceWithStore(t) // no rtcd manager attached
-	cs := newCallState("ch:chan1", "chan1", "")
+	cs := newCallState(model.NewId(), "chan1", "")
 	err := s.sendToHost(cs, rtcd.ClientMessage{Type: rtcd.ClientMessageJoin})
 	require.ErrorIs(t, err, ErrNoSFUHost)
 
@@ -479,8 +481,12 @@ func TestKickRTCDInitRecoversAfterGiveUp(t *testing.T) {
 	require.NoError(t, s.Start())
 	s.Stop() // stop the boot init; simulate "gave up" with nil manager
 
+	// Shrink the init bounds under the service lock: a boot-round
+	// goroutine may still be inside its bounds snapshot.
+	s.mut.Lock()
 	s.rtcdInitMaxWait = 10 * time.Millisecond
 	s.rtcdInitMinBackoff = time.Millisecond
+	s.mut.Unlock()
 
 	s.kickRTCDInit()
 	require.True(t, s.rtcdKick.Load(), "kick should mark init in flight")

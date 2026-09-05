@@ -151,24 +151,24 @@ func (s *CallService) handleJoin(connID, userID string, data map[string]any) err
 		return errors.New("calls: rtcd service is not configured")
 	}
 
-	callID := callIDForChannel(channelID)
-
 	// Fast-path limit rejection (the limit is enforced again atomically at
-	// addSession, closing the check-then-act race).
+	// addSession, closing the check-then-act race). The channel index
+	// resolves the channel's current call — identities are fresh NewId()s,
+	// never derivable from the channel id.
 	max := s.callsConfig().maxParticipants()
 	if max > 0 {
-		if existing, ok := s.shards.get(callID); ok && existing.participants() >= max {
+		if existing, ok := s.channelCalls.get(channelID); ok && existing.participants() >= max {
 			return ErrMaxParticipants
 		}
 	}
 
 	// Register the participant. sessionID = the connection id at join time and
-	// stays stable across websocket reconnects.
+	// stays stable across websocket reconnects. sess.callID is stamped inside
+	// the loop below: the id belongs to the generation StartCall returns.
 	now := model.GetMillis()
 	sess := &session{
 		userID:    userID,
 		channelID: channelID,
-		callID:    callID,
 		sessionID: connID,
 		connID:    connID,
 		unmuted:   true,
@@ -182,8 +182,9 @@ func (s *CallService) handleJoin(connID, userID string, data map[string]any) err
 	// On that race addSessionIfLive reports ErrCallNotFound and the loop
 	// transparently starts the next generation.
 	var (
-		cs   *callState
-		prev *session
+		cs     *callState
+		prev   *session
+		callID string
 	)
 	for attempt := 0; attempt < 3; attempt++ {
 		res, err := s.StartCall(StartCallOpts{ChannelID: channelID, OwnerID: userID})
@@ -191,6 +192,7 @@ func (s *CallService) handleJoin(connID, userID string, data map[string]any) err
 			return err
 		}
 		callID = res.CallID
+		sess.callID = callID
 
 		var addErr error
 		cs, prev, addErr = s.shards.shardFor(callID).addSessionIfLive(callID, sess.sessionID, sess, max)
@@ -278,8 +280,7 @@ func (s *CallService) handleLeave(connID, userID string, data map[string]any) er
 	if channelID == "" {
 		return errors.New("calls: channelID is required")
 	}
-	callID := callIDForChannel(channelID)
-	cs, ok := s.shards.get(callID)
+	cs, ok := s.channelCalls.get(channelID)
 	if !ok {
 		return nil // already ended; a duplicate leave is not an error
 	}
@@ -302,7 +303,7 @@ func (s *CallService) handleReconnect(connID, userID string, data map[string]any
 		return errors.New("calls: channelID and originalConnID are required")
 	}
 
-	cs, ok := s.shards.get(callIDForChannel(channelID))
+	cs, ok := s.channelCalls.get(channelID)
 	if !ok {
 		return ErrCallNotFound
 	}
@@ -626,7 +627,7 @@ func (s *CallService) handleCallStateRequest(connID, userID string, data map[str
 	if channelID == "" {
 		return errors.New("calls: channelID is required")
 	}
-	cs, ok := s.shards.get(callIDForChannel(channelID))
+	cs, ok := s.channelCalls.get(channelID)
 	if !ok {
 		return ErrCallNotFound
 	}

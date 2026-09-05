@@ -461,6 +461,19 @@ func joinCall(t *testing.T, s *CallService, channelID, userID string) string {
 	return connID
 }
 
+// liveCallID resolves the channel's current call id. Call identities are
+// fresh model.NewId()s (26 chars, like every model row); the channel ->
+// live-call mapping is the service's channel index, so tests resolve ids
+// through it exactly like production code does.
+func liveCallID(t *testing.T, s *CallService, channelID string) string {
+	t.Helper()
+	cs, ok := s.channelCalls.get(channelID)
+	require.True(t, ok, "no live call registered for channel %q", channelID)
+	require.True(t, model.IsValidId(cs.callID),
+		"call id %q must be a 26-char id (the varchar(26) contract)", cs.callID)
+	return cs.callID
+}
+
 // sendMessage drives one client message and returns the error text reported
 // back to THAT connection ("" when the action succeeded). Errors are matched
 // by the unicast connection id, not by global event count: concurrent

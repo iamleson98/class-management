@@ -78,10 +78,11 @@ func (sh *callShard) delete(callID string) (*callState, bool) {
 // deleteIf removes the mapping for callID only when it currently points at
 // target. It reports whether the removal happened.
 //
-// Call ids are channel-keyed (callIDForChannel), so when a call ends and a
-// new call starts on the same channel the registry slot may already hold the
-// NEW generation. An old generation's teardown must not delete the new one;
-// deleteIf is the generation check that makes that safe.
+// Call identities are fresh model.NewId()s, so a successor generation on a
+// channel never shares its predecessor's slot; deleteIf remains as the
+// generation guard so a late teardown can never remove a state it does not
+// own (and pins that contract for the channel index, which relies on the
+// same pointer-identity check).
 func (sh *callShard) deleteIf(callID string, target *callState) bool {
 	sh.mut.Lock()
 	defer sh.mut.Unlock()

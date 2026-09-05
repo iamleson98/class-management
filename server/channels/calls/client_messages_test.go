@@ -41,6 +41,8 @@ func TestNewValidation(t *testing.T) {
 	s, err := New(base)
 	require.NoError(t, err)
 	require.NotNil(t, s.index)
+	require.NotNil(t, s.channelCalls)
+	require.NotNil(t, s.chanLocks)
 	require.Len(t, s.shards, defaultShardCount)
 }
 
@@ -49,7 +51,9 @@ func TestStartCallIdempotent(t *testing.T) {
 
 	res1, err := s.StartCall(StartCallOpts{ChannelID: "chan1", OwnerID: "u1"})
 	require.NoError(t, err)
-	require.Equal(t, "ch:chan1", res1.CallID)
+	require.True(t, model.IsValidId(res1.CallID),
+		"call ids are 26-char NewId()s — the varchar(26) contract")
+	require.Len(t, res1.CallID, 26)
 	require.Equal(t, 1, hub.count(eventCallStart))
 	require.Len(t, store.call.calls, 1)
 
@@ -81,14 +85,22 @@ func TestStartCallRollbackOnPersistFailure(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, 0, hub.count(eventCallStart))
 
-	_, ok := s.shards.get("ch:chan1")
-	require.False(t, ok, "in-memory state must be rolled back")
+	// The channel is left without a live call: identities are fresh
+	// NewId()s, so the rollback check is the channel index.
+	_, ok := s.channelCalls.get("chan1")
+	require.False(t, ok, "channel must not be left with a live call after a failed persist")
 
 	// With the DB healthy again, the next start succeeds cleanly.
 	store.call.saveErr = nil
-	_, err = s.StartCall(StartCallOpts{ChannelID: "chan1", OwnerID: "u1"})
+	res, err := s.StartCall(StartCallOpts{ChannelID: "chan1", OwnerID: "u1"})
 	require.NoError(t, err)
 	require.Equal(t, 1, hub.count(eventCallStart))
+	cs, ok := s.shards.get(res.CallID)
+	require.True(t, ok, "the fresh generation must be live in the registry")
+	indexed, ok := s.channelCalls.get("chan1")
+	require.True(t, ok, "the channel index must point at the fresh generation")
+	require.Same(t, cs, indexed, "registry and channel index must agree")
+	require.Len(t, store.call.calls, 1)
 }
 
 func TestStartCallAssignsSFUHost(t *testing.T) {
@@ -110,12 +122,13 @@ func TestEndCall(t *testing.T) {
 	attachFakeRTCD(t, s)
 	joinCall(t, s, "chan1", "u1")
 	joinCall(t, s, "chan1", "u2")
+	callID := liveCallID(t, s, "chan1")
 
 	hub.reset()
-	require.NoError(t, s.EndCall("ch:chan1"))
+	require.NoError(t, s.EndCall(callID))
 
 	// Exactly one end boundary, one stats row, one broadcast.
-	call, err := store.call.Get("ch:chan1")
+	call, err := store.call.Get(callID)
 	require.NoError(t, err)
 	require.NotZero(t, call.EndAt)
 	require.Equal(t, 1, hub.count(eventCallEnd))
@@ -125,14 +138,18 @@ func TestEndCall(t *testing.T) {
 	require.Equal(t, 2, stats[0].Participants)
 
 	// Registry emptied; second end is an error; state lookup is not-found.
-	_, ok := s.shards.get("ch:chan1")
+	_, ok := s.shards.get(callID)
 	require.False(t, ok)
-	require.ErrorIs(t, s.EndCall("ch:chan1"), ErrCallNotFound)
-	_, err = s.GetCallState("ch:chan1")
+	_, ok = s.channelCalls.get("chan1")
+	require.False(t, ok, "the channel's live-call mapping must be gone too")
+	require.ErrorIs(t, s.EndCall(callID), ErrCallNotFound)
+	_, err = s.GetCallState(callID)
+	require.ErrorIs(t, err, ErrCallNotFound)
+	_, err = s.GetCallStateByChannel("chan1")
 	require.ErrorIs(t, err, ErrCallNotFound)
 
 	// Unknown call.
-	require.ErrorIs(t, s.EndCall("ch:unknown"), ErrCallNotFound)
+	require.ErrorIs(t, s.EndCall(model.NewId()), ErrCallNotFound)
 }
 
 func TestHandleJoin(t *testing.T) {
@@ -140,7 +157,7 @@ func TestHandleJoin(t *testing.T) {
 	client := attachFakeRTCD(t, s)
 
 	connID := joinCall(t, s, "chan1", "u1")
-	callID := CallIDForChannel("chan1")
+	callID := liveCallID(t, s, "chan1")
 
 	// SFU session registered with the stable sessionID.
 	joins := client.sentOfType("join")
@@ -201,7 +218,7 @@ func TestHandleJoinMaxParticipants(t *testing.T) {
 	errMsg := sendMessage(t, s, "conn3", "u3", msgJoin, map[string]any{"channelID": "chan1"})
 	require.Equal(t, ErrMaxParticipants.Error(), errMsg)
 
-	cs, ok := s.shards.get(CallIDForChannel("chan1"))
+	cs, ok := s.channelCalls.get("chan1")
 	require.True(t, ok)
 	require.Equal(t, 2, cs.participants())
 	// The rejected joiner receives a unicast error event, matching the
@@ -226,6 +243,7 @@ func TestHandleLeaveTeardownAndCallEnd(t *testing.T) {
 
 	conn1 := joinCall(t, s, "chan1", "u1")
 	conn2 := joinCall(t, s, "chan1", "u2")
+	callID := liveCallID(t, s, "chan1")
 	hub.reset()
 
 	// First leave: session torn down but the call lives on.
@@ -237,11 +255,11 @@ func TestHandleLeaveTeardownAndCallEnd(t *testing.T) {
 	_, _, err := s.sessionByConn(conn1)
 	require.ErrorIs(t, err, ErrSessionNotFound)
 
-	sess, err := store.sess.GetByCallAndUser(CallIDForChannel("chan1"), "u1")
+	sess, err := store.sess.GetByCallAndUser(callID, "u1")
 	require.NoError(t, err)
 	require.NotZero(t, sess.EndAt, "leave boundary must be persisted")
 
-	cs, ok := s.shards.get(CallIDForChannel("chan1"))
+	cs, ok := s.channelCalls.get("chan1")
 	require.True(t, ok)
 	require.Equal(t, "u2", cs.hostUserID(), "remaining participant must inherit the host role")
 
@@ -252,7 +270,7 @@ func TestHandleLeaveTeardownAndCallEnd(t *testing.T) {
 	hub.reset()
 	mustSend(t, s, conn2, "u2", msgLeave, map[string]any{"channelID": "chan1"})
 	require.Equal(t, 1, hub.count(eventCallEnd))
-	_, ok = s.shards.get(CallIDForChannel("chan1"))
+	_, ok = s.channelCalls.get("chan1")
 	require.False(t, ok)
 	stats := store.stat.saved()
 	require.Len(t, stats, 1)
@@ -264,6 +282,7 @@ func TestHandleReconnect(t *testing.T) {
 	attachFakeRTCD(t, s)
 
 	conn1 := joinCall(t, s, "chan1", "u1")
+	callID := liveCallID(t, s, "chan1")
 	hub.reset()
 
 	mustSend(t, s, "conn1-new", "u1", msgReconnect, map[string]any{
@@ -275,7 +294,7 @@ func TestHandleReconnect(t *testing.T) {
 	sess, cs, err := s.sessionByConn("conn1-new")
 	require.NoError(t, err)
 	require.Equal(t, conn1, sess.sessionID, "stable sessionID must survive reconnects")
-	require.Equal(t, CallIDForChannel("chan1"), cs.callID)
+	require.Equal(t, callID, cs.callID)
 	_, _, err = s.sessionByConn(conn1)
 	require.ErrorIs(t, err, ErrSessionNotFound)
 
@@ -301,7 +320,7 @@ func TestPresenceToggles(t *testing.T) {
 	require.Equal(t, 1, hub.count(eventUserMuted))
 	mustSend(t, s, conn, "u1", msgUnmute, nil)
 	require.Equal(t, 1, hub.count(eventUserUnmuted))
-	cs, _ := s.shards.get(CallIDForChannel("chan1"))
+	cs, _ := s.channelCalls.get("chan1")
 	sess, _ := cs.get(conn)
 	require.True(t, sess.unmuted)
 
