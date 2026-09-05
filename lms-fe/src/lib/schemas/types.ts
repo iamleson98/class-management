@@ -159,6 +159,9 @@ export interface Class {
   room: string | null
   status: string
   startDate: number
+  /** Planned end date "YYYY-MM-DD" (null = open-ended) — the weekly repeat
+   *  option "đến hết thời gian của lớp học" expands to this date. */
+  endDate: string | null
   branchId: string | null
   chatChannelId: string
   createat: UnixMs

@@ -37,6 +37,36 @@ export class ValidationError extends Error {
   }
 }
 
+// ─── Teacher schedule conflict (session create/update, HTTP 409) ────
+
+/** One of the teacher's existing sessions overlapping the proposed slot. */
+export interface SessionConflictItem {
+  /** "YYYY-MM-DD" of the conflicting session */
+  date: string
+  /** epoch ms */
+  startTime: number
+  /** epoch ms */
+  endTime: number
+  classId: string
+  className: string
+  teacherId: string
+  teacherName: string
+}
+
+/**
+ * Thrown when POST /lms/sessions/create or PUT /lms/sessions/{id} answers
+ * 409 with a `conflicts` array. The UI shows the conflicts and may retry
+ * with `force: true` after the admin acknowledges the overlap.
+ */
+export class SessionConflictError extends Error {
+  conflicts: SessionConflictItem[]
+  constructor(message: string, conflicts: SessionConflictItem[]) {
+    super(message)
+    this.name = 'SessionConflictError'
+    this.conflicts = conflicts
+  }
+}
+
 // Relative base — proxied by Next.js rewrites to the backend
 const BASE = '/api/v4'
 
@@ -150,16 +180,22 @@ function coerceDecimals<T>(value: unknown): T {
   return result as T
 }
 
-/** Convert an epoch-ms or RFC3339 value into 'HH:mm' (local time), else ''. */
+/** Convert an epoch-ms or RFC3339 value into 'HH:mm' Vietnam time (UTC+7), else ''. */
 function epochToTimeOfDay(v: unknown): string {
   if (v === null || v === undefined || v === '') return ''
   const n = typeof v === 'number' ? v : Date.parse(String(v))
   if (typeof n !== 'number' || isNaN(n)) return typeof v === 'string' ? v : ''
-  const d = new Date(n)
-  if (isNaN(d.getTime())) return ''
-  const hh = String(d.getHours()).padStart(2, '0')
-  const mm = String(d.getMinutes()).padStart(2, '0')
+  // The LMS calendar is Vietnam-based: format in ICT (UTC+7) regardless of
+  // the browser's locale so times match what the admin picked.
+  const d = new Date(n + 7 * 3600_000)
+  const hh = String(d.getUTCHours()).padStart(2, '0')
+  const mm = String(d.getUTCMinutes()).padStart(2, '0')
   return `${hh}:${mm}`
+}
+
+/** Format an epoch-ms value as 'HH:mm' Vietnam time (public helper). */
+export function epochMsToHHmm(ms: number): string {
+  return epochToTimeOfDay(ms)
 }
 
 /** Normalize a session's date/times into the display shape. */
@@ -247,27 +283,33 @@ function denormalizeStudents<T>(value: unknown): T {
 // ─── Outbound transforms (request bodies) ───────────────────────────
 
 /**
- * Combine a 'yyyy-MM-dd' date and an 'HH:mm' time-of-day into epoch milliseconds.
+ * Combine a 'yyyy-MM-dd' date and an 'HH:mm' time-of-day into epoch
+ * milliseconds, anchored to Vietnam time (UTC+7) so the instant is
+ * deterministic regardless of the browser's locale.
  * Returns null if either part is missing/invalid.
  */
 function combineDateAndTime(dateStr: string, timeStr: string): number | null {
   if (!dateStr || !timeStr) return null
-  const d = new Date(`${dateStr}T${timeStr}:00`)
+  const d = new Date(`${dateStr}T${timeStr}:00+07:00`)
   return isNaN(d.getTime()) ? null : d.getTime()
 }
 
 /**
  * Convert a flat create/update session form value (date 'yyyy-MM-dd',
- * startTime/endTime 'HH:mm') into the backend wire shape: date as RFC3339,
- * startTime/endTime as epoch ms. Server requires classId/teacherId/date.
+ * startTime/endTime 'HH:mm') into the backend wire shape: date as
+ * "YYYY-MM-DD", startTime/endTime as epoch ms (UTC+7 anchored). Extra
+ * controls (repeatUntil, force) pass through `rest` and are snake_cased
+ * by the request helpers.
  */
 function buildSessionPayload(values: Record<string, unknown>): Record<string, unknown> {
   const { date, startTime, endTime, ...rest } = values
   const start = combineDateAndTime(String(date ?? ''), String(startTime ?? ''))
   const end = combineDateAndTime(String(date ?? ''), String(endTime ?? ''))
   const payload: Record<string, unknown> = { ...rest }
-  // Backend `date` is a time.Time — send a full ISO/RFC3339 string at midnight.
-  payload.date = date ? new Date(`${date}T00:00:00`).toISOString() : date
+  // Backend VnTime decodes the date-only form "YYYY-MM-DD" (full RFC3339 is
+  // also tolerated server-side, but date-only is the canonical wire shape —
+  // this used to send toISOString(), which the server rejected with 400).
+  if (date) payload.date = date
   if (start !== null) payload.startTime = start
   if (end !== null) payload.endTime = end
   return payload
@@ -328,13 +370,19 @@ export interface PaginatedList<T> {
 // emit `{ error }`. We read `message` first, fall back to `error`.
 
 /** Normalize a parsed JSON error body into a thrown Error (or ValidationError). */
-function throwApiError(status: number, err: { message?: string; error?: string; errors?: unknown }) {
+function throwApiError(status: number, err: { message?: string; error?: string; errors?: unknown; conflicts?: unknown }) {
   if (status === 403) {
     throw new Error(err.message || err.error || 'Bạn không có quyền thực hiện thao tác này')
   }
   // 422 — structured validation errors from server-side parsing
   if (status === 422 && Array.isArray(err.errors)) {
     throw new ValidationError(err.errors, err.message || err.error || 'Dữ liệu không hợp lệ')
+  }
+  // 409 + conflicts — teacher schedule overlap on session create/update.
+  // The payload carries the conflicting sessions for review (date/time/
+  // class/teacher); the user can retry with force after acknowledging.
+  if (status === 409 && Array.isArray(err.conflicts)) {
+    throw new SessionConflictError(err.message || err.error || 'Trùng lịch giáo viên', toCamel<SessionConflictItem[]>(err.conflicts))
   }
   throw new Error(err.message || err.error || 'Lỗi hệ thống')
 }
@@ -677,12 +725,39 @@ export const unenrollStudent = (classId: string, studentId: string): Promise<voi
  */
 export const getSessions = (opts: SearchOpts = {}): Promise<SessionListItem[]> =>
   apiSearchPaginated<SessionListItem>('/lms/sessions', opts).then((r) => normalizeSessions<SessionListItem[]>(r.items))
-export const createSession = (data: CreateSessionInput): Promise<SessionListItem> =>
-  apiFetch<SessionListItem>('/lms/sessions/create', { method: 'POST', body: JSON.stringify(toSnake(buildSessionPayload(data as Record<string, unknown>))) })
-    .then((s) => normalizeSessions<SessionListItem>(s))
-export const updateSession = (id: string, data: UpdateSessionInput): Promise<SessionListItem> =>
-  apiFetch<SessionListItem>(`/lms/sessions/${id}`, { method: 'PUT', body: JSON.stringify(toSnake(buildSessionPayload(data as Record<string, unknown>))) })
-    .then((s) => normalizeSessions<SessionListItem>(s))
+/** Result of a session create (or force-update): the saved rows + count. */
+export interface SessionCreateResult {
+  sessions: SessionListItem[]
+  count: number
+}
+
+function toSessionCreateResult(raw: unknown): SessionCreateResult {
+  const obj = (raw ?? {}) as Record<string, unknown>
+  const list = Array.isArray(obj.sessions)
+    ? obj.sessions
+    : Array.isArray(raw)
+      ? (raw as unknown[])
+      : []
+  const sessions = normalizeSessions<SessionListItem[]>(list)
+  const count = typeof obj.count === 'number' ? obj.count : sessions.length
+  return { sessions, count }
+}
+
+/** Payload accepted by POST /lms/sessions/create. */
+export type SessionSubmitPayload = CreateSessionInput & {
+  /** "YYYY-MM-DD" — weekly repeat until this date inclusive ("" = single) */
+  repeatUntil?: string
+  /** proceed despite teacher schedule conflicts */
+  force?: boolean
+}
+
+export const createSession = (data: SessionSubmitPayload): Promise<SessionCreateResult> =>
+  apiFetch<unknown>('/lms/sessions/create', { method: 'POST', body: JSON.stringify(toSnake(buildSessionPayload(data as Record<string, unknown>))) })
+    .then(toSessionCreateResult)
+
+export const updateSession = (id: string, data: UpdateSessionInput & { force?: boolean }): Promise<SessionCreateResult> =>
+  apiFetch<unknown>(`/lms/sessions/${id}`, { method: 'PUT', body: JSON.stringify(toSnake(buildSessionPayload(data as Record<string, unknown>))) })
+    .then(toSessionCreateResult)
 export const deleteSession = (id: string): Promise<void> =>
   apiDelete<void>(`/lms/sessions/${id}`)
 

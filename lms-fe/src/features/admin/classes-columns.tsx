@@ -156,6 +156,8 @@ export function createClassColumns(
           <Button
             variant="ghost" size="icon" className="h-8 w-8"
             onClick={() => onEdit(row.original)}
+            title={t('common.edit', 'Chỉnh sửa lớp')}
+            aria-label={t('common.edit', 'Chỉnh sửa lớp')}
           >
             <Pencil className="h-3.5 w-3.5" />
           </Button>

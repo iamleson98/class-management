@@ -1,11 +1,15 @@
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+'use client'
+
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { createClassSchema, updateClassSchema } from '@/lib/schemas'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createClass, getBranches, getCourses, getUsers, updateClass } from '@/lib/api'
+import { createClass, getBranches, getCourses, getUsers, getUserDisplayName, updateClass } from '@/lib/api'
 import { useToast } from '@/hooks/use-toast'
 import { useTranslation } from '@/lib/i18n'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -14,15 +18,14 @@ import {
     DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { type CreateClassInput, type UpdateClassInput } from '@/lib/schemas'
-import z from 'zod'
+import { type Class, type CreateClassInput, type UpdateClassInput } from '@/lib/schemas'
 import { DatePicker } from '@/components/ui/date-picker'
 
 
 type ClassFormValues = z.input<typeof createClassSchema>
 
 const EMPTY_CLASS: ClassFormValues = {
-    code: '', name: '', courseId: '', teacherId: '', room: '', status: 'OPEN', startDate: '', branchId: '',
+    code: '', name: '', courseId: '', teacherId: '', room: '', status: 'OPEN', startDate: '', endDate: '', branchId: '',
 }
 
 const STATUS_MAP: Record<string, { label: string; className: string }> = {
@@ -33,13 +36,29 @@ const STATUS_MAP: Record<string, { label: string; className: string }> = {
     CLOSED: { label: 'Đã đóng', className: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400' },
 }
 
+/** Coerce a backend start/end date value into the DatePicker's 'yyyy-MM-dd'. */
+function toDateString(value: unknown): string {
+    if (typeof value === 'string') return value.slice(0, 10)
+    if (typeof value === 'number' && !Number.isNaN(value)) {
+        return new Date(value).toISOString().slice(0, 10)
+    }
+    return ''
+}
+
 export type ClassFormProps = {
+    /** True when the dialog is editing an existing class. */
     editingClass: boolean;
     onDone: () => void;
     editingClassId?: string;
+    /**
+     * The class row being edited. Without it the form used to open EMPTY —
+     * the edit button looked like "create" again and submitting would wipe
+     * the class's fields. The row comes from the table's live query data.
+     */
+    classData?: Class | null;
 }
 
-export default function ClassForm({ editingClass, onDone, editingClassId }: ClassFormProps) {
+export default function ClassForm({ editingClass, onDone, editingClassId, classData }: ClassFormProps) {
     const queryClient = useQueryClient()
     const { toast } = useToast()
     const { t } = useTranslation()
@@ -48,6 +67,23 @@ export default function ClassForm({ editingClass, onDone, editingClassId }: Clas
         resolver: zodResolver(createClassSchema),
         defaultValues: EMPTY_CLASS,
     })
+
+    // Load the class being edited into the form. Re-runs whenever the target
+    // changes so reopening a different class refreshes the values.
+    useEffect(() => {
+        if (!editingClass || !classData) return
+        form.reset({
+            code: classData.code ?? '',
+            name: classData.name ?? '',
+            courseId: classData.courseId ?? '',
+            teacherId: classData.teacherId ?? '',
+            room: classData.room ?? '',
+            status: (classData.status ?? 'OPEN') as ClassFormValues['status'],
+            startDate: toDateString(classData.startDate),
+            endDate: toDateString(classData.endDate),
+            branchId: classData.branchId ?? '',
+        })
+    }, [editingClass, classData, form])
 
     const onSubmit = (values: ClassFormValues) => {
         if (editingClass) {
@@ -182,9 +218,16 @@ export default function ClassForm({ editingClass, onDone, editingClassId }: Clas
                                                 <span className="text-destructive">{t('common.loadFailed', 'Tải thất bại')}</span>
                                             </SelectItem>
                                         ) : (
-                                            teachers.map((t) => (
-                                                <SelectItem key={t.id} value={t.id}>{t.username || t.email}</SelectItem>
+                                            teachers.map((tc) => (
+                                                <SelectItem key={tc.id} value={tc.id}>{getUserDisplayName(tc)}</SelectItem>
                                             ))
+                                        )}
+                                        {/* Keep the current teacher selectable when absent from the
+                                            active roster (deactivated, role changed). */}
+                                        {editingClass && field.value && !teachers.some(tc => tc.id === field.value) && (
+                                            <SelectItem value={field.value}>
+                                                {t('classes.currentTeacher', 'Giáo viên hiện tại')}
+                                            </SelectItem>
                                         )}
                                     </SelectContent>
                                 </Select>
@@ -231,35 +274,58 @@ export default function ClassForm({ editingClass, onDone, editingClassId }: Clas
                     />
                     <FormField
                         control={form.control}
-                        name="branchId"
+                        name="endDate"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel>{t('students.branch', 'Chi nhánh')}</FormLabel>
-                                <Select value={field.value || ''} onValueChange={field.onChange}>
-                                    <FormControl>
-                                        {branchesLoading ? (
-                                            <SelectTrigger disabled><SelectValue placeholder={t('common.loading', 'Đang tải...')} /></SelectTrigger>
-                                        ) : (
-                                            <SelectTrigger><SelectValue placeholder={t('settings.addBranch', 'Chọn chi nhánh')} /></SelectTrigger>
-                                        )}
-                                    </FormControl>
-                                    <SelectContent>
-                                        {isBranchesError ? (
-                                            <SelectItem value="__error" disabled>
-                                                <span className="text-destructive">{t('common.loadFailed', 'Tải thất bại')}</span>
-                                            </SelectItem>
-                                        ) : (
-                                            branches.map((b) => (
-                                                <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                                            ))
-                                        )}
-                                    </SelectContent>
-                                </Select>
+                                <FormLabel>
+                                    {t('classes.endDate', 'Ngày kết thúc (dự kiến)')}
+                                    <span className="ml-1 text-muted-foreground text-xs font-normal">
+                                        {t('classes.endDateHint', 'cho lặp lại buổi học')}
+                                    </span>
+                                </FormLabel>
+                                <FormControl>
+                                    <DatePicker
+                                        value={field.value ?? ''}
+                                        onChange={(v: string) => form.setValue('endDate', v, { shouldValidate: true })}
+                                        invalid={!!form.formState.errors.endDate}
+                                        placeholder={t('classes.endDatePlaceholder', 'Chọn ngày (tùy chọn)')}
+                                    />
+                                </FormControl>
                                 <FormMessage />
                             </FormItem>
                         )}
                     />
                 </div>
+                <FormField
+                    control={form.control}
+                    name="branchId"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>{t('students.branch', 'Chi nhánh')}</FormLabel>
+                            <Select value={field.value || ''} onValueChange={field.onChange}>
+                                <FormControl>
+                                    {branchesLoading ? (
+                                        <SelectTrigger disabled><SelectValue placeholder={t('common.loading', 'Đang tải...')} /></SelectTrigger>
+                                    ) : (
+                                        <SelectTrigger><SelectValue placeholder={t('settings.addBranch', 'Chọn chi nhánh')} /></SelectTrigger>
+                                    )}
+                                </FormControl>
+                                <SelectContent>
+                                    {isBranchesError ? (
+                                        <SelectItem value="__error" disabled>
+                                            <span className="text-destructive">{t('common.loadFailed', 'Tải thất bại')}</span>
+                                        </SelectItem>
+                                    ) : (
+                                        branches.map((b) => (
+                                            <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                                        ))
+                                    )}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
                 <DialogFooter>
                     <Button variant="outline" type="button" onClick={onDone}>{t('common.cancel', 'Hủy')}</Button>
                     <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="bg-sky-600 hover:bg-sky-700 text-white">

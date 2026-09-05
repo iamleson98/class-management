@@ -366,63 +366,37 @@ export default function AdminStudents() {
                 />
               </div>
               {!editingStudent && (
-                <div className="grid grid-cols-2 gap-4 items-start">
-                  <FormField
-                    control={form.control}
-                    name="code"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('students.studentCode', 'Mã học viên')}</FormLabel>
-                        <FormControl><Input {...field} value={field.value ?? ''} placeholder="HV001" /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="vmgClassCode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('students.vmgClassCode', 'Mã lớp học Việt Mỹ')}</FormLabel>
-                        <FormControl><Input {...field} value={field.value ?? ''} placeholder="VD: VMG-A1" /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                <FormField
+                  control={form.control}
+                  name="code"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('students.studentCode', 'Mã học viên')}</FormLabel>
+                      <FormControl><Input {...field} value={field.value ?? ''} placeholder="HV001" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               )}
               {editingStudent && (
-                <div className="grid grid-cols-2 gap-4 items-start">
-                  <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('common.status', 'Trạng thái')}</FormLabel>
-                        <Select value={field.value ?? ''} onValueChange={field.onChange}>
-                          <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                          <SelectContent>
-                            {Object.entries(STATUS_MAP).map(([key, val]) => (
-                              <SelectItem key={key} value={key}>{val.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="vmgClassCode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('students.vmgClassCode', 'Mã lớp học Việt Mỹ')}</FormLabel>
-                        <FormControl><Input {...field} value={field.value ?? ''} placeholder="VD: VMG-A1" /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                <FormField
+                  control={form.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('common.status', 'Trạng thái')}</FormLabel>
+                      <Select value={field.value ?? ''} onValueChange={field.onChange}>
+                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          {Object.entries(STATUS_MAP).map(([key, val]) => (
+                            <SelectItem key={key} value={key}>{val.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               )}
               <div className="grid grid-cols-2 gap-4 items-start">
                 <FormField

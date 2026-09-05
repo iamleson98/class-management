@@ -11,7 +11,6 @@ import (
 	"github.com/iamleson98/sitename/server/public/lms_models"
 	"github.com/iamleson98/sitename/server/public/model"
 	modelhelper "github.com/iamleson98/sitename/server/public/model_helper"
-	"github.com/iamleson98/sitename/server/v8/channels/app/password/hashers"
 	"github.com/iamleson98/sitename/server/v8/channels/store"
 )
 
@@ -96,13 +95,11 @@ func (a *LMSApp) CreateStudent(user *model.User, props map[string]any) (*model.U
 	// Admin-created accounts are verified by definition (no email flow).
 	user.EmailVerified = true
 
-	// Hash the default password
-	hasher := hashers.NewBCrypt()
-	hashed, err := hasher.Hash(defaultStudentPassword)
-	if err != nil {
-		return nil, model.NewAppError("CreateStudent", "app.lms.student.hash_password.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
-	}
-	user.Password = hashed
+	// Set the PLAINTEXT default password here: User.PreSave() (inside
+	// store.User().Save) hashes non-empty passwords exactly once. The old
+	// code pre-hashed with bcrypt, so PreSave hashed it a second time and
+	// students could never log in with the documented Student@123.
+	user.Password = defaultStudentPassword
 
 	// Store student-specific props as JSON string under "student" key
 	if props != nil {

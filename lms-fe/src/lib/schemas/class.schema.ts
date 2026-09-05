@@ -4,7 +4,8 @@ import { ClassStatus } from './enums'
 
 // Backend contract: server/public/lms_models/classes.go (lms_models.Class).
 // Fields: id, course_id, branch_id, name, code, teacher_id, status, room,
-// start_date (time.Time, RFC3339), chat_channel_id, createat, updateat.
+// start_date ("YYYY-MM-DD"), end_date ("YYYY-MM-DD" or null — optional),
+// chat_channel_id, createat, updateat.
 // NOTE: there is NO max_size / maxSize field on the backend Class struct.
 // branch_id is a NOT NULL column with no server-side default → required
 // here so the form shows the asterisk and blocks an empty submit instead
@@ -17,6 +18,7 @@ export const createClassSchema = z.object({
   room: optionalString,
   status: ClassStatus.optional().default('OPEN'),
   startDate: optionalDateField,
+  endDate: optionalDateField,
   branchId: idField,
 })
 
@@ -28,6 +30,7 @@ export const updateClassSchema = z.object({
   room: optionalString,
   status: ClassStatus.optional(),
   startDate: optionalDateField,
+  endDate: optionalDateField,
   branchId: optionalString,
 })
 

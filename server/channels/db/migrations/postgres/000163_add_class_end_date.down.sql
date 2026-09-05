@@ -1,0 +1,1 @@
+ALTER TABLE classes DROP COLUMN IF EXISTS end_date;

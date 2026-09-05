@@ -100,12 +100,45 @@ func (s *SqlLMSSessionStore) Delete(id string) error {
 
 func (s *SqlLMSSessionStore) CountUpcomingByStudent(studentID string) (int64, error) {
 	var count int64
+	// NOTE: identifiers are quoted — PG folds unquoted mixed-case names to
+	// lowercase ("LMSSessions" -> "lmssessions"), which does not match the
+	// actual table/column names created by migration 000153.
 	err := s.sqlStore.GetReplicaExecuter().QueryRow(
-		"SELECT COUNT(*) FROM LMSSessions s INNER JOIN StudentClasses sc ON sc.ClassID = s.ClassID WHERE s.Status = 'SCHEDULED' AND s.Date >= CURRENT_DATE AND sc.StudentID = $1",
+		`SELECT COUNT(*) FROM "lms_sessions" s
+                INNER JOIN "student_classes" sc ON sc."class_id" = s."class_id"
+                WHERE s."status" = 'SCHEDULED' AND s."date" >= CURRENT_DATE AND sc."student_id" = $1`,
 		studentID,
 	).Scan(&count)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to count upcoming sessions by student")
 	}
 	return count, nil
+}
+
+// FindTeacherConflicts returns the teacher's non-cancelled sessions strictly
+// overlapping [startMs, endMs) (start < endMs AND end > startMs), optionally
+// excluding one session (the one being moved). Sorted by start time and
+// capped at 25 rows so a pathological schedule cannot balloon the response.
+func (s *SqlLMSSessionStore) FindTeacherConflicts(teacherID string, startMs, endMs int64, excludeSessionID string) ([]*lms_models.LMSSession, error) {
+	if teacherID == "" {
+		return nil, nil
+	}
+
+	mods := []qm.QueryMod{
+		lms_models.LMSSessionWhere.TeacherID.EQ(teacherID),
+		lms_models.LMSSessionWhere.Status.NEQ("CANCELLED"),
+		lms_models.LMSSessionWhere.StartTime.LT(endMs),
+		lms_models.LMSSessionWhere.EndTime.GT(startMs),
+		qm.OrderBy(lms_models.LMSSessionColumns.StartTime),
+		qm.Limit(25),
+	}
+	if excludeSessionID != "" {
+		mods = append(mods, lms_models.LMSSessionWhere.ID.NEQ(excludeSessionID))
+	}
+
+	sessions, err := lms_models.LMSSessions(mods...).All(s.sqlStore.GetReplicaExecuter())
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to find teacher session conflicts")
+	}
+	return sessions, nil
 }

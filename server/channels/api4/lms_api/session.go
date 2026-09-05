@@ -10,6 +10,7 @@ import (
 	"github.com/iamleson98/sitename/server/public/shared/mlog"
 	"github.com/iamleson98/sitename/server/public/utils"
 	"github.com/iamleson98/sitename/server/v8/channels/api4"
+	"github.com/iamleson98/sitename/server/v8/channels/app/lms"
 	"github.com/iamleson98/sitename/server/v8/channels/web"
 )
 
@@ -57,21 +58,63 @@ func createSession(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		c.SetPermissionError(model.PermissionLmsManageSessions)
 		return
 	}
-	var session *lms_models.LMSSession
-	if err := json.NewDecoder(r.Body).Decode(&session); err != nil {
+
+	// The body is a bare LMSSession plus two optional controls:
+	//   repeat_until ("YYYY-MM-DD" or "") — weekly expansion end (inclusive)
+	//   force (bool)                      — create despite teacher conflicts
+	var body struct {
+		*lms_models.LMSSession
+		RepeatUntil string `json:"repeat_until"`
+		Force       bool   `json:"force"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		c.Err = model.NewAppError("createSession", "api.lms.session.create_body.app_error", nil, err.Error(), http.StatusBadRequest)
 		return
 	}
+	if body.LMSSession == nil {
+		c.Err = model.NewAppError("createSession", "api.lms.session.create_body.app_error", nil, "missing session object", http.StatusBadRequest)
+		return
+	}
 
-	created, err := c.App.LMS().CreateSession(session)
+	created, conflicts, err := c.App.LMS().CreateSessionsWithRepeat(body.LMSSession, body.RepeatUntil, body.Force)
 	if err != nil {
 		c.Err = err
 		return
 	}
+	if len(conflicts) > 0 {
+		writeSessionConflictResponse(c, w, conflicts)
+		return
+	}
 
 	w.WriteHeader(http.StatusCreated)
-	if err := json.NewEncoder(w).Encode(LMSResponse{Data: created}); err != nil {
+	if err := json.NewEncoder(w).Encode(struct {
+		Sessions []*lms_models.LMSSession `json:"sessions"`
+		Count    int                      `json:"count"`
+	}{Sessions: created, Count: len(created)}); err != nil {
 		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
+}
+
+// writeSessionConflictResponse answers 409 with the AppError shape the
+// frontend already parses, extended with a `conflicts` array
+// (date/time/class/teacher) the schedule dialog renders for review.
+func writeSessionConflictResponse(c *api4.Context, w http.ResponseWriter, conflicts []*lms.SessionConflict) {
+	appErr := model.NewAppError(
+		"createSession",
+		"app.lms.session.teacher_conflict.app_error",
+		map[string]any{"Count": len(conflicts)},
+		lms.SessionConflictSummary(conflicts),
+		http.StatusConflict,
+	)
+	appErr.Translate(c.AppContext.T)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusConflict)
+	if err := json.NewEncoder(w).Encode(struct {
+		model.AppError
+		Conflicts []*lms.SessionConflict `json:"conflicts"`
+	}{AppError: *appErr, Conflicts: conflicts}); err != nil {
+		c.Logger.Warn("Error while writing conflict response", mlog.Err(err))
 	}
 }
 
@@ -108,19 +151,34 @@ func updateSession(c *api4.Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var session *lms_models.LMSSession
-	if err := json.NewDecoder(r.Body).Decode(&session); err != nil {
+	// LMSSession fields + optional force flag (proceed despite conflicts).
+	var body struct {
+		*lms_models.LMSSession
+		Force bool `json:"force"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		c.Err = model.NewAppError("updateSession", "api.lms.session.update_body.app_error", nil, err.Error(), http.StatusBadRequest)
 		return
 	}
+	if body.LMSSession == nil {
+		c.Err = model.NewAppError("updateSession", "api.lms.session.update_body.app_error", nil, "missing session object", http.StatusBadRequest)
+		return
+	}
 
-	updated, err := c.App.LMS().UpdateSession(id, session)
+	updated, conflicts, err := c.App.LMS().UpdateSession(id, body.LMSSession, body.Force)
 	if err != nil {
 		c.Err = err
 		return
 	}
+	if len(conflicts) > 0 {
+		writeSessionConflictResponse(c, w, conflicts)
+		return
+	}
 
-	if err := json.NewEncoder(w).Encode(LMSResponse{Data: updated}); err != nil {
+	if err := json.NewEncoder(w).Encode(struct {
+		Sessions []*lms_models.LMSSession `json:"sessions"`
+		Count    int                      `json:"count"`
+	}{Sessions: []*lms_models.LMSSession{updated}, Count: 1}); err != nil {
 		c.Logger.Warn("Error while writing response", mlog.Err(err))
 	}
 }

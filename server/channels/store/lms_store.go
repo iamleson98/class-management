@@ -91,6 +91,11 @@ type LMSSessionStore interface {
 	Save(session *lms_models.LMSSession) (*lms_models.LMSSession, error)
 	Update(session *lms_models.LMSSession) (*lms_models.LMSSession, error)
 	Delete(id string) error
+	// FindTeacherConflicts returns the teacher's non-cancelled sessions that
+	// overlap the [startMs, endMs) window (strict overlap: start < endMs and
+	// end > startMs), excluding excludeSessionID (pass "" to include all).
+	// Used by the schedule-conflict check on session create/update.
+	FindTeacherConflicts(teacherID string, startMs, endMs int64, excludeSessionID string) ([]*lms_models.LMSSession, error)
 }
 
 // ============================================================================

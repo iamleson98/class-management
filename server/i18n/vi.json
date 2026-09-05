@@ -9004,5 +9004,193 @@
   {
     "id": "api.channel.get_channel.flagged_post_mismatch.app_error",
     "translation": "ID của kênh này không trùng với ID của kênh có bài viết được gắn cờ."
+  },
+  {
+    "id": "api.lms.session.create_body.app_error",
+    "translation": "Không đọc được dữ liệu buổi học (định dạng không hợp lệ)."
+  },
+  {
+    "id": "api.lms.session.update_body.app_error",
+    "translation": "Không đọc được dữ liệu cập nhật buổi học."
+  },
+  {
+    "id": "api.lms.session.attendance_body.app_error",
+    "translation": "Không đọc được dữ liệu điểm danh."
+  },
+  {
+    "id": "app.lms.session.get.app_error",
+    "translation": "Không tải được buổi học."
+  },
+  {
+    "id": "app.lms.session.get_all.app_error",
+    "translation": "Không tải được danh sách buổi học."
+  },
+  {
+    "id": "app.lms.session.create.app_error",
+    "translation": "Không tạo được buổi học."
+  },
+  {
+    "id": "app.lms.session.update.app_error",
+    "translation": "Không cập nhật được buổi học."
+  },
+  {
+    "id": "app.lms.session.delete.app_error",
+    "translation": "Không xóa được buổi học."
+  },
+  {
+    "id": "app.lms.session.not_found",
+    "translation": "Không tìm thấy buổi học."
+  },
+  {
+    "id": "app.lms.session.time_order.app_error",
+    "translation": "Giờ kết thúc phải sau giờ bắt đầu."
+  },
+  {
+    "id": "app.lms.session.repeat_until.app_error",
+    "translation": "Ngày kết thúc lặp lại không hợp lệ (định dạng YYYY-MM-DD)."
+  },
+  {
+    "id": "app.lms.session.repeat_until_before.app_error",
+    "translation": "Ngày kết thúc lặp lại phải từ ngày buổi học trở đi."
+  },
+  {
+    "id": "app.lms.session.repeat_too_many.app_error",
+    "translation": "Lặp lại vượt quá số buổi cho phép (tối đa {{.Max}} buổi)."
+  },
+  {
+    "id": "app.lms.session.conflict_check.app_error",
+    "translation": "Không kiểm tra được lịch của giáo viên."
+  },
+  {
+    "id": "app.lms.session.teacher_conflict.app_error",
+    "translation": "Giáo viên đã có {{.Count}} buổi học trùng lịch trong khung giờ này."
+  },
+  {
+    "id": "model.lms.session.id.app_error",
+    "translation": "Mã buổi học không hợp lệ."
+  },
+  {
+    "id": "model.lms.session.class_id.app_error",
+    "translation": "Buổi học phải thuộc một lớp học."
+  },
+  {
+    "id": "model.lms.session.teacher_id.app_error",
+    "translation": "Buổi học phải có giáo viên."
+  },
+  {
+    "id": "model.lms.session.date.app_error",
+    "translation": "Buổi học phải có ngày học."
+  },
+  {
+    "id": "model.lms.session.title.len.app_error",
+    "translation": "Tiêu đề buổi học quá dài (tối đa 200 ký tự)."
+  },
+  {
+    "id": "model.lms.session.room.len.app_error",
+    "translation": "Phòng học quá dài (tối đa 100 ký tự)."
+  },
+  {
+    "id": "model.lms.session.status.len.app_error",
+    "translation": "Trạng thái buổi học không hợp lệ."
+  },
+  {
+    "id": "api.lms.create_student.bad_body.app_error",
+    "translation": "Không đọc được dữ liệu học viên (thiếu thông tin hoặc sai định dạng)."
+  },
+  {
+    "id": "api.lms.update_student.bad_body.app_error",
+    "translation": "Không đọc được dữ liệu cập nhật học viên."
+  },
+  {
+    "id": "app.lms.student.email.app_error",
+    "translation": "Email là bắt buộc."
+  },
+  {
+    "id": "app.lms.student.email_exists.app_error",
+    "translation": "Email này đã được sử dụng bởi tài khoản khác."
+  },
+  {
+    "id": "app.lms.student.create.app_error",
+    "translation": "Không thêm được học viên."
+  },
+  {
+    "id": "app.lms.student.get.app_error",
+    "translation": "Không tải được học viên."
+  },
+  {
+    "id": "app.lms.student.get_all.app_error",
+    "translation": "Không tải được danh sách học viên."
+  },
+  {
+    "id": "app.lms.student.update.app_error",
+    "translation": "Không cập nhật được học viên."
+  },
+  {
+    "id": "app.lms.student.delete.app_error",
+    "translation": "Không xóa được học viên."
+  },
+  {
+    "id": "app.lms.student.not_found.app_error",
+    "translation": "Không tìm thấy học viên."
+  },
+  {
+    "id": "app.lms.student.props_marshal.app_error",
+    "translation": "Không lưu được thông tin học viên."
+  },
+  {
+    "id": "api.lms.class.create_body.app_error",
+    "translation": "Không đọc được dữ liệu lớp học."
+  },
+  {
+    "id": "api.lms.class.update_body.app_error",
+    "translation": "Không đọc được dữ liệu cập nhật lớp học."
+  },
+  {
+    "id": "api.lms.class.enroll_body.app_error",
+    "translation": "Không đọc được dữ liệu ghi danh."
+  },
+  {
+    "id": "app.lms.class.get.app_error",
+    "translation": "Không tải được lớp học."
+  },
+  {
+    "id": "app.lms.class.get_all.app_error",
+    "translation": "Không tải được danh sách lớp học."
+  },
+  {
+    "id": "app.lms.class.create.app_error",
+    "translation": "Không tạo được lớp học."
+  },
+  {
+    "id": "app.lms.class.update.app_error",
+    "translation": "Không cập nhật được lớp học."
+  },
+  {
+    "id": "app.lms.class.delete.app_error",
+    "translation": "Không xóa được lớp học."
+  },
+  {
+    "id": "app.lms.class.enroll.app_error",
+    "translation": "Không ghi danh được học viên."
+  },
+  {
+    "id": "app.lms.class.unenroll.app_error",
+    "translation": "Không xóa được học viên khỏi lớp."
+  },
+  {
+    "id": "app.lms.class.get_students.app_error",
+    "translation": "Không tải được học viên của lớp."
+  },
+  {
+    "id": "app.lms.class.not_found",
+    "translation": "Không tìm thấy lớp học."
+  },
+  {
+    "id": "app.lms.class.already_enrolled",
+    "translation": "Học viên đã có trong lớp này."
+  },
+  {
+    "id": "app.lms.class.not_enrolled",
+    "translation": "Học viên không có trong lớp này."
   }
 ]

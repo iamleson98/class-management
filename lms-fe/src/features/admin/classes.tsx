@@ -568,7 +568,7 @@ export default function AdminClasses() {
             <DialogTitle>{editingClass ? t('classes.editClass', 'Chỉnh sửa lớp') : t('classes.createNewClass', 'Tạo lớp mới')}</DialogTitle>
             <DialogDescription />
           </DialogHeader>
-          <ClassForm onDone={closeDialog} editingClass={Boolean(editingClass)} editingClassId={editingClass ? editingClass.id : undefined} />
+          <ClassForm onDone={closeDialog} editingClass={Boolean(editingClass)} editingClassId={editingClass ? editingClass.id : undefined} classData={editingClass} />
         </DialogContent>
       </Dialog>
 

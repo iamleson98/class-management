@@ -24,18 +24,19 @@ import (
 
 // Class is an object representing the database table.
 type Class struct {
-	ID            string       `boil:"id" json:"id" toml:"id" yaml:"id"`
-	CourseID      string       `boil:"course_id" json:"course_id" toml:"course_id" yaml:"course_id"`
-	BranchID      string       `boil:"branch_id" json:"branch_id" toml:"branch_id" yaml:"branch_id"`
-	Name          string       `boil:"name" json:"name" toml:"name" yaml:"name"`
-	Code          string       `boil:"code" json:"code" toml:"code" yaml:"code"`
-	TeacherID     string       `boil:"teacher_id" json:"teacher_id" toml:"teacher_id" yaml:"teacher_id"`
-	Status        string       `boil:"status" json:"status" toml:"status" yaml:"status"`
-	Room          null.String  `boil:"room" json:"room,omitempty" toml:"room" yaml:"room,omitempty"`
-	StartDate     utils.VnTime `boil:"start_date" json:"start_date" toml:"start_date" yaml:"start_date"`
-	Createat      int64        `boil:"createat" json:"createat" toml:"createat" yaml:"createat"`
-	Updateat      int64        `boil:"updateat" json:"updateat" toml:"updateat" yaml:"updateat"`
-	ChatChannelID string       `boil:"chat_channel_id" json:"chat_channel_id" toml:"chat_channel_id" yaml:"chat_channel_id"`
+	ID            string           `boil:"id" json:"id" toml:"id" yaml:"id"`
+	CourseID      string           `boil:"course_id" json:"course_id" toml:"course_id" yaml:"course_id"`
+	BranchID      string           `boil:"branch_id" json:"branch_id" toml:"branch_id" yaml:"branch_id"`
+	Name          string           `boil:"name" json:"name" toml:"name" yaml:"name"`
+	Code          string           `boil:"code" json:"code" toml:"code" yaml:"code"`
+	TeacherID     string           `boil:"teacher_id" json:"teacher_id" toml:"teacher_id" yaml:"teacher_id"`
+	Status        string           `boil:"status" json:"status" toml:"status" yaml:"status"`
+	Room          null.String      `boil:"room" json:"room,omitempty" toml:"room" yaml:"room,omitempty"`
+	StartDate     utils.VnTime     `boil:"start_date" json:"start_date" toml:"start_date" yaml:"start_date"`
+	EndDate       utils.NullVnTime `boil:"end_date" json:"end_date" toml:"end_date" yaml:"end_date"`
+	Createat      int64            `boil:"createat" json:"createat" toml:"createat" yaml:"createat"`
+	Updateat      int64            `boil:"updateat" json:"updateat" toml:"updateat" yaml:"updateat"`
+	ChatChannelID string           `boil:"chat_channel_id" json:"chat_channel_id" toml:"chat_channel_id" yaml:"chat_channel_id"`
 
 	R *classR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L classL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -51,6 +52,7 @@ var ClassColumns = struct {
 	Status        string
 	Room          string
 	StartDate     string
+	EndDate       string
 	Createat      string
 	Updateat      string
 	ChatChannelID string
@@ -64,6 +66,7 @@ var ClassColumns = struct {
 	Status:        "status",
 	Room:          "room",
 	StartDate:     "start_date",
+	EndDate:       "end_date",
 	Createat:      "createat",
 	Updateat:      "updateat",
 	ChatChannelID: "chat_channel_id",
@@ -79,6 +82,7 @@ var ClassTableColumns = struct {
 	Status        string
 	Room          string
 	StartDate     string
+	EndDate       string
 	Createat      string
 	Updateat      string
 	ChatChannelID string
@@ -92,6 +96,7 @@ var ClassTableColumns = struct {
 	Status:        "classes.status",
 	Room:          "classes.room",
 	StartDate:     "classes.start_date",
+	EndDate:       "classes.end_date",
 	Createat:      "classes.createat",
 	Updateat:      "classes.updateat",
 	ChatChannelID: "classes.chat_channel_id",
@@ -120,6 +125,17 @@ func (w whereHelperutils_VnTime) GTE(x utils.VnTime) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.GTE, x)
 }
 
+type whereHelperutils_NullVnTime struct{ field string }
+
+func (w whereHelperutils_NullVnTime) EQ(x utils.NullVnTime) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.EQ, x)
+}
+func (w whereHelperutils_NullVnTime) NEQ(x utils.NullVnTime) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.NEQ, x)
+}
+func (w whereHelperutils_NullVnTime) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
+func (w whereHelperutils_NullVnTime) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
+
 var ClassWhere = struct {
 	ID            whereHelperstring
 	CourseID      whereHelperstring
@@ -130,6 +146,7 @@ var ClassWhere = struct {
 	Status        whereHelperstring
 	Room          whereHelpernull_String
 	StartDate     whereHelperutils_VnTime
+	EndDate       whereHelperutils_NullVnTime
 	Createat      whereHelperint64
 	Updateat      whereHelperint64
 	ChatChannelID whereHelperstring
@@ -143,6 +160,7 @@ var ClassWhere = struct {
 	Status:        whereHelperstring{field: "\"classes\".\"status\""},
 	Room:          whereHelpernull_String{field: "\"classes\".\"room\""},
 	StartDate:     whereHelperutils_VnTime{field: "\"classes\".\"start_date\""},
+	EndDate:       whereHelperutils_NullVnTime{field: "\"classes\".\"end_date\""},
 	Createat:      whereHelperint64{field: "\"classes\".\"createat\""},
 	Updateat:      whereHelperint64{field: "\"classes\".\"updateat\""},
 	ChatChannelID: whereHelperstring{field: "\"classes\".\"chat_channel_id\""},
@@ -337,9 +355,9 @@ func (r *classR) GetWeeklyReviews() WeeklyReviewSlice {
 type classL struct{}
 
 var (
-	classAllColumns            = []string{"id", "course_id", "branch_id", "name", "code", "teacher_id", "status", "room", "start_date", "createat", "updateat", "chat_channel_id"}
+	classAllColumns            = []string{"id", "course_id", "branch_id", "name", "code", "teacher_id", "status", "room", "start_date", "end_date", "createat", "updateat", "chat_channel_id"}
 	classColumnsWithoutDefault = []string{"id", "course_id", "branch_id", "name", "code", "teacher_id", "status", "start_date", "createat", "updateat"}
-	classColumnsWithDefault    = []string{"room", "chat_channel_id"}
+	classColumnsWithDefault    = []string{"room", "end_date", "chat_channel_id"}
 	classPrimaryKeyColumns     = []string{"id"}
 	classGeneratedColumns      = []string{}
 )

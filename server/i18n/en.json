@@ -2509,6 +2509,38 @@
     "translation": "api endpoint requires a license"
   },
   {
+    "id": "api.lms.class.create_body.app_error",
+    "translation": "Unable to parse the class create body."
+  },
+  {
+    "id": "api.lms.class.enroll_body.app_error",
+    "translation": "Unable to parse the enrollment body."
+  },
+  {
+    "id": "api.lms.class.update_body.app_error",
+    "translation": "Unable to parse the class update body."
+  },
+  {
+    "id": "api.lms.create_student.bad_body.app_error",
+    "translation": "Unable to parse the student create body."
+  },
+  {
+    "id": "api.lms.session.attendance_body.app_error",
+    "translation": "Unable to parse the attendance body."
+  },
+  {
+    "id": "api.lms.session.create_body.app_error",
+    "translation": "Unable to parse the session create body."
+  },
+  {
+    "id": "api.lms.session.update_body.app_error",
+    "translation": "Unable to parse the session update body."
+  },
+  {
+    "id": "api.lms.update_student.bad_body.app_error",
+    "translation": "Unable to parse the student update body."
+  },
+  {
     "id": "api.marshal_error",
     "translation": "Failed to marshal."
   },
@@ -6895,6 +6927,134 @@
     "translation": "Failed to get user count"
   },
   {
+    "id": "app.lms.class.already_enrolled",
+    "translation": "The student is already enrolled in this class."
+  },
+  {
+    "id": "app.lms.class.create.app_error",
+    "translation": "Could not create the class."
+  },
+  {
+    "id": "app.lms.class.delete.app_error",
+    "translation": "Could not delete the class."
+  },
+  {
+    "id": "app.lms.class.enroll.app_error",
+    "translation": "Could not enroll the student."
+  },
+  {
+    "id": "app.lms.class.get.app_error",
+    "translation": "Could not get the class."
+  },
+  {
+    "id": "app.lms.class.get_all.app_error",
+    "translation": "Could not get the classes."
+  },
+  {
+    "id": "app.lms.class.get_students.app_error",
+    "translation": "Could not get the class students."
+  },
+  {
+    "id": "app.lms.class.not_enrolled",
+    "translation": "The student is not enrolled in this class."
+  },
+  {
+    "id": "app.lms.class.not_found",
+    "translation": "Class not found."
+  },
+  {
+    "id": "app.lms.class.unenroll.app_error",
+    "translation": "Could not remove the student from the class."
+  },
+  {
+    "id": "app.lms.class.update.app_error",
+    "translation": "Could not update the class."
+  },
+  {
+    "id": "app.lms.session.conflict_check.app_error",
+    "translation": "Could not check the teacher's schedule."
+  },
+  {
+    "id": "app.lms.session.create.app_error",
+    "translation": "Could not create the session."
+  },
+  {
+    "id": "app.lms.session.delete.app_error",
+    "translation": "Could not delete the session."
+  },
+  {
+    "id": "app.lms.session.get.app_error",
+    "translation": "Could not get the session."
+  },
+  {
+    "id": "app.lms.session.get_all.app_error",
+    "translation": "Could not get the sessions."
+  },
+  {
+    "id": "app.lms.session.not_found",
+    "translation": "Session not found."
+  },
+  {
+    "id": "app.lms.session.repeat_too_many.app_error",
+    "translation": "The repeat would create too many sessions (limit {{.Max}})."
+  },
+  {
+    "id": "app.lms.session.repeat_until.app_error",
+    "translation": "Invalid repeat-until date (expected YYYY-MM-DD)."
+  },
+  {
+    "id": "app.lms.session.repeat_until_before.app_error",
+    "translation": "The repeat-until date must be on or after the session date."
+  },
+  {
+    "id": "app.lms.session.teacher_conflict.app_error",
+    "translation": "The teacher already has {{.Count}} conflicting session(s) in this time slot."
+  },
+  {
+    "id": "app.lms.session.time_order.app_error",
+    "translation": "End time must be after start time."
+  },
+  {
+    "id": "app.lms.session.update.app_error",
+    "translation": "Could not update the session."
+  },
+  {
+    "id": "app.lms.student.create.app_error",
+    "translation": "Could not create the student."
+  },
+  {
+    "id": "app.lms.student.delete.app_error",
+    "translation": "Could not delete the student."
+  },
+  {
+    "id": "app.lms.student.email.app_error",
+    "translation": "A valid email is required."
+  },
+  {
+    "id": "app.lms.student.email_exists.app_error",
+    "translation": "This email is already used by another account."
+  },
+  {
+    "id": "app.lms.student.get.app_error",
+    "translation": "Could not get the student."
+  },
+  {
+    "id": "app.lms.student.get_all.app_error",
+    "translation": "Could not get the students."
+  },
+  {
+    "id": "app.lms.student.not_found.app_error",
+    "translation": "Student not found."
+  },
+  {
+    "id": "app.lms.student.props_marshal.app_error",
+    "translation": "Could not store the student details."
+  },
+  {
+    "id": "app.lms.student.update.app_error",
+    "translation": "Could not update the student."
+  },
+  {
     "id": "app.login.doLogin.updateLastLogin.error",
     "translation": "Could not update last login timestamp"
   },
@@ -10523,6 +10683,34 @@
   {
     "id": "model.link_metadata.is_valid.url_length.app_error",
     "translation": "Length of link metadata URL is {{ .Length }} characters long, which exceeds the maximum limit of {{ .MaxLength }} characters."
+  },
+  {
+    "id": "model.lms.session.class_id.app_error",
+    "translation": "A class is required for the session."
+  },
+  {
+    "id": "model.lms.session.date.app_error",
+    "translation": "A date is required for the session."
+  },
+  {
+    "id": "model.lms.session.id.app_error",
+    "translation": "Invalid session ID."
+  },
+  {
+    "id": "model.lms.session.room.len.app_error",
+    "translation": "Room is too long (max 100 characters)."
+  },
+  {
+    "id": "model.lms.session.status.len.app_error",
+    "translation": "Session status is too long (max 50 characters)."
+  },
+  {
+    "id": "model.lms.session.teacher_id.app_error",
+    "translation": "A teacher is required for the session."
+  },
+  {
+    "id": "model.lms.session.title.len.app_error",
+    "translation": "Session title is too long (max 200 characters)."
   },
   {
     "id": "model.member.is_valid.channel.app_error",

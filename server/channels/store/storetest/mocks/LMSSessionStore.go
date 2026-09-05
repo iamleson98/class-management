@@ -401,3 +401,83 @@ func (_c *LMSSessionStore_Update_Call) RunAndReturn(run func(session *lms_models
 	_c.Call.Return(run)
 	return _c
 }
+
+// FindTeacherConflicts provides a mock function for the type LMSSessionStore
+func (_mock *LMSSessionStore) FindTeacherConflicts(teacherID string, startMs int64, endMs int64, excludeSessionID string) ([]*lms_models.LMSSession, error) {
+	ret := _mock.Called(teacherID, startMs, endMs, excludeSessionID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindTeacherConflicts")
+	}
+
+	var r0 []*lms_models.LMSSession
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string, int64, int64, string) ([]*lms_models.LMSSession, error)); ok {
+		return returnFunc(teacherID, startMs, endMs, excludeSessionID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(string, int64, int64, string) []*lms_models.LMSSession); ok {
+		r0 = returnFunc(teacherID, startMs, endMs, excludeSessionID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*lms_models.LMSSession)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(string, int64, int64, string) error); ok {
+		r1 = returnFunc(teacherID, startMs, endMs, excludeSessionID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// LMSSessionStore_FindTeacherConflicts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindTeacherConflicts'
+type LMSSessionStore_FindTeacherConflicts_Call struct {
+	*mock.Call
+}
+
+// FindTeacherConflicts is a helper method to define mock.On call
+//   - teacherID string
+//   - startMs int64
+//   - endMs int64
+//   - excludeSessionID string
+func (_e *LMSSessionStore_Expecter) FindTeacherConflicts(teacherID any, startMs any, endMs any, excludeSessionID any) *LMSSessionStore_FindTeacherConflicts_Call {
+	return &LMSSessionStore_FindTeacherConflicts_Call{Call: _e.mock.On("FindTeacherConflicts", teacherID, startMs, endMs, excludeSessionID)}
+}
+
+func (_c *LMSSessionStore_FindTeacherConflicts_Call) Run(run func(teacherID string, startMs int64, endMs int64, excludeSessionID string)) *LMSSessionStore_FindTeacherConflicts_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		var arg2 int64
+		if args[2] != nil {
+			arg2 = args[2].(int64)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *LMSSessionStore_FindTeacherConflicts_Call) Return(lMSSessions []*lms_models.LMSSession, err error) *LMSSessionStore_FindTeacherConflicts_Call {
+	_c.Call.Return(lMSSessions, err)
+	return _c
+}
+
+func (_c *LMSSessionStore_FindTeacherConflicts_Call) RunAndReturn(run func(teacherID string, startMs int64, endMs int64, excludeSessionID string) ([]*lms_models.LMSSession, error)) *LMSSessionStore_FindTeacherConflicts_Call {
+	_c.Call.Return(run)
+	return _c
+}

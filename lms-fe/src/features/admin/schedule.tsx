@@ -1,10 +1,7 @@
 'use client'
 
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useForm, useWatch } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod/v4'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   format,
@@ -30,39 +27,29 @@ import {
   Plus,
   ChevronLeft,
   ChevronRight,
-  Trash2,
   MapPin,
   Users,
-  BookOpen,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
-import { getSessions, getClasses, createSession, updateSession, deleteSession } from '@/lib/api'
-import { createSessionSchema, updateSessionSchema, type CreateSessionInput, type UpdateSessionInput, type SessionListItem, type ClassListItem } from '@/lib/schemas'
+import {
+  getSessions,
+  getClasses,
+  createSession,
+  updateSession,
+  deleteSession,
+  type SessionCreateResult,
+  type SessionSubmitPayload,
+} from '@/lib/api'
+import { type UpdateSessionInput, type SessionListItem, type ClassListItem } from '@/lib/schemas'
+import { CreateSessionDialog } from './create-session-dialog'
+import { EditSessionDialog } from './edit-session-dialog'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ErrorState } from '@/components/shared/error-state'
-import { DatePicker } from '@/components/ui/date-picker'
-import { TimePicker } from '@/components/ui/time-picker'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Tooltip,
@@ -77,6 +64,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { useTranslation } from '@/lib/i18n'
+import { useToast } from '@/hooks/use-toast'
 
 // ─── Constants ─────────────────────────────────────────────────────────
 
@@ -130,6 +118,7 @@ function getWeekBlockHeight(startStr: string, endStr: string): number {
 
 export default function AdminSchedule() {
   const { t } = useTranslation()
+  const { toast } = useToast()
   const queryClient = useQueryClient()
   const [currentMonth, setCurrentMonth] = useState(() => new Date())
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month')
@@ -156,18 +145,28 @@ export default function AdminSchedule() {
 
   // ─── Mutations ───────────────────────────────────────────────────────
 
+  // Error surfacing (incl. the 409 teacher-conflict payload) lives in the
+  // dialogs — they render the conflicts inline with a force-retry action.
+  // The parent only owns success handling.
   const createMutation = useMutation({
-    mutationFn: (data: CreateSessionInput) => createSession(data),
-    onSuccess: () => {
+    mutationFn: (data: SessionSubmitPayload) => createSession(data),
+    onSuccess: (res: SessionCreateResult) => {
       queryClient.invalidateQueries({ queryKey: ['sessions'] })
+      toast({
+        title:
+          res.count > 1
+            ? t('schedule.createdMany', `Đã tạo ${res.count} buổi học`)
+            : t('schedule.createdOne', 'Đã tạo buổi học'),
+      })
       setCreateOpen(false)
     },
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateSessionInput }) => updateSession(id, data),
+    mutationFn: ({ id, data }: { id: string; data: UpdateSessionInput & { force?: boolean } }) => updateSession(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sessions'] })
+      toast({ title: t('schedule.updateSuccess', 'Cập nhật buổi học thành công') })
       setEditSession(null)
     },
   })
@@ -176,8 +175,11 @@ export default function AdminSchedule() {
     mutationFn: (id: string) => deleteSession(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sessions'] })
+      toast({ title: t('schedule.deleteSuccess', 'Đã xóa buổi học') })
       setEditSession(null)
     },
+    onError: (err: unknown) =>
+      toast({ title: (err as Error)?.message || t('common.deleteFail', 'Xóa thất bại'), variant: 'destructive' }),
   })
 
   // ─── Derived data ────────────────────────────────────────────────────
@@ -378,7 +380,7 @@ export default function AdminSchedule() {
           classes={classes}
           isLoadingClasses={isLoadingClasses}
           isClassesError={isClassesError}
-          onSubmit={(data) => createMutation.mutate(data)}
+          submit={(data) => createMutation.mutateAsync(data)}
           isPending={createMutation.isPending}
         />
 
@@ -390,7 +392,7 @@ export default function AdminSchedule() {
             isLoadingClasses={isLoadingClasses}
             isClassesError={isClassesError}
             onClose={() => setEditSession(null)}
-            onSubmit={(data) => updateMutation.mutate({ id: editSession.id, data })}
+            submit={(data) => updateMutation.mutateAsync({ id: editSession.id, data })}
             onDelete={() => deleteMutation.mutate(editSession.id)}
             isPending={updateMutation.isPending}
             isDeleting={deleteMutation.isPending}
@@ -786,417 +788,5 @@ function DayDetailSheet({
         </div>
       </SheetContent>
     </Sheet>
-  )
-}
-
-// ─── Create Session Dialog ──────────────────────────────────────────────
-
-function CreateSessionDialog({
-  open,
-  onClose,
-  classes,
-  isLoadingClasses,
-  isClassesError,
-  onSubmit,
-  isPending,
-}: {
-  open: boolean
-  onClose: () => void
-  classes: ClassListItem[]
-  isLoadingClasses?: boolean
-  isClassesError?: boolean
-  onSubmit: (data: CreateSessionInput) => void
-  isPending: boolean
-}) {
-  const { t } = useTranslation()
-  type CreateSessionFormValues = z.input<typeof createSessionSchema>
-
-  const form = useForm<CreateSessionFormValues>({
-    resolver: zodResolver(createSessionSchema),
-    defaultValues: {
-      title: '',
-      date: '',
-      startTime: '08:00',
-      endTime: '09:30',
-      room: '',
-      classId: '',
-      teacherId: '',
-    },
-  })
-
-  const watchedDate = useWatch({ control: form.control, name: 'date' })
-  const watchedClassId = useWatch({ control: form.control, name: 'classId' })
-  const watchedTeacherId = useWatch({ control: form.control, name: 'teacherId' })
-  const selectedClassId = watchedClassId
-  const selectedClass = classes.find(c => c.id === selectedClassId)
-
-  // Auto-fill teacher when class changes
-  const prevClassIdRef = useRef<string | undefined>(watchedClassId)
-  useEffect(() => {
-    if (watchedClassId === prevClassIdRef.current) return
-    prevClassIdRef.current = watchedClassId
-
-    if (watchedClassId) {
-      const cls = classes.find(c => c.id === watchedClassId)
-      if (cls?.teacherId) {
-        form.setValue('teacherId', cls.teacherId)
-      }
-      if (cls?.course?.name) {
-        form.setValue('title', cls.course.name)
-      }
-    }
-  }, [watchedClassId, classes, form])
-
-  const handleSubmit = (data: CreateSessionFormValues) => {
-    onSubmit(createSessionSchema.parse(data))
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5 text-sky-600" />
-            {t('schedule.createSessionTitle', 'Tạo buổi học mới')}
-          </DialogTitle>
-        </DialogHeader>
-
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 mt-2">
-          {/* Ngày học */}
-          <div className="space-y-1.5">
-            <Label data-error={!!form.formState.errors.date} className="data-[error=true]:text-destructive">{t('schedule.sessionDate', 'Ngày học')} <span className="text-destructive">*</span></Label>
-            <DatePicker
-              value={watchedDate}
-              onChange={(v) => form.setValue('date', v, { shouldValidate: true })}
-              invalid={!!form.formState.errors.date}
-            />
-            {form.formState.errors.date && (
-              <p className="text-xs text-destructive">{form.formState.errors.date.message}</p>
-            )}
-          </div>
-
-          {/* Thời gian */}
-          <div className="grid grid-cols-2 gap-3 items-start">
-            <div className="space-y-1.5">
-              <Label data-error={!!form.formState.errors.startTime} className="data-[error=true]:text-destructive">{t('schedule.startTime', 'Giờ bắt đầu')} <span className="text-destructive">*</span></Label>
-              <TimePicker
-                value={form.watch('startTime') ?? ''}
-                onChange={(v) => form.setValue('startTime', v, { shouldValidate: true })}
-                invalid={!!form.formState.errors.startTime}
-              />
-              {form.formState.errors.startTime && (
-                <p className="text-xs text-destructive">{form.formState.errors.startTime.message}</p>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label data-error={!!form.formState.errors.endTime} className="data-[error=true]:text-destructive">{t('schedule.endTime', 'Giờ kết thúc')} <span className="text-destructive">*</span></Label>
-              <TimePicker
-                value={form.watch('endTime') ?? ''}
-                onChange={(v) => form.setValue('endTime', v, { shouldValidate: true })}
-                invalid={!!form.formState.errors.endTime}
-              />
-              {form.formState.errors.endTime && (
-                <p className="text-xs text-destructive">{form.formState.errors.endTime.message}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Lớp học */}
-          <div className="space-y-1.5">
-            <Label data-error={!!form.formState.errors.classId} className="data-[error=true]:text-destructive">{t('schedule.className', 'Lớp học')} <span className="text-destructive">*</span></Label>
-            <Select value={watchedClassId || ''} onValueChange={(v) => form.setValue('classId', v, { shouldValidate: true })}>
-              <SelectTrigger aria-invalid={!!form.formState.errors.classId || undefined}>
-                {isLoadingClasses ? (
-                  <SelectValue placeholder={t('common.loading', 'Đang tải...')} />
-                ) : (
-                  <SelectValue placeholder={t('schedule.selectClassPlaceholder', 'Chọn lớp học')} />
-                )}
-              </SelectTrigger>
-              <SelectContent>
-                {isClassesError ? (
-                  <SelectItem value="__error" disabled>
-                    <span className="text-destructive">{t('common.loadFailed', 'Tải thất bại')}</span>
-                  </SelectItem>
-                ) : (
-                  classes.map(c => (
-                    <SelectItem key={c.id} value={c.id}>
-                      <div className="flex items-center gap-2">
-                        <BookOpen className="h-3 w-3 text-muted-foreground" />
-                        {c.name}
-                        <span className="text-muted-foreground text-xs">({c.course?.name})</span>
-                      </div>
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-            {form.formState.errors.classId && (
-              <p className="text-xs text-destructive">{form.formState.errors.classId.message}</p>
-            )}
-          </div>
-
-          {/* Giáo viên */}
-          <div className="space-y-1.5">
-            <Label data-error={!!form.formState.errors.teacherId} className="data-[error=true]:text-destructive">{t('schedule.teacher', 'Giáo viên')} <span className="text-destructive">*</span></Label>
-            <Select value={watchedTeacherId || ''} onValueChange={(v) => form.setValue('teacherId', v, { shouldValidate: true })}>
-              <SelectTrigger aria-invalid={!!form.formState.errors.teacherId || undefined}>
-                <SelectValue placeholder={t('schedule.selectTeacherPlaceholder', 'Chọn giáo viên')} />
-              </SelectTrigger>
-              <SelectContent>
-                {selectedClass?.teacher && (
-                  <SelectItem value={selectedClass.teacher.id}>
-                    {selectedClass.teacher.name}
-                  </SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-            {form.formState.errors.teacherId && (
-              <p className="text-xs text-destructive">{form.formState.errors.teacherId.message}</p>
-            )}
-          </div>
-
-          {/* Phòng học */}
-          <div className="space-y-1.5">
-            <Label data-error={!!form.formState.errors.room} className="data-[error=true]:text-destructive">{t('schedule.room', 'Phòng học')}</Label>
-            <Input placeholder={t('schedule.roomPlaceholder', 'Nhập phòng học (tùy chọn)')} aria-invalid={!!form.formState.errors.room || undefined} {...form.register('room')} />
-          </div>
-
-          {/* Tiêu đề */}
-          <div className="space-y-1.5">
-            <Label data-error={!!form.formState.errors.title} className="data-[error=true]:text-destructive">{t('schedule.sessionTitle', 'Tiêu đề')}</Label>
-            <Input placeholder={t('schedule.sessionTitlePlaceholder', 'Tên buổi học (mặc định: tên khóa học)')} aria-invalid={!!form.formState.errors.title || undefined} {...form.register('title')} />
-          </div>
-
-          <DialogFooter className="pt-2">
-            <Button type="button" variant="outline" onClick={onClose}>
-              {t('common.cancel', 'Hủy')}
-            </Button>
-            <Button type="submit" disabled={isPending} className="bg-sky-600 hover:bg-sky-700 text-white">
-              {isPending ? t('common.loading', 'Đang tạo...') : t('schedule.createSession', 'Tạo buổi học')}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-// ─── Edit Session Dialog ───────────────────────────────────────────────
-
-function EditSessionDialog({
-  session,
-  classes,
-  isLoadingClasses,
-  isClassesError,
-  onClose,
-  onSubmit,
-  onDelete,
-  isPending,
-  isDeleting,
-}: {
-  session: SessionListItem
-  classes: ClassListItem[]
-  isLoadingClasses?: boolean
-  isClassesError?: boolean
-  onClose: () => void
-  onSubmit: (data: UpdateSessionInput) => void
-  onDelete: () => void
-  isPending: boolean
-  isDeleting: boolean
-}) {
-  const { t } = useTranslation()
-  const [confirmDelete, setConfirmDelete] = useState(false)
-
-  const form = useForm<UpdateSessionInput>({
-    resolver: zodResolver(updateSessionSchema),
-    defaultValues: {
-      title: session.title ?? '',
-      date: session.date,
-      startTime: session.startTime,
-      endTime: session.endTime,
-      room: session.room ?? '',
-      classId: session.classId,
-      teacherId: session.teacherId,
-      status: session.status as 'SCHEDULED' | 'COMPLETED' | 'CANCELLED',
-    },
-  })
-
-  const watchedDate = useWatch({ control: form.control, name: 'date' })
-  const watchedStatus = useWatch({ control: form.control, name: 'status' })
-  const watchedClassId = useWatch({ control: form.control, name: 'classId' })
-  const watchedTeacherId = useWatch({ control: form.control, name: 'teacherId' })
-
-  const selectedClass = classes.find(c => c.id === watchedClassId)
-
-  const handleSubmit = (data: UpdateSessionInput) => {
-    onSubmit(data)
-  }
-
-  const handleDelete = () => {
-    if (confirmDelete) {
-      onDelete()
-    } else {
-      setConfirmDelete(true)
-      setTimeout(() => setConfirmDelete(false), 3000)
-    }
-  }
-
-  return (
-    <Dialog open={!!session} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CalendarDays className="h-5 w-5 text-sky-600" />
-            {t('schedule.editSession', 'Chỉnh sửa buổi học')}
-          </DialogTitle>
-        </DialogHeader>
-
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 mt-2">
-          {/* Ngày học */}
-          <div className="space-y-1.5">
-            <Label data-error={!!form.formState.errors.date} className="data-[error=true]:text-destructive">{t('schedule.sessionDate', 'Ngày học')}</Label>
-            <DatePicker
-              value={watchedDate}
-              onChange={(v) => form.setValue('date', v, { shouldValidate: true })}
-              invalid={!!form.formState.errors.date}
-            />
-            {form.formState.errors.date && (
-              <p className="text-xs text-destructive">{form.formState.errors.date.message}</p>
-            )}
-          </div>
-
-          {/* Thời gian */}
-          <div className="grid grid-cols-2 gap-3 items-start">
-            <div className="space-y-1.5">
-              <Label data-error={!!form.formState.errors.startTime} className="data-[error=true]:text-destructive">{t('schedule.startTime', 'Giờ bắt đầu')}</Label>
-              <TimePicker
-                value={form.watch('startTime') ?? ''}
-                onChange={(v) => form.setValue('startTime', v, { shouldValidate: true })}
-                invalid={!!form.formState.errors.startTime}
-              />
-              {form.formState.errors.startTime && (
-                <p className="text-xs text-destructive">{form.formState.errors.startTime.message}</p>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label data-error={!!form.formState.errors.endTime} className="data-[error=true]:text-destructive">{t('schedule.endTime', 'Giờ kết thúc')}</Label>
-              <TimePicker
-                value={form.watch('endTime') ?? ''}
-                onChange={(v) => form.setValue('endTime', v, { shouldValidate: true })}
-                invalid={!!form.formState.errors.endTime}
-              />
-              {form.formState.errors.endTime && (
-                <p className="text-xs text-destructive">{form.formState.errors.endTime.message}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Trạng thái */}
-          <div className="space-y-1.5">
-            <Label data-error={!!form.formState.errors.status} className="data-[error=true]:text-destructive">{t('common.status', 'Trạng thái')}</Label>
-            <Select
-              value={watchedStatus || 'SCHEDULED'}
-              onValueChange={(v) => form.setValue('status', v as 'SCHEDULED' | 'COMPLETED' | 'CANCELLED')}
-            >
-              <SelectTrigger aria-invalid={!!form.formState.errors.status || undefined}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="SCHEDULED">{t('schedule.statusScheduled', 'Sắp tới')}</SelectItem>
-                <SelectItem value="COMPLETED">{t('schedule.statusCompleted', 'Hoàn thành')}</SelectItem>
-                <SelectItem value="CANCELLED">{t('schedule.statusCancelled', 'Đã hủy')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Lớp học */}
-          <div className="space-y-1.5">
-            <Label data-error={!!form.formState.errors.classId} className="data-[error=true]:text-destructive">{t('schedule.className', 'Lớp học')}</Label>
-            <Select value={watchedClassId || ''} onValueChange={(v) => form.setValue('classId', v, { shouldValidate: true })}>
-              <SelectTrigger aria-invalid={!!form.formState.errors.classId || undefined}>
-                {isLoadingClasses ? (
-                  <SelectValue placeholder={t('common.loading', 'Đang tải...')} />
-                ) : (
-                  <SelectValue placeholder={t('schedule.selectClassPlaceholder', 'Chọn lớp học')} />
-                )}
-              </SelectTrigger>
-              <SelectContent>
-                {isClassesError ? (
-                  <SelectItem value="__error" disabled>
-                    <span className="text-destructive">{t('common.loadFailed', 'Tải thất bại')}</span>
-                  </SelectItem>
-                ) : (
-                  classes.map(c => (
-                    <SelectItem key={c.id} value={c.id}>
-                      <div className="flex items-center gap-2">
-                        <BookOpen className="h-3 w-3 text-muted-foreground" />
-                        {c.name}
-                        <span className="text-muted-foreground text-xs">({c.course?.name})</span>
-                      </div>
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Giáo viên */}
-          <div className="space-y-1.5">
-            <Label data-error={!!form.formState.errors.teacherId} className="data-[error=true]:text-destructive">{t('schedule.teacher', 'Giáo viên')}</Label>
-            <Select value={watchedTeacherId || ''} onValueChange={(v) => form.setValue('teacherId', v, { shouldValidate: true })}>
-              <SelectTrigger aria-invalid={!!form.formState.errors.teacherId || undefined}>
-                <SelectValue placeholder={t('schedule.selectTeacherPlaceholder', 'Chọn giáo viên')} />
-              </SelectTrigger>
-              <SelectContent>
-                {selectedClass?.teacher && (
-                  <SelectItem value={selectedClass.teacher.id}>
-                    {selectedClass.teacher.name}
-                  </SelectItem>
-                )}
-                {/* Also show the original teacher if different class */}
-                {!selectedClass?.teacher && session.teacher && (
-                  <SelectItem value={session.teacher.id}>
-                    {session.teacher.name}
-                  </SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Phòng học */}
-          <div className="space-y-1.5">
-            <Label data-error={!!form.formState.errors.room} className="data-[error=true]:text-destructive">{t('schedule.room', 'Phòng học')}</Label>
-            <Input placeholder={t('schedule.roomPlaceholderEdit', 'Nhập phòng học')} aria-invalid={!!form.formState.errors.room || undefined} {...form.register('room')} />
-          </div>
-
-          {/* Tiêu đề */}
-          <div className="space-y-1.5">
-            <Label data-error={!!form.formState.errors.title} className="data-[error=true]:text-destructive">{t('schedule.sessionTitle', 'Tiêu đề')}</Label>
-            <Input placeholder={t('schedule.sessionTitlePlaceholderEdit', 'Tên buổi học')} aria-invalid={!!form.formState.errors.title || undefined} {...form.register('title')} />
-          </div>
-
-          <DialogFooter className="pt-2 flex-row gap-2 justify-between sm:justify-end">
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="gap-1.5 mr-auto"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              {confirmDelete ? t('common.confirm', 'Xác nhận xóa?') : t('common.delete', 'Xóa')}
-            </Button>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={onClose}>
-                {t('common.cancel', 'Hủy')}
-              </Button>
-              <Button type="submit" disabled={isPending} className="bg-sky-600 hover:bg-sky-700 text-white">
-                {isPending ? t('common.loading', 'Đang lưu...') : t('common.update', 'Lưu thay đổi')}
-              </Button>
-            </div>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   )
 }
